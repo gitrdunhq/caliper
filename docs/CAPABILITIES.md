@@ -5,7 +5,7 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-05-04
+  LAST VERIFIED: 2026-06-11
   VERIFICATION: grep -c 'class.*ScannerPlugin' src/eedom/plugins/*.py → 19
 -->
 
@@ -25,7 +25,7 @@ Eagle Eyed Dom — fully deterministic dependency, security, and code review for
 | OPA Rego policy rules | 6 (4 deny, 2 warn) |
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
-| CLI commands | 5 |
+| CLI commands | 6 |
 | Output formats | 4 |
 | Supported ecosystems (SBOM) | 18 |
 | Supported languages (CPD) | 15 |
@@ -213,9 +213,10 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Command | Description |
 |---------|-------------|
 | `eedom evaluate` | Full pipeline on dependency changes. Modes: monitor/advise. Output: JSON. |
-| `eedom review` | Plugin review on repo or diff. Filter by --scanners, --category, --enable/--disable. Formats: markdown, SARIF. Supports --watch (watchdog, 500ms debounce), --pr N (inline PR review), --package (monorepo single package). |
+| `eedom review` | Plugin review on repo or diff. Filter by --scanners, --category, --enable/--disable. Formats: markdown, json (schema: `docs/schema/report-v1.0.json`), SARIF. Supports --watch (watchdog, 500ms debounce), --pr N (inline PR review), --package (monorepo single package). |
 | `eedom check-health` | Verify scanner binaries and DB connectivity. |
 | `eedom plugins` | List all registered plugins with binary status and depends_on. |
+| `eedom schema` | Print the JSON Schema for `eedom review --format json` output. `--output` writes to a file. Published artifact: `docs/schema/report-v1.0.json`. |
 | `eedom query` | Natural language query against code graph SQLite database. |
 
 ---

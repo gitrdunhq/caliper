@@ -1,0 +1,164 @@
+{
+  "$defs": {
+    "PluginReportModel": {
+      "description": "Per-plugin section of the JSON report.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "category": {
+          "default": "",
+          "title": "Category",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/PluginStatus"
+        },
+        "skip_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Skip Reason"
+        },
+        "skip_remediation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Skip Remediation"
+        },
+        "findings_count": {
+          "default": 0,
+          "title": "Findings Count",
+          "type": "integer"
+        },
+        "findings": {
+          "description": "Raw finding objects. Shape varies per plugin — parse individual entries with FindingModel for typed access.",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "summary": {
+          "additionalProperties": true,
+          "title": "Summary",
+          "type": "object"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        }
+      },
+      "required": [
+        "name",
+        "status"
+      ],
+      "title": "PluginReportModel",
+      "type": "object"
+    },
+    "PluginStatus": {
+      "description": "Execution status of a single plugin in the report.",
+      "enum": [
+        "ran",
+        "skipped",
+        "error"
+      ],
+      "title": "PluginStatus",
+      "type": "string"
+    },
+    "ReportVerdict": {
+      "description": "Overall review verdict, ordered from best to worst.",
+      "enum": [
+        "clear",
+        "incomplete",
+        "warnings",
+        "blocked"
+      ],
+      "title": "ReportVerdict",
+      "type": "string"
+    }
+  },
+  "description": "Top-level document emitted by ``eedom review --format json``.",
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "timestamp": {
+      "description": "ISO 8601 UTC timestamp of report generation.",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "repo": {
+      "default": "",
+      "title": "Repo",
+      "type": "string"
+    },
+    "commit": {
+      "default": "",
+      "title": "Commit",
+      "type": "string"
+    },
+    "verdict": {
+      "$ref": "#/$defs/ReportVerdict"
+    },
+    "security_score": {
+      "description": "0-100, security plugins only.",
+      "title": "Security Score",
+      "type": "number"
+    },
+    "quality_score": {
+      "description": "0-100, quality plugins only (advisory).",
+      "title": "Quality Score",
+      "type": "number"
+    },
+    "total_findings": {
+      "default": 0,
+      "title": "Total Findings",
+      "type": "integer"
+    },
+    "total_plugins": {
+      "default": 0,
+      "title": "Total Plugins",
+      "type": "integer"
+    },
+    "plugins": {
+      "items": {
+        "$ref": "#/$defs/PluginReportModel"
+      },
+      "title": "Plugins",
+      "type": "array"
+    }
+  },
+  "required": [
+    "timestamp",
+    "verdict",
+    "security_score",
+    "quality_score"
+  ],
+  "title": "ReportModel",
+  "type": "object"
+}

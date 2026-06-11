@@ -1,4 +1,4 @@
-"""Scanner inspection CLI commands — healthcheck, check-health, plugins."""
+"""Scanner inspection CLI commands — healthcheck, check-health, plugins, schema."""
 
 from __future__ import annotations
 
@@ -112,3 +112,29 @@ def plugins() -> None:
             f"{p.name:<20} {p.category.value:<15} {installed:<12} {deps:<18} {p.description}"
         )
     click.echo(f"\n{len(all_plugins)} plugins registered")
+
+
+@click.command("schema")
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, writable=True),
+    default=None,
+    help="Write the schema to a file instead of stdout.",
+)
+def schema(output_path: str | None) -> None:
+    """Print the JSON Schema for `eedom review --format json` output."""
+    import orjson
+
+    from eedom.core.report_schema import report_json_schema
+
+    rendered = orjson.dumps(report_json_schema(), option=orjson.OPT_INDENT_2).decode()
+    if output_path:
+        from pathlib import Path
+
+        p = Path(output_path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(rendered + "\n")
+        click.echo(f"Schema written to {output_path}")
+    else:
+        click.echo(rendered)
