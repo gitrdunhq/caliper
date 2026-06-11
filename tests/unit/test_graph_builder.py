@@ -281,8 +281,43 @@ class TestPurgeDeletedFiles:
         g = CodeGraph(db_path=db_file)
         g.rebuild_incremental([str(file_a), str(file_b)])
 
+        file_b.unlink()
         count = g.purge_deleted_files([str(file_a)])
         assert count == 1
+
+    def test_single_file_rebuild_preserves_other_tracked_files(self, tmp_path):
+        """rebuild_incremental([one_file]) must NOT purge other tracked files
+        that still exist on disk.
+
+        Regression for the per-write incremental pattern (datum agent-loop):
+        write A -> rebuild_incremental([A]); write B -> rebuild_incremental([B]).
+        The second call passed only B, and purge_deleted_files treated 'not in
+        the argument list' as 'deleted from disk', destroying A's symbols.
+        Purge must key on actual disk existence, not list membership.
+        """
+        db_file = str(tmp_path / "graph.sqlite")
+        file_a = tmp_path / "a.py"
+        file_b = tmp_path / "b.py"
+        file_a.write_text(SAMPLE_A)
+        file_b.write_text(SAMPLE_B)
+
+        g = CodeGraph(db_path=db_file)
+        # Per-write pattern: each file rebuilt in its own call
+        g.rebuild_incremental([str(file_a)])
+        g.rebuild_incremental([str(file_b)])
+
+        names = {
+            r["name"]
+            for r in g.conn.execute("SELECT name FROM symbols WHERE kind = 'function'").fetchall()
+        }
+        assert "alpha" in names, "file_a still exists on disk — its symbols must survive"
+        assert "gamma" in names
+
+        # And the metadata row for file_a must survive too
+        row = g.conn.execute(
+            "SELECT path FROM file_metadata WHERE path = ?", (str(file_a),)
+        ).fetchone()
+        assert row is not None, "file_a metadata must not be purged while it exists on disk"
 
     def test_purge_with_all_files_present_returns_zero(self, tmp_path):
         """purge_deleted_files with all files still present returns 0."""

@@ -483,12 +483,20 @@ class CodeGraph:
         self.conn.commit()
 
     def purge_deleted_files(self, existing_files: list[str]) -> int:
-        """Remove symbols/edges/metadata for files no longer on disk."""
-        existing = set(existing_files)
+        """Remove symbols/edges/metadata for files no longer on disk.
+
+        Keys on actual disk existence, NOT membership in existing_files.
+        A tracked file absent from the argument list but still present on
+        disk must survive — per-file incremental callers
+        (rebuild_incremental([one_file])) pass only the changed file, and
+        list-membership purging destroyed every other tracked file's
+        symbols (gitrdunhq/eedom#385). existing_files is retained for
+        API compatibility but no longer consulted.
+        """
         tracked = self.conn.execute("SELECT path FROM file_metadata").fetchall()
         purged = 0
         for row in tracked:
-            if row["path"] not in existing:
+            if not Path(row["path"]).exists():
                 self.conn.execute(
                     "DELETE FROM edges"
                     " WHERE source_id IN (SELECT id FROM symbols WHERE file = ?)"
