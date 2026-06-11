@@ -272,6 +272,70 @@ class TestCodeGraph:
         assert len(names) >= 8
 
 
+class TestFindingMessages:
+    """Issue #390 — every blast-radius finding carries a non-empty message."""
+
+    def _graph_with_findings(self):
+        g = CodeGraph()
+        g.index_file("scanner.py", SAMPLE_PYTHON)
+        # A second module importing scanner-ish things to trigger more checks.
+        g.index_file(
+            "test_calculator.py",
+            textwrap.dedent("""\
+                def add(a, b):
+                    return a + b
+
+                def test_addition():
+                    assert add(1, 2) == 3
+
+                def test_subtraction():
+                    assert add(5, -2) == 3
+            """),
+        )
+        g.conn.commit()
+        return g
+
+    def test_run_checks_findings_all_have_nonempty_message(self):
+        g = self._graph_with_findings()
+        findings = g.run_checks(["scanner.py", "test_calculator.py"])
+        assert findings, "fixture must trigger at least one finding"
+        for f in findings:
+            assert f.get("message", "").strip(), f"empty message in finding: {f}"
+
+    def test_custom_check_with_empty_description_still_has_message(self):
+        g = self._graph_with_findings()
+        g.register_check(
+            name="every_function",
+            query="SELECT s.name, s.file, s.line FROM symbols s"
+            " WHERE s.file IN ({changed_files}) AND s.kind = 'function'",
+        )  # description defaults to "" — message must not be empty
+        findings = g.run_checks(["scanner.py"])
+        custom = [f for f in findings if f["check"] == "every_function"]
+        assert custom, "custom check must produce findings"
+        for f in custom:
+            assert f.get("message", "").strip(), f"empty message in finding: {f}"
+
+    def test_plugin_findings_normalize_to_nonempty_messages(self, tmp_path, monkeypatch):
+        """End-to-end: PluginFinding.message is never empty for blast-radius."""
+        from eedom.core.registry import _normalize_findings
+
+        monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "test_calculator.py").write_text(
+            "def add(a, b):\n"
+            "    return a + b\n\n"
+            "def test_addition():\n"
+            "    assert add(1, 2) == 3\n"
+        )
+        result = BlastRadiusPlugin().run(["test_calculator.py"], repo)
+        assert result.error == ""
+        findings = _normalize_findings(result.findings)
+        assert findings, "fixture must trigger at least one finding (orphan test funcs)"
+        for f in findings:
+            assert f.message.strip(), f"empty message in finding: {f.to_dict()}"
+
+
 class TestGraphDbLocation:
     """Issue #391 — the graph db must not pollute the reviewed repo by default."""
 
