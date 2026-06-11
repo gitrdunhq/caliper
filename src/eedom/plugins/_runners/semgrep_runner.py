@@ -51,10 +51,22 @@ def detect_rulesets(changed_files: list[str]) -> list[str]:
     return rulesets
 
 
+def _is_excluded(check_id: str, exclude_rules: list[str]) -> bool:
+    """True when *check_id* matches an excluded rule id.
+
+    Opengrep rewrites local-rule ids with dotted path prefixes (e.g.
+    ``policies.semgrep.path-traversal``), so a bare rule id matches either
+    the full check_id or its trailing dotted segment — never a substring.
+    """
+    return any(check_id == rule or check_id.endswith(f".{rule}") for rule in exclude_rules)
+
+
 def run_semgrep(
     changed_files: list[str],
     repo_path: str,
     timeout: int = 120,
+    extra_config_dirs: list[str] | None = None,
+    exclude_rules: list[str] | None = None,
 ) -> dict:
     if not changed_files:
         return {"results": [], "errors": []}
@@ -67,8 +79,17 @@ def run_semgrep(
         config_args.extend(["--config", rs])
     if org_rules.is_dir():
         config_args.extend(["--config", str(org_rules)])
+    for extra_dir in extra_config_dirs or []:
+        if Path(extra_dir).is_dir():
+            config_args.extend(["--config", extra_dir])
+        else:
+            logger.debug("semgrep.extra_config_dir_missing", path=extra_dir)
 
-    cmd = ["opengrep", *config_args, "--json", *changed_files]
+    exclude_args: list[str] = []
+    for rule_id in exclude_rules or []:
+        exclude_args.extend(["--exclude-rule", rule_id])
+
+    cmd = ["opengrep", *config_args, *exclude_args, "--json", *changed_files]
     try:
         result = subprocess.run(
             cmd,
@@ -79,7 +100,17 @@ def run_semgrep(
             check=False,
         )
         if result.stdout:
-            return json.loads(result.stdout)
+            data = json.loads(result.stdout)
+            if exclude_rules and isinstance(data.get("results"), list):
+                # Post-filter: --exclude-rule only matches exact ids, but
+                # opengrep prefixes local-rule ids with their dotted path
+                # (policies.semgrep.<rule>). Filtering here is backend-agnostic.
+                data["results"] = [
+                    r
+                    for r in data["results"]
+                    if not _is_excluded(str(r.get("check_id", "")), exclude_rules)
+                ]
+            return data
         return {
             "results": [],
             "errors": [{"message": "no output", "level": "warn"}],

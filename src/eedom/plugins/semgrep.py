@@ -45,8 +45,23 @@ class SemgrepPlugin(ScannerPlugin):
         return any(Path(f).suffix in _CODE_EXTS for f in files)
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
+        from eedom.core.repo_config import RepoConfig, load_repo_config
+
+        repo_config: RepoConfig
         try:
-            data = _run(files, str(repo_path), timeout=120)
+            repo_config = load_repo_config(repo_path)
+        except (ValueError, OSError):
+            repo_config = RepoConfig()
+        sg = repo_config.plugins.semgrep
+
+        try:
+            data = _run(
+                files,
+                str(repo_path),
+                timeout=120,
+                extra_config_dirs=sg.extra_config_dirs,
+                exclude_rules=sg.exclude_rules,
+            )
         except Exception as exc:
             return PluginResult(plugin_name=self.name, error=str(exc))
 
