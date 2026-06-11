@@ -63,20 +63,16 @@ class BlastRadiusPlugin(ScannerPlugin):
             db_dir = Path(tempfile.mkdtemp(prefix="eedom-blast-radius-"))
         db_path = str(db_dir / db_name)
 
-        graph = CodeGraph(db_path=db_path, fan_out_limit=fan_out_limit)
+        # Issue #387: CodeGraph normalizes repo-relative/absolute paths at its
+        # API boundary once repo_root is known — no manual conversion needed.
+        graph = CodeGraph(db_path=db_path, fan_out_limit=fan_out_limit, repo_root=repo_path)
 
         if graph.stats()["symbols"] == 0:
             graph.index_directory(repo_path)
         else:
-            graph.rebuild_incremental(
-                [str(repo_path / f) if not Path(f).is_absolute() else f for f in files]
-            )
+            graph.rebuild_incremental(files)
 
-        changed = [
-            str(Path(f).relative_to(repo_path)) if Path(f).is_absolute() else f
-            for f in files
-            if Path(f).suffix in _CODE_EXTS
-        ]
+        changed = [f for f in files if Path(f).suffix in _CODE_EXTS]
 
         findings = graph.run_checks(changed)
         stats = graph.stats()
