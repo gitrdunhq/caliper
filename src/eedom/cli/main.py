@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -74,12 +75,34 @@ def _validate_gh_repo(ctx: click.Context, param: click.Parameter, value: str | N
     return value
 
 
+def _is_isolated_environment() -> bool:
+    """Return True when running inside a venv, conda env, or container.
+
+    Detection layers (#388 — avoid false negatives for uv-managed venvs):
+    - stdlib venv / uv venv / pipx / uv tool: ``sys.prefix != sys.base_prefix``
+    - venvs whose interpreter lost base-prefix detection (relocated or
+      uv-managed pythons): ``pyvenv.cfg`` marker beside ``sys.prefix``
+    - caller-activated venvs (``uv run`` / ``source activate`` set
+      ``VIRTUAL_ENV``): accepted only if it points at a real venv
+    - conda/mamba envs (full installs, prefix == base_prefix): ``CONDA_PREFIX``
+    - containers: ``/.dockerenv`` or ``/run/.containerenv``
+    """
+    if sys.prefix != sys.base_prefix:
+        return True
+    if (Path(sys.prefix) / "pyvenv.cfg").is_file():
+        return True
+    virtual_env = os.environ.get("VIRTUAL_ENV", "")
+    if virtual_env and (Path(virtual_env) / "pyvenv.cfg").is_file():
+        return True
+    if os.environ.get("CONDA_PREFIX"):
+        return True
+    return Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
+
+
 def _check_isolated_environment() -> None:
     """Abort if running outside a virtual environment or container."""
-    in_venv = sys.prefix != sys.base_prefix
-    in_container = Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
-    bypass = "EEDOM_ALLOW_GLOBAL" in __import__("os").environ
-    if not in_venv and not in_container and not bypass:
+    bypass = "EEDOM_ALLOW_GLOBAL" in os.environ
+    if not _is_isolated_environment() and not bypass:
         click.echo(
             "ERROR: eedom must run in an isolated environment.\n"
             "\n"
