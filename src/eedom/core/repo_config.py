@@ -16,11 +16,19 @@ logger = structlog.get_logger()
 _CONFIG_FILENAME = ".eagle-eyed-dom.yaml"
 
 
+class SemgrepConfig(BaseModel):
+    """Semgrep/opengrep tuning passed to the runner."""
+
+    extra_config_dirs: list[str] = []
+    exclude_rules: list[str] = []
+
+
 class PluginConfig(BaseModel):
     """Per-plugin allow/deny filtering."""
 
     enabled: list[str] | None = None
     disabled: list[str] | None = None
+    semgrep: SemgrepConfig = SemgrepConfig()
 
 
 class TelemetryConfig(BaseModel):
