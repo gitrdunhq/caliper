@@ -575,6 +575,8 @@ class TestIsolatedEnvironmentCheck:
         monkeypatch.setattr(_sys, "prefix", "/usr")
         monkeypatch.setattr(_sys, "base_prefix", "/usr")
         monkeypatch.delenv("EEDOM_ALLOW_GLOBAL", raising=False)
+        monkeypatch.delenv("VIRTUAL_ENV", raising=False)
+        monkeypatch.delenv("CONDA_PREFIX", raising=False)
 
         _real_exists = Path.exists
         _container_sentinels = {"/.dockerenv", "/run/.containerenv"}
@@ -608,6 +610,84 @@ class TestIsolatedEnvironmentCheck:
         runner = CliRunner()
         result = runner.invoke(cli, ["review", "--repo-path", "."])
         assert result.exit_code == 0
+
+    def test_allows_virtual_env_pointing_at_real_venv(self, monkeypatch, tmp_path) -> None:
+        """#388 — VIRTUAL_ENV set by uv run / activate counts as isolated even
+        when base_prefix detection fails (false negative scenario)."""
+        import sys as _sys
+
+        venv_dir = tmp_path / ".venv"
+        venv_dir.mkdir()
+        (venv_dir / "pyvenv.cfg").write_text("home = /usr/bin\nuv = 0.11.7\n")
+
+        monkeypatch.setattr(_sys, "prefix", "/usr")
+        monkeypatch.setattr(_sys, "base_prefix", "/usr")
+        monkeypatch.delenv("EEDOM_ALLOW_GLOBAL", raising=False)
+        monkeypatch.delenv("CONDA_PREFIX", raising=False)
+        monkeypatch.setenv("VIRTUAL_ENV", str(venv_dir))
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["plugins"])
+        assert result.exit_code == 0
+
+    def test_allows_venv_marker_file_next_to_prefix(self, monkeypatch, tmp_path) -> None:
+        """#388 — a pyvenv.cfg beside sys.prefix marks isolation even when
+        sys.base_prefix == sys.prefix (relocated / uv-managed interpreters)."""
+        import sys as _sys
+
+        venv_dir = tmp_path / "venv"
+        venv_dir.mkdir()
+        (venv_dir / "pyvenv.cfg").write_text("home = /usr/bin\n")
+
+        monkeypatch.setattr(_sys, "prefix", str(venv_dir))
+        monkeypatch.setattr(_sys, "base_prefix", str(venv_dir))
+        monkeypatch.delenv("EEDOM_ALLOW_GLOBAL", raising=False)
+        monkeypatch.delenv("VIRTUAL_ENV", raising=False)
+        monkeypatch.delenv("CONDA_PREFIX", raising=False)
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["plugins"])
+        assert result.exit_code == 0
+
+    def test_allows_conda_env(self, monkeypatch, tmp_path) -> None:
+        """#388 — conda envs have prefix == base_prefix; CONDA_PREFIX marks them."""
+        import sys as _sys
+
+        monkeypatch.setattr(_sys, "prefix", "/usr")
+        monkeypatch.setattr(_sys, "base_prefix", "/usr")
+        monkeypatch.delenv("EEDOM_ALLOW_GLOBAL", raising=False)
+        monkeypatch.delenv("VIRTUAL_ENV", raising=False)
+        monkeypatch.setenv("CONDA_PREFIX", str(tmp_path / "conda-env"))
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["plugins"])
+        assert result.exit_code == 0
+
+    def test_rejects_stale_virtual_env_pointer(self, monkeypatch, tmp_path) -> None:
+        """#388 guard intact — VIRTUAL_ENV pointing at a non-venv directory
+        does NOT count as isolated."""
+        import sys as _sys
+
+        monkeypatch.setattr(_sys, "prefix", "/usr")
+        monkeypatch.setattr(_sys, "base_prefix", "/usr")
+        monkeypatch.delenv("EEDOM_ALLOW_GLOBAL", raising=False)
+        monkeypatch.delenv("CONDA_PREFIX", raising=False)
+        monkeypatch.setenv("VIRTUAL_ENV", str(tmp_path / "does-not-exist"))
+
+        _real_exists = Path.exists
+        _container_sentinels = {"/.dockerenv", "/run/.containerenv"}
+
+        def _patched_exists(self: Path) -> bool:
+            if str(self) in _container_sentinels:
+                return False
+            return _real_exists(self)
+
+        monkeypatch.setattr(Path, "exists", _patched_exists)
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["review", "--repo-path", "."])
+        assert result.exit_code == 1
+        assert "isolated environment" in result.output
 
 
 class TestCliTopLevel:
