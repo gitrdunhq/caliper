@@ -103,3 +103,39 @@ class TestExcludeRules:
         run_semgrep(["app.py"], "/workspace")
         cmd = mock_run.call_args[0][0]
         assert "--exclude-rule" not in cmd
+
+    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    def test_exclude_rules_post_filter_prefixed_ids(self, mock_run):
+        """Local-rule ids get dotted path prefixes (e.g. policies.semgrep.X);
+        post-filter must drop them when the bare rule id is excluded."""
+        mock_run.return_value.stdout = (
+            '{"results": ['
+            '{"check_id": "policies.semgrep.path-traversal", "path": "a.py"},'
+            '{"check_id": "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true", "path": "a.py"},'
+            '{"check_id": "policies.semgrep.sql-injection", "path": "a.py"}'
+            '], "errors": []}'
+        )
+        mock_run.return_value.returncode = 0
+        data = run_semgrep(["a.py"], "/workspace", exclude_rules=["path-traversal"])
+        ids = [r["check_id"] for r in data["results"]]
+        assert "policies.semgrep.path-traversal" not in ids
+        assert "policies.semgrep.sql-injection" in ids
+        assert any("subprocess-shell-true" in i for i in ids)
+
+    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    def test_exclude_rules_post_filter_exact_and_suffix(self, mock_run):
+        """Exclusion matches the full check_id or its trailing dotted segment,
+        never a bare substring (excluding 'traversal' must not drop path-traversal)."""
+        mock_run.return_value.stdout = (
+            '{"results": ['
+            '{"check_id": "policies.semgrep.path-traversal", "path": "a.py"},'
+            '{"check_id": "unsafe-deserialization", "path": "a.py"}'
+            '], "errors": []}'
+        )
+        mock_run.return_value.returncode = 0
+        data = run_semgrep(
+            ["a.py"], "/workspace", exclude_rules=["traversal", "unsafe-deserialization"]
+        )
+        ids = [r["check_id"] for r in data["results"]]
+        assert "policies.semgrep.path-traversal" in ids  # substring must NOT match
+        assert "unsafe-deserialization" not in ids  # exact bare id matches

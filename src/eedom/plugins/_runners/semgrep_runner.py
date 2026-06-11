@@ -51,6 +51,19 @@ def detect_rulesets(changed_files: list[str]) -> list[str]:
     return rulesets
 
 
+def _is_excluded(check_id: str, exclude_rules: list[str]) -> bool:
+    """True when *check_id* matches an excluded rule id.
+
+    Opengrep rewrites local-rule ids with dotted path prefixes (e.g.
+    ``policies.semgrep.path-traversal``), so a bare rule id matches either
+    the full check_id or its trailing dotted segment — never a substring.
+    """
+    for rule in exclude_rules:
+        if check_id == rule or check_id.endswith(f".{rule}"):
+            return True
+    return False
+
+
 def run_semgrep(
     changed_files: list[str],
     repo_path: str,
@@ -90,7 +103,17 @@ def run_semgrep(
             check=False,
         )
         if result.stdout:
-            return json.loads(result.stdout)
+            data = json.loads(result.stdout)
+            if exclude_rules and isinstance(data.get("results"), list):
+                # Post-filter: --exclude-rule only matches exact ids, but
+                # opengrep prefixes local-rule ids with their dotted path
+                # (policies.semgrep.<rule>). Filtering here is backend-agnostic.
+                data["results"] = [
+                    r
+                    for r in data["results"]
+                    if not _is_excluded(str(r.get("check_id", "")), exclude_rules)
+                ]
+            return data
         return {
             "results": [],
             "errors": [{"message": "no output", "level": "warn"}],
