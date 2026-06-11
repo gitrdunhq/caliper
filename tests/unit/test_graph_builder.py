@@ -437,6 +437,7 @@ class TestBlastRadiusPersistence:
         """BlastRadiusPlugin reads db_path from config and passes it to CodeGraph."""
         from eedom.plugins.blast_radius import BlastRadiusPlugin
 
+        monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
         plugin = BlastRadiusPlugin()
         # The plugin's run() should not crash when called with a tmp repo_path
         # Create a minimal Python file so indexing succeeds
