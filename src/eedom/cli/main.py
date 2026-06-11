@@ -125,12 +125,13 @@ def cli() -> None:
 
 
 def _register_subcommands() -> None:
-    from eedom.cli.inspect_cmds import check_health, healthcheck, plugins
+    from eedom.cli.inspect_cmds import check_health, healthcheck, plugins, schema
     from eedom.cli.query_cmd import query
 
     cli.add_command(healthcheck)
     cli.add_command(check_health)
     cli.add_command(plugins)
+    cli.add_command(schema)
     cli.add_command(query)
 
 

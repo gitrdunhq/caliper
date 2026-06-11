@@ -1,14 +1,28 @@
 # tested-by: tests/unit/test_json_report.py
-"""Structured JSON output for machine consumption."""
+# tested-by: tests/unit/test_report_schema.py
+"""Structured JSON output for machine consumption.
+
+The emitted document round-trips through the published Pydantic models in
+``eedom.core.report_schema`` (#389) so the output always matches the
+JSON Schema artifact in ``docs/schema/``.
+"""
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, datetime
 
 import orjson
 
 from eedom.core.plugin import PluginResult
 from eedom.core.renderer import calculate_quality_score, calculate_severity_score
+from eedom.core.report_schema import (
+    REPORT_SCHEMA_VERSION,
+    PluginReportModel,
+    PluginStatus,
+    ReportModel,
+    ReportVerdict,
+)
 
 
 def _plugin_status(result: PluginResult) -> str:
@@ -17,6 +31,13 @@ def _plugin_status(result: PluginResult) -> str:
     if result.summary.get("status") == "skipped":
         return "skipped"
     return "ran"
+
+
+def _finding_to_dict(finding: object) -> dict:
+    """Normalize a finding to a plain dict, matching orjson's dataclass shape."""
+    if dataclasses.is_dataclass(finding) and not isinstance(finding, type):
+        return dataclasses.asdict(finding)
+    return finding  # type: ignore[return-value]
 
 
 def render_json(
@@ -34,35 +55,34 @@ def render_json(
 
     plugins = []
     for r in results:
-        status = _plugin_status(r)
         plugins.append(
-            {
-                "name": r.plugin_name,
-                "category": r.category,
-                "status": status,
-                "skip_reason": r.skip_reason or None,
-                "skip_remediation": r.skip_remediation or None,
-                "findings_count": len(r.findings),
-                "findings": r.findings,
-                "summary": r.summary,
-                "error": r.error or None,
-            }
+            PluginReportModel(
+                name=r.plugin_name,
+                category=r.category,
+                status=PluginStatus(_plugin_status(r)),
+                skip_reason=r.skip_reason or None,
+                skip_remediation=r.skip_remediation or None,
+                findings_count=len(r.findings),
+                findings=[_finding_to_dict(f) for f in r.findings],
+                summary=r.summary,
+                error=r.error or None,
+            )
         )
 
-    doc = {
-        "schema_version": "1.0",
-        "timestamp": datetime.now(UTC).isoformat(),
-        "repo": repo,
-        "commit": commit,
-        "verdict": verdict,
-        "security_score": security_score,
-        "quality_score": quality_score,
-        "total_findings": total_findings,
-        "total_plugins": len(results),
-        "plugins": plugins,
-    }
+    report = ReportModel(
+        schema_version=REPORT_SCHEMA_VERSION,
+        timestamp=datetime.now(UTC).isoformat(),
+        repo=repo,
+        commit=commit,
+        verdict=ReportVerdict(verdict),
+        security_score=security_score,
+        quality_score=quality_score,
+        total_findings=total_findings,
+        total_plugins=len(results),
+        plugins=plugins,
+    )
 
-    return orjson.dumps(doc, option=orjson.OPT_INDENT_2).decode()
+    return orjson.dumps(report.model_dump(mode="json"), option=orjson.OPT_INDENT_2).decode()
 
 
 class JsonRenderer:
