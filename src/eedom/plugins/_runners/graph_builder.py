@@ -106,6 +106,39 @@ CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source_id);
 CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_id);
 """
 
+
+def _finding_message(check_name: str, description: str | None, finding: dict) -> str:
+    """Build a non-empty human-readable message for a check finding.
+
+    Base text is the check's description, falling back to the check name
+    (NOT NULL in the schema), so the result is never empty (issue #390).
+    Row context — subject symbol/files and metric columns — is appended
+    deterministically when present.
+    """
+    existing = str(finding.get("message") or "").strip()
+    if existing:
+        return existing
+    base = str(description or "").strip() or check_name
+    name = finding.get("name")
+    file = finding.get("file")
+    subject = ""
+    if name and name != file:
+        subject = str(name)
+    elif finding.get("file_a") and finding.get("file_b"):
+        subject = f"{finding['file_a']} <-> {finding['file_b']}"
+    metrics = [
+        f"{key}={finding[key]}"
+        for key in ("dependents", "calls_out", "depth", "import_count", "method_count")
+        if finding.get(key) is not None
+    ]
+    msg = base
+    if subject:
+        msg = f"{base}: {subject}"
+    if metrics:
+        msg = f"{msg} ({', '.join(metrics)})"
+    return msg
+
+
 _CHECKS_YAML = Path(__file__).parent / "checks.yaml"
 
 
@@ -195,14 +228,18 @@ class CodeGraph:
             try:
                 rows = self.conn.execute(query, changed_files).fetchall()
                 for row in rows:
-                    findings.append(
-                        {
-                            "check": check["name"],
-                            "severity": check["severity"],
-                            "description": check["description"],
-                            **dict(row),
-                        }
+                    finding = {
+                        "check": check["name"],
+                        "severity": check["severity"],
+                        "description": check["description"],
+                        **dict(row),
+                    }
+                    # Issue #390: every finding carries a non-empty,
+                    # human-readable message — consumers render it directly.
+                    finding["message"] = _finding_message(
+                        check["name"], check["description"], finding
                     )
+                    findings.append(finding)
             except sqlite3.Error as exc:
                 logger.debug("graph.check_failed", check=check["name"], error=str(exc))
         return findings
