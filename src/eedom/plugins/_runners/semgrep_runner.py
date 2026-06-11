@@ -51,6 +51,27 @@ def detect_rulesets(changed_files: list[str]) -> list[str]:
     return rulesets
 
 
+def _abort_detail(data: dict, returncode: int) -> str | None:
+    """Return failure detail when opengrep aborted the scan, else None.
+
+    Opengrep can abort the ENTIRE scan (e.g. one broken symlink in the
+    target list) while still printing valid JSON: empty ``results`` plus
+    ``level=error`` entries, exit code >= 2. Treating that as a clean scan
+    is fail-open (#396) — the caller must see a scanner error instead.
+    """
+    errors = data.get("errors") or []
+    fatal_msgs = [
+        str(e.get("message") or "unknown error")
+        for e in errors
+        if isinstance(e, dict) and e.get("level") == "error"
+    ]
+    if returncode >= 2:
+        return fatal_msgs[0] if fatal_msgs else f"exit code {returncode}"
+    if not data.get("results") and fatal_msgs:
+        return fatal_msgs[0]
+    return None
+
+
 def _is_excluded(check_id: str, exclude_rules: list[str]) -> bool:
     """True when *check_id* matches an excluded rule id.
 
@@ -101,6 +122,17 @@ def run_semgrep(
         )
         if result.stdout:
             data = json.loads(result.stdout)
+            abort_detail = _abort_detail(data, result.returncode)
+            if abort_detail is not None:
+                from eedom.core.errors import ErrorCode, error_msg
+
+                msg = error_msg(ErrorCode.SCANNER_DEGRADED, "opengrep", detail=abort_detail)
+                logger.warning(
+                    "opengrep.scan_aborted",
+                    error=msg,
+                    exit_code=result.returncode,
+                )
+                return {"results": [], "errors": [{"message": msg}], "status": "error"}
             if exclude_rules and isinstance(data.get("results"), list):
                 # Post-filter: --exclude-rule only matches exact ids, but
                 # opengrep prefixes local-rule ids with their dotted path
