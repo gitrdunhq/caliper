@@ -41,7 +41,7 @@ parquet = [
     "pyarrow==24.0.0",
 ]
 copilot = [
-    "agent-framework-github-copilot==1.0.0b260424",
+    "agent-framework-github-copilot==1.0.0rc1",
     "starlette==1.0.0",
     "uvicorn==0.46.0",
 ]
