@@ -387,7 +387,9 @@ def review(
     def run_review() -> None:
         from eedom.core.use_cases import ReviewOptions, review_repository
 
+        click.echo(f"Discovering files in {repo}...", err=True)
         files, repo_file_list = _build_file_lists()
+        click.echo(f"Running scanners on {len(files)} files...", err=True)
 
         options = ReviewOptions(
             scanners=names,

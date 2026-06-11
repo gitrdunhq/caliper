@@ -155,12 +155,15 @@ class PluginRegistry:
 
         # Run independent plugins in parallel; preserve original ordering.
         def _task(indexed_plugin: tuple[int, ScannerPlugin]) -> tuple[int, PluginResult]:
+            import sys
             idx, plugin = indexed_plugin
             plugin_files = (
                 repo_files
                 if repo_files is not None and plugin.category in self._REPO_WIDE_CATEGORIES
                 else files
             )
+            sys.stderr.write(f"  → Running {plugin.name}...\n")
+            sys.stderr.flush()
             return idx, self._run_one(plugin, plugin_files, repo_path)
 
         results_dict: dict[int, PluginResult] = {}

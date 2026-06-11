@@ -49,7 +49,8 @@ podman run --rm \
     -v "${REPO}:/workspace:ro" \
     -v "${TRIVY_CACHE}:/home/eedom/.cache/trivy" \
     "${IMAGE}" review --repo-path /workspace --all \
-    ${FORMAT:+--format "${FORMAT}"}
+    ${FORMAT:+--format "${FORMAT}"} \
+    "${@:3}"
 
 # Prune dangling layers after a successful run.
 podman system prune -f --volumes >/dev/null 2>&1 || true

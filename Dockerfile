@@ -22,6 +22,7 @@ ARG CFN_NAG_VERSION=0.8.10
 ARG LS_LINT_VERSION=2.3.1
 ARG PMD_VERSION=7.24.0
 ARG SWIFTLINT_VERSION=0.57.1
+ARG RTK_VERSION=0.40.0
 
 # ── Source revision pins ─────────────────────────────────────────────────────
 # GitHub release assets are still addressed by release version because that is
@@ -49,6 +50,7 @@ ARG KUBE_LINTER_SHA256_ARM64=802e1b09eabd08f6f0a060a6b8ab2bf7bc7e6bf4f673bb26923
 ARG LS_LINT_SHA256_ARM64=2abdb71243c619f0bb29587be5c228bec84c107985f2c066139ef0ec35fd3a99
 ARG PMD_SHA256=110934b36d39c19094d1b77386931978093f238f2c2f1851748822b69c7367ac
 ARG OPENGREP_SHA256_ARM64=3bade33c9aee60edf88899cac2b58086bf728caf0a93aced97dd77c272a740f1
+ARG RTK_SHA256_ARM64=1d0087ad62a182c0833c2251ac678b5e05356418d91aa57305ac51a126c9b102
 # SwiftLint — arm64 Linux binary not yet available; plugin degrades gracefully if missing
 ARG SWIFTLINT_SHA256_AMD64=81cb02135897dc982b4d1049dba8510db3e982b0b0e8e138293982d77e4154e0
 
@@ -62,6 +64,7 @@ ARG JQ_SHA256_AMD64=5942c9b0934e510ee61eb3e30273f1b3fe2590df93933a93d7c58b81d19c
 ARG KUBE_LINTER_SHA256_AMD64=1a6d8419b11971372971fdbc22682b684ebfb7cf1c39591662d1b6ca736c41df
 ARG LS_LINT_SHA256_AMD64=b5a0d2e4427ad039fbc574551f17679f38f142b25d15e0e538769f8cf15af397
 ARG OPENGREP_SHA256_AMD64=09cbb4c938df696246018a678823adaa8d651a774f321fd19fb5ad44c0129860
+ARG RTK_SHA256_AMD64=a75d210a445874106bc16da2b4efba01d36d297afa33ec134728f2d5f42ef5af
 ARG UV_COMMIT=0e961dd9a2bb6f73493d9e8398b725ad2d3b3837
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -84,10 +87,11 @@ FROM docker.io/library/python@${PYTHON_SHA256_ARM64} AS python_base_arm64
 # ════════════════════════════════════════════════════════════════════════════
 FROM python_base_${TARGETARCH} AS builder
 
-ARG SYFT_VERSION TRIVY_VERSION OSV_VERSION OPA_VERSION GITLEAKS_VERSION JQ_VERSION KUBE_LINTER_VERSION PMD_VERSION LS_LINT_VERSION SWIFTLINT_VERSION
+ARG SYFT_VERSION TRIVY_VERSION OSV_VERSION OPA_VERSION GITLEAKS_VERSION JQ_VERSION KUBE_LINTER_VERSION PMD_VERSION LS_LINT_VERSION SWIFTLINT_VERSION RTK_VERSION
 ARG SYFT_COMMIT TRIVY_COMMIT OSV_COMMIT OPA_COMMIT GITLEAKS_COMMIT KUBE_LINTER_COMMIT JQ_COMMIT LS_LINT_COMMIT UV_COMMIT
 ARG OPENGREP_VERSION SCANCODE_VERSION LIZARD_VERSION MYPY_VERSION
 ARG SYFT_SHA256_ARM64 TRIVY_SHA256_ARM64 OSV_SHA256_ARM64 OPA_SHA256_ARM64 GITLEAKS_SHA256_ARM64 JQ_SHA256_ARM64 KUBE_LINTER_SHA256_ARM64 LS_LINT_SHA256_ARM64 PMD_SHA256
+ARG RTK_SHA256_ARM64 RTK_SHA256_AMD64
 ARG SYFT_SHA256_AMD64 TRIVY_SHA256_AMD64 OSV_SHA256_AMD64 OPA_SHA256_AMD64 GITLEAKS_SHA256_AMD64 JQ_SHA256_AMD64 KUBE_LINTER_SHA256_AMD64 LS_LINT_SHA256_AMD64 SWIFTLINT_SHA256_AMD64
 ARG TARGETARCH
 
@@ -113,7 +117,8 @@ RUN set -eux; \
             GITLEAKS_ARCH="x64";     GITLEAKS_SHA="${GITLEAKS_SHA256_AMD64}"; \
             JQ_ARCH="amd64";         JQ_SHA="${JQ_SHA256_AMD64}"; \
             KL_SUFFIX="";           KL_SHA="${KUBE_LINTER_SHA256_AMD64}"; \
-            LL_ARCH="amd64";         LL_SHA="${LS_LINT_SHA256_AMD64}" ;; \
+            LL_ARCH="amd64";         LL_SHA="${LS_LINT_SHA256_AMD64}"; \
+            RTK_ARCH="x86_64-unknown-linux-musl"; RTK_SHA="${RTK_SHA256_AMD64}" ;; \
         "arm64") \
             SYFT_ARCH="arm64";       SYFT_SHA="${SYFT_SHA256_ARM64}"; \
             TRIVY_ARCH="ARM64";      TRIVY_SHA="${TRIVY_SHA256_ARM64}"; \
@@ -122,7 +127,8 @@ RUN set -eux; \
             GITLEAKS_ARCH="arm64";   GITLEAKS_SHA="${GITLEAKS_SHA256_ARM64}"; \
             JQ_ARCH="arm64";         JQ_SHA="${JQ_SHA256_ARM64}"; \
             KL_SUFFIX="_arm64";     KL_SHA="${KUBE_LINTER_SHA256_ARM64}"; \
-            LL_ARCH="arm64";         LL_SHA="${LS_LINT_SHA256_ARM64}" ;; \
+            LL_ARCH="arm64";         LL_SHA="${LS_LINT_SHA256_ARM64}"; \
+            RTK_ARCH="aarch64-unknown-linux-gnu"; RTK_SHA="${RTK_SHA256_ARM64}" ;; \
         *) echo "Fatal: unsupported architecture ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
     curl -sSfL -o /tmp/syft.tar.gz "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_${SYFT_ARCH}.tar.gz"; \
@@ -143,6 +149,9 @@ RUN set -eux; \
     tar -xzf /tmp/kube-linter.tar.gz -C /staging/gobin kube-linter; \
     curl -sSfL -o /staging/gobin/ls-lint "https://github.com/loeffel-io/ls-lint/releases/download/v${LS_LINT_VERSION}/ls-lint-linux-${LL_ARCH}"; \
     echo "${LL_SHA}  /staging/gobin/ls-lint" | sha256sum --strict -c -; \
+    curl -sSfL -o /tmp/rtk.tar.gz "https://github.com/rtk-ai/rtk/releases/download/v${RTK_VERSION}/rtk-${RTK_ARCH}.tar.gz"; \
+    echo "${RTK_SHA}  /tmp/rtk.tar.gz" | sha256sum --strict -c -; \
+    tar -xzf /tmp/rtk.tar.gz -C /staging/gobin rtk; \
     curl -sSfL -o /tmp/pmd.zip "https://github.com/pmd/pmd/releases/download/pmd_releases/${PMD_VERSION}/pmd-dist-${PMD_VERSION}-bin.zip"; \
     echo "${PMD_SHA256}  /tmp/pmd.zip" | sha256sum --strict -c -; \
     unzip -q /tmp/pmd.zip -d /staging/pmd; \
@@ -168,7 +177,7 @@ RUN set -eux; \
     fi
 
 # ── Build-time checksums for runtime verification ────────────────────────────
-RUN for b in syft trivy osv-scanner opa gitleaks kube-linter ls-lint; do \
+RUN for b in syft trivy osv-scanner opa gitleaks kube-linter ls-lint rtk; do \
       sha256sum "/staging/gobin/$b" | sed "s|/staging/gobin/$b|/usr/local/bin/$b|"; \
     done > /staging/scripts/checksums.txt \
     && sha256sum /staging/jq/jq | sed 's|/staging/jq/jq|/usr/bin/jq|' >> /staging/scripts/checksums.txt
@@ -303,6 +312,7 @@ COPY --from=builder /staging/gobin/opa         /usr/local/bin/opa
 COPY --from=builder /staging/gobin/gitleaks    /usr/local/bin/gitleaks
 COPY --from=builder /staging/gobin/kube-linter /usr/local/bin/kube-linter
 COPY --from=builder /staging/gobin/ls-lint    /usr/local/bin/ls-lint
+COPY --from=builder /staging/gobin/rtk        /usr/local/bin/rtk
 COPY --from=builder /usr/local/bin/opengrep   /usr/local/bin/opengrep
 COPY --from=builder /staging/pmd/              /opt/pmd/
 COPY --from=builder /staging/jq/jq             /usr/bin/jq
@@ -322,7 +332,8 @@ RUN printf '#!/bin/sh\nexec /opt/pmd/pmd-bin-%s/bin/pmd "$@"\n' "${PMD_VERSION}"
     && chmod +x /usr/local/bin/pmd
 
 # Entrypoint verifies binary integrity before running eedom
-RUN printf '#!/bin/sh\n/opt/eedom/scripts/verify-checksums.sh || exit 1\nexec eedom "$@"\n' > /usr/local/bin/entrypoint.sh \
+# Pipes output through RTK for token optimization.
+RUN printf '#!/bin/sh\n/opt/eedom/scripts/verify-checksums.sh || exit 1\nPYTHONUNBUFFERED=1 eedom "$@" 2>&1 | rtk pipe\n' > /usr/local/bin/entrypoint.sh \
     && chmod +x /usr/local/bin/entrypoint.sh
 
 ENV PATH="/opt/eedom/.venv/bin:$PATH" \
