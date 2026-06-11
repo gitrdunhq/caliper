@@ -58,10 +58,7 @@ def _is_excluded(check_id: str, exclude_rules: list[str]) -> bool:
     ``policies.semgrep.path-traversal``), so a bare rule id matches either
     the full check_id or its trailing dotted segment — never a substring.
     """
-    for rule in exclude_rules:
-        if check_id == rule or check_id.endswith(f".{rule}"):
-            return True
-    return False
+    return any(check_id == rule or check_id.endswith(f".{rule}") for rule in exclude_rules)
 
 
 def run_semgrep(
