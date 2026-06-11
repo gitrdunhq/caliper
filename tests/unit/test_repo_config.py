@@ -151,3 +151,37 @@ class TestRepoConfigModel:
         )
         assert rc.plugins.disabled == ["cspell"]
         assert rc.thresholds["semgrep"] == {"level": "error"}
+
+
+class TestSemgrepConfig:
+    def test_default_semgrep_config(self) -> None:
+        """Default SemgrepConfig has empty lists."""
+        rc = RepoConfig()
+        assert rc.plugins.semgrep.extra_config_dirs == []
+        assert rc.plugins.semgrep.exclude_rules == []
+
+    def test_semgrep_config_from_yaml(self, tmp_path: Path) -> None:
+        """Semgrep tuning keys are parsed from .eagle-eyed-dom.yaml."""
+        _write_config(
+            tmp_path,
+            {
+                "plugins": {
+                    "enabled": ["semgrep"],
+                    "semgrep": {
+                        "extra_config_dirs": ["/opt/rules/community"],
+                        "exclude_rules": ["path-traversal", "magic-number"],
+                    },
+                }
+            },
+        )
+        config = load_repo_config(tmp_path)
+        assert config.plugins.semgrep.extra_config_dirs == ["/opt/rules/community"]
+        assert "path-traversal" in config.plugins.semgrep.exclude_rules
+        assert "magic-number" in config.plugins.semgrep.exclude_rules
+
+    def test_semgrep_config_absent_defaults(self, tmp_path: Path) -> None:
+        """Missing semgrep key produces empty defaults, not an error."""
+        _write_config(tmp_path, {"plugins": {"enabled": ["semgrep"]}})
+        config = load_repo_config(tmp_path)
+        assert config.plugins.semgrep.extra_config_dirs == []
+        assert config.plugins.semgrep.exclude_rules == []

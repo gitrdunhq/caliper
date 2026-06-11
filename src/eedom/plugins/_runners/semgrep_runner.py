@@ -55,6 +55,8 @@ def run_semgrep(
     changed_files: list[str],
     repo_path: str,
     timeout: int = 120,
+    extra_config_dirs: list[str] | None = None,
+    exclude_rules: list[str] | None = None,
 ) -> dict:
     if not changed_files:
         return {"results": [], "errors": []}
@@ -67,8 +69,17 @@ def run_semgrep(
         config_args.extend(["--config", rs])
     if org_rules.is_dir():
         config_args.extend(["--config", str(org_rules)])
+    for extra_dir in extra_config_dirs or []:
+        if Path(extra_dir).is_dir():
+            config_args.extend(["--config", extra_dir])
+        else:
+            logger.debug("semgrep.extra_config_dir_missing", path=extra_dir)
 
-    cmd = ["opengrep", *config_args, "--json", *changed_files]
+    exclude_args: list[str] = []
+    for rule_id in exclude_rules or []:
+        exclude_args.extend(["--exclude-rule", rule_id])
+
+    cmd = ["opengrep", *config_args, *exclude_args, "--json", *changed_files]
     try:
         result = subprocess.run(
             cmd,
