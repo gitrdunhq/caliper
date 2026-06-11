@@ -79,6 +79,81 @@ class TestExtraConfigDirs:
         assert "/no/such/dir" not in config_values
 
 
+class TestFailClosedOnAbort:
+    """Issue #396 — opengrep aborting the whole scan must fail CLOSED.
+
+    When opengrep exits with code >= 2 it can still print valid JSON with
+    empty results and level=error entries (e.g. one broken symlink in the
+    target list aborts the entire scan). That must never look like a clean
+    scan to the caller.
+    """
+
+    _ABORT_STDOUT = (
+        '{"results": [], "errors": [{"code": 2, "level": "error", '
+        '"type": "SemgrepError", '
+        '"message": "File not found: .antigravitycli/dead.json"}]}'
+    )
+
+    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    def test_abort_with_fatal_exit_code_sets_status_error(self, mock_run):
+        """returncode 2 + empty results + level=error -> status error, never clean."""
+        mock_run.return_value.stdout = self._ABORT_STDOUT
+        mock_run.return_value.returncode = 2
+        data = run_semgrep(["app.py"], "/workspace")
+        assert data.get("status") == "error"
+        assert data["results"] == []
+        assert data["errors"], "fail-closed result must carry an error entry"
+        assert "File not found" in data["errors"][0]["message"]
+
+    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    def test_fatal_exit_code_without_error_entries_sets_status_error(self, mock_run):
+        """returncode >= 2 fails closed even when the JSON errors list is empty."""
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 2
+        data = run_semgrep(["app.py"], "/workspace")
+        assert data.get("status") == "error"
+        assert data["errors"], "fail-closed result must carry an error entry"
+
+    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    def test_zero_results_with_fatal_errors_sets_status_error(self, mock_run):
+        """Empty results + level=error entries fail closed even if exit code is 0."""
+        mock_run.return_value.stdout = self._ABORT_STDOUT
+        mock_run.return_value.returncode = 0
+        data = run_semgrep(["app.py"], "/workspace")
+        assert data.get("status") == "error"
+
+    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    def test_clean_scan_stays_clean(self, mock_run):
+        """No findings, no errors, exit 0 -> genuinely clean, no status injected."""
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        data = run_semgrep(["app.py"], "/workspace")
+        assert data.get("status") is None
+        assert data["results"] == []
+
+    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    def test_warn_level_errors_with_zero_results_stay_clean(self, mock_run):
+        """Non-fatal (level=warn) errors with zero results are not an abort."""
+        mock_run.return_value.stdout = (
+            '{"results": [], "errors": [{"level": "warn", "message": "skipped file"}]}'
+        )
+        mock_run.return_value.returncode = 0
+        data = run_semgrep(["app.py"], "/workspace")
+        assert data.get("status") is None
+
+    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    def test_partial_scan_with_findings_keeps_findings(self, mock_run):
+        """Per-file level=error entries alongside real findings: scan ran, keep results."""
+        mock_run.return_value.stdout = (
+            '{"results": [{"check_id": "rule-x", "path": "a.py"}], '
+            '"errors": [{"level": "error", "message": "parse error: b.py"}]}'
+        )
+        mock_run.return_value.returncode = 0
+        data = run_semgrep(["app.py"], "/workspace")
+        assert data.get("status") is None
+        assert len(data["results"]) == 1
+
+
 class TestExcludeRules:
     @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
     def test_exclude_rules_passed_to_cli(self, mock_run):
