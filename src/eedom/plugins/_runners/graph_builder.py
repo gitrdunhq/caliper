@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import os
 import re
 import sqlite3
 from pathlib import Path
@@ -15,6 +16,46 @@ from pathlib import Path
 import structlog
 
 logger = structlog.get_logger(__name__)
+
+_GRAPH_DB_FILENAME = "code_graph.sqlite"
+
+
+def default_graph_db_dir(repo_path: Path | str) -> Path:
+    """Return the per-repo cache directory for the graph database.
+
+    Defaults to ``$XDG_CACHE_HOME/eedom/graphs/<repo-hash>`` (falling back to
+    ``~/.cache`` when ``XDG_CACHE_HOME`` is unset).  The hash is derived from
+    the resolved absolute repo path so each reviewed repo gets its own db.
+    """
+    cache_root = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    digest = hashlib.sha256(str(Path(repo_path).resolve()).encode()).hexdigest()[:16]
+    return cache_root / "eedom" / "graphs" / digest
+
+
+def resolve_graph_db_path(repo_path: Path | str, configured: str | None = None) -> Path:
+    """Resolve where the code graph SQLite db for *repo_path* lives.
+
+    Resolution order:
+
+    1. ``EEDOM_GRAPH_DB`` environment variable (explicit override).
+    2. *configured* — an explicit path from repo config
+       (``thresholds.blast-radius.graph_db`` in ``.eagle-eyed-dom.yaml``);
+       relative values are resolved against *repo_path*.
+    3. A pre-existing legacy ``<repo>/.eedom/code_graph.sqlite`` (the pre-0.3
+       layout) keeps being used so existing graphs are not orphaned.
+    4. Default: :func:`default_graph_db_dir`, i.e. the user cache dir —
+       reviewing a repo never writes into the repo itself (issue #391).
+    """
+    env_override = os.environ.get("EEDOM_GRAPH_DB")
+    if env_override:
+        return Path(env_override)
+    if configured:
+        p = Path(configured)
+        return p if p.is_absolute() else Path(repo_path) / p
+    legacy = Path(repo_path) / ".eedom" / _GRAPH_DB_FILENAME
+    if legacy.exists():
+        return legacy
+    return default_graph_db_dir(repo_path) / _GRAPH_DB_FILENAME
 
 
 def _hash_file(file_path: str) -> str:

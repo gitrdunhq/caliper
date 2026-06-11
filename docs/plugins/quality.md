@@ -18,6 +18,17 @@ Counts how many symbols depend on a given function, surfacing the change surface
 
 Even advisory, this tells a reviewer whether a one-line change touches 2 callers or 40.
 
+### Graph database location
+
+Reviewing a repo never writes into the repo itself. The code graph SQLite db is resolved in this order:
+
+1. `EEDOM_GRAPH_DB` environment variable — explicit override.
+2. `thresholds.blast-radius.graph_db` in `.eagle-eyed-dom.yaml` — relative paths resolve against the repo root.
+3. A pre-existing legacy `<repo>/.eedom/code_graph.sqlite` keeps being used.
+4. Default: `$XDG_CACHE_HOME/eedom/graphs/<repo-hash>/code_graph.sqlite` (`~/.cache` when `XDG_CACHE_HOME` is unset).
+
+`eedom query` reads the same resolved location by default; pass `--db` to point elsewhere.
+
 ---
 
 ## complexity
