@@ -152,12 +152,67 @@ def _load_builtin_checks() -> list[dict]:
 
 
 class CodeGraph:
-    def __init__(self, db_path: str = ":memory:", fan_out_limit: int = 8) -> None:
+    """SQLite-backed code knowledge graph.
+
+    Path convention (issue #387): ``symbols.file`` and ``file_metadata.path``
+    store paths RELATIVE to the repo root. Once a repo root is known — passed
+    to the constructor or inferred by :meth:`index_directory` — every public
+    method accepts either repo-relative or absolute paths and normalizes them
+    at the boundary. Absolute paths outside the repo root raise ``ValueError``.
+
+    Without a repo root (``CodeGraph()`` ad hoc usage) paths are stored and
+    matched exactly as given — callers must then be consistent about which
+    form they use.
+    """
+
+    def __init__(
+        self,
+        db_path: str = ":memory:",
+        fan_out_limit: int = 8,
+        repo_root: str | Path | None = None,
+    ) -> None:
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(_SCHEMA)
         self._fan_out_limit = fan_out_limit
+        self.repo_root: Path | None = Path(repo_root).resolve() if repo_root else None
         self._register_builtin_checks()
+
+    # ------------------------------------------------------------------
+    # Path normalization at the API boundary (issue #387)
+    # ------------------------------------------------------------------
+
+    def _storage_key(self, file_path: str | Path) -> str:
+        """Return the stored (repo-relative) form of *file_path*.
+
+        Absolute paths are relativized against ``repo_root``; absolute paths
+        outside the root are rejected with a clear error. Relative paths are
+        assumed repo-relative and returned unchanged. Without a repo root the
+        path passes through as given (legacy behavior).
+        """
+        p = Path(file_path)
+        if not p.is_absolute():
+            return str(file_path)
+        if self.repo_root is None:
+            return str(file_path)
+        try:
+            return str(p.resolve().relative_to(self.repo_root))
+        except ValueError:
+            raise ValueError(
+                f"Path {file_path} is outside the repo root {self.repo_root}; "
+                "pass a repo-relative path or an absolute path under the root."
+            ) from None
+
+    def _disk_path(self, file_path: str | Path) -> Path:
+        """Return the on-disk path for *file_path* (for stat/read).
+
+        Relative paths resolve against ``repo_root`` when known, otherwise
+        against the current working directory (legacy behavior).
+        """
+        p = Path(file_path)
+        if p.is_absolute() or self.repo_root is None:
+            return p
+        return self.repo_root / p
 
     def _register_builtin_checks(self) -> None:
         required = {"name", "query", "severity", "description"}
@@ -193,6 +248,14 @@ class CodeGraph:
             self._index_javascript(file_path, source)
 
     def index_directory(self, root: Path) -> int:
+        """Index every code file under *root*.
+
+        Symbols are stored with paths RELATIVE to *root*. Also records *root*
+        as the graph's repo root (when not already set), enabling absolute or
+        relative paths interchangeably on subsequent API calls (issue #387).
+        """
+        if self.repo_root is None:
+            self.repo_root = Path(root).resolve()
         count = 0
         for ext in ("*.py", "*.ts", "*.js", "*.tsx", "*.jsx"):
             for path in root.rglob(ext):
@@ -217,8 +280,17 @@ class CodeGraph:
         return count
 
     def run_checks(self, changed_files: list[str]) -> list[dict]:
+        """Run all registered checks scoped to *changed_files*.
+
+        Accepts repo-relative or absolute paths; both are normalized to the
+        stored repo-relative form when the repo root is known (issue #387).
+        Each returned finding dict carries check/severity/description, a
+        non-empty human-readable ``message`` (issue #390), and the row's
+        columns (typically ``name``/``file``/``line`` plus check metrics).
+        """
         if not changed_files:
             return []
+        changed_files = [self._storage_key(f) for f in changed_files]
         placeholders = ",".join("?" for _ in changed_files)
         checks = self.conn.execute("SELECT * FROM checks").fetchall()
         findings: list[dict] = []
@@ -243,6 +315,16 @@ class CodeGraph:
             except sqlite3.Error as exc:
                 logger.debug("graph.check_failed", check=check["name"], error=str(exc))
         return findings
+
+    def run_checks_for_file(self, file_path: str | Path) -> list[dict]:
+        """Run all registered checks scoped to a single file (issue #387).
+
+        Per-file convenience wrapper around :meth:`run_checks` — accepts a
+        repo-relative or absolute path and normalizes it to the stored form,
+        so library consumers never have to reverse-engineer the storage
+        convention from SQL.
+        """
+        return self.run_checks([str(file_path)])
 
     def blast_radius(self, symbol_name: str, max_depth: int = 3) -> list[dict]:
         results: list[dict] = []
@@ -520,43 +602,57 @@ class CodeGraph:
         return "real"
 
     def needs_rebuild(self, file_path: str) -> bool:
-        """Return True if file_path is new or has changed since last rebuild."""
+        """Return True if file_path is new or has changed since last rebuild.
+
+        Accepts a repo-relative or absolute path (issue #387): metadata is
+        looked up by the stored repo-relative key, while mtime/hash are
+        checked against the resolved on-disk path.
+        """
+        key = self._storage_key(file_path)
+        disk = self._disk_path(file_path)
         row = self.conn.execute(
             "SELECT mtime, content_hash FROM file_metadata WHERE path = ?",
-            (file_path,),
+            (key,),
         ).fetchone()
         if row is None:
             return True
         try:
-            stat = Path(file_path).stat()
+            stat = disk.stat()
             if abs(stat.st_mtime - row["mtime"]) > 0.001:
                 # mtime changed — confirm via content hash
-                return _hash_file(file_path) != row["content_hash"]
+                return _hash_file(str(disk)) != row["content_hash"]
             return False
         except FileNotFoundError:
             return True
 
     def rebuild_file(self, file_path: str) -> None:
-        """Delete old symbols/edges for file_path, re-parse from disk, update metadata."""
+        """Delete old symbols/edges for file_path, re-parse from disk, update metadata.
+
+        Accepts a repo-relative or absolute path (issue #387). Symbols and
+        metadata are stored under the repo-relative key; file contents are
+        read from the resolved on-disk path.
+        """
+        key = self._storage_key(file_path)
+        disk = self._disk_path(file_path)
         # Remove edges that involve symbols from this file
         self.conn.execute(
             "DELETE FROM edges"
             " WHERE source_id IN (SELECT id FROM symbols WHERE file = ?)"
             " OR target_id IN (SELECT id FROM symbols WHERE file = ?)",
-            (file_path, file_path),
+            (key, key),
         )
-        self.conn.execute("DELETE FROM symbols WHERE file = ?", (file_path,))
+        self.conn.execute("DELETE FROM symbols WHERE file = ?", (key,))
         self.conn.commit()
 
-        content = Path(file_path).read_text()
-        self.index_file(file_path, content)
+        content = disk.read_text()
+        self.index_file(key, content)
         self.conn.commit()
 
-        stat = Path(file_path).stat()
+        stat = disk.stat()
         content_hash = hashlib.sha256(content.encode()).hexdigest()
         self.conn.execute(
             "INSERT OR REPLACE INTO file_metadata (path, mtime, content_hash) VALUES (?, ?, ?)",
-            (file_path, stat.st_mtime, content_hash),
+            (key, stat.st_mtime, content_hash),
         )
         self.conn.commit()
 
@@ -570,11 +666,14 @@ class CodeGraph:
         list-membership purging destroyed every other tracked file's
         symbols (gitrdunhq/eedom#385). existing_files is retained for
         API compatibility but no longer consulted.
+
+        Stored keys are resolved via :meth:`_disk_path` (issue #387), so the
+        existence check is correct regardless of the caller's cwd.
         """
         tracked = self.conn.execute("SELECT path FROM file_metadata").fetchall()
         purged = 0
         for row in tracked:
-            if not Path(row["path"]).exists():
+            if not self._disk_path(row["path"]).exists():
                 self.conn.execute(
                     "DELETE FROM edges"
                     " WHERE source_id IN (SELECT id FROM symbols WHERE file = ?)"
@@ -589,7 +688,12 @@ class CodeGraph:
         return purged
 
     def rebuild_incremental(self, files: list[str]) -> int:
-        """Rebuild only changed files. Returns count of files actually rebuilt."""
+        """Rebuild only changed files. Returns count of files actually rebuilt.
+
+        *files* may be repo-relative or absolute paths (issue #387); each is
+        normalized at the boundary by :meth:`needs_rebuild` /
+        :meth:`rebuild_file` / :meth:`purge_deleted_files`.
+        """
         code_suffixes = {".py", ".ts", ".js", ".tsx", ".jsx"}
         code_files = [f for f in files if Path(f).suffix in code_suffixes]
         self.purge_deleted_files(code_files)

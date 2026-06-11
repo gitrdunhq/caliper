@@ -29,6 +29,19 @@ Reviewing a repo never writes into the repo itself. The code graph SQLite db is 
 
 `eedom query` reads the same resolved location by default; pass `--db` to point elsewhere.
 
+### Path conventions (library API)
+
+`CodeGraph` stores `symbols.file` and `file_metadata.path` RELATIVE to the repo root. Once a repo root is known (constructor `repo_root=` or inferred by `index_directory()`), every public method — `run_checks`, `run_checks_for_file`, `needs_rebuild`, `rebuild_file`, `rebuild_incremental`, `purge_deleted_files` — accepts either repo-relative or absolute paths and normalizes at the API boundary. Absolute paths outside the repo root raise `ValueError`.
+
+For per-file queries use the convenience API:
+
+```python
+graph = CodeGraph(db_path=db, repo_root="/path/to/repo")
+findings = graph.run_checks_for_file("/path/to/repo/src/mod.py")  # or "src/mod.py"
+```
+
+Without a repo root (ad hoc `CodeGraph()`), paths are stored and matched exactly as given.
+
 ---
 
 ## complexity

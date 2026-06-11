@@ -337,6 +337,88 @@ class TestPurgeDeletedFiles:
         assert "alpha" in names
 
 
+class TestPathNormalization:
+    """Issue #387 — CodeGraph normalizes paths at the API boundary.
+
+    Convention: symbols/file_metadata store paths RELATIVE to the repo root.
+    Every public method accepts either repo-relative or absolute paths once a
+    repo root is known (constructor arg or index_directory), and absolute
+    paths outside the root are rejected loudly.
+    """
+
+    def _build(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "a.py").write_text(SAMPLE_A)
+        (repo / "b.py").write_text(SAMPLE_B)
+        g = CodeGraph(db_path=str(tmp_path / "graph.sqlite"))
+        g.index_directory(repo)
+        return repo, g
+
+    def test_run_checks_accepts_absolute_paths(self, tmp_path):
+        repo, g = self._build(tmp_path)
+        rel = g.run_checks(["a.py"])
+        absolute = g.run_checks([str(repo / "a.py")])
+        assert rel, "relative path must produce findings (orphan alpha/beta)"
+        assert absolute == rel, "absolute path must match the same stored rows"
+
+    def test_run_checks_for_file_accepts_both_forms(self, tmp_path):
+        repo, g = self._build(tmp_path)
+        rel = g.run_checks_for_file("a.py")
+        absolute = g.run_checks_for_file(str(repo / "a.py"))
+        assert rel
+        assert absolute == rel
+
+    def test_rebuild_stores_relative_paths_no_duplicate_spellings(self, tmp_path):
+        repo, g = self._build(tmp_path)
+        (repo / "a.py").write_text(SAMPLE_A_MODIFIED)
+        os.utime(repo / "a.py", (time.time() + 2, time.time() + 2))
+
+        g.rebuild_incremental([str(repo / "a.py"), str(repo / "b.py")])
+
+        files = {
+            r["file"]
+            for r in g.conn.execute("SELECT DISTINCT file FROM symbols").fetchall()
+            if r["file"].endswith(".py")
+        }
+        assert files == {"a.py", "b.py"}, f"expected only relative spellings, got: {files}"
+        # And the rebuilt content must be queryable via the relative form.
+        findings = g.run_checks(["a.py"])
+        names = {f.get("name") for f in findings}
+        assert "epsilon" in names
+
+    def test_needs_rebuild_accepts_relative_path(self, tmp_path):
+        repo, g = self._build(tmp_path)
+        g.rebuild_incremental(["a.py"])
+        assert g.needs_rebuild("a.py") is False
+        assert g.needs_rebuild(str(repo / "a.py")) is False
+
+    def test_absolute_path_outside_root_rejected_loudly(self, tmp_path):
+        repo, g = self._build(tmp_path)
+        outside = tmp_path / "elsewhere" / "x.py"
+        with pytest.raises(ValueError, match="repo root"):
+            g.run_checks([str(outside)])
+
+    def test_constructor_repo_root(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "a.py").write_text(SAMPLE_A)
+        g = CodeGraph(db_path=str(tmp_path / "g.sqlite"), repo_root=repo)
+        g.rebuild_incremental([str(repo / "a.py")])
+        row = g.conn.execute("SELECT path FROM file_metadata").fetchone()
+        assert row["path"] == "a.py", "metadata must use the repo-relative key"
+        assert g.run_checks_for_file(str(repo / "a.py"))
+
+    def test_no_repo_root_keeps_legacy_behavior(self, tmp_path):
+        """Without a known root, paths are stored exactly as given."""
+        py_file = tmp_path / "module.py"
+        py_file.write_text(SAMPLE_A)
+        g = CodeGraph()
+        g.rebuild_file(str(py_file))
+        row = g.conn.execute("SELECT path FROM file_metadata").fetchone()
+        assert row["path"] == str(py_file)
+
+
 class TestImportEdgePathTraversal:
     """_add_import_edge must reject paths that could escape the indexed directory."""
 
