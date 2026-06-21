@@ -326,6 +326,22 @@ class CodeGraph:
         """
         return self.run_checks([str(file_path)])
 
+    def symbol_at(self, file_path: str | Path, line: int) -> dict | None:
+        """Return the innermost symbol enclosing *file_path*:*line*, or None.
+
+        Deterministic: among symbols whose ``[line, end_line]`` span contains
+        *line*, the innermost (largest start line) wins. The enrichment layer
+        (ADR-006) uses this to map a finding location to its function/class.
+        """
+        key = self._storage_key(file_path)
+        row = self.conn.execute(
+            "SELECT name, kind, file, line, end_line FROM symbols "
+            "WHERE file = ? AND line <= ? AND COALESCE(end_line, line) >= ? "
+            "ORDER BY line DESC LIMIT 1",
+            (key, line, line),
+        ).fetchone()
+        return dict(row) if row else None
+
     def blast_radius(self, symbol_name: str, max_depth: int = 3) -> list[dict]:
         results: list[dict] = []
         visited: set[int] = set()
