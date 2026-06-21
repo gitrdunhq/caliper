@@ -102,6 +102,15 @@ class EedomSettings(BaseSettings):
     llm_model: str | None = None
     llm_api_key: SecretStr | None = None  # F-021: use SecretStr to prevent accidental logging
 
+    # Supply-chain version-bump source-diff analysis (a separate, gated step —
+    # NOT part of the normal scan). Off by default: it needs registry egress to
+    # fetch package distributions. The optional LLM narrative reuses the llm_*
+    # settings and the "supply_chain_threat" enricher (opt-in via enabled_enrichers).
+    supply_chain_diff_enabled: bool = False
+    supply_chain_diff_timeout: int = 60
+    supply_chain_diff_ecosystems: list[str] = Field(default=["pypi", "npm"])
+    supply_chain_diff_max_archive_bytes: int = 64 * 1024 * 1024
+
     # Alternatives catalog
     alternatives_path: str = "./alternatives.json"
 
