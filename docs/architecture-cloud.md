@@ -25,7 +25,7 @@ configuration without guesswork.
 
 **Container image production-ready.** The Dockerfile is a hardened multi-stage
 build with SHA-256 verified binaries, SLSA provenance attestation
-(`.github/workflows/build-container.yml`), and all 15 scanner plugins baked in.
+(`.github/workflows/build-container.yml`), and all 19 scanner plugins baked in.
 This image can deploy to any container runtime (ECS Fargate, Cloud Run, EKS)
 without modification.
 
@@ -909,7 +909,7 @@ The following modules are cloud-ready as-is and require zero modifications:
 - `src/eedom/core/sarif.py` -- SARIF generation
 - `src/eedom/core/repo_config.py` -- repo config loading
 - `src/eedom/core/taskfit.py` -- LLM advisory
-- `src/eedom/plugins/*` -- all 15 plugins
+- `src/eedom/plugins/*` -- all 19 plugins
 - `src/eedom/data/scanners/*` -- all scanner implementations
 - `src/eedom/data/pypi.py` -- PyPI client
 - `src/eedom/cli/` -- CLI entry point (self-hosted mode)

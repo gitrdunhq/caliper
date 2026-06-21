@@ -2,11 +2,11 @@
   <img src="assets/hero.svg" alt="Eagle Eyed Dom" width="900">
   <br>
   <strong>Fully deterministic dependency review for CI.</strong><br>
-  18 plugins. 6 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
+  19 plugins. 21 detectors. 6 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
   <br><br>
 
   <a href="#quick-start"><img src="https://img.shields.io/badge/get_started-→-d4251a?style=flat-square" alt="Get Started"></a>
-  <a href="#the-18-plugins"><img src="https://img.shields.io/badge/18_plugins-deterministic-f2c14a?style=flat-square&labelColor=0e0706" alt="18 Plugins"></a>
+  <a href="#the-19-plugins"><img src="https://img.shields.io/badge/19_plugins-deterministic-f2c14a?style=flat-square&labelColor=0e0706" alt="19 Plugins"></a>
   <a href="#opa-policy-rules"><img src="https://img.shields.io/badge/OPA-6_rules-1e3a8a?style=flat-square" alt="OPA Rules"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm_Shield-7ae582?style=flat-square" alt="PolyForm Shield License"></a>
 </div>
@@ -29,7 +29,7 @@ Both outcomes cost real money. One costs velocity. The other costs incidents.
 
 ---
 
-When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — eedom detects the changed packages, runs 18 plugins in parallel, deduplicates findings, evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
+When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — eedom detects the changed packages, runs 19 plugins in parallel (plus 21 deterministic AST detectors and 61 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-enrich), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
 
 Every scanning tool is deterministic. The decision is deterministic. Nothing blocks the build unless OPA says so.
 
@@ -42,7 +42,7 @@ Every scanning tool is deterministic. The decision is deterministic. Nothing blo
 
 ---
 
-## The 18 Plugins
+## The 19 Plugins
 
 <div align="center">
   <img src="assets/scanners.svg" alt="Scanner lineup" width="700">
@@ -50,7 +50,7 @@ Every scanning tool is deterministic. The decision is deterministic. Nothing blo
 
 <br>
 
-All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper that synthesizes results into PR comments — and even that is pluggable and removable.
+All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper that synthesizes results into PR comments — and even that is pluggable and removable. The 19 scanner plugins below feed their findings to a 20th **OPA policy plugin**, which runs last and makes the accept/reject decision.
 
 ### Dependency (run on every evaluation)
 
@@ -60,45 +60,51 @@ All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper t
 | 2 | **OSV-Scanner** | Known vulnerability database (CVE/GHSA) |
 | 3 | **Trivy** | Vulnerability scanning |
 | 4 | **ScanCode** | License detection (SPDX) |
-| 5 | **OPA** | Policy enforcement (6 Rego rules) — see [policy rules](#opa-policy-rules) |
 
 ### Code Analysis (run on changed source files)
 
 | # | Plugin | What it does |
 |---|--------|-------------|
-| 6 | **Semgrep** | AST pattern matching (dynamic rulesets + custom org rules) |
-| 7 | **PMD CPD** | Copy-paste detection (12 languages) |
-
-### Type Checking
-
-| # | Plugin | What it does |
-|---|--------|-------------|
-| 8 | **Mypy** | Deterministic cross-file Python type checking |
+| 5 | **Semgrep** | AST pattern matching (dynamic rulesets + 61 custom org rules) |
+| 6 | **PMD CPD** | Copy-paste detection (15 languages) |
+| 7 | **Mypy** | Deterministic cross-file Python type checking (prefers pyright) |
+| 8 | **SwiftLint** | Swift style + code smells (200+ rules + 13 custom) |
+| 9 | **SwiftFormat** | Swift formatting lint (all findings auto-fixable) |
 
 ### Infrastructure
 
 | # | Plugin | What it does |
 |---|--------|-------------|
-| 9 | **kube-linter** | K8s/Helm security validation |
-| 10 | **CDK Nag** | CDK CloudFormation security scanning |
-| 11 | **cfn-nag** | CloudFormation template security scanning |
+| 10 | **kube-linter** | K8s/Helm security validation |
+| 11 | **CDK Nag** | CDK CloudFormation security scanning |
+| 12 | **cfn-nag** | CloudFormation template security scanning |
 
 ### Quality
 
 | # | Plugin | What it does |
 |---|--------|-------------|
-| 12 | **Lizard + Radon** | Cyclomatic complexity + maintainability index |
-| 13 | **cspell** | Code-aware spell checking (en-CA, 15 dictionaries) |
-| 14 | **ls-lint** | File naming conventions |
-| 15 | **Blast Radius** | AST→SQLite code graph, 8+ SQL checks |
+| 13 | **Lizard + Radon** | Cyclomatic complexity + maintainability index |
+| 14 | **cspell** | Code-aware spell checking (en-CA, 15 dictionaries) |
+| 15 | **ls-lint** | File naming conventions |
+| 16 | **Blast Radius** | AST→SQLite code graph, 12 SQL checks |
 
 ### Supply Chain
 
 | # | Plugin | What it does |
 |---|--------|-------------|
-| 16 | **Supply Chain** | Unpinned deps + lockfile integrity + latest tag detection |
-| 17 | **ClamAV** | Malware/virus scanning |
-| 18 | **Gitleaks** | Secret/credential detection (800+ patterns) |
+| 17 | **Supply Chain** | Unpinned deps + lockfile integrity + latest tag detection |
+| 18 | **ClamAV** | Malware/virus scanning |
+| 19 | **Gitleaks** | Secret/credential detection (800+ patterns) |
+
+### Policy
+
+| Plugin | What it does |
+|--------|-------------|
+| **OPA** | Policy enforcement (6 Rego rules), runs last (`depends_on=["*"]`) — see [policy rules](#opa-policy-rules) |
+
+### Plus 21 deterministic detectors
+
+On changed source, eedom also runs **21 AST bug detectors** (`EED-001`…`EED-021`) — SQL injection, missing JWT audience claim, secrets typed as plain `str`, subprocess without timeout, unbounded caches, non-atomic writes, and more. Deterministic, fail-safe, suppressible with `# noqa: EED-NNN`. See [`docs/detectors.md`](docs/detectors.md).
 
 **Scanner disagreement:** When OSV-Scanner and Trivy report the same CVE, the normalizer deduplicates on `(advisory_id, category, package_name, version)`. Highest severity wins.
 
@@ -278,13 +284,14 @@ src/eedom/
 │   ├── diff.py             #   Text diff parser (requirements.txt, pyproject.toml)
 │   ├── sbom_diff.py        #   CycloneDX SBOM differ (18 ecosystems via purl)
 │   ├── normalizer.py       #   Finding deduplication (highest severity wins)
+│   ├── enrich.py           #   Detect-then-enrich pass (ENRICHERS, fail-open) — ADR-006
 │   ├── actionability.py    #   Actionable vs blocked finding classification
 │   ├── orchestrator.py     #   Parallel scanner runner (ThreadPoolExecutor)
 │   ├── decision.py         #   Pure assembler — OPA verdict → ReviewDecision
 │   ├── memo.py             #   Markdown PR comment generator
 │   ├── seal.py             #   SHA-256 evidence chain
 │   └── taskfit*.py         #   Optional LLM advisory (disabled by default)
-├── plugins/                # 18 scanner plugin implementations
+├── plugins/                # 19 scanner plugins + OPA policy plugin + enrichers
 │   ├── blast_radius.py     #   AST→SQLite code graph + SQL checks
 │   ├── semgrep.py          #   AST pattern matching
 │   ├── clamav.py           #   Malware/virus scanning
@@ -292,7 +299,15 @@ src/eedom/
 │   ├── mypy.py             #   Cross-file Python type checking
 │   ├── cdk_nag.py          #   CDK CloudFormation security scanning
 │   ├── cfn_nag.py          #   CloudFormation template scanning
-│   └── ...                 #   + 11 more (one file per plugin)
+│   ├── enrichers/          #   Detect-then-enrich: code-graph + opt-in semgrep (ADR-006)
+│   └── ...                 #   + 13 more (one file per plugin, incl. _opa.py)
+├── detectors/              # 21 deterministic AST bug detectors (EED-001..021)
+│   ├── security/           #   8 detectors (SQL injection, JWT audience, SecretStr, ...)
+│   ├── reliability/        #   subprocess timeout, unbounded cache, atomic write, ...
+│   ├── scanner.py          #   DeterministicScanner (ScannerPort) — runs them in the pipeline
+│   └── _registry.py        #   @register_detector + discover_detectors()
+├── composition/            # Composition root: bootstrap() wires the ApplicationContext
+├── webhook/                # Starlette ASGI server — GitHub PR webhooks (HMAC, port 12800)
 ├── templates/              # Jinja2 templates for PR comments
 │   ├── comment.md.j2       #   Main comment wrapper (verdict + sections)
 │   └── *.md.j2             #   Per-plugin section templates
@@ -516,7 +531,7 @@ Watch mode debounces file-system events (500 ms default). Press `Ctrl+C` to stop
 
 ## Monorepo Support
 
-Eagle Eyed Dom auto-discovers packages across a monorepo and runs all 18 plugins per-package.
+Eagle Eyed Dom auto-discovers packages across a monorepo and runs all 19 plugins per-package.
 
 ### Package discovery
 

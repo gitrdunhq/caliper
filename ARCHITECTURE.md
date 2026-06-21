@@ -3,7 +3,7 @@
 ## 1. System Overview
 
 Eagle Eyed Dom is a deterministic code and dependency review platform for CI. It
-exposes two evaluation paths — a legacy dependency review pipeline and a 15-plugin
+exposes two evaluation paths — a legacy dependency review pipeline and a 19-plugin
 review system — both fully fail-open with zero LLM in the decision path.
 
 **Dependency review** (`evaluate` command): when a PR modifies a dependency manifest,
@@ -13,11 +13,17 @@ structured decision, writes a Markdown memo for PR commenting, persists evidence
 atomically, seals the evidence bundle with a SHA-256 chain, and appends the decision to
 an append-only Parquet audit log.
 
-**Plugin review** (`review` command): runs up to 15 plugins organized into five
-categories (dependency, code, infra, quality, supply_chain) against a repository or
-diff. Plugins are discovered automatically, can be filtered by name or category, and
-each renders its results via a Jinja2 template. Output is a Markdown comment or SARIF
-v2.1.0. Watch mode (`--watch`) re-runs the review on every file change.
+**Plugin review** (`review` command): runs 19 scanner plugins organized into five
+categories (dependency, code, infra, quality, supply_chain) plus the OPA policy
+plugin (which always runs last) against a repository or diff. In addition to the
+plugins, a `DeterministicScanner` (Section 21) runs 21 AST-based detectors
+(EED-001..EED-021) in the same parallel pass. The flow is: file enumeration →
+parallel scan (plugins + deterministic detectors) → normalize/dedup (highest
+severity wins) → detect-then-enrich (Section 22) → OPA policy/decision → render
+(Markdown comment or SARIF v2.1.0) plus evidence/Parquet persistence. Plugins are
+discovered automatically, can be filtered by name or category, and each renders its
+results via a Jinja2 template. Watch mode (`--watch`) re-runs the review on every
+file change.
 
 All failure paths are fail-open: a scanner timeout produces a `ScanResult.skipped`, a
 plugin exception returns `PluginResult(error=...)`, an OPA failure produces
@@ -104,7 +110,7 @@ repo path / diff
 
 | Module | Responsibility |
 |--------|---------------|
-| `cli/main.py` | Click CLI entry point. Four commands: `evaluate` (dependency review pipeline), `review` (15-plugin repo review), `plugins` (list registered plugins), and `check-health` (binary + DB probe). Reads diff from file or stdin, constructs the appropriate pipeline or registry, delegates all logic, formats output. Never contains business logic. SARIF output (`--format sarif`) and watch mode (`--watch`) are coordinated here but implemented in `core/sarif.py` and the watchdog observer respectively. |
+| `cli/main.py` | Click CLI entry point. Six commands: `evaluate` (dependency review pipeline), `review` (19-plugin repo review), `query` (DuckDB queries over the Parquet audit log), `check-health` (binary + DB probe), `plugins` (list registered plugins), and `schema` (emit JSON Schema for domain models). Reads diff from file or stdin, constructs the appropriate pipeline or registry, delegates all logic, formats output. Never contains business logic. SARIF output (`--format sarif`) and watch mode (`--watch`) are coordinated here but implemented in `core/sarif.py` and the watchdog observer respectively. |
 
 Imports: `click`, `structlog`, `core.models.OperatingMode`, `core.pipeline.ReviewPipeline`,
 `core.config.EedomSettings`, `core.plugin.PluginCategory`, `core.renderer.render_comment`,
@@ -284,25 +290,36 @@ instantiates every `ScannerPlugin` subclass found.
 `get_default_registry()` (`plugins/__init__.py`) creates a fresh registry and registers
 all auto-discovered plugins from `src/eedom/plugins/`.
 
-### All 15 Plugins
+### All 19 Plugins (+ OPA Policy Plugin)
+
+19 scanner plugins are auto-discovered via `@ANALYZERS.register`, plus the OPA policy
+plugin (`OpaPlugin`, `plugins/_opa.py`), which declares `depends_on=["*"]` so it always
+runs last with the aggregated findings. (20 `ScannerPlugin` subclasses in total.) The
+`opa` row below is listed in its policy role; `OpaPlugin` itself reports the `dependency`
+category since `PluginCategory` has no policy value.
 
 | Plugin | Category | Description |
 |--------|----------|-------------|
-| `blast-radius` | quality | Code graph impact analysis — AST to SQLite, SQL checks |
-| `clamav` | supply_chain | Malware/virus scanning (ClamAV) |
-| `complexity` | quality | Cyclomatic complexity (Lizard) + maintainability index (Radon) |
-| `cpd` | code | Copy-paste detection — token-based duplication (12 languages) |
-| `cspell` | quality | Code-aware spell checking (en-CA, 11 tech dictionaries) |
-| `gitleaks` | supply_chain | Secret and credential detection (800+ patterns) |
-| `kube-linter` | infra | K8s/Helm security — schema validation, resource limits, privileged containers |
-| `ls-lint` | quality | File naming convention linter |
-| `opa` | dependency | Policy enforcement — 6 Rego rules (deny/warn/approve) |
 | `osv-scanner` | dependency | Known vulnerability database lookup (OSV/GHSA/CVE) |
-| `scancode` | dependency | License detection (SPDX expression extraction) |
-| `semgrep` | code | Code pattern analysis — AST matching with dynamic rulesets |
-| `supply-chain` | supply_chain | Unpinned dependency detection + lockfile integrity + Docker latest-tag detection |
-| `syft` | dependency | SBOM generation — CycloneDX JSON (18 ecosystems) |
 | `trivy` | dependency | Vulnerability scanning (Trivy database) |
+| `scancode` | dependency | License detection (SPDX expression extraction) |
+| `syft` | dependency | SBOM generation — CycloneDX JSON (18 ecosystems) |
+| `supply-chain` | supply_chain | Unpinned dependency + lockfile integrity + Docker latest-tag detection |
+| `gitleaks` | supply_chain | Secret and credential detection (800+ patterns) |
+| `clamav` | supply_chain | Malware/virus scanning (ClamAV) |
+| `semgrep` | code | Code pattern analysis — AST matching with dynamic rulesets |
+| `cpd` | code | Copy-paste detection — token-based duplication (12 languages) |
+| `mypy` | code | Static type checking for Python (type-error findings) |
+| `swiftlint` | code | Swift style and convention linting |
+| `swiftformat` | code | Swift formatting drift detection |
+| `blast-radius` | quality | Code graph impact analysis — AST to SQLite, SQL checks |
+| `complexity` | quality | Cyclomatic complexity (Lizard) + maintainability index (Radon) |
+| `cspell` | quality | Code-aware spell checking (en-CA, 11 tech dictionaries) |
+| `ls-lint` | quality | File naming convention linter |
+| `cfn-nag` | infra | CloudFormation security linting (insecure resource patterns) |
+| `cdk-nag` | infra | AWS CDK / synthesized-template policy checks |
+| `kube-linter` | infra | K8s/Helm security — schema validation, resource limits, privileged containers |
+| `opa` | policy | Policy enforcement — 6 Rego rules (deny/warn/approve); runs last via `depends_on=["*"]` |
 
 ### Plugin Failure Modes
 
@@ -1114,3 +1131,129 @@ watchdog is required for --watch mode. Install with: uv add watchdog
 
 Watch mode is purely additive — the review command runs identically with or without
 `--watch`; the flag only adds the filesystem monitoring loop after the first run.
+
+
+## 21. Deterministic Detectors
+
+The `src/eedom/detectors/` module provides 21 AST-based bug detectors
+(`EED-001`..`EED-021`) that run alongside the scanner plugins. They are
+deterministic — the same source always produces the same findings — and require no
+subprocess, network, or external binary.
+
+By category: **8 security**, **10 reliability**, **2 configuration**, **1 process**.
+The full per-detector reference lives in `docs/detectors.md`; `DetectorCategory`
+(`detectors/categories.py`) is a `StrEnum` mapped to `FindingCategory` for scanner
+integration.
+
+### Framework and Registry
+
+Every detector subclasses `BugDetector` (`detectors/framework.py`) and declares
+`detector_id`, `name`, `category`, `severity`, and `target_files` (default `("*.py",)`).
+Detectors register via the `@register_detector` decorator into the `DETECTORS` registry
+(`detectors/_registry.py`) and are auto-discovered by `discover_detectors()`.
+
+| Concern | Mechanism |
+|---------|-----------|
+| Determinism | Pure AST traversal; no I/O in `detect()`; same input → same findings |
+| Fail-safe | `detect_safe()` wraps `detect()` and catches all exceptions → `[]` |
+| Suppression | `# noqa: EED-XXX` (or bare `# noqa`) on the finding's line skips it |
+| Caching | `ASTCache` parses each file once and shares the tree across detectors |
+
+### Pipeline Integration
+
+Detectors are exposed to the pipeline as `DeterministicScanner` (`detectors/scanner.py`,
+`tool_name="deterministic"`), which satisfies the core `ScannerPort` structurally
+(`name` + `scan`). It enumerates files through the resolved `FileSourcePort`
+(Section on file enumeration), runs all applicable detectors per file via the AST cache,
+filters suppressed findings, and converts each `DetectorFinding` to the core `Finding`
+model. Per ADR-DET-002 a detected bug is a *finding*, not a *failure*: the scanner's
+status is always `success`. Per ADR-DET-006 detectors run inside the `review` command's
+parallel scan pass rather than a separate `detect` command; `--scanners deterministic`
+runs only the detectors.
+
+
+## 22. Detect-Then-Enrich (ADR-006)
+
+After detection and dedup, but before policy evaluation, findings pass through a
+sequential **enrichment** pass that attaches deterministic context to each finding
+without changing the verdict. The seam is defined by `EnricherPort` (`applies_to` +
+`enrich`), driven by `enrich_findings()` (`core/enrich.py`) with an `EnrichmentContext`,
+and backed by the core `ENRICHERS` registry (`core/registries.py`).
+
+Enrichers write only to `metadata['enrichment']`; they never add, drop, or re-rank
+findings. The pass runs sequentially (not in the plugin ThreadPool) so shared tool state
+— e.g. the CodeGraph — is built once and read without locks.
+
+### Enrichers
+
+| Enricher | Key file | What it adds | Default |
+|----------|----------|--------------|---------|
+| `enclosing_symbol` | `detectors/enrichers/enclosing_symbol.py` | Enclosing function/class for a finding's line | on |
+| `code_graph` | `plugins/enrichers/code_graph.py` | Enclosing symbol + upstream blast-radius callers (capped at 25) | on |
+| `semgrep` | `plugins/enrichers/semgrep.py` | Related semgrep matches | opt-in |
+
+`DEFAULT_ENRICHERS = ("enclosing_symbol", "code_graph")` (`core/config.py`); `semgrep`
+stays opt-in. Composition happens in `composition/bootstrap.py`: `build_enrichers(settings)`
+resolves `settings.enabled_enrichers` against the registry (unknown keys skipped), and
+`load_adapters()` fires the registration decorators.
+
+| Concern | Mechanism |
+|---------|-----------|
+| Fail-open | A raising enricher is logged and skipped; the finding survives unchanged |
+| Verdict-independence | Writes only `metadata['enrichment']`; never affects deny/warn/decision |
+| Time-bounded | `enrichment_timeout` (30s) budget; on exhaustion remaining enrichers are skipped |
+| Determinism | Deterministic context (symbols, callers); no scoring or LLM |
+
+
+## 23. Webhook Server
+
+`src/eedom/webhook/server.py` is a Starlette ASGI application exposing a single
+`POST /webhook` route for GitHub pull-request webhooks. It is a third presentation-tier
+entry point (alongside `cli/` and `agent/`) and reuses the same `review_repository`
+use-case via the wired `ApplicationContext`.
+
+### Request Handling
+
+| Stage | Behaviour |
+|-------|-----------|
+| Payload size | Reject > 1 MB with HTTP 413 before any HMAC work (DoS guard) |
+| Authentication | HMAC-SHA256 over the raw body; missing/invalid signature → HTTP 401 |
+| Content-Type | Must be `application/json`, else HTTP 400 |
+| Event routing | Only `pull_request` events with action `opened`, `synchronize`, or `reopened` trigger a review |
+| Review | `review_repository` runs in a worker thread under a 300 s `asyncio.wait_for` timeout |
+| Comment | Result posted to the PR via the GitHub API; token scrubbed from any error log |
+
+### Config and Fail-Open
+
+Configuration is via `EEDOM_WEBHOOK_*` env vars (`webhook/config.py`, `WebhookSettings`):
+the HMAC secret, GitHub token (`SecretStr`), and host/port (default **12800**). The
+fail-open contract is explicit: every processing error after authentication is logged and
+returns HTTP 200, so a review or comment failure never wedges GitHub's webhook delivery.
+The only non-200 responses are authentication (401) and input-validation (400/413)
+failures. The production app is built lazily and thread-safely via the module-level `app`
+attribute for `uvicorn eedom.webhook.server:app`.
+
+
+## 24. Composition Root
+
+`src/eedom/composition/bootstrap.py` is the presentation-side composition tier. It is
+the one place permitted to import `data` / `adapters` / `plugins` to construct the
+core-owned `ApplicationContext`; core depends only on the port *types*, never on this
+wiring.
+
+| Function | Responsibility |
+|----------|---------------|
+| `bootstrap(settings)` | Production wiring — builds the full `ApplicationContext` from `EedomSettings` |
+| `load_adapters()` | Imports every adapter module so its `@REGISTRY.register` factories run (idempotent) |
+| `build_enrichers(settings)` | Resolves enabled enrichers from the `ENRICHERS` registry (Section 22) |
+| `build_scanners` / `build_decision_store` / `build_publisher` / … | Per-adapter factories threading timeouts/paths through registry factories |
+| `bootstrap_test()` / `bootstrap_review()` | All-fake / minimal contexts for unit tests and the review command |
+
+Because core may not import across tier boundaries, `load_adapters()` explicitly imports
+adapter modules (persistence, GitHub publisher, OPA, PyPI, file source, the enrichers,
+graph/semgrep runners, etc.) to populate the registries in `core/registries.py`. Wiring
+is fail-open by construction: `build_decision_store()`/`build_decision_repository()` fall
+back to `NullRepository`/`NullDecisionStore` when `db_dsn` is unset or the connection
+fails, `build_audit_sink()` falls back to `NullAuditSink` without `evidence_path`, and
+`build_publisher()` falls back to `NullPublisher` without a GitHub token — so the pipeline
+always proceeds regardless of which infrastructure is available.

@@ -125,14 +125,32 @@ Blocks because root containers and unlimited resources are trivially exploitable
 
 ---
 
-## mypy
+## cfn-nag
 
-Runs strict type checking to catch type contract violations at API boundaries before runtime.
+Scans CloudFormation templates for security misconfigurations: IAM wildcards, open security groups, unencrypted resources.
 
 | Severity | Condition |
 |----------|-----------|
-| Critical | Wrong argument type passed at a public API or service boundary |
-| High | Incompatible method override breaks the base class contract |
-| Warning | Missing type annotation on a public function |
+| Critical | IAM policy with "Resource": "*" + "Action": "*" (overly permissive) |
+| High | Security group open to 0.0.0.0/0, S3 bucket without encryption, EBS volume without encryption |
 
-Blocks because a type mismatch at a boundary produces silent data corruption or runtime crashes in callers — catching it statically is always cheaper than tracing it in production.
+Blocks because overly permissive IAM roles and open network endpoints are trivial escalation paths that cannot be remediated post-deploy without a full stack rebuild.
+
+---
+
+## cdk-nag
+
+Scans AWS CDK synthesized templates for security violations. Always runs `cdk synth` first — never uses a stale `cdk.out/`.
+
+| Severity | Condition |
+|----------|-----------|
+| Critical | Overly permissive IAM grants or publicly accessible resources |
+| High | Unencrypted storage, missing encryption keys, privileged container settings |
+
+Blocks for the same reason as cfn-nag: CDK violations represent infrastructure-as-code bugs that manifest at synthesis time and are security-critical at scale.
+
+---
+
+## See also
+
+- [Deterministic detectors](../detectors.md) — 21 AST-based bug-pattern rules (EED-001..EED-021) that run alongside the plugins.
