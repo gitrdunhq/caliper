@@ -15,10 +15,10 @@ that consumes this registry: discovery changed, ordering did not.
 from __future__ import annotations
 
 from eedom.core.plugin import AnalyzerPort
-from eedom.core.registry import PluginRegistry, discover_plugins
+from eedom.core.registry import PluginRegistry
 from eedom.registry import Registry, autodiscover
 
-__all__ = ["ANALYZERS", "PluginRegistry", "discover_plugins", "get_default_registry"]
+__all__ = ["ANALYZERS", "PluginRegistry", "get_default_registry"]
 
 # Defined before autodiscover so adapter modules can import it on import.
 ANALYZERS: Registry[AnalyzerPort] = Registry("analyzer")

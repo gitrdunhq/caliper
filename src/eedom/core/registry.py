@@ -4,9 +4,6 @@
 
 from __future__ import annotations
 
-import importlib
-import importlib.util
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from graphlib import CycleError, TopologicalSorter
@@ -224,37 +221,3 @@ class PluginRegistry:
             )
             return PluginResult(plugin_name=plugin.name, error=str(exc), category=cat)
 
-
-def discover_plugins(plugin_dir: Path) -> list[ScannerPlugin]:
-    plugins: list[ScannerPlugin] = []
-    if not plugin_dir.is_dir():
-        return plugins
-    for path in sorted(plugin_dir.glob("*.py")):
-        if path.name.startswith("_"):
-            continue
-        module_name = f"eedom.plugins.{path.stem}"
-        try:
-            spec = importlib.util.spec_from_file_location(
-                module_name,
-                path,
-            )
-            if spec is None or spec.loader is None:
-                continue
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
-            for attr_name in dir(module):
-                attr = getattr(module, attr_name)
-                if (
-                    isinstance(attr, type)
-                    and issubclass(attr, ScannerPlugin)
-                    and attr is not ScannerPlugin
-                ):
-                    plugins.append(attr())
-        except Exception as exc:
-            logger.warning(
-                "plugin.discovery_failed",
-                path=str(path),
-                error=str(exc),
-            )
-    return plugins
