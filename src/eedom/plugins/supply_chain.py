@@ -14,6 +14,7 @@ from pathlib import Path
 import structlog
 import yaml
 
+from eedom.core.file_source import select_file_source
 from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
 
 logger = structlog.get_logger(__name__)
@@ -215,10 +216,15 @@ class SupplyChainPlugin(ScannerPlugin):
     def _check_unpinned(self, repo: Path) -> list[dict]:
         findings: list[dict] = []
 
-        for pkg in repo.rglob("package.json"):
-            pkg_str = str(pkg)
-            if any(seg in pkg_str for seg in ("node_modules", ".git", ".claude", ".wfc")):
-                continue
+        # Enumerate once through the file source; ignore rules (node_modules,
+        # .venv, .eedomignore, …) replace the old ad-hoc segment filter.
+        all_files = select_file_source(repo).list_files(repo)
+        package_jsons = [p for p in all_files if p.name == "package.json"]
+        requirement_files = [
+            p for p in all_files if p.name.startswith("requirements") and p.suffix == ".txt"
+        ]
+
+        for pkg in package_jsons:
             rel = str(pkg.relative_to(repo))
             try:
                 data = json.loads(pkg.read_text())
@@ -239,7 +245,7 @@ class SupplyChainPlugin(ScannerPlugin):
             except (OSError, ValueError) as exc:
                 logger.debug("supply_chain.manifest_parse_error", error=str(exc))
 
-        for req in repo.rglob("requirements*.txt"):
+        for req in requirement_files:
             try:
                 for line in req.read_text().split("\n"):
                     line = line.strip()

@@ -214,6 +214,66 @@ class TestDeterministicScannerErrorHandling:
 
 
 # =============================================================================
+# File-source routing (ignore-aware enumeration)
+# =============================================================================
+
+
+class TestDeterministicScannerFileSource:
+    """The scanner enumerates via FileSourcePort, not a bare rglob.
+
+    Closes the latent bug where ``.venv``/``node_modules`` were walked: the
+    scanner now honours eedom's ignore rules through the file source.
+    """
+
+    # jwt.encode without an 'aud' claim → EED-001 fires deterministically.
+    _BUG = "import jwt\njwt.encode({'sub': 'x'}, 'k')\n"
+
+    def test_ignores_files_under_excluded_dirs(self):
+        """A buggy file under .venv must not be scanned.
+
+        The Finding model drops file location (ADR-DET-003), so identical bug
+        files give a clean count signal: exactly one finding means the ``.venv``
+        copy was excluded; two would mean it was walked.
+        """
+        scanner = DeterministicScanner(specific_detectors=["EED-001"])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "app.py").write_text(self._BUG)
+            venv = root / ".venv" / "lib"
+            venv.mkdir(parents=True)
+            (venv / "vendored.py").write_text(self._BUG)
+
+            result = scanner.scan(root)
+
+        eed_001 = [f for f in result.findings if f.source_tool == "EED-001"]
+        assert len(eed_001) == 1
+
+    def test_uses_injected_file_source(self):
+        """An injected FileSourcePort is used to enumerate files."""
+
+        class _StubSource:
+            name = "stub"
+            calls: list[Path] = []
+
+            def is_available(self, root: Path) -> bool:
+                return True
+
+            def list_files(self, root: Path, *, suffixes=None) -> list[Path]:
+                type(self).calls.append(root)
+                return []
+
+        stub = _StubSource()
+        scanner = DeterministicScanner(file_source=stub)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = scanner.scan(Path(tmpdir))
+
+        assert _StubSource.calls  # the injected source was consulted
+        assert result.findings == []
+
+
+# =============================================================================
 # CLI Integration Tests (ADR-DET-006)
 # =============================================================================
 

@@ -13,7 +13,9 @@ import contextlib
 import time
 from pathlib import Path
 
+from eedom.core.file_source import select_file_source
 from eedom.core.models import FindingSeverity, ScanResult, ScanResultStatus
+from eedom.core.ports import FileSourcePort
 from eedom.detectors._registry import discover_detectors, get_all_detectors
 from eedom.detectors.ast_utils import ASTCache
 from eedom.detectors.categories import DetectorCategory
@@ -49,6 +51,7 @@ class DeterministicScanner:
         severities: list[FindingSeverity] | None = None,
         specific_detectors: list[str] | None = None,
         cache: ASTCache | None = None,
+        file_source: FileSourcePort | None = None,
     ) -> None:
         """Initialize with optional filters.
 
@@ -57,11 +60,14 @@ class DeterministicScanner:
             severities: Filter detectors by severity (None = all)
             specific_detectors: Run only specific detector IDs (None = all)
             cache: Optional AST cache for performance
+            file_source: Optional FileSourcePort for enumeration (None =
+                resolved per scan via ``select_file_source``)
         """
         self._categories = categories
         self._severities = severities
         self._specific_detectors = specific_detectors
         self._cache = cache or ASTCache(maxsize=100)
+        self._file_source = file_source
 
         # Ensure registry is discovered
         discover_detectors()
@@ -175,9 +181,11 @@ class DeterministicScanner:
             if target_path.suffix == ".py":
                 files_to_scan.append(target_path)
         else:
-            # Find all Python files recursively
+            # Enumerate via the file source so ignore rules (.venv, node_modules,
+            # .eedomignore, …) are honoured instead of a bare rglob.
+            source = self._file_source or select_file_source(target_path)
             with contextlib.suppress(OSError, PermissionError):
-                files_to_scan = list(target_path.rglob("*.py"))
+                files_to_scan = source.list_files(target_path, suffixes=(".py",))
 
         # Run detectors on all files
         all_findings: list[DetectorFinding] = []

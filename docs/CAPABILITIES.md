@@ -348,7 +348,8 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 |-----------|------|-------|
 | Env vars | `EEDOM_*` prefix | Global: operating_mode, db_dsn, evidence_path, 7 timeouts, enabled_scanners, LLM settings |
 | Repo config | `.eagle-eyed-dom.yaml` | Per-repo: plugin enable/disable, per-plugin thresholds, telemetry. Root + package-level merge. |
-| Ignore patterns | `.eedomignore` | Per-repo: fnmatch exclusions. 6 built-in defaults. |
+| Ignore patterns | `.eedomignore` | Per-repo: fnmatch exclusions, layered on top of every file source. |
+| File source | `EEDOM_FILE_SOURCE` | Global: `auto` (git ls-files when usable, else walk), `git`, or `walk`. |
 | Gitleaks config | `.eedom/gitleaks.toml` | Per-repo: custom gitleaks rules. |
 | ls-lint config | `.ls-lint.yml` | Per-repo: file naming conventions. |
 | OPA policy | `policies/policy.rego` | Per-repo: deny/warn rules with toggleable `rules_enabled.*`. |

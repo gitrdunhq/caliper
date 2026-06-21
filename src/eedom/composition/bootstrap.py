@@ -342,6 +342,7 @@ def load_adapters() -> None:
     import eedom.adapters.persistence  # noqa: F401
     import eedom.adapters.repo_snapshot  # noqa: F401
     import eedom.core.fake  # noqa: F401
+    import eedom.core.file_source  # noqa: F401
     import eedom.core.json_report  # noqa: F401
     import eedom.core.opa_adapter  # noqa: F401
     import eedom.core.renderer  # noqa: F401
