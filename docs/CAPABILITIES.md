@@ -25,6 +25,7 @@ Eagle Eyed Dom — fully deterministic dependency, security, and code review for
 | OPA Rego policy rules | 6 (4 deny, 2 warn) |
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
+| Finding enrichers | 2 (enclosing-symbol, code-graph) |
 | CLI commands | 6 |
 | Output formats | 4 |
 | Supported ecosystems (SBOM) | 18 |
@@ -274,6 +275,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Capability | File | Description |
 |------------|------|-------------|
 | Parallel scanning | `core/orchestrator.py` | ThreadPoolExecutor with combined wall-clock timeout. |
+| Detect-then-enrich | `core/enrich.py`, `core/enrichment.py` | Post-detection pass (ADR-006): every plugin finding is decorated with deterministic context in `metadata['enrichment']` — enclosing symbol (`detectors` enricher) + code-graph blast radius (`plugins` enricher). Sequential, fail-open, time-bounded (`enrichment_timeout`); verdict-independent. Pluggable via the `ENRICHERS` registry. |
 | Cross-scanner dedup | `core/normalizer.py` | Highest severity wins per (advisory_id, category, package, version). |
 | Evidence chain | `core/seal.py` | Blockchain-style SHA-256 seals. manifest hash + previous seal → seal hash. `verify_seal()` detects tampering. |
 | Parquet audit log | `data/parquet_writer.py` | Append-only per-run audit trail. |

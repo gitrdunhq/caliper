@@ -242,6 +242,23 @@ _SCANNER_REGISTRY_KEYS = {
 }
 
 
+def build_enrichers(settings: EedomSettings) -> list:
+    """Build the enabled finding enrichers from the ENRICHERS registry (ADR-006).
+
+    Detect-then-enrich: these run as a sequential post-detection pass (see
+    ``core.enrich.enrich_findings``) attaching deterministic context to each
+    finding. Unknown keys are skipped so config can name enrichers a given build
+    doesn't ship. The factories do no I/O — enrichers build tool state lazily.
+    """
+    from eedom.core.registries import ENRICHERS
+
+    enrichers: list = []
+    for name in settings.enabled_enrichers:
+        if name in ENRICHERS:
+            enrichers.append(ENRICHERS.create(name))
+    return enrichers
+
+
 def build_scanners(settings: EedomSettings) -> list:
     """Build the enabled scanners from the SCANNERS registry.
 
@@ -349,8 +366,10 @@ def load_adapters() -> None:
     import eedom.core.sarif  # noqa: F401
     import eedom.data.db  # noqa: F401
     import eedom.data.pypi  # noqa: F401
+    import eedom.detectors.enrichers.enclosing_symbol  # noqa: F401
     import eedom.plugins._runners.graph_builder  # noqa: F401
     import eedom.plugins._runners.semgrep_runner  # noqa: F401
+    import eedom.plugins.enrichers.code_graph  # noqa: F401
 
 
 def bootstrap(settings: EedomSettings) -> ApplicationContext:
@@ -394,4 +413,5 @@ def bootstrap(settings: EedomSettings) -> ApplicationContext:
         package_metadata=package_client,
         decision_repository=build_decision_repository(settings),
         audit_log_appender=build_audit_log_appender(),
+        enrichers=build_enrichers(settings),
     )
