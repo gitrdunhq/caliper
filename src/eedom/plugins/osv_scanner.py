@@ -229,3 +229,12 @@ class OsvScannerPlugin(ScannerPlugin):
             lines.append("\n</details>\n")
 
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("osv-scanner")
+def build_osv_scanner_plugin() -> OsvScannerPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return OsvScannerPlugin()

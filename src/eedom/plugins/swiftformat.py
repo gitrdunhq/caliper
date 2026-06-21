@@ -138,3 +138,12 @@ class SwiftFormatPlugin(ScannerPlugin):
             lines.append(f"| `{f.get('file', '')}` |")
         lines.append("\n</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("swiftformat")
+def build_swiftformat_plugin() -> SwiftFormatPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return SwiftFormatPlugin()

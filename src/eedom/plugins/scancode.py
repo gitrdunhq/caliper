@@ -108,3 +108,12 @@ class ScanCodePlugin(ScannerPlugin):
         if not result.findings:
             return ""
         return f"ScanCode: {len(result.findings)} license detections"
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("scancode")
+def build_scancode_plugin() -> ScanCodePlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return ScanCodePlugin()

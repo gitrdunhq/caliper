@@ -187,3 +187,12 @@ class SwiftLintPlugin(ScannerPlugin):
 
         lines.append("\n</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("swiftlint")
+def build_swiftlint_plugin() -> SwiftLintPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return SwiftLintPlugin()

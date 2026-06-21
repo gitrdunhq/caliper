@@ -156,3 +156,12 @@ class GitleaksPlugin(ScannerPlugin):
             lines.append(f"| `{f['file']}` | {f['line']} | `{f.get('rule', '')}` | {desc} |")
         lines.append("\n</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("gitleaks")
+def build_gitleaks_plugin() -> GitleaksPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return GitleaksPlugin()

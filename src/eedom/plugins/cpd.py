@@ -78,3 +78,12 @@ class CpdPlugin(ScannerPlugin):
             lines.append("")
         lines.append("</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("cpd")
+def build_cpd_plugin() -> CpdPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return CpdPlugin()
