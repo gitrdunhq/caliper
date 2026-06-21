@@ -42,6 +42,7 @@ __all__ = [
     "bootstrap",
     "bootstrap_review",
     "bootstrap_test",
+    "load_adapters",
     "build_audit_sink",
     "build_audit_log_appender",
     "build_decision_repository",
@@ -336,6 +337,26 @@ _make_package_index = build_package_index
 # ---------------------------------------------------------------------------
 # bootstrap(settings)
 # ---------------------------------------------------------------------------
+
+
+def load_adapters() -> None:
+    """Import every adapter module so its ``@REGISTRY.register`` factories run.
+
+    ``autodiscover`` cannot cross tier boundaries (core may not import
+    data/adapters), so the composition tier explicitly imports the adapter
+    modules to populate the core-owned registries in ``eedom.core.registries``.
+    Idempotent — imports are cached in ``sys.modules``.
+    """
+    import eedom.adapters.github_publisher  # noqa: F401
+    import eedom.adapters.persistence  # noqa: F401
+    import eedom.adapters.repo_snapshot  # noqa: F401
+    import eedom.core.fake  # noqa: F401
+    import eedom.core.json_report  # noqa: F401
+    import eedom.core.opa_adapter  # noqa: F401
+    import eedom.core.renderer  # noqa: F401
+    import eedom.core.sarif  # noqa: F401
+    import eedom.data.db  # noqa: F401
+    import eedom.data.pypi  # noqa: F401
 
 
 def bootstrap(settings: EedomSettings) -> ApplicationContext:

@@ -322,3 +322,11 @@ def _extract_mi(
             c_count = sum(1 for s in mi_scores if s < 10)
             return grade, int(avg_mi), icon, avg, hi, c_count
     return "", 0, "", 0.0, 0, 0
+
+
+from eedom.core.registries import RENDERERS  # noqa: E402  (registration wiring)
+
+
+@RENDERERS.register("markdown")
+def build_markdown_renderer() -> MarkdownRenderer:
+    return MarkdownRenderer()

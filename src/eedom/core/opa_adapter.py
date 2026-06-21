@@ -128,3 +128,14 @@ class OpaRegoAdapter:
         if warn:
             return PolicyDecision(verdict="approve_with_constraints", warn_reasons=warn)
         return PolicyDecision(verdict="approve")
+
+
+from eedom.core.registries import POLICY_ENGINES  # noqa: E402  (registration wiring)
+
+
+@POLICY_ENGINES.register("opa")
+def build_opa_engine(
+    *, policy_path: str, tool_runner: ToolRunnerPort, timeout: int = _OPA_TIMEOUT
+) -> OpaRegoAdapter:
+    """Construct the OPA Rego policy adapter (the input.pkg quirk stays inside it)."""
+    return OpaRegoAdapter(policy_path=policy_path, tool_runner=tool_runner, timeout=timeout)
