@@ -103,6 +103,7 @@ class FindingCategory(enum.StrEnum):
     behavioral = "behavioral"
     code_smell = "code_smell"
     security = "security"
+    supply_chain = "supply_chain"
 
 
 class RequestType(enum.StrEnum):

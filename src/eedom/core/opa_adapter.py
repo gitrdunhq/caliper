@@ -29,6 +29,7 @@ _OPA_DEFAULT_CONFIG = {
         "package_age": True,
         "malicious_package": True,
         "transitive_count": True,
+        "supply_chain_diff": True,
     },
 }
 

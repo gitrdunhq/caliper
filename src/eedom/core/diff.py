@@ -7,6 +7,7 @@ pyproject.toml) to detect added, removed, upgraded, and downgraded packages.
 
 from __future__ import annotations
 
+import json
 import re
 import tomllib
 
@@ -31,8 +32,21 @@ _DEPENDENCY_FILES = frozenset(
         "Pipfile",
         "Pipfile.lock",
         "poetry.lock",
+        "package.json",
+        "package-lock.json",
     }
 )
+
+# Leading npm version-range operators stripped to recover a concrete version.
+_NPM_RANGE_RE = re.compile(r"^[\^~>=<\s]+")
+# A "name": "spec" line in package.json (used for the diff-fragment fallback).
+_NPM_DEP_LINE_RE = re.compile(r'"([^"]+)"\s*:\s*"([^"]+)"')
+# package.json top-level string fields that are NOT dependencies.
+_NPM_NON_DEP_KEYS = frozenset(
+    {"version", "name", "license", "main", "types", "module", "author", "description", "homepage"}
+)
+# A value that plausibly denotes a version/range (vs. a URL, path, or free text).
+_NPM_VERSION_VALUE_RE = re.compile(r"^[\^~>=<]*\d")
 
 # Regex to extract file paths from unified diff headers
 _DIFF_FILE_RE = re.compile(r"^diff --git a/(.+?) b/(.+?)$", re.MULTILINE)
@@ -99,6 +113,58 @@ def _parse_pyproject_deps(content: str) -> dict[str, str | None]:
         if parsed is not None:
             result[parsed[0]] = parsed[1]
 
+    return result
+
+
+def _clean_npm_version(spec: str | None) -> str | None:
+    """Strip leading range operators (``^``, ``~``, ``>=`` …) to a concrete version.
+
+    Returns None for empty/non-pinned specs that cannot map to a single version
+    (``*``, ``latest``, git/file/workspace URLs); the caller fetch fails open on those.
+    """
+    if not spec:
+        return None
+    cleaned = _NPM_RANGE_RE.sub("", spec.strip())
+    if not cleaned or cleaned in {"*", "latest", "x"}:
+        return None
+    if any(tok in cleaned for tok in (":", "/", " ", "||")):
+        return None  # git/file/workspace URL or compound range — not a single version
+    return cleaned
+
+
+def _parse_package_json_deps(content: str) -> dict[str, str | None]:
+    """Parse npm dependency maps from package.json into {package: version}.
+
+    A unified diff usually yields only a *fragment* of package.json (the changed
+    hunk), which is not valid JSON. So we try a full JSON parse first and fall
+    back to a line-based scan of ``"name": "spec"`` entries that look like
+    versions — robust to the partial content reconstructed from a diff.
+    """
+    try:
+        data = json.loads(content)
+    except (json.JSONDecodeError, ValueError):
+        return _parse_package_json_fragment(content)
+    result: dict[str, str | None] = {}
+    for section in ("dependencies", "devDependencies", "optionalDependencies"):
+        deps = data.get(section)
+        if not isinstance(deps, dict):
+            continue
+        for name, spec in deps.items():
+            result[str(name)] = _clean_npm_version(str(spec) if spec is not None else None)
+    return result
+
+
+def _parse_package_json_fragment(content: str) -> dict[str, str | None]:
+    """Line-based fallback: pull ``"name": "version"`` pairs from a JSON fragment."""
+    result: dict[str, str | None] = {}
+    for line in content.splitlines():
+        match = _NPM_DEP_LINE_RE.search(line)
+        if not match:
+            continue
+        name, spec = match.group(1), match.group(2)
+        if name in _NPM_NON_DEP_KEYS or not _NPM_VERSION_VALUE_RE.match(spec):
+            continue
+        result[name] = _clean_npm_version(spec)
     return result
 
 
@@ -246,6 +312,16 @@ class DependencyDiffDetector:
         """
         before_pkgs = _parse_pyproject_deps(before)
         after_pkgs = _parse_pyproject_deps(after)
+        return _compute_diff(before_pkgs, after_pkgs)
+
+    def parse_package_json_diff(self, before: str, after: str) -> list[dict]:
+        """Parse before/after package.json and identify dependency changes.
+
+        Looks at dependencies, devDependencies, and optionalDependencies. Same
+        output shape as parse_requirements_diff (versions stripped of range ops).
+        """
+        before_pkgs = _parse_package_json_deps(before)
+        after_pkgs = _parse_package_json_deps(after)
         return _compute_diff(before_pkgs, after_pkgs)
 
     def create_requests(
