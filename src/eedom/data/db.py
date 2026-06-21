@@ -447,3 +447,14 @@ class NullRepository:
 
     def save_bypass(self, record: BypassRecord) -> None:
         pass
+
+
+from eedom.core.registries import DECISION_STORES  # noqa: E402  (registration wiring)
+
+
+@DECISION_STORES.register("postgres")
+def build_postgres_decision_store(
+    *, dsn: str, query_timeout: int = 10, connect_timeout: int = 5
+) -> DecisionRepository:
+    """Construct the Postgres-backed decision repository (not yet connected)."""
+    return DecisionRepository(dsn=dsn, query_timeout=query_timeout, connect_timeout=connect_timeout)

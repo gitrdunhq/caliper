@@ -90,3 +90,11 @@ class JsonRenderer:
 
     def render(self, report) -> str:  # report: ReviewReport
         return render_json(report.plugin_results)
+
+
+from eedom.core.registries import RENDERERS  # noqa: E402  (registration wiring)
+
+
+@RENDERERS.register("json")
+def build_json_renderer() -> JsonRenderer:
+    return JsonRenderer()

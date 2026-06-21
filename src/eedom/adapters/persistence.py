@@ -67,3 +67,21 @@ assert isinstance(NullAuditSink(), AuditSinkPort), "NullAuditSink must satisfy A
 assert isinstance(
     FileEvidenceStore(Path(".")), EvidenceStorePort
 ), "FileEvidenceStore must satisfy EvidenceStorePort"
+
+
+from eedom.core.registries import DECISION_STORES, EVIDENCE_STORES  # noqa: E402  (wiring)
+
+
+@DECISION_STORES.register("null")
+def build_null_decision_store() -> NullDecisionStore:
+    return NullDecisionStore()
+
+
+@EVIDENCE_STORES.register("file")
+def build_file_evidence_store(*, base_dir: Path) -> FileEvidenceStore:
+    return FileEvidenceStore(base_dir=base_dir)
+
+
+@EVIDENCE_STORES.register("null")
+def build_null_evidence_store() -> NullEvidenceStore:
+    return NullEvidenceStore()

@@ -169,3 +169,11 @@ class SarifRenderer:
     def render(self, report) -> str:  # report: ReviewReport
         doc = to_sarif(report.plugin_results)
         return json.dumps(doc, indent=2)
+
+
+from eedom.core.registries import RENDERERS  # noqa: E402  (registration wiring)
+
+
+@RENDERERS.register("sarif")
+def build_sarif_renderer() -> SarifRenderer:
+    return SarifRenderer()

@@ -57,3 +57,26 @@ class GitWorktreeSnapshot:
 assert isinstance(
     GitWorktreeSnapshot(Path(".")), RepoSnapshotPort
 ), "GitWorktreeSnapshot must satisfy RepoSnapshotPort"
+
+
+class NullRepoSnapshot:
+    """No-op RepoSnapshotPort — never touches git; for tests and fakes wiring."""
+
+    def checkout_ref(self, ref: str) -> Path:
+        return Path(".")
+
+    def cleanup(self) -> None:
+        return None
+
+
+from eedom.core.registries import REPO_SNAPSHOTS  # noqa: E402  (registration wiring)
+
+
+@REPO_SNAPSHOTS.register("git")
+def build_git_snapshot(*, repo_path: Path) -> GitWorktreeSnapshot:
+    return GitWorktreeSnapshot(repo_path=repo_path)
+
+
+@REPO_SNAPSHOTS.register("fake")
+def build_fake_snapshot() -> NullRepoSnapshot:
+    return NullRepoSnapshot()
