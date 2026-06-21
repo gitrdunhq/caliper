@@ -57,3 +57,12 @@ class CdkNagPlugin(ScannerPlugin):
             lines.append("")
         lines.append("</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("cdk-nag")
+def build_cdk_nag_plugin() -> CdkNagPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return CdkNagPlugin()

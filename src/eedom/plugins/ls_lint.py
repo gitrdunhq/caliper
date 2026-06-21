@@ -85,3 +85,12 @@ class LsLintPlugin(ScannerPlugin):
             lines.append(f"- *...{len(result.findings) - 20} more*")
         lines.append("\n</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("ls-lint")
+def build_ls_lint_plugin() -> LsLintPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return LsLintPlugin()

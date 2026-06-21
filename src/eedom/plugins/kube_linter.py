@@ -57,3 +57,12 @@ class KubeLinterPlugin(ScannerPlugin):
             lines.append("")
         lines.append("</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("kube-linter")
+def build_kube_linter_plugin() -> KubeLinterPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return KubeLinterPlugin()

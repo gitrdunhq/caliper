@@ -9,6 +9,7 @@ import abc
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from typing import Protocol, runtime_checkable
 
 # Default templates directory — co-located with eedom.templates package.
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
@@ -132,6 +133,33 @@ class PluginResult:
     category: str = ""
     skip_reason: str = ""
     skip_remediation: str = ""
+
+
+@runtime_checkable
+class AnalyzerPort(Protocol):
+    """Structural contract for an analyzer plugin.
+
+    Restates the public ``ScannerPlugin`` surface so callers can depend on the
+    port rather than the concrete base class.  ``ScannerPlugin`` remains the
+    shared concrete base (it supplies the Jinja2 ``render`` machinery and the
+    ``depends_on``/``skip_reason`` defaults); every plugin instance satisfies
+    this Protocol structurally.
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def category(self) -> PluginCategory: ...
+
+    @property
+    def depends_on(self) -> list[str]: ...
+
+    def can_run(self, files: list[str], repo_path: Path) -> bool: ...
+
+    def run(self, files: list[str], repo_path: Path) -> PluginResult: ...
+
+    def render(self, result: PluginResult, template_dir: Path | None = None) -> str: ...
 
 
 class ScannerPlugin(abc.ABC):

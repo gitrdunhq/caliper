@@ -185,3 +185,12 @@ class MypyPlugin(ScannerPlugin):
             lines.append(f"> {f['message'][:200]}\n")
         lines.append("</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("mypy")
+def build_mypy_plugin() -> MypyPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return MypyPlugin()

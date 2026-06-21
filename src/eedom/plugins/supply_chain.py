@@ -429,3 +429,12 @@ class SupplyChainPlugin(ScannerPlugin):
             lines.append("\n</details>\n")
 
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("supply-chain")
+def build_supply_chain_plugin() -> SupplyChainPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return SupplyChainPlugin()

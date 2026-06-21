@@ -88,3 +88,12 @@ class SyftPlugin(ScannerPlugin):
         if result.error:
             return f"**syft**: {result.error}"
         return f"SBOM: {count} components detected" if count else ""
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("syft")
+def build_syft_plugin() -> SyftPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return SyftPlugin()

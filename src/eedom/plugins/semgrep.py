@@ -113,3 +113,12 @@ class SemgrepPlugin(ScannerPlugin):
             lines.append(f"> {f['message'][:200]}\n")
         lines.append("</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("semgrep")
+def build_semgrep_plugin() -> SemgrepPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return SemgrepPlugin()

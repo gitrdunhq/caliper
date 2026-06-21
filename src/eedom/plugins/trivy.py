@@ -109,3 +109,12 @@ class TrivyPlugin(ScannerPlugin):
         if not result.findings:
             return ""
         return f"Trivy: {len(result.findings)} vulnerabilities found"
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("trivy")
+def build_trivy_plugin() -> TrivyPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return TrivyPlugin()

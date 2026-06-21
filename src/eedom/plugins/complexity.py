@@ -100,3 +100,12 @@ class ComplexityPlugin(ScannerPlugin):
             lines.append(f"\n*...{remaining} more functions (see SARIF for full list)*")
         lines.append("\n</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("complexity")
+def build_complexity_plugin() -> ComplexityPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return ComplexityPlugin()

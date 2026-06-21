@@ -132,3 +132,12 @@ class CspellPlugin(ScannerPlugin):
             lines.append(f"\n*...{len(result.findings) - 30} more*")
         lines.append("\n</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("cspell")
+def build_cspell_plugin() -> CspellPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return CspellPlugin()

@@ -159,3 +159,12 @@ class BlastRadiusPlugin(ScannerPlugin):
         )
         lines.append("\n</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("blast-radius")
+def build_blast_radius_plugin() -> BlastRadiusPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return BlastRadiusPlugin()

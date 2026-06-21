@@ -129,3 +129,12 @@ class ClamAvPlugin(ScannerPlugin):
             lines.append(f"| `{f['file']}` | `{f['signature']}` | 🔴 {f['severity']} |")
         lines.append("\n</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("clamav")
+def build_clamav_plugin() -> ClamAvPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return ClamAvPlugin()

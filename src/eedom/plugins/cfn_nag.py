@@ -90,3 +90,12 @@ class CfnNagPlugin(ScannerPlugin):
             lines.append("")
         lines.append("</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("cfn-nag")
+def build_cfn_nag_plugin() -> CfnNagPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return CfnNagPlugin()
