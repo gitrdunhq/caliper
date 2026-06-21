@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the eedom scanner.
 
 ## What This Is
 
-Eagle Eyed Dom — fully deterministic dependency and code review for CI. 19 scanner plugins (+ OPA policy plugin), 21 deterministic detectors, 61 custom semgrep rules, 12 code graph checks, 6 OPA policy rules, 600+ tests, zero LLM in the decision path.
+Eagle Eyed Dom — fully deterministic dependency and code review for CI. 19 scanner plugins (+ OPA policy plugin), 21 deterministic detectors, 61 custom semgrep rules, 12 code graph checks, 8 OPA policy rules, 600+ tests, zero LLM in the decision path.
 
 ## Commands
 
@@ -133,7 +133,7 @@ What the script manages:
 
 ## OPA Policy
 
-6 rules in `policies/policy.rego`. Critical/high vulns deny. Forbidden licenses deny. Package age < 30 days denies. Malicious packages deny. Medium vulns warn. High transitive dep count warns.
+8 rules in `policies/policy.rego`. Critical/high vulns deny. Forbidden licenses deny. Package age < 30 days denies. Malicious packages deny. Critical/high supply-chain version-bump signals deny. Medium vulns warn. High transitive dep count warns. Medium supply-chain signals warn.
 
 ## Dev Ports
 
