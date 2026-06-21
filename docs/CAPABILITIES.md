@@ -252,7 +252,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Format | Where | Description |
 |--------|-------|-------------|
 | Markdown PR comment | `templates/comment.md.j2` | Verdict badge, health score (0-100), maintainability grade, per-plugin summary table, detailed sections. 65536 char max with truncation. |
-| SARIF v2.1.0 | `core/sarif.py` | GitHub Security tab integration. Severity-to-level mapping. Configurable max findings cap. |
+| SARIF v2.1.0 | `core/sarif.py` | GitHub Security tab integration. Severity-to-level mapping. Configurable max findings cap. Detect-then-enrich packets surface in each result's `properties.enrichment` (parity with the JSON report). |
 | Inline PR review | `core/pr_review.py` | SARIF → GitHub PR review. Hunk-aware line placement. REQUEST_CHANGES on reject, COMMENT on approve_with_constraints. Outside-diff findings in collapsed summary. |
 | JSON decision | CLI `--output-json` | Machine-readable decision with all findings, policy evaluation, and evidence. |
 
