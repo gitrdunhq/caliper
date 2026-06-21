@@ -172,3 +172,31 @@ def run_semgrep(
         msg = error_msg(ErrorCode.BINARY_CRASHED, "opengrep", exit_code=-1)
         logger.exception("opengrep.failed")
         return {"results": [], "errors": [{"message": msg}], "status": "error"}
+
+
+class OpengrepRunner:
+    """SemgrepRunnerPort adapter over run_semgrep (the opengrep CLI)."""
+
+    def run(
+        self,
+        changed_files: list,
+        repo_path: str,
+        timeout: int = 120,
+        extra_config_dirs: list | None = None,
+        exclude_rules: list | None = None,
+    ) -> dict:
+        return run_semgrep(
+            changed_files,
+            repo_path,
+            timeout=timeout,
+            extra_config_dirs=extra_config_dirs,
+            exclude_rules=exclude_rules,
+        )
+
+
+from eedom.core.registries import RULE_RUNNERS  # noqa: E402  (registration wiring)
+
+
+@RULE_RUNNERS.register("semgrep")
+def build_semgrep_runner() -> OpengrepRunner:
+    return OpengrepRunner()

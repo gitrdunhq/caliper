@@ -723,3 +723,17 @@ def _is_log_call(node: ast.Call) -> bool:
     if isinstance(node.func, ast.Name):
         return node.func.id == "print"
     return False
+
+
+from eedom.core.registries import CODEGRAPH_CHECKS  # noqa: E402  (registration wiring)
+
+
+@CODEGRAPH_CHECKS.register("blast-radius")
+def build_code_graph(
+    *,
+    db_path: str = ":memory:",
+    fan_out_limit: int = 8,
+    repo_root: str | None = None,
+) -> CodeGraph:
+    """Construct the SQLite code-graph check-runner (no I/O; graph built later)."""
+    return CodeGraph(db_path=db_path, fan_out_limit=fan_out_limit, repo_root=repo_root)

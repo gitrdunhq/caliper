@@ -17,17 +17,21 @@ from __future__ import annotations
 
 from eedom.core.policy_port import PolicyEnginePort
 from eedom.core.ports import (
+    CodeGraphCheckPort,
     DecisionStorePort,
     EvidenceStorePort,
     PackageMetadataPort,
     PullRequestPublisherPort,
     ReportRendererPort,
     RepoSnapshotPort,
+    SemgrepRunnerPort,
 )
 from eedom.registry import Registry
 
 POLICY_ENGINES: Registry[PolicyEnginePort] = Registry("policy_engine")
 RENDERERS: Registry[ReportRendererPort] = Registry("renderer")
+RULE_RUNNERS: Registry[SemgrepRunnerPort] = Registry("rule_runner")
+CODEGRAPH_CHECKS: Registry[CodeGraphCheckPort] = Registry("codegraph_check")
 # data/pypi's PyPIClient implements PackageMetadataPort (fetch_metadata/close),
 # which is the real PyPI contract the pipeline uses; PackageIndexPort is vestigial.
 PACKAGE_INDEXES: Registry[PackageMetadataPort] = Registry("package_index")
@@ -37,6 +41,7 @@ PUBLISHERS: Registry[PullRequestPublisherPort] = Registry("publisher")
 REPO_SNAPSHOTS: Registry[RepoSnapshotPort] = Registry("repo_snapshot")
 
 __all__ = [
+    "CODEGRAPH_CHECKS",
     "DECISION_STORES",
     "EVIDENCE_STORES",
     "PACKAGE_INDEXES",
@@ -44,4 +49,5 @@ __all__ = [
     "PUBLISHERS",
     "RENDERERS",
     "REPO_SNAPSHOTS",
+    "RULE_RUNNERS",
 ]

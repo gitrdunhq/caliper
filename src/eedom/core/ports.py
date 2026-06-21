@@ -32,6 +32,27 @@ class ScannerPort(Protocol):
 
 
 @runtime_checkable
+class SemgrepRunnerPort(Protocol):
+    """Contract for running a semgrep/opengrep ruleset over changed files."""
+
+    def run(
+        self,
+        changed_files: list,
+        repo_path: str,
+        timeout: int = 120,
+        extra_config_dirs: list | None = None,
+        exclude_rules: list | None = None,
+    ) -> dict: ...
+
+
+@runtime_checkable
+class CodeGraphCheckPort(Protocol):
+    """Contract for running the SQL code-graph checks against the built graph."""
+
+    def run_checks(self, changed_files: list) -> list: ...
+
+
+@runtime_checkable
 class EvidenceWriterPort(Protocol):
     """Contract for the per-run evidence bundle writer used by the pipeline."""
 

@@ -7,7 +7,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from eedom.plugins._runners.semgrep_runner import run_semgrep as _run
+from eedom.core.registries import RULE_RUNNERS
+from eedom.plugins._runners import semgrep_runner  # noqa: F401  (registers RULE_RUNNERS["semgrep"])
 
 _CODE_EXTS = {
     ".py",
@@ -55,7 +56,7 @@ class SemgrepPlugin(ScannerPlugin):
         sg = repo_config.plugins.semgrep
 
         try:
-            data = _run(
+            data = RULE_RUNNERS.create("semgrep").run(
                 files,
                 str(repo_path),
                 timeout=120,
