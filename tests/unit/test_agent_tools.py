@@ -385,6 +385,47 @@ class TestScanCode:
         assert result["status"] == "error"
         assert "not_installed" in result["error"]
 
+    def test_attaches_enrichment_when_source_available(self, tmp_path, monkeypatch):
+        """scan_code findings carry detect-then-enrich context (ADR-006)."""
+        from unittest.mock import MagicMock
+
+        from eedom.agent.tools import scan_code
+        from eedom.core.plugin import PluginResult
+
+        (tmp_path / "app.py").write_text("def handler():\n    eval(x)\n    return 1\n")
+        monkeypatch.setenv("EEDOM_GRAPH_DB", str(tmp_path / "graph.db"))
+
+        mock_result = PluginResult(
+            plugin_name="semgrep",
+            findings=[
+                {
+                    "rule_id": "python.security.eval-injection",
+                    "file": "app.py",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "severity": "ERROR",
+                    "message": "Detected eval() usage",
+                }
+            ],
+        )
+        mock_plugin = MagicMock()
+        mock_plugin.run.return_value = mock_result
+        mock_registry = MagicMock()
+        mock_registry.get.return_value = mock_plugin
+
+        with patch(
+            "eedom.agent.tools.get_default_registry",
+            return_value=mock_registry,
+        ):
+            result = scan_code(
+                diff_text="diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1 +2 @@\n+eval(x)",
+                repo_path=str(tmp_path),
+            )
+        assert result["status"] == "ok"
+        enrichment = result["findings"][0]["metadata"]["enrichment"]
+        assert enrichment["enclosing_symbol"] == "handler"
+        assert "enclosing_symbol" in enrichment["sources"]
+
     def test_only_scans_changed_files(self):
         from eedom.agent.tool_helpers import (
             extract_changed_files as _extract_changed_files,
@@ -516,12 +557,12 @@ class TestGenerateBaseSbom:
         checkout_calls = [cmd for cmd in cmds if "checkout" in cmd]
         worktree_calls = [cmd for cmd in cmds if "worktree" in cmd]
 
-        assert (
-            len(checkout_calls) == 0
-        ), f"Must not use git checkout (race condition): {checkout_calls}"
-        assert (
-            len(worktree_calls) >= 2
-        ), f"Expected worktree add+remove calls, found: {worktree_calls}"
+        assert len(checkout_calls) == 0, (
+            f"Must not use git checkout (race condition): {checkout_calls}"
+        )
+        assert len(worktree_calls) >= 2, (
+            f"Expected worktree add+remove calls, found: {worktree_calls}"
+        )
 
     def test_worktree_cleaned_up_on_syft_failure(self):
         """The worktree must be removed via 'worktree remove' even if run_syft raises."""
@@ -553,9 +594,9 @@ class TestGenerateBaseSbom:
         calls = mock_run.call_args_list
         cmds = [c.args[0] for c in calls if c.args and isinstance(c.args[0], list)]
         remove_calls = [cmd for cmd in cmds if "worktree" in cmd and "remove" in cmd]
-        assert (
-            len(remove_calls) >= 1
-        ), f"Worktree must be removed on failure, subprocess calls were: {cmds}"
+        assert len(remove_calls) >= 1, (
+            f"Worktree must be removed on failure, subprocess calls were: {cmds}"
+        )
 
 
 class TestRunSyftPathValidation:
@@ -641,8 +682,7 @@ class TestExtractChangedFilesEdgeCases:
         from eedom.agent.tool_helpers import extract_changed_files
 
         diff = (
-            "diff --git a/image.png b/image.png\n"
-            "Binary files a/image.png and b/image.png differ\n"
+            "diff --git a/image.png b/image.png\nBinary files a/image.png and b/image.png differ\n"
         )
         result = extract_changed_files(diff)
         assert result == ["image.png"]
@@ -708,13 +748,7 @@ class TestRegistryRouting:
 
         get_agent_settings.cache_clear()
 
-    _DIFF_PY = (
-        "diff --git a/app.py b/app.py\n"
-        "--- a/app.py\n"
-        "+++ b/app.py\n"
-        "@@ -1 +1 @@\n"
-        "+x = 1\n"
-    )
+    _DIFF_PY = "diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1 +1 @@\n+x = 1\n"
     _DIFF_YAML = (
         "diff --git a/deploy.yaml b/deploy.yaml\n"
         "--- a/deploy.yaml\n"
@@ -940,9 +974,9 @@ class TestBuildDepSummaryPathTraversal:
         # After fix: must return {} without reading sensitive/package.json.
         # Before fix: reads it and includes "sentinel-evil-pkg" in direct.
         evil = [d for d in result.get("direct", []) if d["name"] == "sentinel-evil-pkg"]
-        assert (
-            evil == []
-        ), f"Path traversal allowed reading 'sentinel-evil-pkg' from outside repo: {result}"
+        assert evil == [], (
+            f"Path traversal allowed reading 'sentinel-evil-pkg' from outside repo: {result}"
+        )
 
     def test_sbom_absolute_path_names_are_sanitized_in_shared(self, tmp_path):
         """SBOM component names that look like filesystem paths must not appear verbatim
@@ -975,7 +1009,7 @@ class TestBuildDepSummaryPathTraversal:
 
         # After fix: shared names must not start with "/" or contain "..".
         for item in result.get("shared", []):
-            assert not item["name"].startswith(
-                "/"
-            ), f"Absolute path leaked into shared: {item['name']!r}"
+            assert not item["name"].startswith("/"), (
+                f"Absolute path leaked into shared: {item['name']!r}"
+            )
             assert ".." not in item["name"], f"Traversal sequence in shared name: {item['name']!r}"
