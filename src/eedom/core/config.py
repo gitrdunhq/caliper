@@ -37,8 +37,11 @@ class _CommaSeparatedEnvSource(EnvSettingsSource):
         try:
             return json.loads(value)
         except (json.JSONDecodeError, ValueError):
-            # Comma-separated fallback for simple list[str] fields
-            if isinstance(value, str) and "," in value:
+            # Comma-separated fallback for simple list[str] fields. A single
+            # value with no comma (e.g. "pypi") still becomes a one-element
+            # list — without this, single-value env overrides fail list
+            # validation (e.g. EEDOM_SUPPLY_CHAIN_DIFF_ECOSYSTEMS=pypi).
+            if isinstance(value, str):
                 return [s.strip() for s in value.split(",") if s.strip()]
             return value
 
