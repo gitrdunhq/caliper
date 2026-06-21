@@ -16,6 +16,28 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
+class FileSourcePort(Protocol):
+    """Contract for enumerating the files eedom should scan under a root.
+
+    One seam replaces the ad-hoc ``rglob``/``os.walk`` calls scattered across
+    the CLI, the supply-chain plugin, and the deterministic scanner. Adapters
+    decide *how* files are discovered (git index vs. filesystem walk); the
+    eedom exclusion layer (``core.ignore``) composes on top regardless.
+
+    ``list_files`` is deterministic (sorted) and fail-open (never raises;
+    returns ``[]`` when a source cannot read the tree). ``is_available`` lets
+    the resolver probe a source before committing to it.
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    def is_available(self, root: Path) -> bool: ...
+
+    def list_files(self, root: Path, *, suffixes: tuple[str, ...] | None = None) -> list[Path]: ...
+
+
+@runtime_checkable
 class ScannerPort(Protocol):
     """Structural contract for a dependency scanner.
 
