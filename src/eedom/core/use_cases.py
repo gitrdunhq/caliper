@@ -14,6 +14,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from eedom.core.plugin import finding_get
+
 if TYPE_CHECKING:
     from eedom.core.context import ApplicationContext
 
@@ -58,10 +60,7 @@ def _derive_verdict(results: list) -> str:
             continue
         findings = getattr(r, "findings", [])
         category = getattr(r, "category", "")
-        has_crit = any(
-            f.get("severity") in ("critical", "high") if hasattr(f, "get") else False
-            for f in findings
-        )
+        has_crit = any(finding_get(f, "severity") in ("critical", "high") for f in findings)
         is_security = category in {"dependency", "supply_chain", "infra"}
         if has_crit and is_security:
             verdict = "blocked"

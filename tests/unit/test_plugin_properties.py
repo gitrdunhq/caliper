@@ -17,6 +17,7 @@ from eedom.core.plugin import (
     PluginCategory,
     PluginResult,
     ScannerPlugin,
+    finding_get,
 )
 from eedom.core.registry import PluginRegistry
 from eedom.core.renderer import render_comment
@@ -125,8 +126,8 @@ class TestPluginIsolation:
         results = reg.run_all(files, Path("."))
         good = [r for r in results if r.plugin_name == "deterministic"]
         findings = good[0].findings
-        assert [f.get("file") for f in findings] == sorted(files)
-        assert all(f.get("issue") == "test" for f in findings)
+        assert [finding_get(f, "file") for f in findings] == sorted(files)
+        assert all(finding_get(f, "issue") == "test" for f in findings)
 
 
 # ── PROP-003: Registry Determinism ──
