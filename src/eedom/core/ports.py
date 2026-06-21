@@ -9,7 +9,66 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from eedom.core.models import PolicyEvaluation, ReviewDecision, ScanResult
+
+
+@runtime_checkable
+class ScannerPort(Protocol):
+    """Structural contract for a dependency scanner.
+
+    The canonical home of the scanner port; ``data.scanners.base`` re-exports
+    it so adapters and the orchestrator depend on a core-owned contract rather
+    than a data-tier class.  ``scan`` returns a ``ScanResult`` and never raises
+    (failures are represented via ``ScanResult.status``).
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    def scan(self, target_path: Path) -> ScanResult: ...
+
+
+@runtime_checkable
+class EvidenceWriterPort(Protocol):
+    """Contract for the per-run evidence bundle writer used by the pipeline."""
+
+    def get_path(self, run_id: str, package: str) -> str: ...
+
+    def store(self, run_id: str, rel_path: str, content: Any) -> Any: ...
+
+
+@runtime_checkable
+class PackageMetadataPort(Protocol):
+    """Contract for fetching package metadata (release dates, etc.)."""
+
+    def fetch_metadata(self, name: str, version: str) -> dict: ...
+
+    def close(self) -> None: ...
+
+
+@runtime_checkable
+class DecisionRepositoryPort(Protocol):
+    """Rich persistence contract the review pipeline drives per package.
+
+    Distinct from the narrow ``DecisionStorePort`` (which only persists the
+    final decision); the pipeline records the request, scan results, policy
+    evaluation, and decision, then closes the connection.
+    """
+
+    def connect(self) -> bool: ...
+
+    def save_request(self, request: Any) -> None: ...
+
+    def save_scan_results(self, request_id: Any, results: list) -> None: ...
+
+    def save_policy_evaluation(self, request_id: Any, evaluation: PolicyEvaluation) -> None: ...
+
+    def save_decision(self, request_id: Any, decision: ReviewDecision) -> None: ...
+
+    def close(self) -> None: ...
 
 
 @runtime_checkable

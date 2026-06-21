@@ -279,12 +279,13 @@ def run_pipeline(
     repo_path: str,
 ) -> tuple[list, list[dict], dict]:
     """Run the review pipeline. Returns (decisions, sbom_changes, raw_sbom)."""
+    from eedom.composition.bootstrap import bootstrap
     from eedom.core.models import OperatingMode
     from eedom.core.pipeline import ReviewPipeline
     from eedom.core.sbom_diff import diff_sboms
 
     config = make_pipeline_config()
-    pipeline = ReviewPipeline(config)
+    pipeline = ReviewPipeline(config, context=bootstrap(config))
 
     manifest_changes = detect_manifest_changes(diff_text)
     python_manifests = manifest_changes.pop("pypi", [])

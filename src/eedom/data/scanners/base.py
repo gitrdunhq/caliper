@@ -10,11 +10,17 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Protocol, runtime_checkable
 
 import structlog
 
 from eedom.core.models import ScanResult
+
+# ScannerPort is owned by core (the port lives with the other hexagonal
+# contracts); re-exported here so adapters and the orchestrator keep importing
+# it from the scanners package. ``Scanner`` is the backward-compat alias.
+from eedom.core.ports import ScannerPort
+
+Scanner = ScannerPort
 
 logger = structlog.get_logger()
 
@@ -60,29 +66,3 @@ def _make_failed_result(scanner_name: str, message: str) -> ScanResult:
 def _make_not_installed_result(scanner_name: str) -> ScanResult:
     """Thin wrapper — delegates to ScanResult.not_installed()."""
     return ScanResult.not_installed(scanner_name)
-
-
-@runtime_checkable
-class ScannerPort(Protocol):
-    """Structural contract for all dependency scanners.
-
-    An implementation exposes a human-readable ``name`` and a ``scan`` method
-    that returns a ``ScanResult`` and never raises — failures are represented
-    via ``ScanResult.status`` (fail-open).  Adapters self-register against the
-    ``SCANNERS`` registry; no inheritance is required.
-    """
-
-    @property
-    def name(self) -> str:
-        """Human-readable scanner identifier (e.g. 'syft', 'trivy')."""
-        ...
-
-    def scan(self, target_path: Path) -> ScanResult:
-        """Execute the scan against *target_path* and return a result."""
-        ...
-
-
-# Backward-compatible alias. Existing type hints (``core.orchestrator``) and
-# the detector subclass (``detectors.scanner.DeterministicScanner``) still
-# reference ``Scanner``; it now names the structural port.
-Scanner = ScannerPort
