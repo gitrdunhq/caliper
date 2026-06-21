@@ -676,12 +676,12 @@ def supply_chain_diff(
         )
         sys.exit(0)
 
+    from eedom.composition.bootstrap import run_supply_chain_scan
     from eedom.core.plugin import PluginResult
     from eedom.core.supply_chain_diff import evaluate_gate
-    from eedom.data.supply_chain_scan import run_supply_chain_diff
 
     diff_text = _read_diff(diff)
-    findings = run_supply_chain_diff(diff_text, settings)
+    findings = run_supply_chain_scan(diff_text, settings)
 
     # Optional advisory LLM narrative (opt-in; never affects the verdict).
     if "supply_chain_threat" in settings.enabled_enrichers and settings.llm_enabled:
