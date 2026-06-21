@@ -210,9 +210,7 @@ class PluginRegistry:
             )
         try:
             result = plugin.run(files, repo_path)
-            return replace(
-                result, category=cat, findings=_normalize_findings(result.findings)
-            )
+            return replace(result, category=cat, findings=_normalize_findings(result.findings))
         except Exception as exc:
             logger.warning(
                 "plugin.run_failed",
@@ -220,4 +218,3 @@ class PluginRegistry:
                 error=str(exc),
             )
             return PluginResult(plugin_name=plugin.name, error=str(exc), category=cat)
-
