@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -148,7 +149,7 @@ class TestOsvPlugin:
         mock_run.return_value.stdout = json.dumps(OSV_RESPONSE)
         p = OsvScannerPlugin()
         result = p.run(["requirements.txt"], Path("."))
-        result.findings = _normalize_findings(result.findings)
+        result = replace(result, findings=_normalize_findings(result.findings))
 
         md = p.render(result)
 
