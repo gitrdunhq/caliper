@@ -15,14 +15,15 @@ from pathlib import Path
 import structlog
 
 from eedom.core.models import ScanResult, ScanResultStatus
-from eedom.data.scanners.base import Scanner, run_subprocess_with_timeout
+from eedom.data.scanners import SCANNERS
+from eedom.data.scanners.base import ScannerPort, run_subprocess_with_timeout
 
 logger = structlog.get_logger()
 
 _TIMEOUT = 60
 
 
-class SyftScanner(Scanner):
+class SyftScanner:
     """Generates a CycloneDX SBOM using Syft."""
 
     def __init__(self, evidence_dir: Path, timeout: int = _TIMEOUT) -> None:
@@ -87,3 +88,17 @@ class SyftScanner(Scanner):
             message=f"SBOM generated: {component_count} components detected",
             duration_seconds=elapsed,
         )
+
+
+@SCANNERS.register("syft")
+def build_syft_scanner(
+    *,
+    evidence_dir: Path | None = None,
+    timeout: int = _TIMEOUT,
+) -> ScannerPort:
+    """Construct a SyftScanner.
+
+    ``evidence_dir`` defaults to the current directory; it is only touched
+    during ``scan`` (never at construction), so the factory does no I/O.
+    """
+    return SyftScanner(evidence_dir=evidence_dir or Path("."), timeout=timeout)

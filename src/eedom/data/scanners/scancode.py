@@ -20,12 +20,13 @@ from eedom.core.models import (
     ScanResult,
     ScanResultStatus,
 )
-from eedom.data.scanners.base import Scanner, run_subprocess_with_timeout
+from eedom.data.scanners import SCANNERS
+from eedom.data.scanners.base import ScannerPort, run_subprocess_with_timeout
 
 logger = structlog.get_logger()
 
 
-class ScanCodeScanner(Scanner):
+class ScanCodeScanner:
     """Detects license declarations using ScanCode."""
 
     def __init__(self, evidence_dir: Path, timeout: int = 60, license_score: int = 0) -> None:
@@ -172,3 +173,22 @@ def to_cyclonedx(repo_path: Path, output_path: Path, timeout: int = 120) -> bool
     ]
     returncode, _stdout, _stderr = run_subprocess_with_timeout(cmd=cmd, timeout=timeout)
     return returncode == 0
+
+
+@SCANNERS.register("scancode")
+def build_scancode_scanner(
+    *,
+    evidence_dir: Path | None = None,
+    timeout: int = 60,
+    license_score: int = 0,
+) -> ScannerPort:
+    """Construct a ScanCodeScanner.
+
+    ``evidence_dir`` defaults to the current directory and is only created
+    during ``scan``; the 60s default timeout is enforced inside scan().
+    """
+    return ScanCodeScanner(
+        evidence_dir=evidence_dir or Path("."),
+        timeout=timeout,
+        license_score=license_score,
+    )
