@@ -372,7 +372,7 @@ class TestCallLlmResponseParsing:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = json_data
-        return patch.object(advisor._client, "post", return_value=mock_response)
+        return patch.object(advisor._llm._client, "post", return_value=mock_response)
 
     def test_call_llm_non_string_content_returns_empty(self) -> None:
         """F-022: When 'content' is a non-string (e.g. int), _call_llm must
@@ -399,7 +399,7 @@ class TestCallLlmResponseParsing:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.side_effect = ValueError("Invalid JSON")
-        with patch.object(advisor._client, "post", return_value=mock_response):
+        with patch.object(advisor._llm._client, "post", return_value=mock_response):
             result = advisor._call_llm([{"role": "user", "content": "test"}])
         assert result == ""
         assert isinstance(result, str)
