@@ -24,7 +24,7 @@ pytestmark = pytest.mark.xfail(
     strict=False,
 )
 
-from eedom.core.bootstrap import _make_audit_sink, _make_publisher, bootstrap
+from eedom.composition.bootstrap import _make_audit_sink, _make_publisher, bootstrap
 
 
 class TestBootstrapDoesNotWireFakeAdapters:

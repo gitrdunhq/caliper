@@ -74,7 +74,7 @@ def settings(secret: str):
 @pytest.fixture
 def test_context():
     """ApplicationContext wired with all-fake implementations."""
-    from eedom.core.bootstrap import bootstrap_test
+    from eedom.composition.bootstrap import bootstrap_test
 
     return bootstrap_test()
 
@@ -125,7 +125,7 @@ class TestBuildAppAcceptsContext:
         FAILS NOW: build_app(settings: WebhookSettings) has no 'context' param.
         The call below raises TypeError.
         """
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.webhook.server import build_app
 
         ctx = bootstrap_test()
@@ -160,7 +160,7 @@ class TestWebhookDelegatesToUseCase:
         After the fix, review_repository() is used and subprocess.run() is
         never invoked from the webhook handler.
         """
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.webhook.server import build_app
 
         ctx = bootstrap_test()

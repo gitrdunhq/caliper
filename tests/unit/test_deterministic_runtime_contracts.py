@@ -276,7 +276,7 @@ def test_202_bootstrapped_opa_input_matches_bundled_policy_schema() -> None:
 
 
 def test_204_production_bootstrap_does_not_wire_null_or_fake_adapters(tmp_path: Path) -> None:
-    from eedom.core.bootstrap import bootstrap
+    from eedom.composition.bootstrap import bootstrap
 
     ctx = bootstrap(_make_config(tmp_path))
     wired = {
@@ -400,7 +400,7 @@ def test_209_bootstrap_passes_opa_timeout_to_policy_adapter(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     import eedom.core.opa_adapter as opa_adapter_mod
-    from eedom.core.bootstrap import bootstrap
+    from eedom.composition.bootstrap import bootstrap
 
     seen: dict[str, object] = {}
 
@@ -516,7 +516,7 @@ def test_218_cli_evaluate_uses_sbom_path_for_non_python_dependency_diffs(
 ) -> None:
     from click.testing import CliRunner
 
-    import eedom.core.bootstrap as bootstrap_mod
+    import eedom.composition.bootstrap as bootstrap_mod
     import eedom.core.pipeline as pipeline_mod
     from eedom.cli.main import cli
 

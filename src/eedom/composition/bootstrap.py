@@ -1,50 +1,52 @@
-# tested-by: tests/unit/test_bootstrap.py
+# tested-by: tests/unit/test_bootstrap_wiring.py
 """Application composition root — wires concrete adapters behind port contracts.
 
-Three public symbols:
-  - ApplicationContext — dataclass holding all wired port dependencies
+This is the presentation-side composition tier: it may legally import
+``data`` / ``adapters`` / ``plugins`` to construct the core
+``ApplicationContext``.  Core depends on the *type* (``eedom.core.context``),
+never on this wiring.
+
+Public symbols:
+  - ApplicationContext — re-exported from core for call-site convenience
   - bootstrap(settings) -> ApplicationContext — production wiring
   - bootstrap_test() -> ApplicationContext — in-memory fakes for unit tests
+  - bootstrap_review() -> ApplicationContext — minimal context for review
+  - build_*(settings) — per-adapter production wiring helpers
+
+NOTE: registry-backed adapter dispatch for the decision-store / evidence /
+package-index / publisher / policy / tool-runner areas lands in Phase 7
+(#411) once those registries exist; today these helpers construct adapters
+directly (which is legal in this tier).  The analyzer registry is already
+registry-backed via ``eedom.plugins.ANALYZERS``.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from eedom.core.policy_port import PolicyDecision, PolicyEnginePort, PolicyInput
+from eedom.core.context import ApplicationContext
+from eedom.core.policy_port import PolicyDecision, PolicyInput
 from eedom.core.ports import (
-    AnalyzerRegistryPort,
     AuditSinkPort,
     DecisionStorePort,
-    EvidenceStorePort,
-    PackageIndexPort,
     PullRequestPublisherPort,
 )
-from eedom.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
+from eedom.core.tool_runner import ToolInvocation, ToolResult
 
 if TYPE_CHECKING:
     from eedom.core.config import EedomSettings
 
-
-# ---------------------------------------------------------------------------
-# ApplicationContext
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class ApplicationContext:
-    """Holds all wired port dependencies for one application instance."""
-
-    analyzer_registry: AnalyzerRegistryPort
-    policy_engine: PolicyEnginePort
-    tool_runner: ToolRunnerPort
-    decision_store: DecisionStorePort
-    evidence_store: EvidenceStorePort
-    package_index: PackageIndexPort
-    audit_sink: AuditSinkPort
-    publisher: PullRequestPublisherPort
+__all__ = [
+    "ApplicationContext",
+    "bootstrap",
+    "bootstrap_review",
+    "bootstrap_test",
+    "build_audit_sink",
+    "build_decision_store",
+    "build_package_index",
+    "build_publisher",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +149,7 @@ def bootstrap_review(registry_factory=None) -> ApplicationContext:
 # ---------------------------------------------------------------------------
 
 
-def _make_decision_store(settings: EedomSettings) -> DecisionStorePort:
+def build_decision_store(settings: EedomSettings) -> DecisionStorePort:
     """Return the appropriate DecisionStorePort for *settings*.
 
     Returns a real DecisionRepository when *settings.db_dsn* is set and a
@@ -188,7 +190,7 @@ def _make_decision_store(settings: EedomSettings) -> DecisionStorePort:
         return NullDecisionStore()
 
 
-def _make_audit_sink(settings: EedomSettings) -> AuditSinkPort:
+def build_audit_sink(settings: EedomSettings) -> AuditSinkPort:
     """Return EvidenceStore-backed audit sink when evidence_path is set, NullAuditSink otherwise."""
     import structlog
 
@@ -204,7 +206,7 @@ def _make_audit_sink(settings: EedomSettings) -> AuditSinkPort:
     return NullAuditSink()
 
 
-def _make_publisher(settings: EedomSettings) -> PullRequestPublisherPort:
+def build_publisher(settings: EedomSettings) -> PullRequestPublisherPort:
     """Return GitHubPublisher when EEDOM_GITHUB_TOKEN is set, NullPublisher otherwise."""
     import structlog
 
@@ -222,11 +224,19 @@ def _make_publisher(settings: EedomSettings) -> PullRequestPublisherPort:
     return NullPublisher()
 
 
-def _make_package_index(settings: EedomSettings):
+def build_package_index(settings: EedomSettings):
     """Return a real PyPI package index."""
     from eedom.data.pypi import PyPIClient
 
     return PyPIClient(timeout=getattr(settings, "pypi_timeout", 30))
+
+
+# Backward-compatible aliases. The epic renames `_make_*` -> `build_*`; these
+# keep existing imports and inspect-based wiring guards working unchanged.
+_make_decision_store = build_decision_store
+_make_audit_sink = build_audit_sink
+_make_publisher = build_publisher
+_make_package_index = build_package_index
 
 
 # ---------------------------------------------------------------------------
@@ -261,9 +271,9 @@ def bootstrap(settings: EedomSettings) -> ApplicationContext:
         analyzer_registry=registry,
         policy_engine=policy_engine,
         tool_runner=tool_runner,
-        decision_store=_make_decision_store(settings),
+        decision_store=build_decision_store(settings),
         evidence_store=FileEvidenceStore(base_dir=Path(settings.evidence_path)),
-        package_index=_make_package_index(settings),
-        audit_sink=_make_audit_sink(settings),
-        publisher=_make_publisher(settings),
+        package_index=build_package_index(settings),
+        audit_sink=build_audit_sink(settings),
+        publisher=build_publisher(settings),
     )

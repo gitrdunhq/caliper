@@ -199,7 +199,7 @@ def evaluate(
     try:
         import orjson
 
-        from eedom.core.bootstrap import bootstrap as _bootstrap
+        from eedom.composition.bootstrap import bootstrap as _bootstrap
         from eedom.core.pipeline import ReviewPipeline
 
         _context = _bootstrap(config)
@@ -320,7 +320,7 @@ def review(
     gh_repo: str | None,
 ) -> None:
     """Run Eagle Eyed Dom plugin review on a repo or diff."""
-    from eedom.core.bootstrap import bootstrap_review
+    from eedom.composition.bootstrap import bootstrap_review
     from eedom.core.plugin import PluginCategory
     from eedom.core.renderer import render_comment
     from eedom.core.repo_config import RepoConfig, load_repo_config
@@ -528,7 +528,7 @@ def audit(
     """Run a holistic trust audit — concern by concern via LLM (Alley-Oop)."""
     import os as _os
 
-    from eedom.core.bootstrap import bootstrap_review
+    from eedom.composition.bootstrap import bootstrap_review
     from eedom.core.concern_review import render_audit_markdown, run_audit
     from eedom.core.ignore import load_ignore_patterns, should_ignore
     from eedom.core.repo_config import RepoConfig, load_repo_config

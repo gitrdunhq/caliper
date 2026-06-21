@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from eedom.core.bootstrap import ApplicationContext
+    from eedom.core.context import ApplicationContext
 
 
 class ScanScope(StrEnum):

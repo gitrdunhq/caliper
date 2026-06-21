@@ -24,7 +24,7 @@ import dataclasses
 class TestApplicationContextPersistenceFields:
     def test_application_context_has_audit_sink_field(self) -> None:
         """audit_sink field must be present on ApplicationContext."""
-        from eedom.core.bootstrap import ApplicationContext
+        from eedom.composition.bootstrap import ApplicationContext
 
         fields = {f.name for f in dataclasses.fields(ApplicationContext)}
         assert "audit_sink" in fields, "ApplicationContext must have an 'audit_sink' field"
@@ -34,7 +34,7 @@ class TestApplicationContextPersistenceFields:
 
         FAILS: the field is currently named 'pr_publisher', not 'publisher'.
         """
-        from eedom.core.bootstrap import ApplicationContext
+        from eedom.composition.bootstrap import ApplicationContext
 
         fields = {f.name for f in dataclasses.fields(ApplicationContext)}
         assert "publisher" in fields, (
@@ -50,7 +50,7 @@ class TestApplicationContextPersistenceFields:
 class TestBootstrapTestPersistencePortSatisfaction:
     def test_bootstrap_test_all_persistence_ports_satisfied(self) -> None:
         """All three persistence adapters must implement their port protocols."""
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.ports import AuditSinkPort, DecisionStorePort, EvidenceStorePort
 
         ctx = bootstrap_test()
@@ -65,7 +65,7 @@ class TestBootstrapTestPersistencePortSatisfaction:
         ), "bootstrap_test().decision_store must satisfy DecisionStorePort"
 
     def test_bootstrap_test_evidence_store_satisfies_evidence_store_port(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.ports import EvidenceStorePort
 
         ctx = bootstrap_test()
@@ -74,7 +74,7 @@ class TestBootstrapTestPersistencePortSatisfaction:
         ), "bootstrap_test().evidence_store must satisfy EvidenceStorePort"
 
     def test_bootstrap_test_audit_sink_satisfies_audit_sink_port(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.ports import AuditSinkPort
 
         ctx = bootstrap_test()
@@ -83,7 +83,7 @@ class TestBootstrapTestPersistencePortSatisfaction:
         ), "bootstrap_test().audit_sink must satisfy AuditSinkPort"
 
     def test_bootstrap_test_decision_store_satisfies_decision_store_port(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.ports import DecisionStorePort
 
         ctx = bootstrap_test()
@@ -104,7 +104,7 @@ class TestBootstrapTestPublisherField:
         FAILS: AttributeError — ApplicationContext has no 'publisher' attribute
         (field is 'pr_publisher').
         """
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         assert (
@@ -117,7 +117,7 @@ class TestBootstrapTestPublisherField:
         FAILS: AttributeError — ApplicationContext has no 'publisher' attribute
         (field is 'pr_publisher').
         """
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.ports import PullRequestPublisherPort
 
         ctx = bootstrap_test()
