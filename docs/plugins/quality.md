@@ -95,3 +95,46 @@ Enforces file and directory naming conventions across the project tree.
 | Warning | File or directory name does not match the configured pattern |
 
 Consistent naming makes navigation predictable and removes the cognitive load of guessing whether a file is `UserService`, `user-service`, or `user_service`.
+
+---
+
+## mypy
+
+Runs cross-file type checking. Prefers pyright (faster, stricter) when available, falls back to mypy.
+
+| Severity | Condition |
+|----------|-----------|
+| Error | Type incompatibility at a public API boundary |
+| Warning | Missing type annotation on a public function |
+
+Advisory — helps reviewers understand type contract violations early without blocking merges. Type mismatches are cheaper to fix in review than to trace in production.
+
+---
+
+## swiftlint
+
+Detects Swift style and code smell violations using 200+ built-in rules plus 13 project-specific custom rules.
+
+| Severity | Condition |
+|----------|-----------|
+| Warning | Swift style violation or code smell (e.g., force try/cast, NSLock in async context, weak self handling) |
+
+Advisory — surfaces patterns that are unlikely to pass thorough code review, making the conversation about simplification and safety easier to start.
+
+---
+
+## swiftformat
+
+Reports Swift source files that need reformatting. All findings are auto-fixable with `swiftformat .`.
+
+| Severity | Condition |
+|----------|-----------|
+| Info | File does not match the configured formatting rules |
+
+Advisory — purely informational. Formatting consistency improves readability and reduces review friction.
+
+---
+
+## See also
+
+- [Deterministic detectors](../detectors.md) — 21 AST-based bug-pattern rules (EED-001..EED-021) that run alongside the plugins.

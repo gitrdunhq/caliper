@@ -4,7 +4,7 @@ Eagle Eyed Dom (eedom) is a fully deterministic dependency and code review engin
 
 Every PR that touches a dependency manifest or source file triggers the same tedious checklist: known CVEs, license compatibility, package age, leaked secrets, copy-paste duplication, cyclomatic complexity — eedom runs all of it in under ten minutes, without a human.
 
-The pipeline detects changed packages across 18 ecosystems, fans out across 18 specialist plugins in parallel (Syft, OSV-Scanner, Trivy, ScanCode, Semgrep, Gitleaks, ClamAV, and more), deduplicates overlapping findings by advisory ID with highest-severity-wins logic, then hands the normalized result set to an OPA policy engine that makes the accept/reject decision in pure Rego — no prompts, no probability, no "it depends on the model's mood today."
+The pipeline detects changed packages across 18 ecosystems, fans out across 19 specialist plugins in parallel (Syft, OSV-Scanner, Trivy, ScanCode, Semgrep, Gitleaks, ClamAV, and more), deduplicates overlapping findings by advisory ID with highest-severity-wins logic, then hands the normalized result set to an OPA policy engine that makes the accept/reject decision in pure Rego — no prompts, no probability, no "it depends on the model's mood today."
 
 What makes eedom different is the constraint it refuses to break: **zero LLM in the decision path.** The build passes or fails on deterministic rules that any engineer can read, audit, and debate — not on a language model's interpretation of those rules.
 
@@ -68,7 +68,7 @@ Sources: [snyk.io/plans](https://snyk.io/plans/), [sonatype.com/products/pricing
 
 eedom is designed to be extended by the teams that use it. When you see a recurring anti-pattern in code review, you encode it as a rule — and dom catches it on every PR from that point forward.
 
-### Custom Semgrep Rules (33 and growing)
+### Custom Semgrep Rules (61 and growing)
 
 Drop a YAML file in `policies/semgrep/` and eedom picks it up automatically. Real examples from the repo:
 
@@ -94,11 +94,13 @@ Drop a YAML file in `policies/semgrep/` and eedom picks it up automatically. Rea
   severity: WARNING
 ```
 
-33 rules ship out of the box across 8 categories: security, reliability, code smells, SOLID violations, testing anti-patterns, contract enforcement, architecture constraints, and banned patterns. Each rule covers 14 file extensions (Python, TypeScript, JavaScript, Go, Ruby, Java, Terraform, Kubernetes, Shell, Docker, and more).
+61 rules ship out of the box across 8 categories: security, reliability, code smells, SOLID violations, testing anti-patterns, contract enforcement, architecture constraints, and banned patterns. Each rule covers 14 file extensions (Python, TypeScript, JavaScript, Go, Ruby, Java, Terraform, Kubernetes, Shell, Docker, and more).
 
 ### Custom Code Graph Checks (12 and growing)
 
 The blast-radius plugin builds an AST-to-SQLite code graph, then runs SQL checks against it. Add your own:
+
+### More Custom Checks
 
 ```yaml
 # Flag functions that call too many other functions
@@ -137,6 +139,10 @@ graph.register_check(
     description="What this catches"
 )
 ```
+
+### Deterministic Bug Detectors (21 and growing)
+
+Beyond semgrep, eedom ships **21 deterministic AST bug detectors** (`EED-001`…`EED-021`) in `src/eedom/detectors/` — SQL injection via string formatting, JWT tokens with no audience claim, secrets typed as plain `str` instead of `SecretStr`, subprocess calls without a timeout, unbounded caches, non-atomic file writes, and more. They fire with no LLM, never crash a scan (fail-safe), and are suppressible per-line with `# noqa: EED-NNN`. Full reference: [`docs/detectors.md`](docs/detectors.md).
 
 ### OPA Policy Rules (6 rules, pure Rego)
 
@@ -180,7 +186,8 @@ No other tool — free or paid — offers these capabilities:
 - **Code graph analysis** — 12 SQL checks against an AST-derived call graph: blast radius, fan-out, layer violations, circular dependencies, inheritance depth, orphan symbols, SRP violations
 - **Actionability classification** — every finding is classified as fixable (upgrade available) or blocked (no upstream fix), so teams know what they can actually act on
 - **Sealed evidence chain** — SHA-256 hash chain over every scan artifact, appended to a Parquet audit lake queryable with DuckDB. Tamper with any artifact and the chain breaks
-- **33 custom semgrep rules** — security, reliability, SOLID, testing, architecture, and contract enforcement patterns that catch what generic rulesets miss
+- **61 custom semgrep rules** — security, reliability, SOLID, testing, architecture, and contract enforcement patterns that catch what generic rulesets miss
+- **21 deterministic bug detectors** — AST rules that catch SQL injection, missing JWT claims, secrets as plain strings, subprocess timeouts, unbounded caches, and more — no LLM, suppressible per-line
 - **Natural language code queries** — 12 templates: "what has the highest fan-out?", "show me layer violations", "what depends on X?" — all against the code graph, no LLM required
 - **Deterministic + free** — the only tool in the "broad scan + policy engine" quadrant that costs $0
 

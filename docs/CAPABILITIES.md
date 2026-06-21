@@ -6,20 +6,23 @@
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
   LAST VERIFIED: 2026-06-21
-  VERIFICATION: grep -c 'class.*ScannerPlugin' src/eedom/plugins/*.py → 19
+  VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
+  plugin (20 ScannerPlugin subclasses total); 21 detectors in src/eedom/detectors/;
+  61 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Eagle Eyed Dom — fully deterministic dependency, security, and code review for CI.
-19 plugins, 61 custom semgrep rules, 12 code graph checks, 6 OPA policy rules,
-600+ tests. Zero LLM in the decision path.
+19 scanner plugins, 21 deterministic detectors, 61 custom semgrep rules, 12 code graph
+checks, 6 OPA policy rules, 600+ tests. Zero LLM in the decision path.
 
 ## Quick Numbers
 
 | Metric | Count |
 |--------|-------|
-| Scanner plugins | 19 (5 categories) |
+| Scanner plugins | 19 (5 categories) + OPA policy plugin |
+| Deterministic detectors | 21 (EED-001..EED-021) |
 | Custom semgrep rules | 61 (11 rule files) |
 | Code graph SQL checks | 12 |
 | OPA Rego policy rules | 6 (4 deny, 2 warn) |
@@ -39,7 +42,12 @@ Eagle Eyed Dom — fully deterministic dependency, security, and code review for
 
 ## Plugins by Category
 
-### dependency (5)
+The 19 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
+five categories below. The **OPA policy plugin** is the 20th `ScannerPlugin` subclass but is
+wired separately — it consumes every other plugin's findings and runs last
+(`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-6-rules).
+
+### dependency (4)
 
 | Plugin | File | Detects |
 |--------|------|---------|
@@ -47,7 +55,6 @@ Eagle Eyed Dom — fully deterministic dependency, security, and code review for
 | trivy | `plugins/trivy.py` | Vulnerability scanning via Trivy database (`trivy fs --scanners vuln`). |
 | scancode | `plugins/scancode.py` | License detection with SPDX expression extraction and confidence scoring. |
 | syft | `plugins/syft.py` | CycloneDX SBOM generation. 18 ecosystems (npm, PyPI, Cargo, Go, Ruby, Composer, Dart, Elixir, etc). |
-| opa | `plugins/opa.py` | Policy enforcement — runs after all other plugins (`depends_on=["*"]`). 6 Rego rules: deny/warn/approve. |
 
 ### supply_chain (3)
 
@@ -162,6 +169,40 @@ All in `policies/semgrep/`.
 - `org.swiftui.formatter-allocation-in-view` — formatter allocated in body
 - `org.swiftui.image-decode-inline` — inline image decode in body
 - `org.swiftui.nslock-use-actor-instead` — NSLock in SwiftUI; prefer an actor
+
+---
+
+## Deterministic Detectors (21)
+
+AST-driven, fail-safe bug-pattern rules in `src/eedom/detectors/`, exposed to the pipeline
+as a single `DeterministicScanner` (`tool_name="deterministic"`). Each is suppressible inline
+with `# noqa: EED-NNN`. Full reference: [`docs/detectors.md`](detectors.md).
+
+| ID | Name | Category | Severity |
+|----|------|----------|----------|
+| EED-001 | JWT Missing Audience Claim | security | high |
+| EED-002 | Error Information Exposure | security | high |
+| EED-003 | API Endpoint Missing Rate Limiting | security | medium |
+| EED-004 | Secret Should Use SecretStr | security | high |
+| EED-005 | SQL Injection via String Formatting | security | critical |
+| EED-016 | CI Verification Gate Bypass | security | high |
+| EED-017 | Presentation Tier Imports Data Tier | security | medium |
+| EED-020 | Fixed Heredoc Delimiter w/ GITHUB_OUTPUT | security | low |
+| EED-006 | Unbounded Cache Without Eviction | reliability | medium |
+| EED-007 | Circuit Breaker Missing Half-Open State | reliability | medium |
+| EED-008 | Path String Concatenation | reliability | medium |
+| EED-009 | Cache Lookup Without Freshness Check | reliability | low |
+| EED-010 | Batch Insert Without Rollback Handling | reliability | medium |
+| EED-011 | Health Check Without DB Verification | reliability | medium |
+| EED-012 | Subprocess Call Without Timeout | reliability | medium |
+| EED-015 | High Cardinality Metric Labels | reliability | medium |
+| EED-019 | Nullable advisory_id in Dedup Key | reliability | low |
+| EED-021 | Non-Atomic File Write | reliability | medium |
+| EED-013 | Config Merge Dropping Telemetry | configuration | low |
+| EED-018 | Dockerfile Pin Drift | configuration | medium |
+| EED-014 | Missing Tested-By Annotation | process | low |
+
+By category: security 8, reliability 10, configuration 2, process 1.
 
 ---
 
@@ -315,7 +356,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 
 | Capability | SonarQube | eedom |
 |------------|-----------|-------|
-| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 33 custom rules |
+| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 61 custom rules + 21 deterministic detectors |
 | Stylistic code smells | Hundreds of built-in rules | Not primary focus |
 | Structural code smells | Limited | 12 graph checks (dead code, god functions, SRP, layer violations, circular deps, deep inheritance, stubs) |
 | Complexity | Cyclomatic + cognitive | Cyclomatic (Lizard) + MI (Radon) — parity |
