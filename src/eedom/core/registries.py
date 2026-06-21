@@ -23,6 +23,7 @@ from eedom.core.ports import (
     EvidenceStorePort,
     FileSourcePort,
     PackageMetadataPort,
+    PackageSourcePort,
     PullRequestPublisherPort,
     ReportRendererPort,
     RepoSnapshotPort,
@@ -40,6 +41,9 @@ FILE_SOURCES: Registry[FileSourcePort] = Registry("file_source")
 # data/pypi's PyPIClient implements PackageMetadataPort (fetch_metadata/close),
 # which is the real PyPI contract the pipeline uses; PackageIndexPort is vestigial.
 PACKAGE_INDEXES: Registry[PackageMetadataPort] = Registry("package_index")
+# data/pkgsrc's PyPISource/NpmSource fetch+extract a version's distribution so the
+# supply-chain version-bump analyzer can diff the actual source between two versions.
+PACKAGE_SOURCES: Registry[PackageSourcePort] = Registry("package_source")
 DECISION_STORES: Registry[DecisionStorePort] = Registry("decision_store")
 EVIDENCE_STORES: Registry[EvidenceStorePort] = Registry("evidence_store")
 PUBLISHERS: Registry[PullRequestPublisherPort] = Registry("publisher")
@@ -52,6 +56,7 @@ __all__ = [
     "EVIDENCE_STORES",
     "FILE_SOURCES",
     "PACKAGE_INDEXES",
+    "PACKAGE_SOURCES",
     "POLICY_ENGINES",
     "PUBLISHERS",
     "RENDERERS",

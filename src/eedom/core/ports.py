@@ -194,6 +194,22 @@ class AuditSinkPort(Protocol):
 
 
 @runtime_checkable
+class PackageSourcePort(Protocol):
+    """Contract for fetching+extracting one published version of a dependency.
+
+    Adapters download a version's distribution (PyPI sdist, npm tarball), extract
+    it safely into ``dest``, and return a :class:`FetchedPackage`. Deterministic
+    given a fixed registry state and fail-open: any network/archive failure yields
+    ``FetchedPackage(available=False, ...)`` rather than raising.
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    def fetch_version(self, package: str, version: str, dest: Path) -> Any: ...
+
+
+@runtime_checkable
 class EnricherPort(Protocol):
     """Contract for a deterministic finding enricher (detect-then-enrich, ADR-006).
 
