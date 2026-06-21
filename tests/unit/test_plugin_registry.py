@@ -171,6 +171,14 @@ class TestPluginRegistry:
         assert len(results) == 2
         assert all(isinstance(r, PluginResult) for r in results)
 
+    def test_run_all_with_no_matching_plugins_returns_empty(self):
+        # Regression: ThreadPoolExecutor(max_workers=0) raises ValueError when
+        # the filters match no plugins. run_all must short-circuit to [].
+        reg = PluginRegistry()
+        reg.register(_GoodPlugin())
+        assert reg.run_all(["a.py"], Path("."), names=["does-not-exist"]) == []
+        assert PluginRegistry().run_all(["a.py"], Path(".")) == []
+
     def test_run_all_with_name_filter(self):
         reg = PluginRegistry()
         reg.register(_GoodPlugin())

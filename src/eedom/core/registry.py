@@ -8,6 +8,7 @@ import importlib
 import importlib.util
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -153,6 +154,10 @@ class PluginRegistry:
         if package_units is not None:
             return self._run_all_per_package(files, repo_path, plugins, package_units)
 
+        # No plugins matched the filters — avoid ThreadPoolExecutor(max_workers=0).
+        if not plugins:
+            return []
+
         # Run independent plugins in parallel; preserve original ordering.
         def _task(indexed_plugin: tuple[int, ScannerPlugin]) -> tuple[int, PluginResult]:
             idx, plugin = indexed_plugin
@@ -186,8 +191,7 @@ class PluginRegistry:
 
             for plugin in plugins:
                 r = self._run_one(plugin, unit_files, repo_path)
-                r.package_root = pkg_root_str
-                results.append(r)
+                results.append(replace(r, package_root=pkg_root_str))
 
         return results
 
@@ -209,9 +213,9 @@ class PluginRegistry:
             )
         try:
             result = plugin.run(files, repo_path)
-            result.category = cat
-            result.findings = _normalize_findings(result.findings)
-            return result
+            return replace(
+                result, category=cat, findings=_normalize_findings(result.findings)
+            )
         except Exception as exc:
             logger.warning(
                 "plugin.run_failed",

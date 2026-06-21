@@ -145,7 +145,7 @@ def normalize_finding(raw: dict) -> PluginFinding:
     )
 
 
-@dataclass
+@dataclass(frozen=True)
 class PluginResult:
     plugin_name: str
     findings: list[PluginFinding | dict] = field(default_factory=list)
