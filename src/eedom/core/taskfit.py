@@ -12,8 +12,9 @@ import json
 import re
 from typing import TYPE_CHECKING
 
-import httpx
 import structlog
+
+from eedom.core.llm_client import LlmClient
 
 if TYPE_CHECKING:
     from eedom.core.config import EedomSettings
@@ -130,9 +131,8 @@ class TaskFitAdvisor:
         self._enabled = config.llm_enabled
         self._endpoint = config.llm_endpoint
         self._model = config.llm_model
-        self._api_key = config.llm_api_key
-        self._timeout = config.llm_timeout
-        self._client = httpx.Client(timeout=config.llm_timeout)
+        # Transport is shared with the other LLM features via LlmClient (SoT).
+        self._llm = LlmClient(config)
 
     def assess(
         self,
@@ -242,52 +242,8 @@ class TaskFitAdvisor:
         return ""
 
     def _call_llm(self, messages: list[dict]) -> str:
-        """Make a single HTTP POST to the configured LLM endpoint."""
-        headers: dict[str, str] = {"Content-Type": "application/json"}
-        if self._api_key:
-            # F-021: call get_secret_value() to unwrap SecretStr before use.
-            secret = (
-                self._api_key.get_secret_value()
-                if hasattr(self._api_key, "get_secret_value")
-                else self._api_key
-            )
-            headers["Authorization"] = f"Bearer {secret}"
-
-        payload = {
-            "model": self._model,
-            "messages": messages,
-            "max_tokens": 200,
-        }
-
-        try:
-            response = self._client.post(
-                f"{self._endpoint}/chat/completions",
-                json=payload,
-                headers=headers,
-            )
-        except httpx.TimeoutException:
-            logger.warning("taskfit.timeout", timeout=self._timeout)
-            return ""
-        except httpx.HTTPError as exc:
-            logger.warning("taskfit.http_error", error=str(exc))
-            return ""
-
-        if response.status_code != 200:
-            logger.warning("taskfit.api_error", status=response.status_code)
-            return ""
-
-        try:
-            data = response.json()
-            text = data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
-            logger.warning("taskfit.parse_error", error=str(exc))
-            return ""
-
-        if not isinstance(text, str):
-            logger.warning("taskfit.parse_error", error="'content' field is not a string")
-            return ""
-
+        """Make a single chat-completions call and cap the advisory length."""
+        text = self._llm.complete(messages, max_tokens=200)
         if len(text) > _MAX_ADVISORY_LENGTH:
             text = text[:_MAX_ADVISORY_LENGTH]
-
         return text
