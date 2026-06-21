@@ -93,6 +93,49 @@ class TestSinglePluginWithFindings:
         assert loc["region"]["startLine"] == 42
 
 
+class TestEnrichmentProperties:
+    """Detect-then-enrich packets (ADR-006) surface in the SARIF property bag."""
+
+    def _result_with_enrichment(self) -> PluginResult:
+        return PluginResult(
+            plugin_name="semgrep",
+            findings=[
+                {
+                    "rule_id": "python.eval",
+                    "file": "src/app.py",
+                    "start_line": 10,
+                    "severity": "ERROR",
+                    "message": "eval is dangerous",
+                    "metadata": {
+                        "enrichment": {
+                            "enclosing_symbol": "handler",
+                            "enclosing_kind": "function",
+                            "sources": ["enclosing_symbol", "code_graph"],
+                        }
+                    },
+                }
+            ],
+        )
+
+    def test_enrichment_in_properties(self) -> None:
+        out = to_sarif([self._result_with_enrichment()])
+        result = out["runs"][0]["results"][0]
+        assert result["properties"]["enrichment"]["enclosing_symbol"] == "handler"
+        assert "code_graph" in result["properties"]["enrichment"]["sources"]
+
+    def test_no_properties_key_without_enrichment(self) -> None:
+        plain = PluginResult(
+            plugin_name="semgrep",
+            findings=[{"rule_id": "r", "file": "a.py", "start_line": 1, "severity": "INFO"}],
+        )
+        out = to_sarif([plain])
+        assert "properties" not in out["runs"][0]["results"][0]
+
+    def test_sarif_with_enrichment_is_json_serialisable(self) -> None:
+        out = to_sarif([self._result_with_enrichment()])
+        assert json.loads(json.dumps(out))  # round-trips cleanly
+
+
 class TestSeverityMapping:
     """Severity fields are mapped correctly to SARIF levels."""
 

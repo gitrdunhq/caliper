@@ -79,6 +79,17 @@ def _make_locations(finding: dict, repo_path: str | None) -> list[dict]:
     ]
 
 
+def _enrichment(finding: dict) -> dict | None:
+    """Return the detect-then-enrich packet (ADR-006) for *finding*, or None.
+
+    Surfaced verbatim into the SARIF result's property bag so enrichment reaches
+    SARIF consumers at parity with the JSON report.
+    """
+    metadata = finding.get("metadata") or {}
+    enrichment = metadata.get("enrichment")
+    return enrichment or None
+
+
 def _plugin_to_run(
     result: PluginResult,
     repo_path: str | None,
@@ -101,6 +112,9 @@ def _plugin_to_run(
         locations = _make_locations(finding, repo_path)
         if locations:
             sarif_result["locations"] = locations
+        enrichment = _enrichment(finding)
+        if enrichment:
+            sarif_result["properties"] = {"enrichment": enrichment}
         sarif_results.append(sarif_result)
 
     if result.error:
