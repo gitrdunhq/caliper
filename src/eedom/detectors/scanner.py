@@ -14,7 +14,6 @@ import time
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity, ScanResult, ScanResultStatus
-from eedom.core.ports import ScannerPort
 from eedom.detectors.ast_utils import ASTCache
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
@@ -22,10 +21,12 @@ from eedom.detectors.framework import BugDetector
 from eedom.detectors.registry import DetectorRegistry
 
 
-class DeterministicScanner(ScannerPort):
+class DeterministicScanner:
     """Scanner implementation that runs all bug detectors.
 
-    Integrates with ScanOrchestrator via Scanner protocol.
+    Satisfies the core ``ScannerPort`` structurally (``name`` + ``scan``) — no
+    inheritance; conformance is asserted by an isinstance test.
+    Integrates with ScanOrchestrator via the Scanner protocol.
     Uses AST caching (ADR-DET-007) and visitor pattern batching (VAL-H1).
 
     Per ADR-DET-006: This scanner is integrated into the 'review' command
