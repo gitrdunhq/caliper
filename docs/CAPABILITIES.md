@@ -5,14 +5,14 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-06-11
+  LAST VERIFIED: 2026-06-21
   VERIFICATION: grep -c 'class.*ScannerPlugin' src/eedom/plugins/*.py → 19
 -->
 
 ## Identity
 
 Eagle Eyed Dom — fully deterministic dependency, security, and code review for CI.
-19 plugins, 33 custom semgrep rules, 12 code graph checks, 6 OPA policy rules,
+19 plugins, 61 custom semgrep rules, 12 code graph checks, 6 OPA policy rules,
 600+ tests. Zero LLM in the decision path.
 
 ## Quick Numbers
@@ -20,7 +20,7 @@ Eagle Eyed Dom — fully deterministic dependency, security, and code review for
 | Metric | Count |
 |--------|-------|
 | Scanner plugins | 19 (5 categories) |
-| Custom semgrep rules | 33 (8 rule files) |
+| Custom semgrep rules | 61 (11 rule files) |
 | Code graph SQL checks | 12 |
 | OPA Rego policy rules | 6 (4 deny, 2 warn) |
 | NL query templates | 12 |
@@ -60,7 +60,7 @@ Eagle Eyed Dom — fully deterministic dependency, security, and code review for
 
 | Plugin | File | Detects |
 |--------|------|---------|
-| semgrep | `plugins/semgrep.py` | AST code pattern matching. Dynamic ruleset selection by file extension (Python, TS, JS, Go, Ruby, Java, Terraform, K8s, Shell, Docker). 33 custom org rules (see below). Supports pinned local rule snapshots. |
+| semgrep | `plugins/semgrep.py` | AST code pattern matching. Dynamic ruleset selection by file extension (Python, TS, JS, Go, Ruby, Java, Terraform, K8s, Shell, Docker, Swift). 61 custom org rules (see below). Supports pinned local rule snapshots. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyright (faster, stricter) when available, falls back to mypy. Error + warning severity only. |
 | swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.eedom/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
@@ -85,15 +85,25 @@ Eagle Eyed Dom — fully deterministic dependency, security, and code review for
 
 ---
 
-## Custom Semgrep Rules (33 rules, 8 files)
+## Custom Semgrep Rules (61 rules, 11 files)
 
 All in `policies/semgrep/`.
 
-### security.yaml (5)
+### security.yaml (9)
 - `org.security.secret-in-log` — logging passwords/secrets/tokens/api_keys/dsn
 - `org.security.pickle-load` / `pickle-load-file` — pickle deserialization
 - `org.security.eval-call` — eval() usage
 - `org.security.os-system` — os.system() command injection
+- `org.security.sql-fstring-interpolation` / `sql-format-interpolation` — SQL string interpolation
+- `org.security.path-no-resolve-check` — path used without resolve/traversal check
+- `org.security.hardcoded-secret-default` — hardcoded secret as a default value
+
+### resource-safety.yaml (9)
+- `org.resource.file-read-all-python` / `file-read-all-js` — unbounded file read
+- `org.resource.temp-dir-persistent-python` / `temp-dir-persistent-js` — temp dir never cleaned up
+- `org.resource.fire-and-forget-task-python` / `fire-and-forget-promise-js` — unawaited task/promise
+- `org.resource.lock-held-during-io-python` — I/O while holding a lock
+- `org.resource.unbounded-append-in-loop-python` / `unbounded-append-in-loop-js` — unbounded growth in a loop
 
 ### org-code-smells.yaml (12)
 - `org.python.no-bare-except-pass` — bare except: pass
@@ -136,6 +146,21 @@ All in `policies/semgrep/`.
 
 ### banned.yaml (1)
 - `org.banned.print-in-source` — print() in production code
+
+### swift-code-smells.yaml (8)
+- `org.swift.force-try` / `force-cast` — force try!/as! casts
+- `org.swift.notification-center-post` / `notification-center-observer` — NotificationCenter usage
+- `org.swift.userdefaults-write` — direct UserDefaults writes
+- `org.swift.dispatch-main-async` — DispatchQueue.main.async usage
+- `org.swift.print-in-source` — print() in Swift source
+- `org.swift.todo-fixme` — TODO/FIXME left in source
+
+### swiftui-code-smells.yaml (7)
+- `org.swiftui.foreach-unstable-id-self` — ForEach id: \.self
+- `org.swiftui.foreach-sort-inline` / `foreach-sort-inline-no-comparator` / `foreach-filter-inline` — sort/filter inside ForEach
+- `org.swiftui.formatter-allocation-in-view` — formatter allocated in body
+- `org.swiftui.image-decode-inline` — inline image decode in body
+- `org.swiftui.nslock-use-actor-instead` — NSLock in SwiftUI; prefer an actor
 
 ---
 
