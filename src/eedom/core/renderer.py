@@ -6,11 +6,12 @@ Pure function: no I/O beyond reading template files.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import jinja2
 
-from eedom.core.plugin import PluginResult
+from eedom.core.plugin import PluginResult, finding_as_dict, finding_get
 from eedom.core.version import get_version
 
 _MAX_COMMENT_LENGTH = 65536
@@ -74,7 +75,7 @@ def calculate_severity_score(results: list[PluginResult]) -> float:
         if not _plugin_is_security(result.plugin_name):
             continue
         for finding in result.findings:
-            sev = str(finding.get("severity", "")).lower()
+            sev = str(finding_get(finding, "severity", "")).lower()
             total_weight += _SEVERITY_WEIGHTS.get(sev, 0)
     return max(0.0, min(100.0, 100.0 - total_weight))
 
@@ -89,7 +90,7 @@ def calculate_quality_score(results: list[PluginResult]) -> float:
         if _plugin_is_security(result.plugin_name):
             continue
         for finding in result.findings:
-            sev = str(finding.get("severity", "")).lower()
+            sev = str(finding_get(finding, "severity", "")).lower()
             total_weight += _SEVERITY_WEIGHTS.get(sev, 0)
     return max(0.0, min(100.0, 100.0 - total_weight))
 
@@ -170,6 +171,10 @@ def render_comment(
     template_dir: Path | None = None,
     plugin_renderers: dict[str, object] | None = None,
 ) -> str:
+    # Serialize findings to plain dicts so the dict-shaped renderer internals
+    # (_build_sections -> templates, _extract_mi, classify_findings) operate on
+    # dicts; the frozen typed PluginFinding is for the core paths.
+    results = [replace(r, findings=[finding_as_dict(f) for f in r.findings]) for r in results]
     tpl_dir = template_dir or _DEFAULT_TEMPLATE_DIR
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(tpl_dir)),
@@ -260,7 +265,7 @@ def _build_sections(
 
         summary_rows.append((label, str(count)))
 
-        has_crit = any(f.get("severity") in ("critical", "high") for f in r.findings)
+        has_crit = any(finding_get(f, "severity") in ("critical", "high") for f in r.findings)
         is_security = r.category in {"dependency", "supply_chain", "infra"}
         if has_crit and is_security:
             verdict = "blocked"
@@ -308,7 +313,7 @@ def _extract_mi(
             avg = s.get("avg_cyclomatic_complexity", 0)
             mi_scores = []
             for f in r.findings:
-                mi_str = f.get("maintainability_index", "")
+                mi_str = finding_get(f, "maintainability_index", "")
                 if "(" in str(mi_str):
                     try:
                         val = float(str(mi_str).split("(")[1].rstrip(")"))

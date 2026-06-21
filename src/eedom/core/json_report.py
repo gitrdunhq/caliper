@@ -34,7 +34,11 @@ def _plugin_status(result: PluginResult) -> str:
 
 
 def _finding_to_dict(finding: object) -> dict:
-    """Normalize a finding to a plain dict, matching orjson's dataclass shape."""
+    """Normalize a finding to a plain dict with metadata nested (report shape)."""
+    if isinstance(finding, dict):
+        return finding
+    if hasattr(finding, "model_dump"):  # frozen PluginFinding Contract
+        return finding.model_dump()
     if dataclasses.is_dataclass(finding) and not isinstance(finding, type):
         return dataclasses.asdict(finding)
     return finding  # type: ignore[return-value]

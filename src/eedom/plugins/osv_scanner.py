@@ -16,6 +16,7 @@ from eedom.core.plugin import (
     PluginCategory,
     PluginResult,
     ScannerPlugin,
+    result_with_dict_findings,
 )
 
 logger = structlog.get_logger()
@@ -182,6 +183,7 @@ class OsvScannerPlugin(ScannerPlugin):
     ) -> str:
         if result.error:
             return f"**osv-scanner**: {result.error}"
+        result = result_with_dict_findings(result)
         if not result.findings:
             return ""
         crit = [f for f in result.findings if f["severity"] in ("critical", "high")]
