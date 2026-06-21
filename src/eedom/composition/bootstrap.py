@@ -380,12 +380,14 @@ def load_adapters() -> None:
     import eedom.core.renderer  # noqa: F401
     import eedom.core.sarif  # noqa: F401
     import eedom.data.db  # noqa: F401
+    import eedom.data.pkgsrc  # noqa: F401  (registers pypi/npm PACKAGE_SOURCES)
     import eedom.data.pypi  # noqa: F401
     import eedom.detectors.enrichers.enclosing_symbol  # noqa: F401
     import eedom.plugins._runners.graph_builder  # noqa: F401
     import eedom.plugins._runners.semgrep_runner  # noqa: F401
     import eedom.plugins.enrichers.code_graph  # noqa: F401
     import eedom.plugins.enrichers.semgrep  # noqa: F401
+    import eedom.plugins.enrichers.supply_chain_threat  # noqa: F401
 
 
 def bootstrap(settings: EedomSettings) -> ApplicationContext:
