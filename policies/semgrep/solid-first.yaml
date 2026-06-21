@@ -40,15 +40,18 @@ rules:
   - id: first-test-no-assert
     patterns:
       - pattern: |
-          def test_$NAME(...):
+          def $NAME(...):
               ...
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: ^test_
       - pattern-not: |
-          def test_$NAME(...):
+          def $NAME(...):
               ...
               assert ...
               ...
       - pattern-not: |
-          def test_$NAME(...):
+          def $NAME(...):
               ...
               with pytest.raises($E):
                   ...

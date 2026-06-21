@@ -130,7 +130,7 @@ rules:
             ...
           }
       - pattern-not-inside: |
-          resource "aws_s3_bucket_server_side_encryption_configuration" ... {
+          resource "aws_s3_bucket_server_side_encryption_configuration" $ENC {
             ...
           }
     message: >
