@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from eedom.core.context import ApplicationContext
     from eedom.core.ports import (
         DecisionRepositoryPort,
+        EnricherPort,
         EvidenceWriterPort,
         PackageMetadataPort,
         ScannerPort,
@@ -35,6 +36,11 @@ def _require(value, name: str):
 def get_scanners(context: ApplicationContext) -> list[ScannerPort]:
     """Return the injected scanners. An empty list is valid (none enabled)."""
     return context.scanners
+
+
+def get_enrichers(context: ApplicationContext) -> list[EnricherPort]:
+    """Return the injected finding enrichers. An empty list is valid (no enrichment)."""
+    return context.enrichers
 
 
 def get_evidence_writer(context: ApplicationContext) -> EvidenceWriterPort:

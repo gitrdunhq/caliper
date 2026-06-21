@@ -19,6 +19,7 @@ from eedom.core.policy_port import PolicyEnginePort
 from eedom.core.ports import (
     CodeGraphCheckPort,
     DecisionStorePort,
+    EnricherPort,
     EvidenceStorePort,
     FileSourcePort,
     PackageMetadataPort,
@@ -29,6 +30,7 @@ from eedom.core.ports import (
 )
 from eedom.registry import Registry
 
+ENRICHERS: Registry[EnricherPort] = Registry("enricher")
 POLICY_ENGINES: Registry[PolicyEnginePort] = Registry("policy_engine")
 RENDERERS: Registry[ReportRendererPort] = Registry("renderer")
 RULE_RUNNERS: Registry[SemgrepRunnerPort] = Registry("rule_runner")
@@ -46,6 +48,7 @@ REPO_SNAPSHOTS: Registry[RepoSnapshotPort] = Registry("repo_snapshot")
 __all__ = [
     "CODEGRAPH_CHECKS",
     "DECISION_STORES",
+    "ENRICHERS",
     "EVIDENCE_STORES",
     "FILE_SOURCES",
     "PACKAGE_INDEXES",
