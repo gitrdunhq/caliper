@@ -6,7 +6,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
+from eedom.core.plugin import (
+    PluginCategory,
+    PluginResult,
+    ScannerPlugin,
+    result_with_dict_findings,
+)
 from eedom.plugins._runners.cpd_runner import run_cpd as _run
 
 _CODE_EXTS = {
@@ -65,14 +70,21 @@ class CpdPlugin(ScannerPlugin):
     def render(self, result: PluginResult, template_dir: Path | None = None) -> str:
         if result.error:
             return f"**cpd**: {result.error}"
+        result = result_with_dict_findings(result)
         if not result.findings:
             return ""
         lines = ["<details open>"]
         lines.append(f"<summary>📋 <b>Duplicated Code ({len(result.findings)})</b></summary>\n")
         for d in result.findings[:10]:
-            lines.append(f"**{d['lines']} lines, {d['tokens']} tokens** ({d['language']})")
+            occ = d.get("occurrences", len(d.get("locations", [])))
+            lines.append(
+                f"**{d['lines']} lines, {d['tokens']} tokens, copied {occ}×** ({d['language']})"
+            )
+            if d.get("suggested_home"):
+                lines.append(f"↳ _{d['suggested_home']}_")
             for loc in d["locations"]:
-                lines.append(f"- `{loc['file']}:{loc['start_line']}-{loc['end_line']}`")
+                sym = f" — `{loc['symbol']}`" if loc.get("symbol") else ""
+                lines.append(f"- `{loc['file']}:{loc['start_line']}-{loc['end_line']}`{sym}")
             if d.get("fragment"):
                 lines.append(f"```\n{d['fragment'][:150]}\n```")
             lines.append("")
