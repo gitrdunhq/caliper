@@ -12,7 +12,9 @@ from eedom.core.enrich import enrich_findings
 from eedom.core.enrichment import Enrichment, EnrichmentContext, enclosing_symbol
 from eedom.core.plugin import PluginFinding
 
-_PY = "def alpha():\n    x = 1\n    return x\n\nclass Beta:\n    def gamma(self):\n        return 2\n"
+_PY = (
+    "def alpha():\n    x = 1\n    return x\n\nclass Beta:\n    def gamma(self):\n        return 2\n"
+)
 
 
 def test_enclosing_symbol_python_is_innermost_and_authoritative() -> None:

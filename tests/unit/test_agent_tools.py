@@ -557,12 +557,12 @@ class TestGenerateBaseSbom:
         checkout_calls = [cmd for cmd in cmds if "checkout" in cmd]
         worktree_calls = [cmd for cmd in cmds if "worktree" in cmd]
 
-        assert len(checkout_calls) == 0, (
-            f"Must not use git checkout (race condition): {checkout_calls}"
-        )
-        assert len(worktree_calls) >= 2, (
-            f"Expected worktree add+remove calls, found: {worktree_calls}"
-        )
+        assert (
+            len(checkout_calls) == 0
+        ), f"Must not use git checkout (race condition): {checkout_calls}"
+        assert (
+            len(worktree_calls) >= 2
+        ), f"Expected worktree add+remove calls, found: {worktree_calls}"
 
     def test_worktree_cleaned_up_on_syft_failure(self):
         """The worktree must be removed via 'worktree remove' even if run_syft raises."""
@@ -594,9 +594,9 @@ class TestGenerateBaseSbom:
         calls = mock_run.call_args_list
         cmds = [c.args[0] for c in calls if c.args and isinstance(c.args[0], list)]
         remove_calls = [cmd for cmd in cmds if "worktree" in cmd and "remove" in cmd]
-        assert len(remove_calls) >= 1, (
-            f"Worktree must be removed on failure, subprocess calls were: {cmds}"
-        )
+        assert (
+            len(remove_calls) >= 1
+        ), f"Worktree must be removed on failure, subprocess calls were: {cmds}"
 
 
 class TestRunSyftPathValidation:
@@ -974,9 +974,9 @@ class TestBuildDepSummaryPathTraversal:
         # After fix: must return {} without reading sensitive/package.json.
         # Before fix: reads it and includes "sentinel-evil-pkg" in direct.
         evil = [d for d in result.get("direct", []) if d["name"] == "sentinel-evil-pkg"]
-        assert evil == [], (
-            f"Path traversal allowed reading 'sentinel-evil-pkg' from outside repo: {result}"
-        )
+        assert (
+            evil == []
+        ), f"Path traversal allowed reading 'sentinel-evil-pkg' from outside repo: {result}"
 
     def test_sbom_absolute_path_names_are_sanitized_in_shared(self, tmp_path):
         """SBOM component names that look like filesystem paths must not appear verbatim
@@ -1009,7 +1009,7 @@ class TestBuildDepSummaryPathTraversal:
 
         # After fix: shared names must not start with "/" or contain "..".
         for item in result.get("shared", []):
-            assert not item["name"].startswith("/"), (
-                f"Absolute path leaked into shared: {item['name']!r}"
-            )
+            assert not item["name"].startswith(
+                "/"
+            ), f"Absolute path leaked into shared: {item['name']!r}"
             assert ".." not in item["name"], f"Traversal sequence in shared name: {item['name']!r}"
