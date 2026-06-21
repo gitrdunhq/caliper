@@ -62,6 +62,32 @@ class TestRegistryRegisterCreateKeys:
         with pytest.raises(KeyError):
             reg.create("missing")
 
+    def test_contains_reflects_registration(self):
+        reg: Registry[_Widget] = Registry("widget")
+        reg.register("here")(lambda **kw: _Widget())
+        assert "here" in reg
+        assert "absent" not in reg
+
+    def test_clear_removes_all_factories(self):
+        reg: Registry[_Widget] = Registry("widget")
+        reg.register("one")(lambda **kw: _Widget())
+        reg.register("two")(lambda **kw: _Widget())
+        assert set(reg.keys()) == {"one", "two"}
+
+        reg.clear()
+
+        assert list(reg.keys()) == []
+        assert "one" not in reg
+        with pytest.raises(KeyError):
+            reg.create("one")
+
+    def test_clear_allows_re_registration(self):
+        reg: Registry[_Widget] = Registry("widget")
+        reg.register("dup")(lambda **kw: _Widget(label="first"))
+        reg.clear()
+        reg.register("dup")(lambda **kw: _Widget(label="second"))
+        assert reg.create("dup").label == "second"
+
 
 class TestAutodiscover:
     def test_imports_non_underscore_submodules(self, tmp_path: Path, monkeypatch):

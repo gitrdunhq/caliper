@@ -14,11 +14,11 @@ import time
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity, ScanResult, ScanResultStatus
+from eedom.detectors._registry import discover_detectors, get_all_detectors
 from eedom.detectors.ast_utils import ASTCache
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 
 class DeterministicScanner:
@@ -64,7 +64,7 @@ class DeterministicScanner:
         self._cache = cache or ASTCache(maxsize=100)
 
         # Ensure registry is discovered
-        DetectorRegistry.discover()
+        discover_detectors()
 
     def _get_applicable_detectors(self, file_path: Path) -> list[BugDetector]:
         """Get detectors applicable to the given file.
@@ -78,7 +78,7 @@ class DeterministicScanner:
         Returns:
             List of applicable detector instances
         """
-        all_detectors = DetectorRegistry.get_all_detectors()
+        all_detectors = get_all_detectors()
         applicable = []
 
         for detector in all_detectors:

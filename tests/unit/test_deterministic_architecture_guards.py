@@ -148,11 +148,10 @@ def test_tier_boundaries_are_not_crossed() -> None:
             tgt_tier = _target_tier(module)
             if tgt_tier not in allowed:
                 rel = path.relative_to(_REPO).as_posix()
-                violations.append(
-                    f"{rel}:{lineno}: {src_tier} -> {tgt_tier} (import {module})"
-                )
+                violations.append(f"{rel}:{lineno}: {src_tier} -> {tgt_tier} (import {module})")
 
-    assert violations == [], (
-        "Tier boundary violations (a module imported a tier it must not depend on):\n"
-        + "\n".join(violations)
+    assert (
+        violations == []
+    ), "Tier boundary violations (a module imported a tier it must not depend on):\n" + "\n".join(
+        violations
     )

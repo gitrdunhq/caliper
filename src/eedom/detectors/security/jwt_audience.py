@@ -9,14 +9,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
+from eedom.detectors._registry import register_detector
 from eedom.detectors.ast_utils import find_function_calls, parse_file_safe
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 
-@DetectorRegistry.register
+@register_detector
 class JWTAudienceDetector(BugDetector):
     """Detects jwt.encode() calls without 'aud' claim in payload.
 

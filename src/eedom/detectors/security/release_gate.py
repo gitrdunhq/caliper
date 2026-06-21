@@ -10,10 +10,10 @@ import re
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
+from eedom.detectors._registry import register_detector
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 _EMPTY_CHECK_RE = re.compile(r'\[\s*-z\s+"\$\w+"\s*\]')
 _NULL_CHECK_RE = re.compile(r'"\$\w+"\s*=\s*"null"')
@@ -23,7 +23,7 @@ _FI_RE = re.compile(r"^\s*fi\b")
 _ELSE_RE = re.compile(r"^\s*(else|elif)\b")
 
 
-@DetectorRegistry.register
+@register_detector
 class ReleaseGateBypassDetector(BugDetector):
     """Detects CI verification steps that exit 0 when a required status is absent.
 

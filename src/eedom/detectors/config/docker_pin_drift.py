@@ -10,16 +10,16 @@ import re
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
+from eedom.detectors._registry import register_detector
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 _PIP_PIN_RE = re.compile(r"pip\s+install\b.*==")
 _LATEST_TAG_RE = re.compile(r":latest\b")
 
 
-@DetectorRegistry.register
+@register_detector
 class DockerPinDriftDetector(BugDetector):
     """Detects two Dockerfile anti-patterns that cause reproducibility drift.
 
