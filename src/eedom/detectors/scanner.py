@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity, ScanResult, ScanResultStatus
-from eedom.data.scanners.base import Scanner
+from eedom.core.ports import ScannerPort
 from eedom.detectors.ast_utils import ASTCache
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
@@ -22,7 +22,7 @@ from eedom.detectors.framework import BugDetector
 from eedom.detectors.registry import DetectorRegistry
 
 
-class DeterministicScanner(Scanner):
+class DeterministicScanner(ScannerPort):
     """Scanner implementation that runs all bug detectors.
 
     Integrates with ScanOrchestrator via Scanner protocol.

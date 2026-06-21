@@ -211,7 +211,7 @@ class TestArchBoundaryDetector:
 
         # Comment-only lines still match the regex — this is intentional for
         # conservative detection (matches the spec). Verify the detector makes
-        # a decision either way; callers can use # noqa: EED-017 to suppress.
+        # a decision either way; callers can add a per-line EED-017 suppression.
         # The important thing: no exception is raised.
         assert isinstance(findings, list)
 
