@@ -348,6 +348,8 @@ def load_adapters() -> None:
     import eedom.core.sarif  # noqa: F401
     import eedom.data.db  # noqa: F401
     import eedom.data.pypi  # noqa: F401
+    import eedom.plugins._runners.graph_builder  # noqa: F401
+    import eedom.plugins._runners.semgrep_runner  # noqa: F401
 
 
 def bootstrap(settings: EedomSettings) -> ApplicationContext:

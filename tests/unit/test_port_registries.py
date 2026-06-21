@@ -13,14 +13,17 @@ import pytest
 from eedom.composition.bootstrap import load_adapters
 from eedom.core.policy_port import PolicyEnginePort
 from eedom.core.ports import (
+    CodeGraphCheckPort,
     DecisionStorePort,
     EvidenceStorePort,
     PackageMetadataPort,
     PullRequestPublisherPort,
     ReportRendererPort,
     RepoSnapshotPort,
+    SemgrepRunnerPort,
 )
 from eedom.core.registries import (
+    CODEGRAPH_CHECKS,
     DECISION_STORES,
     EVIDENCE_STORES,
     PACKAGE_INDEXES,
@@ -28,6 +31,7 @@ from eedom.core.registries import (
     PUBLISHERS,
     RENDERERS,
     REPO_SNAPSHOTS,
+    RULE_RUNNERS,
 )
 
 # Populate the registries via the composition tier's explicit import step.
@@ -43,6 +47,8 @@ _AREAS = [
     (EVIDENCE_STORES, {"file", "null"}, "null", EvidenceStorePort),
     (PUBLISHERS, {"github", "null"}, "null", PullRequestPublisherPort),
     (REPO_SNAPSHOTS, {"git", "fake"}, "fake", RepoSnapshotPort),
+    (RULE_RUNNERS, {"semgrep", "fake"}, "fake", SemgrepRunnerPort),
+    (CODEGRAPH_CHECKS, {"blast-radius", "fake"}, "fake", CodeGraphCheckPort),
 ]
 
 _IDS = [r._kind for r, *_ in _AREAS]
@@ -98,3 +104,9 @@ class TestRealFactoriesConstruct:
 
     def test_git_snapshot(self, tmp_path):
         assert isinstance(REPO_SNAPSHOTS.create("git", repo_path=tmp_path), RepoSnapshotPort)
+
+    def test_semgrep_runner(self):
+        assert isinstance(RULE_RUNNERS.create("semgrep"), SemgrepRunnerPort)
+
+    def test_code_graph_check(self):
+        assert isinstance(CODEGRAPH_CHECKS.create("blast-radius"), CodeGraphCheckPort)

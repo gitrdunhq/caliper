@@ -9,7 +9,13 @@ network, a subprocess, or the filesystem.
 from __future__ import annotations
 
 from eedom.core.policy_port import PolicyDecision, PolicyInput
-from eedom.core.registries import PACKAGE_INDEXES, POLICY_ENGINES, RENDERERS
+from eedom.core.registries import (
+    CODEGRAPH_CHECKS,
+    PACKAGE_INDEXES,
+    POLICY_ENGINES,
+    RENDERERS,
+    RULE_RUNNERS,
+)
 
 
 class FakePolicyEngine:
@@ -36,9 +42,40 @@ class FakeRenderer:
         return ""
 
 
+class FakeSemgrepRunner:
+    """No-op SemgrepRunnerPort — never spawns opengrep."""
+
+    def run(
+        self,
+        changed_files: list,
+        repo_path: str,
+        timeout: int = 120,
+        extra_config_dirs: list | None = None,
+        exclude_rules: list | None = None,
+    ) -> dict:
+        return {"results": [], "errors": []}
+
+
+class FakeCodeGraphCheck:
+    """No-op CodeGraphCheckPort — returns no findings, builds no graph."""
+
+    def run_checks(self, changed_files: list) -> list:
+        return []
+
+
 @POLICY_ENGINES.register("fake")
 def build_fake_policy_engine() -> FakePolicyEngine:
     return FakePolicyEngine()
+
+
+@RULE_RUNNERS.register("fake")
+def build_fake_semgrep_runner() -> FakeSemgrepRunner:
+    return FakeSemgrepRunner()
+
+
+@CODEGRAPH_CHECKS.register("fake")
+def build_fake_codegraph_check() -> FakeCodeGraphCheck:
+    return FakeCodeGraphCheck()
 
 
 @PACKAGE_INDEXES.register("fake")
