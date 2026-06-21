@@ -39,8 +39,13 @@ def get_scanners(context: ApplicationContext) -> list[ScannerPort]:
 
 
 def get_enrichers(context: ApplicationContext) -> list[EnricherPort]:
-    """Return the injected finding enrichers. An empty list is valid (no enrichment)."""
-    return context.enrichers
+    """Return the injected finding enrichers. An empty list is valid (no enrichment).
+
+    Tolerant of contexts that predate the ``enrichers`` field (or minimal duck-typed
+    doubles): enrichment is an optional, fail-open collaborator, so its absence means
+    "no enrichment", never an error.
+    """
+    return getattr(context, "enrichers", []) or []
 
 
 def get_evidence_writer(context: ApplicationContext) -> EvidenceWriterPort:
