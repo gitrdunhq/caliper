@@ -45,6 +45,10 @@ _TIER_BY_DIR = {
 # Directories that contain no importable cross-tier code (templates are Jinja).
 _SKIP_DIRS = {"templates"}
 
+# Root-level modules form the shared kernel (importable everywhere); derived from
+# src/eedom/*.py so a future kernel module is picked up automatically.
+_KERNEL_MODULES = {p.stem for p in _SRC.glob("*.py") if p.stem != "__init__"}
+
 _ANY = {"presentation", "core", "data", "adapters", "plugins", "detectors", "kernel"}
 
 # source tier -> set of target tiers it is allowed to import.
@@ -77,12 +81,21 @@ def _source_tier(path: Path) -> str | None:
 
 
 def _target_tier(module: str) -> str:
-    """Tier an imported ``eedom.*`` module belongs to."""
+    """Tier an imported ``eedom.*`` module belongs to.
+
+    Unmapped packages resolve to ``"unknown"`` (in no tier's allow-set) so a
+    typo'd or future top-level package fails the boundary check instead of
+    silently passing as kernel.
+    """
     parts = module.split(".")
     if len(parts) < 2:  # bare ``eedom``
         return "kernel"
-    # Root modules (eedom._base, eedom.registry) and templates fall through to kernel.
-    return _TIER_BY_DIR.get(parts[1], "kernel")
+    second = parts[1]
+    if second in _TIER_BY_DIR:
+        return _TIER_BY_DIR[second]
+    if second in _KERNEL_MODULES or second in _SKIP_DIRS:
+        return "kernel"
+    return "unknown"
 
 
 def _imported_eedom_modules(tree: ast.Module) -> list[tuple[str, int]]:
@@ -109,6 +122,16 @@ def test_no_unknown_top_level_packages() -> None:
         f"Unmapped top-level package(s): {unmapped}. Add them to _TIER_BY_DIR "
         "(with the correct tier) or _SKIP_DIRS so the boundary stays enforced."
     )
+
+
+def test_unmapped_target_is_a_violation_not_kernel() -> None:
+    """An import of an unmapped eedom package fails the check (not silently kernel)."""
+    assert _target_tier("eedom.bogus.thing") == "unknown"
+    assert "unknown" not in _ALLOWED["core"]
+    # Real tiers + the shared kernel still resolve correctly.
+    assert _target_tier("eedom.data.scanners") == "data"
+    assert _target_tier("eedom.registry") == "kernel"
+    assert _target_tier("eedom._base") == "kernel"
 
 
 def test_tier_boundaries_are_not_crossed() -> None:
