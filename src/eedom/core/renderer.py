@@ -170,6 +170,7 @@ def render_comment(
     file_count: int = 0,
     template_dir: Path | None = None,
     plugin_renderers: dict[str, object] | None = None,
+    verdict: str | None = None,
 ) -> str:
     # Serialize findings to plain dicts so the dict-shaped renderer internals
     # (_build_sections -> templates, _extract_mi, classify_findings) operate on
@@ -184,9 +185,17 @@ def render_comment(
     template = env.get_template("comment.md.j2")
 
     if _is_monorepo(results):
-        verdict, summary_rows, sections = _build_monorepo_sections(results, plugin_renderers)
+        _, summary_rows, sections = _build_monorepo_sections(results, plugin_renderers)
     else:
-        verdict, summary_rows, sections = _build_sections(results, plugin_renderers)
+        _, summary_rows, sections = _build_sections(results, plugin_renderers)
+
+    # The badge verdict is the single source of truth (review_summary). Callers pass
+    # the canonical, diff-scoped verdict; absent that, fall back to the repo-wide one
+    # so the badge still matches summarize_review rather than the section builder.
+    if verdict is None:
+        from eedom.core.review_summary import summarize_review
+
+        verdict = summarize_review(results).verdict.value
 
     severity_score = calculate_severity_score(results)
     quality_score = calculate_quality_score(results)

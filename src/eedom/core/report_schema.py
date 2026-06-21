@@ -94,6 +94,18 @@ class ReportModel(BaseModel):
     verdict: ReportVerdict
     security_score: float = Field(description="0-100, security plugins only.")
     quality_score: float = Field(description="0-100, quality plugins only (advisory).")
+    # Verdict counts (single source of truth — eedom.core.review_summary). Additive
+    # within schema v1; consumers (e.g. the CI header/label) read these instead of
+    # re-deriving counts from findings.
+    error_count: int = Field(default=0, description="Error-level (critical/high) findings.")
+    warning_count: int = Field(default=0, description="Warning-level (medium) findings.")
+    note_count: int = Field(default=0, description="Note-level (low/info) findings.")
+    crashed_count: int = Field(default=0, description="Plugins that crashed.")
+    skipped_count: int = Field(default=0, description="Plugins skipped (e.g. not installed).")
+    blocking_count: int = Field(
+        default=0,
+        description="Attributable error-level security findings — what drives a 'blocked' verdict.",
+    )
     total_findings: int = 0
     total_plugins: int = 0
     plugins: list[PluginReportModel] = Field(default_factory=list)
