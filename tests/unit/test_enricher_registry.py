@@ -16,7 +16,7 @@ from eedom.core.registries import ENRICHERS
 
 load_adapters()
 
-_EXPECTED = {"enclosing_symbol", "code_graph"}
+_EXPECTED = {"enclosing_symbol", "code_graph", "semgrep"}
 
 
 def test_expected_enrichers_registered() -> None:

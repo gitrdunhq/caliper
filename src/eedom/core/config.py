@@ -15,6 +15,11 @@ from eedom.core.models import OperatingMode
 
 _SCANNERS_DEFAULT = ["syft", "osv-scanner", "trivy", "scancode"]
 
+# On-by-default finding enrichers (ADR-006). Single source of truth shared by the
+# EedomSettings default and the settings-free build_default_enrichers() helper.
+# Semgrep enrichment is opt-in (subprocess cost), so it is deliberately absent here.
+DEFAULT_ENRICHERS = ("enclosing_symbol", "code_graph")
+
 
 class _CommaSeparatedEnvSource(EnvSettingsSource):
     """Custom env source that splits comma-separated strings for list fields.
@@ -88,7 +93,7 @@ class EedomSettings(BaseSettings):
     # Detect-then-enrich (ADR-006): which finding enrichers run after detection.
     # On-by-default enrichers are cheap+deterministic; semgrep is opt-in (per-file
     # subprocess cost). The whole pass is fail-open and bounded by enrichment_timeout.
-    enabled_enrichers: list[str] = Field(default=["enclosing_symbol", "code_graph"])
+    enabled_enrichers: list[str] = Field(default=list(DEFAULT_ENRICHERS))
     enrichment_timeout: int = 30
 
     # LLM task-fit advisory settings

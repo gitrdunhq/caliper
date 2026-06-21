@@ -259,6 +259,21 @@ def build_enrichers(settings: EedomSettings) -> list:
     return enrichers
 
 
+def build_default_enrichers() -> list:
+    """Build the on-by-default enrichers without a full settings object (ADR-006).
+
+    For standalone presentation paths (the GATEKEEPER agent's ``scan_code``) that run
+    a single plugin outside the wired ``ApplicationContext`` but still want findings
+    enriched. Triggers ``load_adapters`` so the registry is populated, then resolves
+    the ``DEFAULT_ENRICHERS`` keys (semgrep stays opt-in).
+    """
+    from eedom.core.config import DEFAULT_ENRICHERS
+    from eedom.core.registries import ENRICHERS
+
+    load_adapters()
+    return [ENRICHERS.create(k) for k in DEFAULT_ENRICHERS if k in ENRICHERS]
+
+
 def build_scanners(settings: EedomSettings) -> list:
     """Build the enabled scanners from the SCANNERS registry.
 
@@ -370,6 +385,7 @@ def load_adapters() -> None:
     import eedom.plugins._runners.graph_builder  # noqa: F401
     import eedom.plugins._runners.semgrep_runner  # noqa: F401
     import eedom.plugins.enrichers.code_graph  # noqa: F401
+    import eedom.plugins.enrichers.semgrep  # noqa: F401
 
 
 def bootstrap(settings: EedomSettings) -> ApplicationContext:

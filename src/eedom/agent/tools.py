@@ -96,6 +96,30 @@ def _serialize_decision(decision: ReviewDecision) -> dict:
     }
 
 
+def _enrich_agent_findings(findings: list[dict], repo_path: str) -> list[dict]:
+    """Run the default detect-then-enrich pass over agent findings (ADR-006).
+
+    Surfaces deterministic context (enclosing symbol, code-graph blast radius) in each
+    finding's ``metadata['enrichment']`` so GATEKEEPER reasons with minimal effort.
+    Fail-open: any wiring/enrichment error returns the findings unchanged.
+    """
+    if not findings:
+        return findings
+    try:
+        from eedom.composition.bootstrap import build_default_enrichers
+        from eedom.core.enrich import enrich_findings
+        from eedom.core.enrichment import EnrichmentContext
+
+        enrichers = build_default_enrichers()
+        if not enrichers:
+            return findings
+        ctx = EnrichmentContext(repo_path=repo_path)
+        return enrich_findings(findings, enrichers, ctx)
+    except Exception:
+        logger.exception("scan_code.enrich_failed")
+        return findings
+
+
 @tool(
     name="evaluate_change",
     description=(
@@ -386,12 +410,15 @@ def scan_code(
             "message": f.get("message", ""),
             "severity": f.get("severity", "WARNING"),
             "file": f.get("file", ""),
+            "line": f.get("start_line", 0),  # enrichers key on "line"
             "start_line": f.get("start_line", 0),
             "end_line": f.get("end_line", 0),
             "category": f.get("category", "unknown"),
         }
         for f in result.findings
     ]
+
+    findings = _enrich_agent_findings(findings, repo_path)
 
     return {
         "status": "ok",
