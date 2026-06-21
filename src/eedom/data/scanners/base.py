@@ -1,16 +1,16 @@
-"""Scanner base class and subprocess utilities.
+"""Scanner port and subprocess utilities.
 # tested-by: tests/unit/test_scanner_base.py
 
-Provides the abstract Scanner contract and safe subprocess execution
-with explicit timeouts. All subprocess failures are captured as return
-values — nothing in this module raises on scanner errors.
+Provides the ``ScannerPort`` structural contract and safe subprocess
+execution with explicit timeouts. All subprocess failures are captured as
+return values — nothing in this module raises on scanner errors.
 """
 
 from __future__ import annotations
 
-import abc
 import subprocess
 from pathlib import Path
+from typing import Protocol, runtime_checkable
 
 import structlog
 
@@ -62,22 +62,27 @@ def _make_not_installed_result(scanner_name: str) -> ScanResult:
     return ScanResult.not_installed(scanner_name)
 
 
-class Scanner(abc.ABC):
-    """Abstract base for all scanners.
+@runtime_checkable
+class ScannerPort(Protocol):
+    """Structural contract for all dependency scanners.
 
-    Subclasses must implement the ``name`` property and the ``scan`` method.
-    The ``scan`` method must return a ``ScanResult`` and never raise.
+    An implementation exposes a human-readable ``name`` and a ``scan`` method
+    that returns a ``ScanResult`` and never raises — failures are represented
+    via ``ScanResult.status`` (fail-open).  Adapters self-register against the
+    ``SCANNERS`` registry; no inheritance is required.
     """
 
     @property
-    @abc.abstractmethod
     def name(self) -> str:
         """Human-readable scanner identifier (e.g. 'syft', 'trivy')."""
+        ...
 
-    @abc.abstractmethod
     def scan(self, target_path: Path) -> ScanResult:
-        """Execute the scan against *target_path* and return a result.
+        """Execute the scan against *target_path* and return a result."""
+        ...
 
-        Implementations must catch all exceptions internally and represent
-        failures via ``ScanResult.status``.
-        """
+
+# Backward-compatible alias. Existing type hints (``core.orchestrator``) and
+# the detector subclass (``detectors.scanner.DeterministicScanner``) still
+# reference ``Scanner``; it now names the structural port.
+Scanner = ScannerPort

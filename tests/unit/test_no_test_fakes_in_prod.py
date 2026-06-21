@@ -3,6 +3,13 @@
 
 Catches the pattern where agents wire bootstrap_test() or _Fake* classes
 into production code paths. Test infrastructure belongs in tests/ only.
+
+Two intentional exceptions (see ``_ALLOWED_FILES``):
+  - ``bootstrap.py`` — the composition root, which holds the test wiring.
+  - ``fake.py`` — the per-area, self-registering ``Fake*`` adapter that the
+    ports-&-adapters convention (#404) places beside each port's real
+    adapters so the registry can resolve a deterministic stand-in. Nothing
+    in a production path resolves it unless asked for by key.
 """
 
 from __future__ import annotations
@@ -23,6 +30,7 @@ _FAKE_PATTERNS = [
 
 _ALLOWED_FILES = {
     "bootstrap.py",
+    "fake.py",
 }
 
 _FAKE_RE = re.compile("|".join(_FAKE_PATTERNS))

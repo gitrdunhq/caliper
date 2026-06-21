@@ -20,7 +20,8 @@ from eedom.core.models import (
     ScanResult,
     ScanResultStatus,
 )
-from eedom.data.scanners.base import Scanner, run_subprocess_with_timeout
+from eedom.data.scanners import SCANNERS
+from eedom.data.scanners.base import ScannerPort, run_subprocess_with_timeout
 
 logger = structlog.get_logger()
 
@@ -35,7 +36,7 @@ _SEVERITY_MAP: dict[str, FindingSeverity] = {
 }
 
 
-class TrivyScanner(Scanner):
+class TrivyScanner:
     """Detects known vulnerabilities using Trivy filesystem scan."""
 
     def __init__(self, timeout: int = _TIMEOUT) -> None:
@@ -136,3 +137,9 @@ def _extract_findings(data: dict) -> list[Finding]:
             )
 
     return findings
+
+
+@SCANNERS.register("trivy")
+def build_trivy_scanner(*, timeout: int = _TIMEOUT) -> ScannerPort:
+    """Construct a TrivyScanner. The 60s default timeout is enforced inside scan()."""
+    return TrivyScanner(timeout=timeout)
