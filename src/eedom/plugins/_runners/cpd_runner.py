@@ -69,6 +69,7 @@ _PMD_LANGUAGES: dict[str, str] = {
     ".feature": "gherkin",
 }
 
+
 def _parse_cpd_xml(xml_text: str, lang: str) -> list[dict]:
     """Parse PMD CPD XML output into a list of duplication dicts."""
     dupes: list[dict] = []
