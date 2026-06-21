@@ -67,13 +67,35 @@ class TestApplicationContextDataclass:
         fields = {f.name for f in dataclasses.fields(ApplicationContext)}
         assert "package_index" in fields, "ApplicationContext must have a 'package_index' field"
 
-    def test_application_context_has_exactly_eight_fields(self) -> None:
+    def test_application_context_has_the_eight_core_ports(self) -> None:
         from eedom.composition.bootstrap import ApplicationContext
 
         field_names = {f.name for f in dataclasses.fields(ApplicationContext)}
-        assert (
-            len(field_names) == 8
-        ), f"ApplicationContext must have exactly 8 fields, got: {field_names}"
+        core_ports = {
+            "analyzer_registry",
+            "policy_engine",
+            "tool_runner",
+            "decision_store",
+            "evidence_store",
+            "package_index",
+            "audit_sink",
+            "publisher",
+        }
+        assert core_ports <= field_names, f"missing core ports: {core_ports - field_names}"
+
+    def test_application_context_has_pipeline_collaborator_fields(self) -> None:
+        # Phase 5 (#409): the pipeline's data collaborators are injected here.
+        from eedom.composition.bootstrap import ApplicationContext
+
+        field_names = {f.name for f in dataclasses.fields(ApplicationContext)}
+        collaborators = {
+            "scanners",
+            "evidence_writer",
+            "package_metadata",
+            "decision_repository",
+            "audit_log_appender",
+        }
+        assert collaborators <= field_names, f"missing collaborators: {collaborators - field_names}"
 
 
 # ---------------------------------------------------------------------------

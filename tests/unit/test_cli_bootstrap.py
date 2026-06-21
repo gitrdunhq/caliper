@@ -51,6 +51,13 @@ def _make_fake_context():
         package_index=base.package_index,
         audit_sink=base.audit_sink,
         publisher=base.publisher,
+        # Phase 5 pipeline collaborators — tracked mocks so the pipeline can run
+        # end-to-end and reach the injected policy engine.
+        scanners=[],
+        evidence_writer=MagicMock(name="FakeEvidenceWriter"),
+        package_metadata=MagicMock(name="FakePackageMetadata"),
+        decision_repository=MagicMock(name="FakeDecisionRepository"),
+        audit_log_appender=MagicMock(name="FakeAuditAppender"),
     )
     return fake_ctx, mock_registry, mock_policy
 

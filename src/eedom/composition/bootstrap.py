@@ -43,9 +43,14 @@ __all__ = [
     "bootstrap_review",
     "bootstrap_test",
     "build_audit_sink",
+    "build_audit_log_appender",
+    "build_decision_repository",
     "build_decision_store",
+    "build_evidence_writer",
     "build_package_index",
+    "build_package_metadata",
     "build_publisher",
+    "build_scanners",
 ]
 
 
@@ -231,6 +236,95 @@ def build_package_index(settings: EedomSettings):
     return PyPIClient(timeout=getattr(settings, "pypi_timeout", 30))
 
 
+# ---------------------------------------------------------------------------
+# Review-pipeline collaborators — supplied to the pipeline via ApplicationContext
+# ---------------------------------------------------------------------------
+
+# config.enabled_scanners uses the analyzer-style names; map them to SCANNERS keys.
+_SCANNER_REGISTRY_KEYS = {
+    "syft": "syft",
+    "osv-scanner": "osv",
+    "trivy": "trivy",
+    "scancode": "scancode",
+}
+
+
+def build_scanners(settings: EedomSettings) -> list:
+    """Build the enabled scanners from the SCANNERS registry.
+
+    Reproduces the pipeline's former scanner-selection logic, now in the
+    composition tier: per-scanner timeouts/paths are threaded through the
+    registry factories (which do no I/O).
+    """
+    from eedom.data.scanners import SCANNERS
+
+    evidence_path = Path(settings.evidence_path)
+    scanners: list = []
+    for name in settings.enabled_scanners:
+        key = _SCANNER_REGISTRY_KEYS.get(name)
+        if key is None:
+            continue
+        if key == "syft":
+            scanners.append(SCANNERS.create("syft", evidence_dir=evidence_path))
+        elif key == "osv":
+            scanners.append(SCANNERS.create("osv", exclude_paths=settings.osv_exclude_paths))
+        elif key == "trivy":
+            scanners.append(SCANNERS.create("trivy"))
+        elif key == "scancode":
+            scanners.append(
+                SCANNERS.create(
+                    "scancode",
+                    evidence_dir=evidence_path,
+                    timeout=settings.scancode_timeout,
+                    license_score=settings.scancode_license_score,
+                )
+            )
+    return scanners
+
+
+def build_evidence_writer(settings: EedomSettings):
+    """Return the per-run evidence bundle writer (EvidenceWriterPort)."""
+    from eedom.data.evidence import EvidenceStore
+
+    return EvidenceStore(root_path=settings.evidence_path)
+
+
+def build_package_metadata(settings: EedomSettings):
+    """Return the package-metadata client (PackageMetadataPort)."""
+    from eedom.data.pypi import PyPIClient
+
+    return PyPIClient(timeout=settings.pypi_timeout)
+
+
+def build_decision_repository(settings: EedomSettings):
+    """Return a connected DecisionRepository, or NullRepository on failure.
+
+    The connect/fallback logic moves here from the pipeline so core never
+    constructs data-tier objects; the returned repo is ready to record to.
+    """
+    import structlog
+
+    from eedom.data.db import DecisionRepository, NullRepository
+
+    log = structlog.get_logger()
+    try:
+        repo = DecisionRepository(dsn=settings.db_dsn, query_timeout=10)
+        if not repo.connect():
+            log.warning("db_unavailable", msg="Falling back to NullRepository")
+            return NullRepository()
+        return repo
+    except Exception:
+        log.warning("db_init_failed", msg="Falling back to NullRepository")
+        return NullRepository()
+
+
+def build_audit_log_appender():
+    """Return the parquet audit-log append function."""
+    from eedom.data.parquet_writer import append_decisions
+
+    return append_decisions
+
+
 # Backward-compatible aliases. The epic renames `_make_*` -> `build_*`; these
 # keep existing imports and inspect-based wiring guards working unchanged.
 _make_decision_store = build_decision_store
@@ -267,13 +361,22 @@ def bootstrap(settings: EedomSettings) -> ApplicationContext:
         timeout=getattr(settings, "opa_timeout", 10),
     )
 
+    # Single PyPI client serves both the narrow package_index port and the
+    # pipeline's richer package_metadata collaborator.
+    package_client = build_package_index(settings)
+
     return ApplicationContext(
         analyzer_registry=registry,
         policy_engine=policy_engine,
         tool_runner=tool_runner,
         decision_store=build_decision_store(settings),
         evidence_store=FileEvidenceStore(base_dir=Path(settings.evidence_path)),
-        package_index=build_package_index(settings),
+        package_index=package_client,
         audit_sink=build_audit_sink(settings),
         publisher=build_publisher(settings),
+        scanners=build_scanners(settings),
+        evidence_writer=build_evidence_writer(settings),
+        package_metadata=package_client,
+        decision_repository=build_decision_repository(settings),
+        audit_log_appender=build_audit_log_appender(),
     )

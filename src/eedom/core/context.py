@@ -8,23 +8,36 @@ composition tier (``eedom.composition``) constructs instances; core consumers
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
 
 from eedom.core.policy_port import PolicyEnginePort
 from eedom.core.ports import (
     AnalyzerRegistryPort,
     AuditSinkPort,
+    DecisionRepositoryPort,
     DecisionStorePort,
     EvidenceStorePort,
+    EvidenceWriterPort,
     PackageIndexPort,
+    PackageMetadataPort,
     PullRequestPublisherPort,
+    ScannerPort,
 )
 from eedom.core.tool_runner import ToolRunnerPort
 
 
 @dataclass
 class ApplicationContext:
-    """Holds all wired port dependencies for one application instance."""
+    """Holds all wired port dependencies for one application instance.
+
+    The first eight fields are the always-present hexagonal ports. The trailing
+    fields are the review-pipeline collaborators; they default to empty/None and
+    are populated by ``bootstrap(settings)`` in the composition tier. Core reads
+    them only through the ``eedom.core.accessors`` get_* functions, which raise a
+    clear error when a required collaborator is missing.
+    """
 
     analyzer_registry: AnalyzerRegistryPort
     policy_engine: PolicyEnginePort
@@ -34,3 +47,10 @@ class ApplicationContext:
     package_index: PackageIndexPort
     audit_sink: AuditSinkPort
     publisher: PullRequestPublisherPort
+
+    # Review-pipeline collaborators (injected by the composition tier).
+    scanners: list[ScannerPort] = field(default_factory=list)
+    evidence_writer: EvidenceWriterPort | None = None
+    package_metadata: PackageMetadataPort | None = None
+    decision_repository: DecisionRepositoryPort | None = None
+    audit_log_appender: Callable[[Path, list, str], object] | None = None
