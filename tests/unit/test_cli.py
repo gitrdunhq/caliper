@@ -1041,7 +1041,7 @@ class TestEvaluateExceptionLogging:
         with (
             patch("eedom.core.config.EedomSettings") as mock_settings,
             patch(
-                "eedom.core.bootstrap.bootstrap",
+                "eedom.composition.bootstrap.bootstrap",
                 side_effect=ValueError("simulated pipeline error"),
             ),
             patch("eedom.cli.main.logger") as mock_logger,

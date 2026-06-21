@@ -32,7 +32,7 @@ def _make_fake_context():
     that test assertions can verify which components are actually called during
     CLI execution.
     """
-    from eedom.core.bootstrap import ApplicationContext, bootstrap_test
+    from eedom.composition.bootstrap import ApplicationContext, bootstrap_test
 
     base = bootstrap_test()
 
@@ -62,7 +62,7 @@ def _make_fake_context():
 
 class TestCLIImportsBootstrap:
     def test_cli_module_imports_bootstrap_function(self) -> None:
-        """cli/main.py must import bootstrap (or bootstrap_test) from eedom.core.bootstrap.
+        """cli/main.py must import bootstrap (or bootstrap_test) from eedom.composition.bootstrap.
 
         FAILS (RED): cli/main.py currently does not import bootstrap at all.
         After #161, the CLI must call bootstrap(settings) to obtain an
@@ -72,8 +72,8 @@ class TestCLIImportsBootstrap:
         import eedom.cli.main as cli_module
 
         source = inspect.getsource(cli_module)
-        assert "eedom.core.bootstrap" in source, (
-            "cli/main.py must import from eedom.core.bootstrap. "
+        assert "eedom.composition.bootstrap" in source, (
+            "cli/main.py must import from eedom.composition.bootstrap. "
             "Currently it constructs PluginRegistry directly via get_default_registry()."
         )
 
@@ -88,7 +88,7 @@ class TestReviewUsesContextAnalyzerRegistry:
         """The review command must call ctx.analyzer_registry.run_all via bootstrap_review()."""
         fake_ctx, mock_registry, _ = _make_fake_context()
 
-        with patch("eedom.core.bootstrap.bootstrap_review", return_value=fake_ctx):
+        with patch("eedom.composition.bootstrap.bootstrap_review", return_value=fake_ctx):
             runner = CliRunner()
             with runner.isolated_filesystem():
                 runner.invoke(
@@ -143,7 +143,7 @@ class TestEvaluateUsesContextPolicyEngine:
             "+requests==2.28.0\n"
         )
 
-        with patch("eedom.core.bootstrap.bootstrap", return_value=fake_ctx):
+        with patch("eedom.composition.bootstrap.bootstrap", return_value=fake_ctx):
             runner = CliRunner()
             with runner.isolated_filesystem():
                 Path("test.diff").write_text(diff_content)

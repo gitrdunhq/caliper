@@ -103,7 +103,7 @@ def test_no_bootstrap_test_calls_in_production_code() -> None:
 
 def test_no_null_adapters_in_bootstrap_production_path() -> None:
     """bootstrap() must not wire NullDecisionStore/NullAuditSink for production."""
-    bootstrap_file = _SRC / "core" / "bootstrap.py"
+    bootstrap_file = _SRC / "composition" / "bootstrap.py"
     source = bootstrap_file.read_text()
     tree = ast.parse(source)
 

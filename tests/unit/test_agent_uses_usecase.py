@@ -69,7 +69,7 @@ class TestEvaluateChangeDelegatesToReviewRepository:
 
     def test_run_pipeline_with_context_calls_review_repository(self) -> None:
         """Fails: run_pipeline_with_context does not exist yet; patch target absent."""
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewResult
 
         stub = ReviewResult(
@@ -100,7 +100,7 @@ class TestEvaluateChangeDelegatesToReviewRepository:
         If the function shells out, the assertion below will fail.  If the function
         doesn't exist yet, the import itself fails — either way the test is red.
         """
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewResult
 
         stub = ReviewResult(
@@ -136,7 +136,7 @@ class TestBootstrapTestContextIntegration:
     def test_run_pipeline_with_context_returns_review_result(self) -> None:
         """Fails: run_pipeline_with_context does not exist yet."""
         from eedom.agent.tool_helpers import run_pipeline_with_context
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewResult
 
         ctx = bootstrap_test()
@@ -155,7 +155,7 @@ class TestBootstrapTestContextIntegration:
         With bootstrap_test() (FakeAnalyzerRegistry returns []), verdict must be 'clear'.
         """
         from eedom.agent.tool_helpers import run_pipeline_with_context
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         result = run_pipeline_with_context(
@@ -170,7 +170,7 @@ class TestBootstrapTestContextIntegration:
     def test_bootstrap_context_does_not_invoke_subprocess_run(self) -> None:
         """Fails: run_pipeline_with_context does not exist yet; subprocess guard."""
         from eedom.agent.tool_helpers import run_pipeline_with_context
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         with patch("subprocess.run") as mock_subproc:
