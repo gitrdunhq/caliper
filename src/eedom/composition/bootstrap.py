@@ -274,6 +274,19 @@ def build_default_enrichers() -> list:
     return [ENRICHERS.create(k) for k in DEFAULT_ENRICHERS if k in ENRICHERS]
 
 
+def run_supply_chain_scan(diff_text: str, settings: EedomSettings, *, sources=None) -> list:
+    """Composition entry point for the gated supply-chain-diff step.
+
+    Keeps the presentation tier (the CLI command) from importing ``eedom.data``
+    directly: composition is the only tier allowed to reach into ``data`` to wire
+    the fetch+diff orchestration. Returns the deterministic supply_chain findings.
+    """
+    load_adapters()  # ensure PACKAGE_SOURCES (pypi/npm) are registered
+    from eedom.data.supply_chain_scan import run_supply_chain_diff
+
+    return run_supply_chain_diff(diff_text, settings, sources=sources)
+
+
 def build_scanners(settings: EedomSettings) -> list:
     """Build the enabled scanners from the SCANNERS registry.
 
