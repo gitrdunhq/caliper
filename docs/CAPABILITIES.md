@@ -15,7 +15,8 @@
 
 Eagle Eyed Dom — fully deterministic dependency, security, and code review for CI.
 19 scanner plugins, 21 deterministic detectors, 61 custom semgrep rules, 12 code graph
-checks, 6 OPA policy rules, 600+ tests. Zero LLM in the decision path.
+checks, 8 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
+supply-chain version-bump narrative is advisory metadata only).
 
 ## Quick Numbers
 
@@ -25,11 +26,11 @@ checks, 6 OPA policy rules, 600+ tests. Zero LLM in the decision path.
 | Deterministic detectors | 21 (EED-001..EED-021) |
 | Custom semgrep rules | 61 (11 rule files) |
 | Code graph SQL checks | 12 |
-| OPA Rego policy rules | 6 (4 deny, 2 warn) |
+| OPA Rego policy rules | 8 (5 deny, 3 warn) |
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
-| Finding enrichers | 3 (enclosing-symbol, code-graph, semgrep opt-in) |
-| CLI commands | 6 |
+| Finding enrichers | 4 (enclosing-symbol, code-graph, semgrep opt-in, supply-chain-threat opt-in) |
+| CLI commands | 7 |
 | Output formats | 4 |
 | Supported ecosystems (SBOM) | 18 |
 | Supported languages (CPD) | 15 |
@@ -45,7 +46,7 @@ checks, 6 OPA policy rules, 600+ tests. Zero LLM in the decision path.
 The 19 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
 five categories below. The **OPA policy plugin** is the 20th `ScannerPlugin` subclass but is
 wired separately — it consumes every other plugin's findings and runs last
-(`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-6-rules).
+(`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-8-rules).
 
 ### dependency (4)
 
@@ -236,7 +237,7 @@ All in `plugins/_runners/checks.yaml`. Executed by the blast-radius plugin again
 
 ---
 
-## OPA Policy Rules (6 rules)
+## OPA Policy Rules (8 rules)
 
 File: `policies/policy.rego`. Consumes findings from all plugins.
 
@@ -246,8 +247,10 @@ File: `policies/policy.rego`. Consumes findings from all plugins.
 | Forbidden license | deny | license_id in config forbidden_licenses list |
 | Package age < threshold | deny | first_published_date < min_package_age_days (default 90) |
 | Malicious package | deny | advisory_id starts with "MAL-" |
+| Supply-chain version-bump signal | deny | severity critical or high + category supply_chain |
 | Medium vulnerability | warn | severity medium + category vulnerability |
 | Transitive dep count | warn | transitive_dep_count > max_transitive_deps (default 200) |
+| Supply-chain note | warn | severity medium + category supply_chain |
 
 Decision: any deny → reject. No deny + any warn → approve_with_constraints. Else → approve.
 All rules individually toggleable via `config.rules_enabled.*`.
@@ -285,6 +288,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | `eedom plugins` | List all registered plugins with binary status and depends_on. |
 | `eedom schema` | Print the JSON Schema for `eedom review --format json` output. `--output` writes to a file. Published artifact: `docs/schema/report-v1.0.json`. |
 | `eedom query` | Natural language query against code graph SQLite database. |
+| `eedom supply-chain-diff` | Separate, feature-flag-gated step (`EEDOM_SUPPLY_CHAIN_DIFF_ENABLED=1`). Fetches the source of both versions of every dependency bump in a diff, scores deterministic supply-chain signals (which gate via OPA), and optionally attaches an advisory LLM narrative. Formats: markdown, json, sarif. Modes: monitor/advise. NOT part of the normal scan. |
 
 ---
 
@@ -317,12 +321,13 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 |------------|------|-------------|
 | Parallel scanning | `core/orchestrator.py` | ThreadPoolExecutor with combined wall-clock timeout. |
 | Unified verdict (SoT) | `core/review_summary.py` | One `summarize_review()` computes verdict + counts + scores; the markdown badge, JSON report, SARIF properties, and CI header/label all consume it (no divergent re-derivation). Diff-scoped gate: only PR-introduced security findings block; pre-existing dependency CVEs are advisory. |
-| Detect-then-enrich | `core/enrich.py`, `core/enrichment.py` | Post-detection pass (ADR-006): every plugin finding is decorated with deterministic context in `metadata['enrichment']` — enclosing symbol (`detectors` enricher), code-graph blast radius (`plugins` enricher), and opt-in nearby semgrep matches (`plugins` enricher). Sequential, fail-open, time-bounded (`enrichment_timeout`); verdict-independent. Pluggable via the `ENRICHERS` registry; also wired into the GATEKEEPER agent's `scan_code`. |
+| Detect-then-enrich | `core/enrich.py`, `core/enrichment.py` | Post-detection pass (ADR-006): every plugin finding is decorated with deterministic context in `metadata['enrichment']` — enclosing symbol (`detectors` enricher), code-graph blast radius (`plugins` enricher), opt-in nearby semgrep matches (`plugins` enricher), and the opt-in supply-chain-threat LLM narrative (`plugins` enricher). Sequential, fail-open, time-bounded (`enrichment_timeout`); verdict-independent. Pluggable via the `ENRICHERS` registry; also wired into the GATEKEEPER agent's `scan_code`. |
 | Cross-scanner dedup | `core/normalizer.py` | Highest severity wins per (advisory_id, category, package, version). |
 | Evidence chain | `core/seal.py` | Blockchain-style SHA-256 seals. manifest hash + previous seal → seal hash. `verify_seal()` detects tampering. |
 | Parquet audit log | `data/parquet_writer.py` | Append-only per-run audit trail. |
 | SBOM diff | `core/sbom_diff.py` | Diff two CycloneDX SBOMs: added/removed/upgraded/downgraded across 18 ecosystems. |
-| Dependency diff | `core/diff.py` | Git diff parsing for requirements.txt and pyproject.toml. |
+| Dependency diff | `core/diff.py` | Git diff parsing for requirements.txt, pyproject.toml, and package.json (npm). |
+| Supply-chain version-bump analysis | `core/supply_chain_diff.py`, `data/pkgsrc.py`, `data/supply_chain_scan.py` | Separate gated step (`eedom supply-chain-diff`): fetches both versions of every dependency bump (PyPI sdist / npm tarball, safe extraction with traversal + zip-bomb defenses), diffs the source, and scores deterministic signals — new install hooks (critical), obfuscation/encoded payloads (high), newly introduced network/exec capability (high), publisher change (medium). Signals gate via the OPA `supply_chain_diff` rule; the optional `supply_chain_threat` enricher attaches an advisory LLM narrative (zero-LLM decision path preserved). Fail-open. |
 | Health score | `core/renderer.py` | 0-100 severity-weighted score (critical=10, high=5, medium=2, low=1). |
 | Monorepo support | `core/manifest_discovery.py` | Walk repo, discover multiple package roots (8 manifest types, 8 lockfile types), run plugins per-package with scoped config merging. |
 | Policy engine | `core/policy.py` | OPA subprocess wrapper with fail-open degradation. |
