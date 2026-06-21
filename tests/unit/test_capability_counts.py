@@ -65,9 +65,11 @@ class TestCapabilitiesDocInSync:
     """The docs/CAPABILITIES.md headline matches the canonical numbers."""
 
     def test_headline_counts_present(self):
-        text = (_REPO / "docs" / "CAPABILITIES.md").read_text()
+        # Whitespace-normalized so the guard survives line-wrapping/reflow of the
+        # identity paragraph (a phrase like "12 code graph checks" may span a newline).
+        text = " ".join((_REPO / "docs" / "CAPABILITIES.md").read_text().split())
         for needle in (
-            f"{_PLUGINS} plugins",
+            f"{_PLUGINS} scanner plugins",
             f"{_SEMGREP} custom semgrep rules",
             f"{_CODEGRAPH} code graph checks",
             f"{_OPA} OPA policy rules",
