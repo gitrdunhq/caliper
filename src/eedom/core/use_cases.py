@@ -69,6 +69,34 @@ def _derive_verdict(results: list) -> str:
     return verdict
 
 
+def _enrich_results(context: ApplicationContext, results: list, repo_path: Path) -> list:
+    """Run the detect-then-enrich pass over every plugin's findings (ADR-006).
+
+    A post-detection, verdict-independent pass: each finding is decorated with
+    deterministic context (enclosing symbol, code-graph blast radius) in its
+    ``metadata['enrichment']``. Fail-open and time-bounded — enrichment can never
+    change a verdict or drop a finding, so this runs *after* detection and before
+    scoring. A no-op when no enrichers are wired.
+    """
+    from eedom.core.accessors import get_enrichers
+    from eedom.core.enrich import enrich_findings
+    from eedom.core.enrichment import EnrichmentContext
+
+    enrichers = get_enrichers(context)
+    if not enrichers:
+        return results
+    ctx = EnrichmentContext(repo_path=str(repo_path))
+    enriched: list = []
+    for result in results:
+        findings = getattr(result, "findings", None)
+        if findings:
+            new = enrich_findings(list(findings), enrichers, ctx)
+            enriched.append(dataclasses.replace(result, findings=new))
+        else:
+            enriched.append(result)
+    return enriched
+
+
 def review_repository(
     context: ApplicationContext,
     files: list,
@@ -96,6 +124,8 @@ def review_repository(
         enabled_names=options.enabled,
         repo_files=repo_files,
     )
+
+    plugin_results = _enrich_results(context, plugin_results, repo_path)
 
     verdict = _derive_verdict(plugin_results)
     security_score = calculate_severity_score(plugin_results)

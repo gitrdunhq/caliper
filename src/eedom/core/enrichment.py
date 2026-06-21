@@ -86,3 +86,26 @@ class EnrichmentContext:
 
     repo_path: str
     enrichment_timeout: float = 30.0
+
+
+def merge_enrichment(finding, *, source: str, **fields):
+    """Merge enrichment *fields* into ``finding.metadata['enrichment']`` (accumulating sources).
+
+    The single helper every enricher uses to attach context, so the merge semantics live in
+    one place. Handles both representations a finding takes in eedom: a frozen ``PluginFinding``
+    (returned via ``model_copy``) and a raw ``dict`` (semgrep/blast-radius style, returned as a
+    new dict). The ``enrichment`` envelope is always a plain dict (JSON-safe).
+    """
+    is_dict = isinstance(finding, dict)
+    existing = finding.get("metadata") if is_dict else getattr(finding, "metadata", {})
+    metadata = dict(existing or {})
+    enrichment = dict(metadata.get("enrichment") or {})
+    sources = list(enrichment.get("sources", []))
+    if source not in sources:
+        sources.append(source)
+    enrichment.update(fields)
+    enrichment["sources"] = sources
+    metadata["enrichment"] = enrichment
+    if is_dict:
+        return {**finding, "metadata": metadata}
+    return finding.model_copy(update={"metadata": metadata})

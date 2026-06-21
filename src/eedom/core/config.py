@@ -85,6 +85,12 @@ class EedomSettings(BaseSettings):
     # Enabled scanners (comma-separated in env, e.g. "syft,trivy,osv-scanner")
     enabled_scanners: list[str] = Field(default=_SCANNERS_DEFAULT)
 
+    # Detect-then-enrich (ADR-006): which finding enrichers run after detection.
+    # On-by-default enrichers are cheap+deterministic; semgrep is opt-in (per-file
+    # subprocess cost). The whole pass is fail-open and bounded by enrichment_timeout.
+    enabled_enrichers: list[str] = Field(default=["enclosing_symbol", "code_graph"])
+    enrichment_timeout: int = 30
+
     # LLM task-fit advisory settings
     llm_enabled: bool = False
     llm_endpoint: str | None = None
