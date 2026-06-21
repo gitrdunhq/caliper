@@ -14,10 +14,10 @@ import re
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
+from eedom.detectors._registry import register_detector
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 # Matches: `from eedom.data import ...` or `from eedom.data.something import ...`
 _FROM_DATA_RE = re.compile(r"^\s*from\s+eedom\.data(\.\w+)*\s+import\b")
@@ -29,7 +29,7 @@ _IMPORT_DATA_RE = re.compile(r"^\s*import\s+eedom\.data(\.\w+)*\b")
 _PRESENTATION_SEGMENTS = ("/agent/", "/cli/")
 
 
-@DetectorRegistry.register
+@register_detector
 class ArchBoundaryDetector(BugDetector):
     """Detects direct presentation→data tier imports that skip the core tier.
 

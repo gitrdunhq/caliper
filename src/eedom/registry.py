@@ -62,6 +62,10 @@ class Registry[T]:
         """Return the registered keys, sorted for determinism."""
         return sorted(self._factories)
 
+    def clear(self) -> None:
+        """Drop all registrations (mainly for test isolation)."""
+        self._factories.clear()
+
     def __contains__(self, key: object) -> bool:
         return key in self._factories
 

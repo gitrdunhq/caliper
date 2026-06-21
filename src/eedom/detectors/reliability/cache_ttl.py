@@ -8,6 +8,7 @@ import ast
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
+from eedom.detectors._registry import register_detector
 from eedom.detectors.ast_utils import (
     find_function_calls,
     is_cache_related_name,
@@ -16,10 +17,9 @@ from eedom.detectors.ast_utils import (
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 
-@DetectorRegistry.register
+@register_detector
 class CacheTTLDetector(BugDetector):
     """Detects cache lookups without freshness/TTL verification.
 

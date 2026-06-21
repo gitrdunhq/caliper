@@ -34,7 +34,9 @@ def _semgrep_rule_count() -> int:
 
 
 def _codegraph_check_count() -> int:
-    data = yaml.safe_load((_REPO / "src" / "eedom" / "plugins" / "_runners" / "checks.yaml").read_text())
+    data = yaml.safe_load(
+        (_REPO / "src" / "eedom" / "plugins" / "_runners" / "checks.yaml").read_text()
+    )
     return len(data.get("checks", []))
 
 

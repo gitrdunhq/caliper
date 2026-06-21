@@ -1,7 +1,10 @@
-"""Tests for detector registry.
+"""Tests for the detector registry (folded onto the generic ``Registry[T]``).
 # tested-by: tests/unit/detectors/test_registry.py
 
-RED phase tests for Task 1.4: Detector Registry.
+Exercises the functional registry API in ``eedom.detectors._registry``:
+``register_detector`` (decorator), ``discover_detectors`` (idempotent
+auto-discovery), the ``get_*`` lookups, instance caching, and thread safety
+for parallel orchestrator execution (VAL-M1).
 """
 
 from __future__ import annotations
@@ -12,20 +15,27 @@ from pathlib import Path
 import pytest
 
 from eedom.core.models import FindingSeverity
+from eedom.detectors._registry import (
+    DETECTORS,
+    clear_detectors,
+    discover_detectors,
+    get_all_detectors,
+    get_by_category,
+    get_by_severity,
+    get_detector,
+    register_detector,
+)
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-
-# These imports will fail during RED phase
-from eedom.detectors.registry import DetectorRegistry
 
 # =============================================================================
 # Test Detector Classes
 # =============================================================================
 
 
-class TestSecurityDetector(BugDetector):
-    """Test security detector for registry tests."""
+class SampleSecurityDetector(BugDetector):
+    """Sample security detector for registry tests."""
 
     @property
     def detector_id(self) -> str:
@@ -47,8 +57,8 @@ class TestSecurityDetector(BugDetector):
         return []
 
 
-class TestReliabilityDetector(BugDetector):
-    """Test reliability detector for registry tests."""
+class SampleReliabilityDetector(BugDetector):
+    """Sample reliability detector for registry tests."""
 
     @property
     def detector_id(self) -> str:
@@ -71,17 +81,17 @@ class TestReliabilityDetector(BugDetector):
 
 
 # =============================================================================
-# Registry Registration Tests
+# Registration
 # =============================================================================
 
 
-class TestDetectorRegistryRegistration:
-    """Tests for detector registration."""
+class TestRegisterDetector:
+    """Tests for the ``@register_detector`` decorator."""
 
-    def test_register_decorator_works(self):
-        """@register decorator registers detector class."""
+    def test_decorator_registers_under_detector_id(self):
+        """The decorator registers the class keyed by its detector_id."""
 
-        @DetectorRegistry.register
+        @register_detector
         class DecoratedDetector(BugDetector):
             @property
             def detector_id(self) -> str:
@@ -102,40 +112,13 @@ class TestDetectorRegistryRegistration:
             def detect(self, file_path: Path) -> list[DetectorFinding]:
                 return []
 
-        # Check it's registered
-        assert "EED-DEC-001" in DetectorRegistry._detectors
+        assert "EED-DEC-001" in DETECTORS
 
-    def test_explicit_register_method(self):
-        """register() method registers detector class."""
+    def test_decorator_returns_class_for_use(self):
+        """The decorator returns the class so it stays instantiable."""
 
-        class ExplicitDetector(BugDetector):
-            @property
-            def detector_id(self) -> str:
-                return "EED-EXP-001"
-
-            @property
-            def name(self) -> str:
-                return "Explicit Detector"
-
-            @property
-            def category(self) -> DetectorCategory:
-                return DetectorCategory.security
-
-            @property
-            def severity(self) -> FindingSeverity:
-                return FindingSeverity.high
-
-            def detect(self, file_path: Path) -> list[DetectorFinding]:
-                return []
-
-        DetectorRegistry.register(ExplicitDetector)
-        assert "EED-EXP-001" in DetectorRegistry._detectors
-
-    def test_register_returns_class_for_decorator_use(self):
-        """register returns the class for use as decorator."""
-
-        @DetectorRegistry.register
-        class TestDetector(BugDetector):
+        @register_detector
+        class ReturnedDetector(BugDetector):
             @property
             def detector_id(self) -> str:
                 return "EED-RET-001"
@@ -155,177 +138,135 @@ class TestDetectorRegistryRegistration:
             def detect(self, file_path: Path) -> list[DetectorFinding]:
                 return []
 
-        # Should still be able to instantiate the class
-        instance = TestDetector()
+        instance = ReturnedDetector()
         assert instance.detector_id == "EED-RET-001"
 
 
 # =============================================================================
-# Registry Discovery Tests
+# Discovery
 # =============================================================================
 
 
-class TestDetectorRegistryDiscovery:
-    """Tests for detector auto-discovery."""
+class TestDiscoverDetectors:
+    """Tests for ``discover_detectors`` auto-discovery."""
 
-    def test_discover_finds_all_detectors(self):
-        """discover() finds all registered detector subclasses."""
-        # First, manually register some detectors
-        DetectorRegistry._detectors.clear()
-        DetectorRegistry._instances.clear()
+    def test_discover_imports_real_detectors(self):
+        """Discovery imports the shipped detector modules and registers them.
 
-        DetectorRegistry.register(TestSecurityDetector)
-        DetectorRegistry.register(TestReliabilityDetector)
-
-        # Call discover
-        DetectorRegistry.discover()
-
-        # Should have both detectors
-        all_detectors = DetectorRegistry.get_all_detectors()
+        Idempotent: this populates on the first call in the process and is a
+        no-op thereafter; the autouse fixture snapshots/restores global state
+        so the real registrations survive for the whole file.
+        """
+        discover_detectors()
+        all_detectors = get_all_detectors()
         detector_ids = {d.detector_id for d in all_detectors}
-        assert "EED-TEST-001" in detector_ids
-        assert "EED-TEST-002" in detector_ids
+        # A known real detector id must be present after discovery.
+        assert "EED-001" in detector_ids
+        assert len(all_detectors) > 0
+
+    def test_discover_is_idempotent(self):
+        """Repeated discovery does not re-import or duplicate registrations."""
+        discover_detectors()
+        first = len(get_all_detectors())
+        discover_detectors()
+        second = len(get_all_detectors())
+        assert first == second
 
     def test_get_all_detectors_returns_instances(self):
-        """get_all_detectors() returns detector instances."""
-        DetectorRegistry._detectors.clear()
-        DetectorRegistry._instances.clear()
-
-        DetectorRegistry.register(TestSecurityDetector)
-
-        detectors = DetectorRegistry.get_all_detectors()
-        assert len(detectors) == 1
-        assert isinstance(detectors[0], TestSecurityDetector)
-
-    def test_get_all_detectors_non_empty_after_registration(self):
-        """get_all_detectors() returns non-empty list after registration."""
-        DetectorRegistry._detectors.clear()
-        DetectorRegistry._instances.clear()
-
-        DetectorRegistry.register(TestSecurityDetector)
-        DetectorRegistry.discover()
-
-        detectors = DetectorRegistry.get_all_detectors()
-        assert len(detectors) > 0
+        """get_all_detectors() returns BugDetector instances."""
+        register_detector(SampleSecurityDetector)
+        detectors = get_all_detectors()
+        assert all(isinstance(d, BugDetector) for d in detectors)
+        assert any(isinstance(d, SampleSecurityDetector) for d in detectors)
 
 
 # =============================================================================
-# Registry Lookup Tests
+# Lookup
 # =============================================================================
 
 
-class TestDetectorRegistryLookup:
-    """Tests for detector lookup."""
+class TestLookup:
+    """Tests for the lookup helpers."""
 
     def test_get_detector_by_id(self):
-        """get_detector() returns detector by ID."""
-        DetectorRegistry._detectors.clear()
-        DetectorRegistry._instances.clear()
-
-        DetectorRegistry.register(TestSecurityDetector)
-        DetectorRegistry.discover()
-
-        detector = DetectorRegistry.get_detector("EED-TEST-001")
+        register_detector(SampleSecurityDetector)
+        detector = get_detector("EED-TEST-001")
         assert detector is not None
         assert detector.detector_id == "EED-TEST-001"
 
     def test_get_detector_returns_none_for_unknown_id(self):
-        """get_detector() returns None for unknown detector ID."""
-        DetectorRegistry._detectors.clear()
-        DetectorRegistry._instances.clear()
-
-        detector = DetectorRegistry.get_detector("EED-UNKNOWN")
-        assert detector is None
+        assert get_detector("EED-UNKNOWN") is None
 
     def test_get_by_category_filters_correctly(self):
-        """get_by_category() returns only matching detectors."""
-        DetectorRegistry._detectors.clear()
-        DetectorRegistry._instances.clear()
+        clear_detectors()  # isolate from the real detectors for an exact assertion
+        register_detector(SampleSecurityDetector)
+        register_detector(SampleReliabilityDetector)
 
-        DetectorRegistry.register(TestSecurityDetector)
-        DetectorRegistry.register(TestReliabilityDetector)
-        DetectorRegistry.discover()
+        security = get_by_category(DetectorCategory.security)
+        assert {d.detector_id for d in security} == {"EED-TEST-001"}
 
-        security_detectors = DetectorRegistry.get_by_category(DetectorCategory.security)
-        assert len(security_detectors) == 1
-        assert security_detectors[0].detector_id == "EED-TEST-001"
-
-        reliability_detectors = DetectorRegistry.get_by_category(DetectorCategory.reliability)
-        assert len(reliability_detectors) == 1
-        assert reliability_detectors[0].detector_id == "EED-TEST-002"
+        reliability = get_by_category(DetectorCategory.reliability)
+        assert {d.detector_id for d in reliability} == {"EED-TEST-002"}
 
     def test_get_by_severity_filters_correctly(self):
-        """get_by_severity() returns only matching detectors."""
-        DetectorRegistry._detectors.clear()
-        DetectorRegistry._instances.clear()
+        clear_detectors()  # isolate from the real detectors for an exact assertion
+        register_detector(SampleSecurityDetector)
+        register_detector(SampleReliabilityDetector)
 
-        DetectorRegistry.register(TestSecurityDetector)
-        DetectorRegistry.register(TestReliabilityDetector)
-        DetectorRegistry.discover()
+        high = get_by_severity(FindingSeverity.high)
+        assert {d.detector_id for d in high} == {"EED-TEST-001"}
 
-        high_detectors = DetectorRegistry.get_by_severity(FindingSeverity.high)
-        assert len(high_detectors) == 1
-        assert high_detectors[0].detector_id == "EED-TEST-001"
-
-        medium_detectors = DetectorRegistry.get_by_severity(FindingSeverity.medium)
-        assert len(medium_detectors) == 1
-        assert medium_detectors[0].detector_id == "EED-TEST-002"
+        medium = get_by_severity(FindingSeverity.medium)
+        assert {d.detector_id for d in medium} == {"EED-TEST-002"}
 
 
 # =============================================================================
-# Registry Caching Tests
+# Caching
 # =============================================================================
 
 
-class TestDetectorRegistryCaching:
-    """Tests for detector instance caching."""
+class TestCaching:
+    """Detectors are stateless, so instances are cached and shared."""
 
-    def test_caches_detector_instances(self):
-        """Registry caches detector instances (stateless)."""
-        DetectorRegistry._detectors.clear()
-        DetectorRegistry._instances.clear()
+    def test_get_detector_caches_instances(self):
+        register_detector(SampleSecurityDetector)
+        first = get_detector("EED-TEST-001")
+        second = get_detector("EED-TEST-001")
+        assert first is second
 
-        DetectorRegistry.register(TestSecurityDetector)
-        DetectorRegistry.discover()
-
-        # Get detector twice
-        detector1 = DetectorRegistry.get_detector("EED-TEST-001")
-        detector2 = DetectorRegistry.get_detector("EED-TEST-001")
-
-        # Should be same instance (cached)
-        assert detector1 is detector2
+    def test_clear_detectors_drops_cache(self):
+        register_detector(SampleSecurityDetector)
+        first = get_detector("EED-TEST-001")
+        clear_detectors()
+        register_detector(SampleSecurityDetector)
+        second = get_detector("EED-TEST-001")
+        assert first is not second
 
 
 # =============================================================================
-# Thread-Safety Tests (VAL-M1)
+# Thread-Safety (VAL-M1)
 # =============================================================================
 
 
-class TestDetectorRegistryThreadSafety:
-    """Tests for registry thread-safety (VAL-M1).
-
-    The registry must be thread-safe for parallel orchestrator execution.
-    """
+class TestThreadSafety:
+    """The registry must tolerate concurrent registration and lookup."""
 
     def test_concurrent_registration_is_safe(self):
-        """Concurrent registration operations are thread-safe."""
-        DetectorRegistry._detectors.clear()
-        DetectorRegistry._instances.clear()
+        errors: list[Exception] = []
 
-        errors = []
-        detectors_created = []
-
-        def create_and_register(i):
+        def create_and_register(i: int) -> None:
             try:
 
                 class DynamicDetector(BugDetector):
+                    _idx = i
+
                     @property
                     def detector_id(self) -> str:
-                        return f"EED-THREAD-{i:03d}"
+                        return f"EED-THREAD-{self._idx:03d}"
 
                     @property
                     def name(self) -> str:
-                        return f"Thread Detector {i}"
+                        return f"Thread Detector {self._idx}"
 
                     @property
                     def category(self) -> DetectorCategory:
@@ -338,40 +279,26 @@ class TestDetectorRegistryThreadSafety:
                     def detect(self, file_path: Path) -> list[DetectorFinding]:
                         return []
 
-                DetectorRegistry.register(DynamicDetector)
-                detectors_created.append(i)
-            except Exception as e:
+                register_detector(DynamicDetector)
+            except Exception as e:  # pragma: no cover - failure path
                 errors.append(e)
 
-        # Spawn multiple threads registering detectors
-        threads = []
-        for i in range(10):
-            t = threading.Thread(target=create_and_register, args=(i,))
-            threads.append(t)
+        threads = [threading.Thread(target=create_and_register, args=(i,)) for i in range(10)]
+        for t in threads:
             t.start()
-
-        # Wait for all threads
         for t in threads:
             t.join()
 
-        # No errors should occur
-        assert len(errors) == 0, f"Thread errors: {errors}"
-
-        # All detectors should be registered
-        DetectorRegistry.discover()
-        all_detectors = DetectorRegistry.get_all_detectors()
-        assert len(all_detectors) >= 10
+        assert errors == []
+        ids = {d.detector_id for d in get_all_detectors()}
+        for i in range(10):
+            assert f"EED-THREAD-{i:03d}" in ids
 
     def test_concurrent_lookup_is_safe(self):
-        """Concurrent lookup operations are thread-safe."""
-        DetectorRegistry._detectors.clear()
-        DetectorRegistry._instances.clear()
-
-        # Pre-register some detectors
         for i in range(5):
 
             class PreRegisteredDetector(BugDetector):
-                _idx = i  # Capture loop variable at class definition time
+                _idx = i
 
                 @property
                 def detector_id(self) -> str:
@@ -392,48 +319,52 @@ class TestDetectorRegistryThreadSafety:
                 def detect(self, file_path: Path) -> list[DetectorFinding]:
                     return []
 
-            DetectorRegistry.register(PreRegisteredDetector)
+            register_detector(PreRegisteredDetector)
 
-        DetectorRegistry.discover()
+        errors: list[Exception] = []
+        results: list[bool] = []
 
-        errors = []
-        results = []
-
-        def lookup_detectors():
+        def lookup_detectors() -> None:
             try:
                 for i in range(5):
-                    d = DetectorRegistry.get_detector(f"EED-PRE-{i:03d}")
-                    results.append(d is not None)
-            except Exception as e:
+                    results.append(get_detector(f"EED-PRE-{i:03d}") is not None)
+            except Exception as e:  # pragma: no cover - failure path
                 errors.append(e)
 
-        # Spawn multiple threads doing lookups
-        threads = []
-        for _ in range(5):
-            t = threading.Thread(target=lookup_detectors)
-            threads.append(t)
+        threads = [threading.Thread(target=lookup_detectors) for _ in range(5)]
+        for t in threads:
             t.start()
-
         for t in threads:
             t.join()
 
-        # No errors should occur
-        assert len(errors) == 0, f"Lookup errors: {errors}"
-
-        # All lookups should succeed
+        assert errors == []
         assert all(results)
 
 
 # =============================================================================
-# Clear Registry Helper
+# Isolation
 # =============================================================================
 
 
 @pytest.fixture(autouse=True)
-def clear_registry():
-    """Clear registry before each test."""
-    DetectorRegistry._detectors.clear()
-    DetectorRegistry._instances.clear()
-    yield
-    DetectorRegistry._detectors.clear()
-    DetectorRegistry._instances.clear()
+def isolate_registry():
+    """Snapshot and restore global registry state around each test.
+
+    Tests register throwaway detectors (and some call ``clear_detectors``);
+    snapshotting keeps that isolated to the test while preserving the real,
+    already-discovered registrations for the rest of the suite — re-discovery
+    cannot repopulate them because the detector modules are import-cached.
+    """
+    from eedom.detectors import _registry as reg
+
+    saved_factories = dict(reg.DETECTORS._factories)
+    saved_instances = dict(reg._instances)
+    saved_discovered = reg._discovered
+    try:
+        yield
+    finally:
+        reg.DETECTORS._factories.clear()
+        reg.DETECTORS._factories.update(saved_factories)
+        reg._instances.clear()
+        reg._instances.update(saved_instances)
+        reg._discovered = saved_discovered

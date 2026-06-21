@@ -9,10 +9,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
+from eedom.detectors._registry import register_detector
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 # Write calls that indicate a direct (non-atomic) write
 _WRITE_MARKERS = (".write_bytes(", ".write_text(")
@@ -24,7 +24,7 @@ _ATOMIC_MARKERS = (".rename(", ".replace(", "os.rename(", "shutil.move(")
 _WINDOW = 10
 
 
-@DetectorRegistry.register
+@register_detector
 class NonAtomicWriteDetector(BugDetector):
     """Detects direct .write_bytes()/.write_text() calls without a nearby atomic rename.
 
