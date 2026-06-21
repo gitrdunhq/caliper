@@ -178,6 +178,4 @@ class HighCardinalityMetricsDetector(BugDetector):
         """Extract string content from AST node."""
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return node.value
-        if isinstance(node, ast.Str):  # Python < 3.8
-            return node.s
         return None
