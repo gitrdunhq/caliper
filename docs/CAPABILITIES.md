@@ -316,6 +316,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Capability | File | Description |
 |------------|------|-------------|
 | Parallel scanning | `core/orchestrator.py` | ThreadPoolExecutor with combined wall-clock timeout. |
+| Unified verdict (SoT) | `core/review_summary.py` | One `summarize_review()` computes verdict + counts + scores; the markdown badge, JSON report, SARIF properties, and CI header/label all consume it (no divergent re-derivation). Diff-scoped gate: only PR-introduced security findings block; pre-existing dependency CVEs are advisory. |
 | Detect-then-enrich | `core/enrich.py`, `core/enrichment.py` | Post-detection pass (ADR-006): every plugin finding is decorated with deterministic context in `metadata['enrichment']` — enclosing symbol (`detectors` enricher), code-graph blast radius (`plugins` enricher), and opt-in nearby semgrep matches (`plugins` enricher). Sequential, fail-open, time-bounded (`enrichment_timeout`); verdict-independent. Pluggable via the `ENRICHERS` registry; also wired into the GATEKEEPER agent's `scan_code`. |
 | Cross-scanner dedup | `core/normalizer.py` | Highest severity wins per (advisory_id, category, package, version). |
 | Evidence chain | `core/seal.py` | Blockchain-style SHA-256 seals. manifest hash + previous seal → seal hash. `verify_seal()` detects tampering. |

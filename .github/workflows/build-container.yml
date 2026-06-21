@@ -24,88 +24,103 @@ permissions:
 jobs:
   build:
     name: Build, Push & Attest
-    runs-on: [self-hosted, Linux, X64]
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Detect container engine
-        id: engine
+      # The eedom image bundles 18 scanners and is large; reclaim space the
+      # GitHub-hosted runner spends on preinstalled toolchains we never use.
+      - name: Free disk space
         run: |
-          if command -v podman &>/dev/null; then
-            echo "cmd=podman" >> "$GITHUB_OUTPUT"
-          elif command -v docker &>/dev/null; then
-            echo "cmd=docker" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::No container engine found (podman or docker required)"
-            exit 1
-          fi
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      # docker-container driver + the security.insecure entitlement, created
+      # inline (no external action — actions-allowlist policy). Replaces the
+      # pre-provisioned "eedom-builder" the self-hosted x86 host carried, so the
+      # Dockerfile's `RUN --security=insecure` steps work on a hosted runner.
+      - name: Set up Buildx builder with insecure entitlement
+        run: |
+          docker buildx create --name eedom-builder --driver docker-container \
+            --buildkitd-flags '--allow-insecure-entitlement security.insecure' --use
+          docker buildx inspect --bootstrap
 
       - name: Log in to GHCR
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | \
-            ${{ steps.engine.outputs.cmd }} login ghcr.io \
-              -u ${{ github.actor }} --password-stdin
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
-      - name: Build image
+      - name: Build & push image
         id: build
+        env:
+          IMAGE_REPO: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          COMMIT_SHA: ${{ github.sha }}
+          IMAGE_SOURCE: ${{ github.server_url }}/${{ github.repository }}
         run: |
-          ENGINE="${{ steps.engine.outputs.cmd }}"
-          TAG="ghcr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          TAG_LATEST="ghcr.io/${{ env.IMAGE_NAME }}:latest"
+          TAG="${IMAGE_REPO}:${COMMIT_SHA}"
+          TAG_LATEST="${IMAGE_REPO}:latest"
 
-          $ENGINE buildx build \
+          # docker-container driver cannot --load and push a multi-GB image
+          # without disk pressure, so push directly and read the digest from the
+          # build metadata.
+          docker buildx build \
             --builder eedom-builder \
             --allow security.insecure \
-            --load \
+            --push \
             --tag "$TAG" \
             --tag "$TAG_LATEST" \
-            --tag "eedom:latest" \
-            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
-            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.source=${IMAGE_SOURCE}" \
+            --label "org.opencontainers.image.revision=${COMMIT_SHA}" \
+            --metadata-file /tmp/build-meta.json \
             .
 
-          DIGEST=$($ENGINE inspect --format='{{.Digest}}' "$TAG" 2>/dev/null || \
-                   $ENGINE image inspect "$TAG" --format '{{index .RepoDigests 0}}' 2>/dev/null | cut -d@ -f2)
-
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "tag_latest=$TAG_LATEST" >> "$GITHUB_OUTPUT"
-          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
-          echo "Built $TAG (digest: $DIGEST)"
-
-      - name: Push to GHCR
-        run: |
-          ENGINE="${{ steps.engine.outputs.cmd }}"
-          $ENGINE push "${{ steps.build.outputs.tag }}"
-          $ENGINE push "${{ steps.build.outputs.tag_latest }}"
+          DIGEST=$(jq -r '."containerimage.digest"' /tmp/build-meta.json)
+          {
+            echo "tag=$TAG"
+            echo "tag_latest=$TAG_LATEST"
+            echo "digest=$DIGEST"
+          } >> "$GITHUB_OUTPUT"
+          echo "Built and pushed $TAG (digest: $DIGEST)"
 
       - name: Generate SLSA provenance attestation
         continue-on-error: true
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
         with:
-          subject-name: ghcr.io/${{ env.IMAGE_NAME }}
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
       - name: Verify attestation
-        run: |
-          gh attestation verify "oci://ghcr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
-            --owner "${{ github.repository_owner }}" || echo "::warning::Attestation verification skipped (may need propagation time)"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_REF: oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          gh attestation verify "$IMAGE_REF" --owner "$OWNER" \
+            || echo "::warning::Attestation verification skipped (may need propagation time)"
 
       - name: Summary
+        env:
+          IMAGE_REPO: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          COMMIT_SHA: ${{ github.sha }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          OWNER: ${{ github.repository_owner }}
         run: |
-          echo "## Container Image Published" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Image:** \`ghcr.io/${{ env.IMAGE_NAME }}:latest\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **SHA tag:** \`ghcr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Digest:** \`${{ steps.build.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **SLSA provenance:** attached to registry" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Verify:" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`\`\`bash" >> "$GITHUB_STEP_SUMMARY"
-          echo "gh attestation verify oci://ghcr.io/${{ env.IMAGE_NAME }}:latest --owner ${{ github.repository_owner }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Container Image Published"
+            echo ""
+            echo "- **Image:** \`${IMAGE_REPO}:latest\`"
+            echo "- **SHA tag:** \`${IMAGE_REPO}:${COMMIT_SHA}\`"
+            echo "- **Digest:** \`${DIGEST}\`"
+            echo "- **SLSA provenance:** attached to registry"
+            echo ""
+            echo "Verify:"
+            echo "\`\`\`bash"
+            echo "gh attestation verify oci://${IMAGE_REPO}:latest --owner ${OWNER}"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"

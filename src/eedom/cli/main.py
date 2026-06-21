@@ -430,8 +430,16 @@ def review(
             enabled=enabled_names,
             scope=resolved_scope or ScanScope.REPO,
         )
-        review_result = review_repository(_ctx, files, repo, options, repo_files=repo_file_list)
+        # Scope the *blocking* decision to the change under review when a diff was
+        # supplied (the workflow passes --diff without --scope). A plain repo scan
+        # leaves changed_files=None so the gate stays repo-wide.
+        is_diff_scoped = diff is not None or resolved_scope == ScanScope.DIFF
+        changed_files = set(files) if is_diff_scoped else None
+        review_result = review_repository(
+            _ctx, files, repo, options, repo_files=repo_file_list, changed_files=changed_files
+        )
         results = review_result.results
+        summary = review_result.summary
 
         if output_format == "sarif" or pr is not None:
             import orjson
@@ -439,7 +447,10 @@ def review(
             from eedom.core.sarif import to_sarif
 
             sarif_doc = to_sarif(
-                results, repo_path=str(repo), max_findings_per_run=sarif_max_findings
+                results,
+                repo_path=str(repo),
+                max_findings_per_run=sarif_max_findings,
+                summary=summary,
             )
 
             if pr is not None:
@@ -482,7 +493,7 @@ def review(
         if output_format == "json":
             from eedom.core.json_report import render_json
 
-            json_text = render_json(results, repo=repo_name or str(repo))
+            json_text = render_json(results, repo=repo_name or str(repo), summary=summary)
             if output:
                 _write_output(output, json_text)
                 click.echo(f"JSON written to {output}")
@@ -497,6 +508,7 @@ def review(
             title=title,
             file_count=len(files),
             plugin_renderers=plugin_map,
+            verdict=summary.verdict.value if summary else None,
         )
         if output:
             _write_output(output, md)

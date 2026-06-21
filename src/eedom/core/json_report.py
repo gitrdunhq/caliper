@@ -15,7 +15,6 @@ from datetime import UTC, datetime
 import orjson
 
 from eedom.core.plugin import PluginResult
-from eedom.core.renderer import calculate_quality_score, calculate_severity_score
 from eedom.core.report_schema import (
     REPORT_SCHEMA_VERSION,
     PluginReportModel,
@@ -23,6 +22,7 @@ from eedom.core.report_schema import (
     ReportModel,
     ReportVerdict,
 )
+from eedom.core.review_summary import ReviewSummary, summarize_review
 
 
 def _plugin_status(result: PluginResult) -> str:
@@ -48,12 +48,13 @@ def render_json(
     results: list[PluginResult],
     repo: str = "",
     commit: str = "",
+    summary: ReviewSummary | None = None,
 ) -> str:
-    from eedom.core.renderer import _build_sections
-
-    verdict, _, _ = _build_sections(results, None)
-    security_score = calculate_severity_score(results)
-    quality_score = calculate_quality_score(results)
+    # Single source of truth: the canonical verdict/counts/scores. Callers pass the
+    # diff-scoped summary; absent that, compute a repo-wide one so the JSON still
+    # agrees with the other outputs.
+    if summary is None:
+        summary = summarize_review(results)
 
     total_findings = sum(len(r.findings) for r in results)
 
@@ -78,9 +79,15 @@ def render_json(
         timestamp=datetime.now(UTC).isoformat(),
         repo=repo,
         commit=commit,
-        verdict=ReportVerdict(verdict),
-        security_score=security_score,
-        quality_score=quality_score,
+        verdict=ReportVerdict(summary.verdict.value),
+        security_score=summary.security_score,
+        quality_score=summary.quality_score,
+        error_count=summary.error_count,
+        warning_count=summary.warning_count,
+        note_count=summary.note_count,
+        crashed_count=summary.crashed_count,
+        skipped_count=summary.skipped_count,
+        blocking_count=summary.blocking_count,
         total_findings=total_findings,
         total_plugins=len(results),
         plugins=plugins,
