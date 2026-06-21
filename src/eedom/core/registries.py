@@ -20,6 +20,7 @@ from eedom.core.ports import (
     CodeGraphCheckPort,
     DecisionStorePort,
     EvidenceStorePort,
+    FileSourcePort,
     PackageMetadataPort,
     PullRequestPublisherPort,
     ReportRendererPort,
@@ -32,6 +33,8 @@ POLICY_ENGINES: Registry[PolicyEnginePort] = Registry("policy_engine")
 RENDERERS: Registry[ReportRendererPort] = Registry("renderer")
 RULE_RUNNERS: Registry[SemgrepRunnerPort] = Registry("rule_runner")
 CODEGRAPH_CHECKS: Registry[CodeGraphCheckPort] = Registry("codegraph_check")
+# git ls-files vs. filesystem walk — one seam for file enumeration.
+FILE_SOURCES: Registry[FileSourcePort] = Registry("file_source")
 # data/pypi's PyPIClient implements PackageMetadataPort (fetch_metadata/close),
 # which is the real PyPI contract the pipeline uses; PackageIndexPort is vestigial.
 PACKAGE_INDEXES: Registry[PackageMetadataPort] = Registry("package_index")
@@ -44,6 +47,7 @@ __all__ = [
     "CODEGRAPH_CHECKS",
     "DECISION_STORES",
     "EVIDENCE_STORES",
+    "FILE_SOURCES",
     "PACKAGE_INDEXES",
     "POLICY_ENGINES",
     "PUBLISHERS",
