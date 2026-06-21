@@ -18,6 +18,7 @@ from eedom.core.ports import (
     AuditSinkPort,
     DecisionRepositoryPort,
     DecisionStorePort,
+    EnricherPort,
     EvidenceStorePort,
     EvidenceWriterPort,
     PackageIndexPort,
@@ -54,3 +55,4 @@ class ApplicationContext:
     package_metadata: PackageMetadataPort | None = None
     decision_repository: DecisionRepositoryPort | None = None
     audit_log_appender: Callable[[Path, list, str], object] | None = None
+    enrichers: list[EnricherPort] = field(default_factory=list)

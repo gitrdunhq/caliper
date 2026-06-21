@@ -15,17 +15,17 @@ yields fewer findings, never an exception.
 
 from __future__ import annotations
 
-import ast
 import contextlib
 import json
 import os
-import re
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET  # noqa: N817
 from pathlib import Path
 
 import structlog
+
+from eedom.core.enrichment import enclosing_symbol as _enclosing_symbol_core
 
 logger = structlog.get_logger(__name__)
 
@@ -68,14 +68,6 @@ _PMD_LANGUAGES: dict[str, str] = {
     ".jl": "julia",
     ".feature": "gherkin",
 }
-
-# Best-effort "what declares a symbol" matcher for non-Python enclosing-symbol detection.
-_SYMBOL_RE = re.compile(
-    r"^\s*(?:export\s+|public\s+|private\s+|protected\s+|static\s+|final\s+|async\s+|pub\s+)*"
-    r"(?:def|function|func|fn|class|interface|struct|impl|trait|enum|object|module|sub|method)\b"
-    r"[\s:<]*([A-Za-z_][A-Za-z0-9_]*)"
-)
-
 
 def _parse_cpd_xml(xml_text: str, lang: str) -> list[dict]:
     """Parse PMD CPD XML output into a list of duplication dicts."""
@@ -127,38 +119,14 @@ def _extract_xml_payload(raw_output: str) -> str:
 # --- enrichment (ADR-006): deterministic, fail-open -----------------------------------------------
 
 
-def _enclosing_symbol_python(source: str, start_line: int) -> str:
-    try:
-        tree = ast.parse(source)
-    except (SyntaxError, ValueError):
-        return ""
-    best_name, best_line = "", -1
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            end = getattr(node, "end_lineno", None) or node.lineno
-            if node.lineno <= start_line <= end and node.lineno > best_line:
-                best_name, best_line = node.name, node.lineno
-    return best_name
-
-
-def _enclosing_symbol_generic(lines: list[str], start_line: int) -> str:
-    for i in range(min(start_line, len(lines)) - 1, -1, -1):
-        match = _SYMBOL_RE.match(lines[i])
-        if match:
-            return match.group(1)
-    return ""
-
-
 def _enclosing_symbol(abs_path: str, start_line: int) -> str:
-    """Innermost function/class enclosing the location (best-effort, language-agnostic)."""
+    """Innermost function/class enclosing the location (delegates to the core resolver, SoT)."""
     try:
         text = Path(abs_path).read_text(encoding="utf-8", errors="replace")
     except OSError:
         return ""
-    if abs_path.endswith(".py"):
-        # AST is authoritative for Python: an empty result means module-level, not "scan upward".
-        return _enclosing_symbol_python(text, start_line)
-    return _enclosing_symbol_generic(text.splitlines(), start_line)
+    name, _kind = _enclosing_symbol_core(text, start_line, is_python=abs_path.endswith(".py"))
+    return name
 
 
 def _rel(path: str, repo_path: str) -> str:

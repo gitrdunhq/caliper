@@ -12,7 +12,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from eedom.core.enrichment import EnrichmentContext
     from eedom.core.models import PolicyEvaluation, ReviewDecision, ScanResult
+    from eedom.core.plugin import PluginFinding
 
 
 @runtime_checkable
@@ -189,3 +191,20 @@ class AuditSinkPort(Protocol):
     def seal(self, artifact_refs: list[str]) -> str: ...
 
     def append_audit_log(self, entry: dict) -> None: ...
+
+
+@runtime_checkable
+class EnricherPort(Protocol):
+    """Contract for a deterministic finding enricher (detect-then-enrich, ADR-006).
+
+    ``enrich`` attaches context to a finding's ``metadata['enrichment']`` and returns a
+    new finding. It must be deterministic, zero-LLM, fail-open (never raise; on error
+    return the finding unchanged), and time-bounded — the verdict never depends on it.
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    def applies_to(self, finding: PluginFinding) -> bool: ...
+
+    def enrich(self, finding: PluginFinding, ctx: EnrichmentContext) -> PluginFinding: ...
