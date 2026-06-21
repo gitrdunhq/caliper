@@ -75,6 +75,10 @@ class EedomSettings(BaseSettings):
         default=["tests/e2e/fixtures"],
     )
 
+    # File enumeration strategy: "auto" (git ls-files when the target is a
+    # usable repo, else an ignore-aware walk), "git", or "walk".
+    file_source: str = "auto"
+
     # OPA policy path
     opa_policy_path: str = "./policies/policy.rego"
 

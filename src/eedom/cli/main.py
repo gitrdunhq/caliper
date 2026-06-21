@@ -18,6 +18,36 @@ from eedom.plugins import get_default_registry
 
 logger = structlog.get_logger()
 
+# Source-file suffixes the review/audit commands enumerate. Centralised so the
+# file source (git ls-files vs. walk) is the single place that decides *which*
+# files exist, and these decide which extensions we care about.
+_REVIEW_SUFFIXES: tuple[str, ...] = (
+    ".py",
+    ".ts",
+    ".js",
+    ".tf",
+    ".yaml",
+    ".yml",
+    ".json",
+    ".swift",
+)
+_AUDIT_SUFFIXES: tuple[str, ...] = tuple(s for s in _REVIEW_SUFFIXES if s != ".swift")
+
+
+def _collect_repo_files(
+    root: Path, suffixes: tuple[str, ...], *, prefer: str | None = None
+) -> list[str]:
+    """Enumerate scannable files under *root* via the resolved file source.
+
+    Replaces the ad-hoc ``rglob(ext)`` + ``should_ignore`` loops; the source
+    (git ls-files when *root* is a usable repo, else an ignore-aware walk)
+    applies eedom's exclusion rules uniformly.
+    """
+    from eedom.core.file_source import select_file_source
+
+    source = select_file_source(root, prefer=prefer)
+    return [str(p) for p in source.list_files(root, suffixes=suffixes)]
+
 
 def _write_output(path: str, content: str) -> None:
     p = Path(path)
@@ -355,17 +385,7 @@ def review(
     enabled_names.discard("")
 
     def _all_repo_files() -> list[str]:
-        from eedom.core.ignore import load_ignore_patterns, should_ignore
-
-        ignore_patterns = load_ignore_patterns(repo)
-        files: list[str] = []
-        for ext in ("*.py", "*.ts", "*.js", "*.tf", "*.yaml", "*.yml", "*.json", "*.swift"):
-            files.extend(
-                str(p)
-                for p in repo.rglob(ext)
-                if not should_ignore(str(p.relative_to(repo)), ignore_patterns)
-            )
-        return files
+        return _collect_repo_files(repo, _REVIEW_SUFFIXES)
 
     def _diff_files() -> list[str]:
         from eedom.core.ignore import load_ignore_patterns, should_ignore
@@ -392,18 +412,8 @@ def review(
         if resolved_scope == ScanScope.DIFF:
             return _diff_files(), _all_repo_files()
         if resolved_scope == ScanScope.FOLDER:
-            from eedom.core.ignore import load_ignore_patterns, should_ignore
-
-            ignore_patterns = load_ignore_patterns(repo)
             folder = Path(package).resolve()  # type: ignore[arg-type]
-            files: list[str] = []
-            for ext in ("*.py", "*.ts", "*.js", "*.tf", "*.yaml", "*.yml", "*.json", "*.swift"):
-                files.extend(
-                    str(p)
-                    for p in folder.rglob(ext)
-                    if not should_ignore(str(p.relative_to(repo)), ignore_patterns)
-                )
-            return files, None
+            return _collect_repo_files(folder, _REVIEW_SUFFIXES), None
         if diff:
             return _diff_files(), None
         return _all_repo_files(), None
@@ -530,7 +540,6 @@ def audit(
 
     from eedom.composition.bootstrap import bootstrap_review
     from eedom.core.concern_review import render_audit_markdown, run_audit
-    from eedom.core.ignore import load_ignore_patterns, should_ignore
     from eedom.core.repo_config import RepoConfig, load_repo_config
     from eedom.core.use_cases import ReviewOptions, review_repository
 
@@ -544,14 +553,7 @@ def audit(
     if disable:
         disabled_names.update(d.strip() for d in disable.split(",") if d.strip())
 
-    ignore_patterns = load_ignore_patterns(repo)
-    files: list[str] = []
-    for ext in ("*.py", "*.ts", "*.js", "*.tf", "*.yaml", "*.yml", "*.json"):
-        files.extend(
-            str(p)
-            for p in repo.rglob(ext)
-            if not should_ignore(str(p.relative_to(repo)), ignore_patterns)
-        )
+    files = _collect_repo_files(repo, _AUDIT_SUFFIXES)
 
     names = scanners.split(",") if scanners else None
     options = ReviewOptions(scanners=names, disabled=disabled_names)

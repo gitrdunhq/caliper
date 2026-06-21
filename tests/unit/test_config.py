@@ -64,6 +64,17 @@ class TestEedomSettings:
         assert settings.llm_api_key.get_secret_value() == "sk-test-key"
         assert settings.alternatives_path == "/opt/alternatives.json"
 
+    def test_file_source_defaults_to_auto(self) -> None:
+        """file_source defaults to 'auto' and is overridable via env."""
+        from eedom.core.config import EedomSettings
+
+        with patch.dict(os.environ, {"EEDOM_DB_DSN": "postgresql://u:p@h:5432/d"}, clear=True):
+            assert EedomSettings().file_source == "auto"
+
+        env = {"EEDOM_DB_DSN": "postgresql://u:p@h:5432/d", "EEDOM_FILE_SOURCE": "walk"}
+        with patch.dict(os.environ, env, clear=True):
+            assert EedomSettings().file_source == "walk"
+
     def test_missing_db_dsn_raises_validation_error(self) -> None:
         """Config without DB_DSN must fail with a clear validation error."""
         from eedom.core.config import EedomSettings

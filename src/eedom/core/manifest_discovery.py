@@ -17,6 +17,7 @@ from pathlib import Path
 import structlog
 from pydantic import BaseModel, ConfigDict
 
+from eedom.core.file_source import _ALWAYS_SKIP_DIRS
 from eedom.core.ignore import load_ignore_patterns, should_ignore
 
 logger = structlog.get_logger(__name__)
@@ -55,18 +56,9 @@ for _lf, _mf in LOCKFILE_MAP.items():
     _MANIFEST_TO_LOCKFILES.setdefault(_mf, []).append(_lf)
 
 # Directories that are always skipped regardless of ignore patterns.
-_ALWAYS_SKIP: frozenset[str] = frozenset(
-    {
-        "node_modules",
-        ".git",
-        "vendor",
-        "__pycache__",
-        ".venv",
-        ".claude",
-        ".eedom",
-        ".dogfood",
-    }
-)
+# Single source of truth lives in core.file_source so the walk source and
+# manifest discovery never drift apart.
+_ALWAYS_SKIP: frozenset[str] = _ALWAYS_SKIP_DIRS
 
 
 # ---------------------------------------------------------------------------

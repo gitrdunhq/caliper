@@ -114,6 +114,17 @@ What the script manages:
 
 **Rule:** If you add a new fixture directory, add it to `config/scan-exclusions.toml` and run the sync script. Do NOT manually edit the generated `osv-scanner.toml` files.
 
+## File Enumeration
+
+**One seam decides which files get scanned:** `core/file_source.py` (`FileSourcePort`, registry `FILE_SOURCES`). Two adapters back it:
+
+- `GitLsFilesSource` (`"git"`) — `git ls-files --cached --others --exclude-standard` (tracked + untracked-not-`.gitignore`d), with `-c safe.directory=<root>` so git engages on read-only CI mounts owned by another uid.
+- `WalkFileSource` (`"walk"`) — `os.walk` + `core/ignore.py`, the fail-open fallback for non-git targets.
+
+`select_file_source(root, prefer=...)` picks git when the root is a usable repo and falls back to walk; override with `EEDOM_FILE_SOURCE=auto|git|walk` (or `EedomSettings.file_source`). Both adapters apply the eedom exclusion layer (`core/ignore.py`) on top, so tracked-but-not-ours paths (fixtures) are skipped regardless of source.
+
+**Rule:** Consumers (CLI, scanner, plugins) enumerate via the resolved source — never call `rglob`/`os.walk`/`git` directly. `core/ignore.py` `DEFAULT_PATTERNS` and `file_source._ALWAYS_SKIP_DIRS` are the shared exclusion constants (`manifest_discovery` imports the latter).
+
 ## OPA Policy
 
 6 rules in `policies/policy.rego`. Critical/high vulns deny. Forbidden licenses deny. Package age < 30 days denies. Malicious packages deny. Medium vulns warn. High transitive dep count warns.

@@ -173,6 +173,36 @@ class TestUnpinnedWorktreeExclusion:
         assert findings == []
 
 
+class TestUnpinnedFileSourceExclusion:
+    """Enumeration routes through FileSourcePort, so ignore rules apply uniformly."""
+
+    def test_node_modules_package_json_excluded(self, tmp_path):
+        nm = tmp_path / "node_modules" / "dep"
+        nm.mkdir(parents=True)
+        (nm / "package.json").write_text('{"dependencies": {"react": "*"}}')
+
+        findings = SupplyChainPlugin()._check_unpinned(tmp_path)
+        assert findings == []
+
+    def test_eedomignored_path_excluded(self, tmp_path):
+        (tmp_path / ".eedomignore").write_text("third_party/\n")
+        vendored = tmp_path / "third_party"
+        vendored.mkdir()
+        (vendored / "package.json").write_text('{"dependencies": {"react": "*"}}')
+
+        findings = SupplyChainPlugin()._check_unpinned(tmp_path)
+        assert findings == []
+
+    def test_requirements_under_venv_excluded(self, tmp_path):
+        # The old requirements*.txt loop had no exclusion at all — now it does.
+        venv = tmp_path / ".venv"
+        venv.mkdir()
+        (venv / "requirements.txt").write_text("requests>=2\n")
+
+        findings = SupplyChainPlugin()._check_unpinned(tmp_path)
+        assert findings == []
+
+
 # ── run() wiring tests ────────────────────────────────────────────────────────
 
 

@@ -46,6 +46,7 @@ _ALWAYS_SKIP_DIRS: frozenset[str] = frozenset(
         "venv",
         "vendor",
         ".claude",
+        ".wfc",
         ".eedom",
         ".dogfood",
     }
@@ -125,12 +126,22 @@ class GitLsFilesSource:
             return False
         result = self._runner.run(
             ToolInvocation(
-                cmd=["git", "rev-parse", "--is-inside-work-tree"],
+                cmd=[*self._git_base(root), "rev-parse", "--is-inside-work-tree"],
                 cwd=str(root),
                 timeout=_GIT_TIMEOUT,
             )
         )
         return result.exit_code == 0 and result.stdout.strip() == "true"
+
+    @staticmethod
+    def _git_base(root: Path) -> list[str]:
+        """git invocation prefix that tolerates a repo owned by another user.
+
+        eedom scans read-only *mounts* in CI, where the work tree is owned by a
+        different uid than the scanner process; without this git aborts with
+        "detected dubious ownership". Scoped to *root* only.
+        """
+        return ["git", "-c", f"safe.directory={root}"]
 
     def list_files(self, root: Path, *, suffixes: tuple[str, ...] | None = None) -> list[Path]:
         if not self.is_available(root):
@@ -139,7 +150,7 @@ class GitLsFilesSource:
         result = self._runner.run(
             ToolInvocation(
                 cmd=[
-                    "git",
+                    *self._git_base(root),
                     "ls-files",
                     "--cached",
                     "--others",
