@@ -135,6 +135,42 @@
       "title": "Quality Score",
       "type": "number"
     },
+    "error_count": {
+      "default": 0,
+      "description": "Error-level (critical/high) findings.",
+      "title": "Error Count",
+      "type": "integer"
+    },
+    "warning_count": {
+      "default": 0,
+      "description": "Warning-level (medium) findings.",
+      "title": "Warning Count",
+      "type": "integer"
+    },
+    "note_count": {
+      "default": 0,
+      "description": "Note-level (low/info) findings.",
+      "title": "Note Count",
+      "type": "integer"
+    },
+    "crashed_count": {
+      "default": 0,
+      "description": "Plugins that crashed.",
+      "title": "Crashed Count",
+      "type": "integer"
+    },
+    "skipped_count": {
+      "default": 0,
+      "description": "Plugins skipped (e.g. not installed).",
+      "title": "Skipped Count",
+      "type": "integer"
+    },
+    "blocking_count": {
+      "default": 0,
+      "description": "Attributable error-level security findings — what drives a 'blocked' verdict.",
+      "title": "Blocking Count",
+      "type": "integer"
+    },
     "total_findings": {
       "default": 0,
       "title": "Total Findings",
