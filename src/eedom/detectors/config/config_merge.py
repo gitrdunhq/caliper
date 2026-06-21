@@ -152,8 +152,6 @@ class ConfigMergeDetector(BugDetector):
         """Extract key name from AST node."""
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return node.value
-        if isinstance(node, ast.Str):  # Python < 3.8
-            return node.s
         if isinstance(node, ast.Name):
             return node.id
         return None

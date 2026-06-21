@@ -96,8 +96,6 @@ class JWTAudienceDetector(BugDetector):
             for key in payload.keys:
                 if isinstance(key, ast.Constant) and key.value == "aud":
                     return True
-                if isinstance(key, ast.Str) and key.s == "aud":  # Python < 3.8
-                    return True
             return False
 
         # Payload is a variable - can't analyze statically
