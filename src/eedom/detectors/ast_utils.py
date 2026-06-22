@@ -299,7 +299,9 @@ def get_annotation_text(node: ast.AST | None) -> str | None:
         value = get_annotation_text(node.value)
         slice_node = node.slice
         if isinstance(slice_node, ast.Tuple):
-            elements = [get_annotation_text(elt) for elt in slice_node.elts]
+            # An element may be unresolvable (e.g. ast.Starred -> None); coerce to ""
+            # so the join never raises TypeError on a None member.
+            elements = [get_annotation_text(elt) or "" for elt in slice_node.elts]
             return f"{value}[{', '.join(elements)}]"
         else:
             slice_text = get_annotation_text(slice_node)

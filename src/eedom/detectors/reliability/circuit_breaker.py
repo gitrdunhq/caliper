@@ -154,7 +154,8 @@ class CircuitBreakerDetector(BugDetector):
     def _has_half_open_config(self, call: ast.Call) -> bool:
         """Check if CircuitBreaker call has half-open configuration."""
         for keyword in call.keywords:
-            if "half" in keyword.arg.lower():
+            # keyword.arg is None for **kwargs unpacking — guard before .lower().
+            if keyword.arg and "half" in keyword.arg.lower():
                 return True
         return False
 
