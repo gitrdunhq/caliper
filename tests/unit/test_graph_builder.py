@@ -581,3 +581,58 @@ class TestSqlInjectionPrevention:
         findings = graph.run_checks(tricky_paths)
         count = graph.conn.execute("SELECT COUNT(*) FROM symbols").fetchone()[0]
         assert count > 0
+
+
+# ---------------------------------------------------------------------------
+# Regression P15-2 — _walk_upstream fetchone None guard
+# ---------------------------------------------------------------------------
+
+
+class TestWalkUpstreamNoneGuardRegression:
+    """Regression for P15-2: _walk_upstream called upstream["id"] without first
+    checking that the fetchone() result was not None (dangling edge — cross-file
+    call where the callee is absent from the symbols table).  blast_radius() must
+    not raise TypeError when such a dangling edge exists."""
+
+    def test_blast_radius_dangling_edge_does_not_raise(self):
+        """blast_radius() must not raise when an edge target is absent from symbols.
+
+        Simulates a dangling edge: symbol A calls B, but B's definition is not
+        in the graph (the callee file was never indexed or was deleted).  The
+        _walk_upstream traversal must skip rather than crash on None fetchone()."""
+        graph = CodeGraph()
+
+        # Manually insert a symbol and a dangling edge that points to a
+        # non-existent target symbol id (99999)
+        graph.conn.execute(
+            "INSERT INTO symbols (name, kind, file, line) VALUES ('A', 'function', 'a.py', 1)"
+        )
+        sym_id = graph.conn.execute("SELECT id FROM symbols WHERE name = 'A'").fetchone()["id"]
+
+        # Insert a ghost target to satisfy FK (we'll query by name+file, not id)
+        graph.conn.execute(
+            "INSERT INTO symbols (name, kind, file, line) VALUES ('B', 'function', 'b.py', 1)"
+        )
+        target_id = graph.conn.execute("SELECT id FROM symbols WHERE name = 'B'").fetchone()["id"]
+
+        # Add edge A -> B
+        graph.conn.execute(
+            "INSERT INTO edges (source_id, target_id, kind) VALUES (?, ?, 'calls')",
+            (sym_id, target_id),
+        )
+        # Now DELETE symbol B to create the dangling condition
+        graph.conn.execute("DELETE FROM symbols WHERE name = 'B'")
+        graph.conn.commit()
+
+        try:
+            results = graph.blast_radius("A")
+        except (TypeError, KeyError) as exc:
+            import pytest as _pytest
+
+            _pytest.fail(
+                f"blast_radius() raised {type(exc).__name__} on a dangling edge: {exc}. "
+                "_walk_upstream must guard for fetchone() returning None."
+            )
+
+        # May return 0 or 1 result depending on what survives the deleted symbol lookup
+        assert isinstance(results, list)

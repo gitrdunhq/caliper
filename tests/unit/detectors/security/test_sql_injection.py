@@ -127,3 +127,94 @@ cursor.executemany(f"INSERT INTO {table} VALUES (?, ?)", data)
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
+
+
+# ---------------------------------------------------------------------------
+# Regression P12-7 — constant f-string must NOT be flagged
+# Regression P12-8 — .format() with no args must NOT be flagged
+# ---------------------------------------------------------------------------
+
+
+class TestSQLInjectionFalsePositiveRegression:
+    """Regression tests ensuring P12-7 and P12-8 false positives are gone.
+
+    Before the fix, _has_dangerous_formatting flagged:
+      P12-7: f-strings with no FormattedValue (constant f-strings like f"SELECT 1")
+      P12-8: .format() calls with no arguments (e.g. "SELECT 1".format())
+    """
+
+    @pytest.fixture
+    def detector(self):
+        return SQLInjectionDetector()
+
+    def test_constant_fstring_no_interpolation_not_flagged(self, detector):
+        """A constant f-string with no FormattedValue elements must NOT be flagged
+        (regression for P12-7: f'SELECT * FROM t' is identical to a plain string literal)."""
+        code = """
+import sqlite3
+conn = sqlite3.connect("db.sqlite")
+cursor = conn.cursor()
+cursor.execute(f"SELECT * FROM users WHERE active = 1")
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            f.flush()
+            findings = detector.detect(Path(f.name))
+
+        assert len(findings) == 0, (
+            f"Constant f-string with no interpolation must not be flagged as SQL injection, "
+            f"got findings: {findings!r}"
+        )
+
+    def test_format_with_no_args_not_flagged(self, detector):
+        """A .format() call with no args is a no-op and must NOT be flagged
+        (regression for P12-8: '...'.format() produces a constant string)."""
+        code = """
+import sqlite3
+conn = sqlite3.connect("db.sqlite")
+cursor = conn.cursor()
+cursor.execute("SELECT * FROM users WHERE active = 1".format())
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            f.flush()
+            findings = detector.detect(Path(f.name))
+
+        assert len(findings) == 0, (
+            f".format() with no args must not be flagged as SQL injection, "
+            f"got findings: {findings!r}"
+        )
+
+    def test_fstring_with_interpolation_still_flagged(self, detector):
+        """Sanity: an f-string WITH a FormattedValue must still be flagged."""
+        code = """
+import sqlite3
+conn = sqlite3.connect("db.sqlite")
+cursor = conn.cursor()
+uid = "1 OR 1=1"
+cursor.execute(f"SELECT * FROM users WHERE id = {uid}")
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            f.flush()
+            findings = detector.detect(Path(f.name))
+
+        assert (
+            len(findings) == 1
+        ), "An f-string with interpolation must still be flagged as SQL injection"
+
+    def test_format_with_args_still_flagged(self, detector):
+        """Sanity: .format(arg) must still be flagged."""
+        code = """
+import sqlite3
+conn = sqlite3.connect("db.sqlite")
+cursor = conn.cursor()
+table = "users"
+cursor.execute("SELECT * FROM {}".format(table))
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            f.flush()
+            findings = detector.detect(Path(f.name))
+
+        assert len(findings) == 1, ".format(arg) must still be flagged as SQL injection"

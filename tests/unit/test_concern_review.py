@@ -503,3 +503,69 @@ class TestRenderAuditMarkdown:
         md = render_audit_markdown(report)
         assert "Error" in md
         assert "LLM returned empty response" in md
+
+
+# ---------------------------------------------------------------------------
+# Regression P08-3 — post_with_retry must catch ValueError (json.JSONDecodeError)
+# ---------------------------------------------------------------------------
+
+
+class TestPostWithRetryValueErrorRegression:
+    """Regression for P08-3: post_with_retry's response-parsing except clause
+    previously omitted ValueError, so resp.json() raising JSONDecodeError
+    (a subclass of ValueError) on a malformed 200 body would propagate."""
+
+    def test_malformed_json_200_anthropic_returns_empty_string(self):
+        """A 200 response with malformed JSON body must return '' not raise ValueError
+        (regression for P08-3: ValueError was not in the except clause)."""
+        import httpx
+
+        from eedom.core.concern_prompt import post_with_retry
+
+        # Build a mock client that returns a 200 with non-JSON text
+        class _BadJsonTransport(httpx.BaseTransport):
+            def handle_request(self, request):
+                return httpx.Response(200, text="<html>not json</html>")
+
+        client = httpx.Client(transport=_BadJsonTransport())
+        try:
+            result = post_with_retry(
+                client=client,
+                url="http://fake.invalid/v1/messages",
+                payload={"model": "x", "messages": []},
+                headers={"x-api-key": "test"},
+                is_anthropic=True,
+                timeout=5,
+                max_retries=1,
+            )
+        except (ValueError, Exception) as exc:
+            import pytest
+
+            pytest.fail(
+                f"post_with_retry must not propagate ValueError from resp.json() — "
+                f"got {type(exc).__name__}: {exc}"
+            )
+
+        assert result == "", f"Malformed JSON 200 body must produce empty string, got {result!r}"
+
+    def test_malformed_json_200_openai_returns_empty_string(self):
+        """Same regression test for the OpenAI path (is_anthropic=False)."""
+        import httpx
+
+        from eedom.core.concern_prompt import post_with_retry
+
+        class _BadJsonTransport(httpx.BaseTransport):
+            def handle_request(self, request):
+                return httpx.Response(200, text="definitely not json {{{")
+
+        client = httpx.Client(transport=_BadJsonTransport())
+        result = post_with_retry(
+            client=client,
+            url="http://fake.invalid/v1/chat/completions",
+            payload={},
+            headers={},
+            is_anthropic=False,
+            timeout=5,
+            max_retries=1,
+        )
+        assert result == ""

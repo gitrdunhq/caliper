@@ -223,3 +223,58 @@ class TestOsvScannerFindingsCap:
         plugin = OsvScannerPlugin()
         findings = plugin._extract_findings(_make_osv_data(1000))
         assert len(findings) == 1000
+
+
+# ---------------------------------------------------------------------------
+# Regression P16-4 — _resolve_severity must take the MAX across all signals
+# ---------------------------------------------------------------------------
+
+
+class TestResolveSeverityMaxRegression:
+    """Regression for P16-4: _resolve_severity previously returned the LAST
+    candidate rather than the highest severity.  A CVSS 5.0 (medium) following
+    a database_specific 'HIGH' would overwrite high with medium."""
+
+    def setup_method(self):
+        self.plugin = OsvScannerPlugin()
+
+    def test_database_specific_high_beats_cvss_medium(self):
+        """database_specific HIGH must win over a CVSS 5.0 (medium) signal.
+
+        Regression for P16-4: before the fix, the last candidate won; if CVSS
+        came after database_specific the severity was downgraded to medium."""
+        vuln = {
+            "database_specific": {"severity": "HIGH"},
+            "severity": [{"score": 5.0}],  # CVSS 5.0 → medium
+        }
+        result = self.plugin._resolve_severity(vuln)
+        assert result == "high", (
+            f"database_specific HIGH must not be downgraded by a CVSS 5.0 (medium); "
+            f"got {result!r}"
+        )
+
+    def test_cvss_critical_beats_database_specific_high(self):
+        """CVSS 9.5 (critical) must beat database_specific HIGH."""
+        vuln = {
+            "database_specific": {"severity": "HIGH"},
+            "severity": [{"score": 9.5}],  # CVSS 9.5 → critical
+        }
+        result = self.plugin._resolve_severity(vuln)
+        assert (
+            result == "critical"
+        ), f"CVSS 9.5 must produce critical even when database_specific=HIGH; got {result!r}"
+
+    def test_no_severity_signals_returns_info(self):
+        """A vuln with no severity signals must return 'info' (the floor)."""
+        vuln: dict = {"database_specific": {}, "severity": []}
+        result = self.plugin._resolve_severity(vuln)
+        assert result == "info"
+
+    def test_multiple_cvss_scores_highest_wins(self):
+        """When multiple CVSS scores are present, the highest must win."""
+        vuln = {
+            "database_specific": {},
+            "severity": [{"score": 4.5}, {"score": 7.5}, {"score": 3.0}],
+        }
+        result = self.plugin._resolve_severity(vuln)
+        assert result == "high", f"Multiple CVSS scores — 7.5 is highest (high), got {result!r}"

@@ -279,6 +279,39 @@ class TestGetAnnotationText:
 
         assert get_annotation_text(ann_assign.annotation) == "SecretStr"
 
+    def test_subscript_tuple_with_unresolvable_element_does_not_raise(self):
+        """get_annotation_text must not raise TypeError when a Tuple subscript contains
+        an element that resolves to None (regression for P11-1: None elements must be
+        coerced to '' so the join never sees None)."""
+        # Build an AST node for Dict[str, *args] which contains an ast.Starred
+        # element inside the subscript Tuple — that resolves to None in get_annotation_text.
+        import ast as _ast
+
+        # Manually construct: Subscript(value=Name('Dict'), slice=Tuple([Name('str'), Starred(...)]))
+        subscript = _ast.Subscript(
+            value=_ast.Name(id="Dict", ctx=_ast.Load()),
+            slice=_ast.Tuple(
+                elts=[
+                    _ast.Name(id="str", ctx=_ast.Load()),
+                    # ast.Starred is not handled by get_annotation_text → returns None
+                    _ast.Starred(value=_ast.Name(id="args", ctx=_ast.Load()), ctx=_ast.Load()),
+                ],
+                ctx=_ast.Load(),
+            ),
+            ctx=_ast.Load(),
+        )
+        try:
+            result = get_annotation_text(subscript)
+        except TypeError as exc:
+            import pytest
+
+            pytest.fail(
+                f"get_annotation_text raised TypeError on a Tuple subscript with a None element: {exc}"
+            )
+        # Result must be a string (None elements coerced to "")
+        assert isinstance(result, str), f"Expected str, got {type(result)!r}: {result!r}"
+        assert "Dict" in result, f"Expected 'Dict' in result, got {result!r}"
+
 
 class TestIsPlainType:
     """Tests for is_plain_type function."""

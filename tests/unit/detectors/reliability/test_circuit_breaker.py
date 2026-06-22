@@ -100,3 +100,61 @@ def call_api():
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 0
+
+
+# ---------------------------------------------------------------------------
+# Regression P13-3 — keyword.arg None must not crash _has_half_open_config
+# ---------------------------------------------------------------------------
+
+
+class TestCircuitBreakerKeywordArgNoneRegression:
+    """Regression for P13-3: _has_half_open_config iterated call.keywords and
+    called keyword.arg.lower() without guarding for None.  When CircuitBreaker
+    is called with **kwargs unpacking, keyword.arg is None and .lower() raised
+    AttributeError."""
+
+    @pytest.fixture
+    def detector(self):
+        return CircuitBreakerDetector()
+
+    def test_kwargs_unpacking_does_not_crash_detector(self, detector):
+        """CircuitBreaker(**config_dict) must not raise AttributeError in _has_half_open_config
+        (regression for P13-3: keyword.arg is None for **kwargs, guard was missing)."""
+        code = """
+from pybreaker import CircuitBreaker
+
+config = {"fail_max": 5, "reset_timeout": 60}
+breaker = CircuitBreaker(**config)
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            f.flush()
+
+            try:
+                findings = detector.detect(Path(f.name))
+            except AttributeError as exc:
+                import pytest as _pytest
+
+                _pytest.fail(
+                    f"CircuitBreakerDetector raised AttributeError on **kwargs call: {exc}. "
+                    "keyword.arg is None for **kwargs — must guard before calling .lower()."
+                )
+
+        # Should produce a finding (no half-open config detectable) without crashing
+        assert isinstance(findings, list)
+
+    def test_kwargs_and_explicit_mixed_does_not_crash(self, detector):
+        """Mixed explicit kwargs + **kwargs unpacking must not crash the detector."""
+        code = """
+from pybreaker import CircuitBreaker
+
+extra = {"reset_timeout": 60}
+breaker = CircuitBreaker(fail_max=3, **extra)
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            f.flush()
+
+            findings = detector.detect(Path(f.name))
+
+        assert isinstance(findings, list)

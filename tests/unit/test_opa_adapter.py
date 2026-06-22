@@ -266,3 +266,49 @@ class TestUnexpectedExceptionHandling:
         adapter = OpaRegoAdapter(policy_path="/fake/policies", tool_runner=_ExplodingRunner())
         result = adapter.evaluate(_make_input())
         assert isinstance(result, PolicyDecision)
+
+
+# ---------------------------------------------------------------------------
+# 7. Regression P03-2 — triggered_rules must be populated
+# ---------------------------------------------------------------------------
+
+
+class TestTriggeredRulesRegression:
+    def test_triggered_rules_populated_on_reject(self):
+        """triggered_rules must contain deny + warn messages on a reject verdict
+        (regression for P03-2: triggered_rules was previously always empty)."""
+        deny_msgs = ["CVE-2024-0001: critical vuln"]
+        warn_msgs = ["high transitive dep count"]
+        runner = FakeToolRunner(_ok_result(deny=deny_msgs, warn=warn_msgs))
+        adapter = OpaRegoAdapter(policy_path="/fake/policies", tool_runner=runner)
+        decision = adapter.evaluate(_make_input())
+
+        assert decision.verdict == "reject"
+        assert set(deny_msgs).issubset(
+            set(decision.triggered_rules)
+        ), "triggered_rules must include deny messages"
+        assert set(warn_msgs).issubset(
+            set(decision.triggered_rules)
+        ), "triggered_rules must include warn messages when deny is present"
+
+    def test_triggered_rules_populated_on_approve_with_constraints(self):
+        """triggered_rules must contain warn messages on approve_with_constraints
+        (regression for P03-2)."""
+        warn_msgs = ["package age < 30 days"]
+        runner = FakeToolRunner(_ok_result(warn=warn_msgs))
+        adapter = OpaRegoAdapter(policy_path="/fake/policies", tool_runner=runner)
+        decision = adapter.evaluate(_make_input())
+
+        assert decision.verdict == "approve_with_constraints"
+        assert set(warn_msgs).issubset(
+            set(decision.triggered_rules)
+        ), "triggered_rules must include warn messages on approve_with_constraints"
+
+    def test_triggered_rules_empty_on_full_approve(self):
+        """triggered_rules must be empty when both deny and warn are empty."""
+        runner = FakeToolRunner(_ok_result())
+        adapter = OpaRegoAdapter(policy_path="/fake/policies", tool_runner=runner)
+        decision = adapter.evaluate(_make_input())
+
+        assert decision.verdict == "approve"
+        assert decision.triggered_rules == []
