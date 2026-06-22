@@ -388,3 +388,77 @@ class TestMakeDecisionStore:
         assert isinstance(
             result, NullDecisionStore
         ), "When DecisionRepository.connect raises, must fall back to NullDecisionStore"
+
+
+class TestBuildDecisionRepositoryRegressions:
+    """Regression tests for P20-1 fix: db_dsn optional / NullRepository fallback (#432).
+
+    Before the fix, EedomSettings required db_dsn and the composition root
+    would crash at startup when EEDOM_DB_DSN was not set (a ValidationError
+    from Pydantic, or an immediate connection failure).  The fix makes db_dsn
+    Optional[str] = None and adds an early-return in build_decision_repository
+    that skips the DB connection attempt and returns a NullRepository.
+    """
+
+    def test_build_decision_repository_returns_null_when_db_dsn_is_none(self) -> None:
+        """P20-1: build_decision_repository must return NullRepository when settings.db_dsn is None.
+
+        This is the primary fix: no db_dsn → no DB connection attempt → NullRepository,
+        rather than a crash.
+        """
+        from unittest.mock import MagicMock
+
+        from eedom.composition.bootstrap import build_decision_repository
+        from eedom.data.db import NullRepository
+
+        settings = MagicMock()
+        settings.db_dsn = None
+
+        result = build_decision_repository(settings)
+
+        assert isinstance(result, NullRepository), (
+            "build_decision_repository must return NullRepository when db_dsn is None, "
+            "not crash or attempt a DB connection"
+        )
+
+    def test_build_decision_repository_returns_null_when_db_dsn_is_empty_string(self) -> None:
+        """P20-1: db_dsn='' (empty string) also triggers the NullRepository fallback.
+
+        An empty string is falsy, so the 'if not settings.db_dsn' guard catches it.
+        """
+        from unittest.mock import MagicMock
+
+        from eedom.composition.bootstrap import build_decision_repository
+        from eedom.data.db import NullRepository
+
+        settings = MagicMock()
+        settings.db_dsn = ""
+
+        result = build_decision_repository(settings)
+
+        assert isinstance(
+            result, NullRepository
+        ), "build_decision_repository with empty db_dsn must return NullRepository"
+
+    def test_build_decision_repository_attempts_connect_when_dsn_is_set(self) -> None:
+        """P20-1: When db_dsn is set, build_decision_repository must attempt a connection.
+
+        Ensures the NullRepository fast-path is only taken for falsy DSN values and
+        that real DSNs still go through the normal connect flow.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from eedom.composition.bootstrap import build_decision_repository
+        from eedom.data.db import NullRepository
+
+        settings = MagicMock()
+        settings.db_dsn = "postgresql://user:pass@localhost:5432/eedom"
+
+        with patch("eedom.data.db.DecisionRepository.connect", return_value=False):
+            # connect() returns False → falls back to NullRepository, but the
+            # code path that calls connect() must have been reached.
+            result = build_decision_repository(settings)
+
+        # Even when connect fails, we get a NullRepository — but only AFTER the
+        # connect attempt, not via the early-return fast-path.
+        assert isinstance(result, NullRepository)

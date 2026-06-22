@@ -270,6 +270,79 @@ class TestBugDetectorTargetFiles:
         assert detector.is_applicable(Path("config.py")) is False
 
 
+class TestIsApplicablePathPatternRegressions:
+    """Regression tests for P11-6 fix: is_applicable with directory glob patterns (#432).
+
+    Before the fix, is_applicable only called fnmatch against file_path.name
+    (the basename).  A pattern like "config/*.yaml" would never match because
+    the basename is just "deployment.yaml" — the directory component was
+    silently discarded.  The fix also matches against the full relative path
+    string so "config/*.yaml" correctly matches "config/deployment.yaml".
+    """
+
+    def _make_dir_detector(self, pattern: str):
+        """Return a minimal detector whose target_files uses the given pattern."""
+
+        class DirPatternDetector(BugDetector):
+            @property
+            def detector_id(self) -> str:
+                return "EED-TEST-DIR"
+
+            @property
+            def name(self) -> str:
+                return "Dir Pattern Detector"
+
+            @property
+            def category(self) -> DetectorCategory:
+                return DetectorCategory.configuration
+
+            @property
+            def severity(self) -> FindingSeverity:
+                return FindingSeverity.medium
+
+            @property
+            def target_files(self) -> tuple[str, ...]:
+                return (pattern,)
+
+            def detect(self, file_path: Path) -> list[DetectorFinding]:
+                return []
+
+        return DirPatternDetector()
+
+    def test_dir_glob_pattern_matches_relative_path(self):
+        """P11-6: 'config/*.yaml' must match 'config/deployment.yaml'."""
+        detector = self._make_dir_detector("config/*.yaml")
+        assert (
+            detector.is_applicable(Path("config/deployment.yaml")) is True
+        ), "is_applicable must match the full relative path, not just the basename"
+
+    def test_dir_glob_pattern_does_not_match_wrong_dir(self):
+        """P11-6: 'config/*.yaml' must NOT match 'other/deployment.yaml'."""
+        detector = self._make_dir_detector("config/*.yaml")
+        assert (
+            detector.is_applicable(Path("other/deployment.yaml")) is False
+        ), "'config/*.yaml' pattern must not match files in a different directory"
+
+    def test_dir_glob_pattern_does_not_match_basename_only(self):
+        """P11-6: 'config/*.yaml' must NOT match a bare 'deployment.yaml' filename."""
+        detector = self._make_dir_detector("config/*.yaml")
+        assert (
+            detector.is_applicable(Path("deployment.yaml")) is False
+        ), "A file in the root directory must not match a 'config/*.yaml' pattern"
+
+    def test_basename_only_pattern_still_works(self):
+        """P11-6: Existing '*.yaml' basename pattern must still work (no regression)."""
+        detector = self._make_dir_detector("*.yaml")
+        assert detector.is_applicable(Path("config/deployment.yaml")) is True
+        assert detector.is_applicable(Path("deployment.yaml")) is True
+        assert detector.is_applicable(Path("config/setup.py")) is False
+
+    def test_nested_dir_glob_pattern_matches(self):
+        """P11-6: 'helm/templates/*.yaml' must match 'helm/templates/service.yaml'."""
+        detector = self._make_dir_detector("helm/templates/*.yaml")
+        assert detector.is_applicable(Path("helm/templates/service.yaml")) is True
+
+
 # =============================================================================
 # DetectorCategory Enum Tests
 # =============================================================================
