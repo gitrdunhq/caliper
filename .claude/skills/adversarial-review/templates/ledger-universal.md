@@ -23,3 +23,20 @@ pattern out.
 - A fetched-but-unused value/column, or a slightly inefficient double pass that is logically gated by a shared decision, is a code smell — not a correctness bug.
 - A documented exit-code interpretation (`0=clean, 1=findings, 2=crash`) handled per its comment is correct, not a mis-parse.
 - AST/heuristic analyzers with fixed line-windows, supplementary substring allowlists, or "flag the thing that lacks evidence of X" logic are documented trade-offs of the analyzer — judge the analyzer's stated design, not an idealized one.
+
+## Recall backstop — these priors must NOT suppress a real bug
+
+The fail-open / by-design priors above protect against false positives, but in the
+calibration run they were *over-applied* and suppressed genuine bugs (the measured recall
+cost of grounding). Do NOT let a prior auto-refute these — judge them on their merits:
+
+- **"Fail-open by design" excuses a *broad* except, not a *missing* one.** A finding that a
+  specific `read()`/`decode()`/`json.loads()`/subprocess call has **no** surrounding handler
+  for a real failure mode (`UnicodeDecodeError`, `OSError`, `JSONDecodeError`, `TimeoutExpired`)
+  is a real correctness bug — the absence of a handler is not "intentional fail-open."
+- **"Configured/typed value" does not cover an *unbounded* resource.** `lru_cache(maxsize=None)`,
+  an unbounded queue/dict, or a missing eviction is a real reliability bug even if the value is typed.
+- **A detector false-negative is still a bug.** "The analyzer is a documented trade-off" excuses
+  *its heuristics*, not a concrete input it provably fails to flag — if you can exhibit the missed case, confirm it.
+- When a prior and the evidence conflict on a *missing handler / absent guard / unbounded resource*,
+  prefer UNCERTAIN over FALSE_POSITIVE so a human (or the Opus adjudicator) sees it.

@@ -7,7 +7,8 @@ description: >-
   severity-ranked report. Use when the user asks for an "adversarial review",
   a "full / multi-agent code review", to "fan out review agents", or a deep
   bug/design sweep of a whole codebase or large diff. Parametrize via $ARGUMENTS
-  (target, focus, model, output path).
+  (target, focus, reviewer-model, challenger-model, verify-model, output). Default
+  policy: cheap Haiku reviewers, Sonnet challenger (the precision lever), Opus delta-adjudicator.
 ---
 
 # Adversarial Multi-Agent Review
@@ -24,14 +25,26 @@ pass gives precision.
 |-------|---------|---------|
 | `target` | the repo / current dir | What to review (a dir, a package, or a diff range like `main..HEAD`). |
 | `focus` | `correctness, design` | Any of: `correctness`, `design`, `security`, `tests`. Tell agents to report ONLY these. |
-| `model` | `haiku` | Model for reviewer + challenger fan-out. |
-| `verify-model` | `none` | If set (e.g. `sonnet`/`opus`), re-verify CONFIRMED high-severity findings with this stronger model before writing the report. |
+| `reviewer-model` | `haiku` | Reviewer fan-out (cheap breadth). Run **grounded + lean** and **monolithic per-partition** — decompose-per-file tripled over-production in testing (anti-pattern). |
+| `challenger-model` | `sonnet` | Challenger / verify pass — **the highest-leverage stage.** A Haiku verifier over-confirmed ~57% of findings in testing; never default this to Haiku. |
+| `verify-model` | `opus` | Opus adjudication over ONLY the high-severity `CONFIRMED` findings + cross-model / `UNCERTAIN` deltas (cheap — it's just the deltas). Set `none` to skip. |
 | `output` | `docs/reviews/adversarial-<YYYY-MM-DD>.json` | Machine-readable report path (tracked). A human `.md` sibling is written alongside it. |
 | `commit` | `ask` | `yes` / `no` / `ask` — whether to commit+push the report. |
 
 Scratch lives under `.temp/review/` (must be gitignored). All agent outputs are
 **JSON** (`json.loads()`-clean); only the final report is tracked. Every stage's
 output is machine-readable so the pipeline can be scripted/validated end-to-end.
+
+**Model policy — invert the spend.** Don't pay for a smart reviewer; pay for a smart
+verifier. Generation is cheap and parallel; the challenger is what determines precision.
+Evidence (`docs/reviews/grounded-full-20-2026-06-22.*` + `grounding-conclusions-2026-06-22.md`):
+a Haiku challenger over-confirmed **57%** of findings, inflating every result until an Opus
+adjudication caught it. Hence the defaults: **Haiku reviewers, Sonnet challenger, Opus
+delta-adjudicator.** Grounding (`eedom ground`) ~doubles a cheap reviewer's true precision —
+keep it **lean** (prefer signatures over code snippets, cap symbols) and keep the
+self-refutation discipline; both live in `templates/reviewer-brief.md`. Keep the reviewer
+**monolithic per-partition** — per-file decomposition is a proven anti-pattern (it removes the
+refutation discipline and Haiku free-associates).
 
 ## Procedure
 
@@ -49,7 +62,7 @@ Launch **one `Explore` agent** to map the target into review partitions. Rules:
 
 For a diff target, partition only the changed files (+ their direct call sites).
 
-### 2. Stage 1 — adversarial reviewers (parallel, `model`)
+### 2. Stage 1 — adversarial reviewers (parallel, `reviewer-model`)
 Launch **one agent per partition**, batched into single messages for concurrency,
 `run_in_background: true`. Build each prompt from
 `templates/reviewer-brief.md`, substituting: partition id, file list, the `focus`
@@ -63,19 +76,28 @@ Wait for every partition file to exist before Stage 2, then validate each parses
 (`python -c "import json,glob; [json.load(open(f)) for f in glob.glob('.temp/review/raw/*.json')]"`).
 Do NOT read the agents' JSONL transcript files; rely on completion notifications + the `ls`/validate check.
 
-### 3. Stage 2 — challengers / verification (parallel, `model`)
+### 3. Stage 2 — challengers / verification (parallel, `challenger-model`)
 Group the raw partitions into ~5 balanced batches. Launch one challenger agent per
-batch from `templates/challenger-brief.md`. Each reads the candidate findings AND
+batch from `templates/challenger-brief.md`, **on `challenger-model` (Sonnet by default —
+this is the precision-determining stage).** Each reads the candidate findings AND
 the cited source, and emits a verdict per finding: `CONFIRMED` / `FALSE_POSITIVE`
 / `UNCERTAIN` with a one-line reason. Output `.temp/review/verified/batch-NN.md`.
+Inject the don't-flag ledger (`templates/ledger-universal.md` + the project's
+`.eedom/adversarial-ledger.md`) so the challenger applies the same priors.
 Challengers are told the reviewers were incentivized to over-report and that their
 job is to break weak findings. Findings on excluded fixtures → `FALSE_POSITIVE`.
+**Recall backstop (load-bearing):** a finding about a *missing* except / timeout / guard
+must be judged on its merits — never auto-refuted by "fail-open by design." That prior
+excuses a *broad* except, not an *absent* one; over-applying it is where grounding
+suppressed real bugs in testing.
 
-### 4. Stage 2.5 — optional stronger-model re-verification
-If `verify-model` is set: collect every `CONFIRMED` finding with `severity: high`,
-and launch ONE agent with `model: verify-model` to independently re-judge just
-those (same CONFIRMED/FALSE_POSITIVE/UNCERTAIN verdicts, with reasoning). This
-buys Haiku's breadth with a stronger model's judgment on what matters most.
+### 4. Stage 2.5 — Opus delta adjudication (`verify-model`, default `opus`)
+Unless `verify-model=none`: launch ONE `verify-model` (Opus) agent to independently
+re-judge only the **deltas** — every high-severity `CONFIRMED` finding, plus every
+`UNCERTAIN` and (in multi-model runs) every model-unique finding. Opus verdicts are
+authoritative. This is cheap because it's just the deltas, and it de-biases the
+challenger (even a Sonnet challenger has a confirm bias). Record the funnel
+(raw → challenger-confirmed → Opus-confirmed) so verifier inflation is visible.
 
 ### 5. Stage 3 — synthesize the report (orchestrator)
 Join the raw findings (by `id`) with their verdicts. Then:
