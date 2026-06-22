@@ -29,7 +29,7 @@ pytestmark = pytest.mark.xfail(
 
 
 def _get_append_decisions_source() -> str:
-    from eedom.data.parquet_writer import append_decisions
+    from caliper.data.parquet_writer import append_decisions
 
     src = inspect.getsource(append_decisions)
     assert len(src) > 50, (

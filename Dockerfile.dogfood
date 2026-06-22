@@ -1,9 +1,9 @@
-# Eagle Eyed Dom — multi-stage, DHI hardened runtime
+# Caliper — multi-stage, DHI hardened runtime
 #
-# Build:  podman build -f Dockerfile.dogfood -t eedom-dogfood:latest .
-# Run:    podman run --rm -v $(pwd):/workspace eedom-dogfood:latest
+# Build:  podman build -f Dockerfile.dogfood -t caliper-dogfood:latest .
+# Run:    podman run --rm -v $(pwd):/workspace caliper-dogfood:latest
 #
-# Stage 1 (builder): slim-bookworm installs all scanner binaries + eedom
+# Stage 1 (builder): slim-bookworm installs all scanner binaries + caliper
 # Stage 2 (runtime): dhi.io/python:3.13 hardened base, binaries copied in
 #
 # DHI login: docker login dhi.io (free Docker Hub account)
@@ -61,8 +61,8 @@ RUN pip install --no-cache-dir --target=${DHI_SITE} semgrep==${SEMGREP_VERSION} 
 RUN pip install --no-cache-dir --target=${DHI_SITE} scancode-toolkit==${SCANCODE_VERSION} \
     && cp $(which scancode) /staging/bin/scancode
 
-# eedom — install DEPENDENCIES only into DHI site-packages, source via PYTHONPATH
-WORKDIR /opt/eedom
+# caliper — install DEPENDENCIES only into DHI site-packages, source via PYTHONPATH
+WORKDIR /opt/caliper
 COPY pyproject.toml ./
 COPY src/ src/
 COPY policies/ policies/
@@ -83,9 +83,9 @@ COPY --from=builder /staging/bin/ /usr/local/bin/
 # Python deps (pydantic, structlog, etc.) in DHI's site-packages
 COPY --from=builder /opt/python/lib/python3.13/site-packages/ /opt/python/lib/python3.13/site-packages/
 
-# eedom source (NOT pip-installed — loaded via PYTHONPATH so templates resolve)
-COPY --from=builder /opt/eedom/src/ /opt/eedom/src/
-COPY --from=builder /opt/eedom/policies/ /opt/eedom/policies/
+# caliper source (NOT pip-installed — loaded via PYTHONPATH so templates resolve)
+COPY --from=builder /opt/caliper/src/ /opt/caliper/src/
+COPY --from=builder /opt/caliper/policies/ /opt/caliper/policies/
 
 # Git (needed for repo scanning — git rev-parse, etc.)
 COPY --from=builder /usr/bin/git /usr/bin/git
@@ -103,8 +103,8 @@ COPY --from=builder /staging/clamav /var/lib/clamav
 COPY --from=builder /usr/bin/jq /usr/bin/jq
 
 ENV PATH="/opt/python/bin:/usr/local/bin:${PATH}" \
-    PYTHONPATH="/opt/eedom/src"
+    PYTHONPATH="/opt/caliper/src"
 
 WORKDIR /workspace
-ENTRYPOINT ["/opt/python/bin/python3", "-m", "eedom.cli.main"]
+ENTRYPOINT ["/opt/python/bin/python3", "-m", "caliper.cli.main"]
 CMD ["review", "--repo-path", ".", "--all"]

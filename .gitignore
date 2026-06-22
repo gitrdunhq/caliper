@@ -43,8 +43,8 @@ diagrams/
 *.svg
 !assets/*.svg
 *.zip
-.eedom/reports/
-.eedom/code_graph.sqlite
+.caliper/reports/
+.caliper/code_graph.sqlite
 .claude/worktrees/
 .worktrees/
 

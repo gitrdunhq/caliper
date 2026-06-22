@@ -1,5 +1,5 @@
 ---
-description: 'Python conventions for eedom codebase'
+description: 'Python conventions for caliper codebase'
 applyTo: '**/*.py'
 ---
 # Python Conventions

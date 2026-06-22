@@ -23,7 +23,7 @@ import pytest
 
 def _get_webhook_server_source_info():
     """Get source info for webhook server to parse AST."""
-    from eedom.webhook import server
+    from caliper.webhook import server
 
     source_path = Path(inspect.getfile(server))
     source = source_path.read_text()
@@ -44,7 +44,7 @@ def test_webhook_exposes_exception_in_error_response():
     Target (server.py:213-215):
         except Exception as exc:
             logger.error("webhook_review_failed", error=str(exc), pr_url=pr_url)
-            review_output = f"eedom review could not run: {exc}"  # EXPOSED!
+            review_output = f"caliper review could not run: {exc}"  # EXPOSED!
 
     The `exc` object (when converted to string) may contain full stack traces
     depending on how the exception was raised. This gets posted as a PR comment,
@@ -87,8 +87,8 @@ def test_webhook_exposes_exception_in_error_response():
 
     # Fallback: check raw source for the specific vulnerable pattern
     vulnerable_patterns = [
-        'review_output = f"eedom review could not run: {exc}"',
-        "review_output = f'eedom review could not run: {exc}'",
+        'review_output = f"caliper review could not run: {exc}"',
+        "review_output = f'caliper review could not run: {exc}'",
     ]
 
     for pattern in vulnerable_patterns:
@@ -100,7 +100,7 @@ def test_webhook_exposes_exception_in_error_response():
                 f"Issue: Exception object may contain stack traces when converted to string.\n"
                 f"Risk: Internal implementation details leaked to external PR comments.\n"
                 f"Bug #179: Use sanitized error messages for external responses.\n"
-                f"Fix: Replace with generic message like 'eedom review could not run: internal error'"
+                f"Fix: Replace with generic message like 'caliper review could not run: internal error'"
             )
 
     # Also check for other patterns that might expose exception details
@@ -137,7 +137,7 @@ def test_webhook_error_response_uses_safe_error_function():
     internal paths, function names, or stack traces.
 
     Target (server.py:213-215):
-        review_output = f"eedom review could not run: {exc}"
+        review_output = f"caliper review could not run: {exc}"
 
     The `_scrub_token_from_error` function is used for comment errors (line 228)
     but not for review errors (line 215).

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import yaml
 
-from eedom.plugins import ANALYZERS
+from caliper.plugins import ANALYZERS
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -35,7 +35,7 @@ def _semgrep_rule_count() -> int:
 
 def _codegraph_check_count() -> int:
     data = yaml.safe_load(
-        (_REPO / "src" / "eedom" / "plugins" / "_runners" / "checks.yaml").read_text()
+        (_REPO / "src" / "caliper" / "plugins" / "_runners" / "checks.yaml").read_text()
     )
     return len(data.get("checks", []))
 

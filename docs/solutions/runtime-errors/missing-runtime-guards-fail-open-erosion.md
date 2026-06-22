@@ -1,6 +1,6 @@
 ---
 title: "Missing Runtime Guards — Fail-Open Erosion"
-component: src/eedom/cli/main.py, src/eedom/data/scanners/syft.py
+component: src/caliper/cli/main.py, src/caliper/data/scanners/syft.py
 tags: reliability, fail-open, timeout, sys-exit, type-coercion, runtime-guard
 category: runtime-errors
 date: 2026-04-23

@@ -2,7 +2,7 @@ rules:
   - id: org.arch.core-imports-data-private
     patterns:
       - pattern: |
-          from eedom.data.$MODULE import $_
+          from caliper.data.$MODULE import $_
       - pattern-not-inside: |
           if TYPE_CHECKING:
               ...
@@ -11,7 +11,7 @@ rules:
               ...
     paths:
       include:
-        - src/eedom/core/
+        - src/caliper/core/
     message: >
       core/ must not import private symbols from data/ at module level.
       Use TYPE_CHECKING guards for type hints or lazy imports inside methods.

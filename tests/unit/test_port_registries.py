@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.composition.bootstrap import load_adapters
-from eedom.core.policy_port import PolicyEnginePort
-from eedom.core.ports import (
+from caliper.composition.bootstrap import load_adapters
+from caliper.core.policy_port import PolicyEnginePort
+from caliper.core.ports import (
     CodeGraphCheckPort,
     DecisionStorePort,
     EvidenceStorePort,
@@ -22,7 +22,7 @@ from eedom.core.ports import (
     RepoSnapshotPort,
     SemgrepRunnerPort,
 )
-from eedom.core.registries import (
+from caliper.core.registries import (
     CODEGRAPH_CHECKS,
     DECISION_STORES,
     EVIDENCE_STORES,
@@ -78,7 +78,7 @@ class TestRealFactoriesConstruct:
     """The production factories construct their adapter with no I/O at create()."""
 
     def test_opa_engine(self):
-        from eedom.core.subprocess_runner import SubprocessToolRunner
+        from caliper.core.subprocess_runner import SubprocessToolRunner
 
         engine = POLICY_ENGINES.create(
             "opa", policy_path="/tmp/policy.rego", tool_runner=SubprocessToolRunner()

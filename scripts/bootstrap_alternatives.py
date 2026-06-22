@@ -13,7 +13,7 @@ from pathlib import Path
 import click
 import orjson
 
-from eedom.data.alternatives import (
+from caliper.data.alternatives import (
     build_catalog,
     parse_pyproject_toml,
     parse_requirements_txt,

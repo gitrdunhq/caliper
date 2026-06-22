@@ -14,13 +14,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from eedom.core.models import (
+from caliper.core.models import (
     DecisionVerdict,
     Finding,
     FindingCategory,
     FindingSeverity,
 )
-from eedom.core.policy import OpaEvaluator
+from caliper.core.policy import OpaEvaluator
 
 
 def _mock_subprocess_run(stdout: str, returncode: int = 0) -> MagicMock:

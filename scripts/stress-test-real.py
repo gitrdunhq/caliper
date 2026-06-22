@@ -118,7 +118,7 @@ def format_report(test: dict, diff_text: str, semgrep_data: dict) -> str:
     scanned = semgrep_data.get("scanned", 0)
 
     lines = []
-    lines.append(f"# GATEKEEPER Review — {test['repo']}#{test['pr']}")
+    lines.append(f"# Foreman Review — {test['repo']}#{test['pr']}")
     lines.append(f"**PR**: [{test['title']}](https://github.com/{test['repo']}/pull/{test['pr']})")
     lines.append(f"**Date**: {datetime.now(tz=UTC).strftime('%Y-%m-%d %H:%M UTC')}")
     lines.append(f"**Files changed**: {len(changed)} | **Scanned by Semgrep**: {scanned}")
@@ -229,7 +229,7 @@ def format_report(test: dict, diff_text: str, semgrep_data: dict) -> str:
     lines.append(f"| Dependency changes | {'Yes' if dep_changes else 'No'} |")
     lines.append(f"| Files scanned | {scanned}/{len(changed)} |")
     lines.append("")
-    lines.append("*GATEKEEPER PoC — dry run, no comments posted*")
+    lines.append("*Foreman PoC — dry run, no comments posted*")
 
     return "\n".join(lines)
 

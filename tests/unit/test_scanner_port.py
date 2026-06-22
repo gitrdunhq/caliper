@@ -3,7 +3,7 @@
 
 RED phase for issue #406 — imports symbols that do not exist yet
 (`SCANNERS`, `ScannerPort`) and is expected to fail until the registry +
-port are added to `eedom.data.scanners`.
+port are added to `caliper.data.scanners`.
 
 Mirrors the per-area template the epic (#404) repeats: port → registry +
 autodiscover → adapters + fake → parametrized factory conformance.
@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.core.models import ScanResult
-from eedom.data.scanners import SCANNERS, ScannerPort
+from caliper.core.models import ScanResult
+from caliper.data.scanners import SCANNERS, ScannerPort
 
 _REAL_SCANNERS = ["osv", "trivy", "syft", "scancode"]
 _ALL_SCANNERS = [*_REAL_SCANNERS, "fake"]

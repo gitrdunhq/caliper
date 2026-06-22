@@ -3,7 +3,7 @@
 These are the false-positive classes EVERY LLM reviewer regresses to — confirmed across
 both Haiku and Sonnet arms of the calibration run. Inject this verbatim into every
 reviewer and challenger prompt, regardless of model or project. The *project-specific*
-ledger (`.eedom/adversarial-ledger.md` or `<repo>/.adversarial-ledger.md`) is the
+ledger (`.caliper/adversarial-ledger.md` or `<repo>/.adversarial-ledger.md`) is the
 auto-grown complement; this file is the fixed floor.
 
 A reviewer checks this before emitting a finding. A challenger treats a finding matching

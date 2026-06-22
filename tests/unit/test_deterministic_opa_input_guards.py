@@ -23,9 +23,9 @@ pytestmark = pytest.mark.xfail(
     strict=False,
 )
 
-from eedom.core.opa_adapter import OpaRegoAdapter
-from eedom.core.plugin import PluginFinding
-from eedom.core.policy_port import PolicyInput
+from caliper.core.opa_adapter import OpaRegoAdapter
+from caliper.core.plugin import PluginFinding
+from caliper.core.policy_port import PolicyInput
 
 
 def _make_finding(severity: str = "critical") -> PluginFinding:

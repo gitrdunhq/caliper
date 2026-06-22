@@ -1,4 +1,4 @@
-"""Tests for eedom.core.policy — OPA evaluation wrapper."""
+"""Tests for caliper.core.policy — OPA evaluation wrapper."""
 
 from __future__ import annotations
 
@@ -10,13 +10,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from eedom.core.models import (
+from caliper.core.models import (
     DecisionVerdict,
     Finding,
     FindingCategory,
     FindingSeverity,
 )
-from eedom.core.policy import OpaEvaluator, build_opa_input
+from caliper.core.policy import OpaEvaluator, build_opa_input
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers

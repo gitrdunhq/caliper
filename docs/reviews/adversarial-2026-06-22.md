@@ -1,8 +1,8 @@
-# Adversarial Code Review — eedom
+# Adversarial Code Review — caliper
 
-_Generated 2026-06-22 · target: `src/eedom (entire codebase)` · focus: correctness, design_
+_Generated 2026-06-22 · target: `src/caliper (entire codebase)` · focus: correctness, design_
 
-This report is the synthesis of a two-pass adversarial review of the eedom codebase. In the first pass, a fleet of cheap Haiku **reviewer** agents was fanned out across 20 partitions of `src/eedom`, each surfacing candidate correctness and design findings. In the second pass, Haiku **challenger** agents red-teamed every candidate, attempting to refute it and assigning a final verdict (CONFIRMED, FALSE_POSITIVE, or UNCERTAIN) and severity. Both the reviewer and challenger roles ran on Haiku; there was no separate verifier model. Only CONFIRMED findings are treated as actionable; UNCERTAIN findings are retained for human review, and FALSE_POSITIVE candidates are dropped. Of 117 raw candidates, 69 were confirmed.
+This report is the synthesis of a two-pass adversarial review of the caliper codebase. In the first pass, a fleet of cheap Haiku **reviewer** agents was fanned out across 20 partitions of `src/caliper`, each surfacing candidate correctness and design findings. In the second pass, Haiku **challenger** agents red-teamed every candidate, attempting to refute it and assigning a final verdict (CONFIRMED, FALSE_POSITIVE, or UNCERTAIN) and severity. Both the reviewer and challenger roles ran on Haiku; there was no separate verifier model. Only CONFIRMED findings are treated as actionable; UNCERTAIN findings are retained for human review, and FALSE_POSITIVE candidates are dropped. Of 117 raw candidates, 69 were confirmed.
 
 ## Funnel
 
@@ -18,92 +18,92 @@ Confirmed by severity: high 20, medium 32, low 17.
 
 | ID | Severity | Category | File:line | Claim |
 |----|----------|----------|-----------|-------|
-| P02-1 | high | correctness | `src/eedom/core/normalizer.py:40` | Dedup key includes advisory_id which may be None, causing unrelated findings to silently collide and disappear. |
-| P03-1 | high | correctness | `src/eedom/core/opa_adapter.py:65-74` | OPA command argument order differs from policy.py, placing --format before data.policy instead of after, breaking CLI parsing. |
-| P03-2 | high | correctness | `src/eedom/core/opa_adapter.py:107-109` | Config merge uses shallow update(), losing rules_enabled defaults when caller passes a rules_enabled dict override. |
-| P01-5 | high | correctness | `src/eedom/core/pipeline.py:240-254` | Exception handler builds ReviewDecision with scan_results variable from outer loop scope, which may be stale if orchestrator.run has not completed or has failed. |
-| P05-5 | high | correctness | `src/eedom/core/repo_config.py:69` | Falsy-value merge bug in load_merged_config causes empty list overrides to fall back to root config |
-| P05-6 | high | correctness | `src/eedom/core/repo_config.py:68` | SemgrepConfig from package-level .eagle-eyed-dom.yaml is completely ignored during merge |
-| P04-1 | high | correctness | `src/eedom/core/seal.py:202` | Timestamp sorting for seal chain is vulnerable to lexicographic ordering bugs, not RFC3339 temporal ordering. |
-| P10-1 | high | correctness | `src/eedom/core/subprocess_runner.py:27-43` | UnicodeDecodeError not caught when subprocess outputs binary data with text=True |
-| P10-2 | high | correctness | `src/eedom/core/version.py:14-16` | get_version() does not handle PackageNotFoundError, causing module import to fail |
-| P14-1 | high | correctness | `src/eedom/detectors/config/config_merge.py:115-134` | _is_dangerous_merge() logic is contradictory—returns True on line 134 if unpacking exists, even when config-key check on lines 128-132 finds nothing |
-| P14-4 | high | correctness | `src/eedom/detectors/process/tested_by.py:82-88` | Path resolution logic is unreliable—tries relative-to-parent first, then falls back to resolve() with no actual path discovery or existence check before using candidate |
-| P13-3 | high | correctness | `src/eedom/detectors/reliability/subprocess_timeout.py:132-138` | False negative: The _popen_has_communicate_timeout() method has fundamentally broken logic. It looks for communicate() calls anywhere in the tree with timeout, not necessarily tied to the specific Popen call being analyzed. |
-| P13-4 | high | correctness | `src/eedom/detectors/reliability/transaction_rollback.py:127-135` | False negative: The _is_looped_insert() method has inverted scoping logic. It iterates through ALL nodes and checks if the call is in a loop, but uses ast.walk(parent) which traverses all descendants, making it impossible to verify that a given call is actually inside that specific loop. |
-| P15-4 | high | correctness | `src/eedom/plugins/_runners/cfn_nag_runner.py:76` | NameError when exception handler uses result.returncode but result is not in scope. |
-| P15-1 | high | correctness | `src/eedom/plugins/_runners/graph_builder.py:392` | Unchecked .fetchone() dereference causes crash when symbol lookup finds no match. |
-| P17-1 | high | correctness | `src/eedom/plugins/cdk_nag.py:32-34` | CdkNagPlugin.run() catches all exceptions generically without differentiating timeout/not-installed from other errors, violating fail-open contract that requires specific error handling. |
-| P17-4 | high | correctness | `src/eedom/plugins/ls_lint.py:47` | LsLintPlugin.run() reports timeout with timeout=0 instead of the actual timeout value (30 seconds), making error messages useless for debugging. |
-| P18-1 | high | correctness | `src/eedom/plugins/supply_chain.py:292-304` | Lockfile integrity check has broken variable scope — `manifest_changed` computed in loop but used outside, causing only the last directory's result to be checked instead of all directories. |
-| P20-1 | high | correctness | `src/eedom/webhook/config.py:24` | WebhookSettings.secret is a required non-Optional field, but _load_app() calls WebhookSettings() without catching MissingConfigError for missing EEDOM_WEBHOOK_SECRET. |
-| P20-2 | high | design | `src/eedom/webhook/server.py:181-189` | Webhook enumerates files via rglob() directly instead of using the file_source seam (FileSourcePort), violating the architectural rule "consumers never call rglob/os.walk/git directly." |
-| P20-3 | medium | correctness | `src/eedom/agent/main.py:169-182` | _extract_reject_from_tool_results() early-returns at line 180 when the first reject is found, preventing examination of subsequent tool results if the agent response structure contains multiple tool invocation results. |
-| P18-2 | medium | correctness | `src/eedom/core/diff.py:212` | _compute_diff hardcodes "upgraded" when Version parsing fails, ignoring actual version ordering — inconsistent with sbom_diff.py fallback which uses lexicographic comparison. |
-| P18-5 | medium | correctness | `src/eedom/core/diff.py:218` | Both-versions-None case (old_ver is None and new_ver is None) defaults to "upgraded" action but should never occur — indicates the logic path is unreachable or the code is defensive against an impossible condition without documenting why. |
-| P02-3 | medium | correctness | `src/eedom/core/memo.py:116-117` | Memo truncation slices at a hard character offset, ignoring line/paragraph boundaries, violating Markdown format. |
-| P03-3 | medium | design | `src/eedom/core/opa_adapter.py:86` | PolicyDecision verdict field expects string enum but constructed with raw string literals, fragile against enum changes. |
-| P01-6 | medium | correctness | `src/eedom/core/pipeline.py:267-270` | pypi_client.close() is wrapped in contextlib.suppress(Exception), silently swallowing all close errors and preventing visibility into resource-cleanup issues. |
-| P01-7 | medium | correctness | `src/eedom/core/pipeline.py:432-434` | Identical silent close error suppression for pypi_client in evaluate_sbom method mirrors the same transparency loss as in evaluate(). |
-| P15-7 | medium | correctness | `src/eedom/core/registry.py:149` | Topological sort does not validate that a plugin's depends_on name actually exists; silently drops unknown deps. |
-| P04-4 | medium | design | `src/eedom/core/seal.py:94` | Timestamp precision may not be sufficient for seal uniqueness in rapid successive runs on the same machine. |
-| P10-3 | medium | design | `src/eedom/core/subprocess_runner.py:54-63` | OSError not caught, violates fail-open invariant for permission/resource errors |
-| P09-2 | medium | design | `src/eedom/core/taskfit_validator.py:185-206` | Unsafe pattern: recommendation variable set to None outside conditional, then used in TaskFitAssessment construction only when errors is empty, violating explicit type contract |
-| P11-3 | medium | correctness | `src/eedom/detectors/ast_utils.py:659-670` | BatchVisitor.visit() breaks the standard NodeVisitor contract by calling generic_visit unconditionally, causing nodes to be visited twice. |
-| P14-2 | medium | correctness | `src/eedom/detectors/config/docker_pin_drift.py:18-19` | _PIP_PIN_RE regex requires word boundary after "pip" but not "install", causing false negatives on multi-word situations |
-| P11-2 | medium | design | `src/eedom/detectors/findings.py:49-69` | DetectorFinding.to_finding() loses line_number and column information, breaking traceability to source code location. |
-| P14-3 | medium | correctness | `src/eedom/detectors/metrics/high_cardinality.py:151-159` | _get_high_cardinality_label_kwargs() allows None keyword.arg to pass through, causing potential crash on NoneType comparison |
-| P13-8 | medium | correctness | `src/eedom/detectors/reliability/health_check_db.py:156` | False negative: The detector will miss database checks that use variable names instead of string literals for SQL. |
-| P13-7 | medium | correctness | `src/eedom/detectors/reliability/path_construction.py:123-136` | False negative: The detector will not flag path construction in certain common patterns because the heuristic for identifying "path-related strings" is weak and can be bypassed. |
-| P12-3 | medium | correctness | `src/eedom/detectors/security/fixed_output_delimiter.py:84-86` | False negative when GITHUB_OUTPUT reference appears > 3 lines before heredoc |
-| P12-1 | medium | correctness | `src/eedom/detectors/security/secret_str.py:76-96` | False negative on secrets assigned without type annotations at module/class scope |
-| P12-6 | medium | correctness | `src/eedom/detectors/security/sql_injection.py:75-76` | Redundant deduplication logic may mask multiple violations on same line |
-| P12-7 | medium | correctness | `src/eedom/detectors/security/sql_injection.py:117-119` | False positive on .format() with no arguments (safe parameterized queries) |
-| P12-8 | medium | correctness | `src/eedom/detectors/security/sql_injection.py:105-109` | False positive on f-strings without interpolation (literal strings) |
-| P15-3 | medium | correctness | `src/eedom/plugins/_runners/cpd_runner.py:297` | Scanned file count double-counts when PMD breaks and fallback processes same files. |
-| P15-2 | medium | correctness | `src/eedom/plugins/_runners/graph_builder.py:400-403` | COUNT(*) queries assume rows always exist; will crash on empty database. |
-| P16-3 | medium | correctness | `src/eedom/plugins/clamav.py:69` | Timeout error message passes 0 instead of actual timeout value. |
-| P17-2 | medium | correctness | `src/eedom/plugins/complexity.py:32-35` | ComplexityPlugin.run() catches all exceptions generically without differentiating timeout from crashes; hard-coded timeout=60 in runner call is never overridden by config. |
-| P17-3 | medium | correctness | `src/eedom/plugins/cpd.py:50-68` | CpdPlugin.run() catches all exceptions generically; runner call receives no timeout parameter; both error paths return PluginResult but generic Exception case doesn't include error_msg(). |
-| P17-9 | medium | correctness | `src/eedom/plugins/cspell.py:54-72` | CspellPlugin.run() relies on contextlib.suppress() to silently ignore JSON/KeyError/TypeError during parsing (line 77), then falls back to regex parsing. If the JSON reporter produces valid JSON but with unexpected schema (e.g. missing 'issues' key in future versions), plugin returns empty findings without logging, violating fail-open with diagnostics. |
-| P17-5 | medium | correctness | `src/eedom/plugins/kube_linter.py:29-40` | KubeLinterPlugin.run() catches all exceptions generically without differentiating error types; runner (kube_linter_runner.py) is a black box whose error structure is unknown, risking silent failures. |
-| P16-1 | medium | correctness | `src/eedom/plugins/osv_scanner.py:106` | Timeout error message passes 0 instead of actual timeout value, breaking error diagnostics. |
-| P16-6 | medium | design | `src/eedom/plugins/semgrep.py:59-62` | Timeout hardcoded to 120 instead of using scanner_timeout from config (60s). |
-| P16-2 | medium | correctness | `src/eedom/plugins/syft.py:69` | Timeout error message passes 0 instead of actual timeout value. |
-| P20-6 | low | correctness | `src/eedom/agent/main.py:238-271` | main() does not validate pr_number > 0 after conversion, allowing pr_number=0 to reach GatekeeperAgent.run() which uses it in API calls, potentially causing silent failures or incorrect routing. |
-| P09-3 | low | design | `src/eedom/core/actionability.py:37-39` | Severity bucket counts computed via three separate iterations over blocked list, O(3n) instead of O(n) |
-| P06-3 | low | design | `src/eedom/core/enrich.py:40` | Budget exhaustion logs once per enricher per finding, creating excessive log spam when timeout occurs early in multi-finding batch. |
-| P10-5 | low | design | `src/eedom/core/fake.py:24-25` | FakePolicyEngine.evaluate() returns bare verdict string, not DecisionVerdict enum |
-| P03-6 | low | design | `src/eedom/core/opa_adapter.py:80-86` | Exception handler catches BLE001 (all exceptions) but logs at error level, contradicting fail-open philosophy. |
-| P18-3 | low | design | `src/eedom/core/sbom_diff.py:136-145` | Lexicographic string comparison for non-semver versions yields wrong ordering (e.g., "10" < "2"), creating silent misclassifications. Warning is logged but finding is still emitted with potentially wrong direction. |
-| P18-4 | low | design | `src/eedom/core/supply_chain_diff.py:140-150` | Fail-open on source unavailable embeds error detail only in message string, not as a separate field, making it hard for automated tools to distinguish error types (404 vs timeout vs extraction failure). |
-| P01-10 | low | design | `src/eedom/core/use_cases.py:45` | ReviewResult.results field is typed as bare list with no element type, violating strict Pydantic typing. |
-| P01-9 | low | design | `src/eedom/core/use_cases.py:33-34` | ReviewOptions.categories field is typed as list with no element type annotation, while scanners field is typed as list[str]. |
-| P14-6 | low | design | `src/eedom/detectors/config/config_merge.py:159-171` | _is_config_key() uses substring matching ("port" in "exported") which is overly broad and will match unintended keys |
-| P13-10 | low | correctness | `src/eedom/detectors/reliability/cache_eviction.py:95-96` | False negative: The detector checks for @lru_cache() without maxsize, but will miss @lru_cache(maxsize=None) which is semantically unbounded in older Python versions. |
-| P12-5 | low | design | `src/eedom/detectors/security/rate_limiting.py:135-143` | Pattern matching uses inconsistent glob implementation instead of shared utility |
-| P15-5 | low | design | `src/eedom/plugins/_runners/kube_linter_runner.py:66` | Hardcoded timeout value in error message ignores the timeout parameter. |
-| P17-10 | low | correctness | `src/eedom/plugins/blast_radius.py:68-73` | BlastRadiusPlugin.run() assumes CodeGraph.stats() always returns a dict with 'symbols' key (line 70), but if CodeGraph is uninitialized or crashes, stats() may return empty dict or raise, causing unhandled exception. |
-| P16-5 | low | correctness | `src/eedom/plugins/clamav.py:84-87` | stderr concatenated twice in redundant output parsing. |
-| P17-6 | low | design | `src/eedom/plugins/mypy.py:76-94` | _run_mypy() and _run_pyright() are duplicated code paths with nearly identical structure (subprocess.run, timeout handling, JSON parsing logic). Violation of DRY; makes future bug fixes require changes in two places. |
-| P16-8 | low | correctness | `src/eedom/plugins/scancode.py:56-64` | Timeout error message hardcoded to 60 even though no timeout parameter exists. |
+| P02-1 | high | correctness | `src/caliper/core/normalizer.py:40` | Dedup key includes advisory_id which may be None, causing unrelated findings to silently collide and disappear. |
+| P03-1 | high | correctness | `src/caliper/core/opa_adapter.py:65-74` | OPA command argument order differs from policy.py, placing --format before data.policy instead of after, breaking CLI parsing. |
+| P03-2 | high | correctness | `src/caliper/core/opa_adapter.py:107-109` | Config merge uses shallow update(), losing rules_enabled defaults when caller passes a rules_enabled dict override. |
+| P01-5 | high | correctness | `src/caliper/core/pipeline.py:240-254` | Exception handler builds ReviewDecision with scan_results variable from outer loop scope, which may be stale if orchestrator.run has not completed or has failed. |
+| P05-5 | high | correctness | `src/caliper/core/repo_config.py:69` | Falsy-value merge bug in load_merged_config causes empty list overrides to fall back to root config |
+| P05-6 | high | correctness | `src/caliper/core/repo_config.py:68` | SemgrepConfig from package-level .caliper.yaml is completely ignored during merge |
+| P04-1 | high | correctness | `src/caliper/core/seal.py:202` | Timestamp sorting for seal chain is vulnerable to lexicographic ordering bugs, not RFC3339 temporal ordering. |
+| P10-1 | high | correctness | `src/caliper/core/subprocess_runner.py:27-43` | UnicodeDecodeError not caught when subprocess outputs binary data with text=True |
+| P10-2 | high | correctness | `src/caliper/core/version.py:14-16` | get_version() does not handle PackageNotFoundError, causing module import to fail |
+| P14-1 | high | correctness | `src/caliper/detectors/config/config_merge.py:115-134` | _is_dangerous_merge() logic is contradictory—returns True on line 134 if unpacking exists, even when config-key check on lines 128-132 finds nothing |
+| P14-4 | high | correctness | `src/caliper/detectors/process/tested_by.py:82-88` | Path resolution logic is unreliable—tries relative-to-parent first, then falls back to resolve() with no actual path discovery or existence check before using candidate |
+| P13-3 | high | correctness | `src/caliper/detectors/reliability/subprocess_timeout.py:132-138` | False negative: The _popen_has_communicate_timeout() method has fundamentally broken logic. It looks for communicate() calls anywhere in the tree with timeout, not necessarily tied to the specific Popen call being analyzed. |
+| P13-4 | high | correctness | `src/caliper/detectors/reliability/transaction_rollback.py:127-135` | False negative: The _is_looped_insert() method has inverted scoping logic. It iterates through ALL nodes and checks if the call is in a loop, but uses ast.walk(parent) which traverses all descendants, making it impossible to verify that a given call is actually inside that specific loop. |
+| P15-4 | high | correctness | `src/caliper/plugins/_runners/cfn_nag_runner.py:76` | NameError when exception handler uses result.returncode but result is not in scope. |
+| P15-1 | high | correctness | `src/caliper/plugins/_runners/graph_builder.py:392` | Unchecked .fetchone() dereference causes crash when symbol lookup finds no match. |
+| P17-1 | high | correctness | `src/caliper/plugins/cdk_nag.py:32-34` | CdkNagPlugin.run() catches all exceptions generically without differentiating timeout/not-installed from other errors, violating fail-open contract that requires specific error handling. |
+| P17-4 | high | correctness | `src/caliper/plugins/ls_lint.py:47` | LsLintPlugin.run() reports timeout with timeout=0 instead of the actual timeout value (30 seconds), making error messages useless for debugging. |
+| P18-1 | high | correctness | `src/caliper/plugins/supply_chain.py:292-304` | Lockfile integrity check has broken variable scope — `manifest_changed` computed in loop but used outside, causing only the last directory's result to be checked instead of all directories. |
+| P20-1 | high | correctness | `src/caliper/webhook/config.py:24` | WebhookSettings.secret is a required non-Optional field, but _load_app() calls WebhookSettings() without catching MissingConfigError for missing CALIPER_WEBHOOK_SECRET. |
+| P20-2 | high | design | `src/caliper/webhook/server.py:181-189` | Webhook enumerates files via rglob() directly instead of using the file_source seam (FileSourcePort), violating the architectural rule "consumers never call rglob/os.walk/git directly." |
+| P20-3 | medium | correctness | `src/caliper/agent/main.py:169-182` | _extract_reject_from_tool_results() early-returns at line 180 when the first reject is found, preventing examination of subsequent tool results if the agent response structure contains multiple tool invocation results. |
+| P18-2 | medium | correctness | `src/caliper/core/diff.py:212` | _compute_diff hardcodes "upgraded" when Version parsing fails, ignoring actual version ordering — inconsistent with sbom_diff.py fallback which uses lexicographic comparison. |
+| P18-5 | medium | correctness | `src/caliper/core/diff.py:218` | Both-versions-None case (old_ver is None and new_ver is None) defaults to "upgraded" action but should never occur — indicates the logic path is unreachable or the code is defensive against an impossible condition without documenting why. |
+| P02-3 | medium | correctness | `src/caliper/core/memo.py:116-117` | Memo truncation slices at a hard character offset, ignoring line/paragraph boundaries, violating Markdown format. |
+| P03-3 | medium | design | `src/caliper/core/opa_adapter.py:86` | PolicyDecision verdict field expects string enum but constructed with raw string literals, fragile against enum changes. |
+| P01-6 | medium | correctness | `src/caliper/core/pipeline.py:267-270` | pypi_client.close() is wrapped in contextlib.suppress(Exception), silently swallowing all close errors and preventing visibility into resource-cleanup issues. |
+| P01-7 | medium | correctness | `src/caliper/core/pipeline.py:432-434` | Identical silent close error suppression for pypi_client in evaluate_sbom method mirrors the same transparency loss as in evaluate(). |
+| P15-7 | medium | correctness | `src/caliper/core/registry.py:149` | Topological sort does not validate that a plugin's depends_on name actually exists; silently drops unknown deps. |
+| P04-4 | medium | design | `src/caliper/core/seal.py:94` | Timestamp precision may not be sufficient for seal uniqueness in rapid successive runs on the same machine. |
+| P10-3 | medium | design | `src/caliper/core/subprocess_runner.py:54-63` | OSError not caught, violates fail-open invariant for permission/resource errors |
+| P09-2 | medium | design | `src/caliper/core/taskfit_validator.py:185-206` | Unsafe pattern: recommendation variable set to None outside conditional, then used in TaskFitAssessment construction only when errors is empty, violating explicit type contract |
+| P11-3 | medium | correctness | `src/caliper/detectors/ast_utils.py:659-670` | BatchVisitor.visit() breaks the standard NodeVisitor contract by calling generic_visit unconditionally, causing nodes to be visited twice. |
+| P14-2 | medium | correctness | `src/caliper/detectors/config/docker_pin_drift.py:18-19` | _PIP_PIN_RE regex requires word boundary after "pip" but not "install", causing false negatives on multi-word situations |
+| P11-2 | medium | design | `src/caliper/detectors/findings.py:49-69` | DetectorFinding.to_finding() loses line_number and column information, breaking traceability to source code location. |
+| P14-3 | medium | correctness | `src/caliper/detectors/metrics/high_cardinality.py:151-159` | _get_high_cardinality_label_kwargs() allows None keyword.arg to pass through, causing potential crash on NoneType comparison |
+| P13-8 | medium | correctness | `src/caliper/detectors/reliability/health_check_db.py:156` | False negative: The detector will miss database checks that use variable names instead of string literals for SQL. |
+| P13-7 | medium | correctness | `src/caliper/detectors/reliability/path_construction.py:123-136` | False negative: The detector will not flag path construction in certain common patterns because the heuristic for identifying "path-related strings" is weak and can be bypassed. |
+| P12-3 | medium | correctness | `src/caliper/detectors/security/fixed_output_delimiter.py:84-86` | False negative when GITHUB_OUTPUT reference appears > 3 lines before heredoc |
+| P12-1 | medium | correctness | `src/caliper/detectors/security/secret_str.py:76-96` | False negative on secrets assigned without type annotations at module/class scope |
+| P12-6 | medium | correctness | `src/caliper/detectors/security/sql_injection.py:75-76` | Redundant deduplication logic may mask multiple violations on same line |
+| P12-7 | medium | correctness | `src/caliper/detectors/security/sql_injection.py:117-119` | False positive on .format() with no arguments (safe parameterized queries) |
+| P12-8 | medium | correctness | `src/caliper/detectors/security/sql_injection.py:105-109` | False positive on f-strings without interpolation (literal strings) |
+| P15-3 | medium | correctness | `src/caliper/plugins/_runners/cpd_runner.py:297` | Scanned file count double-counts when PMD breaks and fallback processes same files. |
+| P15-2 | medium | correctness | `src/caliper/plugins/_runners/graph_builder.py:400-403` | COUNT(*) queries assume rows always exist; will crash on empty database. |
+| P16-3 | medium | correctness | `src/caliper/plugins/clamav.py:69` | Timeout error message passes 0 instead of actual timeout value. |
+| P17-2 | medium | correctness | `src/caliper/plugins/complexity.py:32-35` | ComplexityPlugin.run() catches all exceptions generically without differentiating timeout from crashes; hard-coded timeout=60 in runner call is never overridden by config. |
+| P17-3 | medium | correctness | `src/caliper/plugins/cpd.py:50-68` | CpdPlugin.run() catches all exceptions generically; runner call receives no timeout parameter; both error paths return PluginResult but generic Exception case doesn't include error_msg(). |
+| P17-9 | medium | correctness | `src/caliper/plugins/cspell.py:54-72` | CspellPlugin.run() relies on contextlib.suppress() to silently ignore JSON/KeyError/TypeError during parsing (line 77), then falls back to regex parsing. If the JSON reporter produces valid JSON but with unexpected schema (e.g. missing 'issues' key in future versions), plugin returns empty findings without logging, violating fail-open with diagnostics. |
+| P17-5 | medium | correctness | `src/caliper/plugins/kube_linter.py:29-40` | KubeLinterPlugin.run() catches all exceptions generically without differentiating error types; runner (kube_linter_runner.py) is a black box whose error structure is unknown, risking silent failures. |
+| P16-1 | medium | correctness | `src/caliper/plugins/osv_scanner.py:106` | Timeout error message passes 0 instead of actual timeout value, breaking error diagnostics. |
+| P16-6 | medium | design | `src/caliper/plugins/semgrep.py:59-62` | Timeout hardcoded to 120 instead of using scanner_timeout from config (60s). |
+| P16-2 | medium | correctness | `src/caliper/plugins/syft.py:69` | Timeout error message passes 0 instead of actual timeout value. |
+| P20-6 | low | correctness | `src/caliper/agent/main.py:238-271` | main() does not validate pr_number > 0 after conversion, allowing pr_number=0 to reach ForemanAgent.run() which uses it in API calls, potentially causing silent failures or incorrect routing. |
+| P09-3 | low | design | `src/caliper/core/actionability.py:37-39` | Severity bucket counts computed via three separate iterations over blocked list, O(3n) instead of O(n) |
+| P06-3 | low | design | `src/caliper/core/scribe.py:40` | Budget exhaustion logs once per scribe per finding, creating excessive log spam when timeout occurs early in multi-finding batch. |
+| P10-5 | low | design | `src/caliper/core/fake.py:24-25` | FakePolicyEngine.evaluate() returns bare verdict string, not DecisionVerdict enum |
+| P03-6 | low | design | `src/caliper/core/opa_adapter.py:80-86` | Exception handler catches BLE001 (all exceptions) but logs at error level, contradicting fail-open philosophy. |
+| P18-3 | low | design | `src/caliper/core/sbom_diff.py:136-145` | Lexicographic string comparison for non-semver versions yields wrong ordering (e.g., "10" < "2"), creating silent misclassifications. Warning is logged but finding is still emitted with potentially wrong direction. |
+| P18-4 | low | design | `src/caliper/core/supply_chain_diff.py:140-150` | Fail-open on source unavailable embeds error detail only in message string, not as a separate field, making it hard for automated tools to distinguish error types (404 vs timeout vs extraction failure). |
+| P01-10 | low | design | `src/caliper/core/use_cases.py:45` | ReviewResult.results field is typed as bare list with no element type, violating strict Pydantic typing. |
+| P01-9 | low | design | `src/caliper/core/use_cases.py:33-34` | ReviewOptions.categories field is typed as list with no element type annotation, while scanners field is typed as list[str]. |
+| P14-6 | low | design | `src/caliper/detectors/config/config_merge.py:159-171` | _is_config_key() uses substring matching ("port" in "exported") which is overly broad and will match unintended keys |
+| P13-10 | low | correctness | `src/caliper/detectors/reliability/cache_eviction.py:95-96` | False negative: The detector checks for @lru_cache() without maxsize, but will miss @lru_cache(maxsize=None) which is semantically unbounded in older Python versions. |
+| P12-5 | low | design | `src/caliper/detectors/security/rate_limiting.py:135-143` | Pattern matching uses inconsistent glob implementation instead of shared utility |
+| P15-5 | low | design | `src/caliper/plugins/_runners/kube_linter_runner.py:66` | Hardcoded timeout value in error message ignores the timeout parameter. |
+| P17-10 | low | correctness | `src/caliper/plugins/blast_radius.py:68-73` | BlastRadiusPlugin.run() assumes CodeGraph.stats() always returns a dict with 'symbols' key (line 70), but if CodeGraph is uninitialized or crashes, stats() may return empty dict or raise, causing unhandled exception. |
+| P16-5 | low | correctness | `src/caliper/plugins/clamav.py:84-87` | stderr concatenated twice in redundant output parsing. |
+| P17-6 | low | design | `src/caliper/plugins/mypy.py:76-94` | _run_mypy() and _run_pyright() are duplicated code paths with nearly identical structure (subprocess.run, timeout handling, JSON parsing logic). Violation of DRY; makes future bug fixes require changes in two places. |
+| P16-8 | low | correctness | `src/caliper/plugins/scancode.py:56-64` | Timeout error message hardcoded to 60 even though no timeout parameter exists. |
 
 ### P02-1 — Dedup key includes advisory_id which may be None, causing unrelated findings to silently collide and disappear.
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/normalizer.py:40`  
+- **Location:** `src/caliper/core/normalizer.py:40`  
 - **Partition:** P02
 
 **Evidence**
 
 Line 38-45: The dedup logic uses `key = (f.advisory_id, f.category, f.package_name, f.version)`. 
-When advisory_id is None (valid for findings from detectors, e.g., EED-019), two distinct 
+When advisory_id is None (valid for findings from detectors, e.g., CAL-019), two distinct 
 code smell findings collapse under the same key. The higher-severity one wins (line 42-45), 
 but the dedup is silent and incorrect — they should not deduplicate at all.
 
 Per models.py line 137: `advisory_id: str | None = None` — advisory_id is nullable.
-Per EED-019 detector: This exact pattern is flagged as a reliability issue in production code.
+Per CAL-019 detector: This exact pattern is flagged as a reliability issue in production code.
 
 **Fix**
 
@@ -112,13 +112,13 @@ Change line 40 to: `key = (f.advisory_id or "", f.category, f.package_name, f.ve
 
 **Verdict reason**
 
-Line 40 of normalizer.py uses `key = (f.advisory_id, f.category, f.package_name, f.version)` for deduplication. When advisory_id is None (valid for code-smell findings from detectors like EED-019 per line 137 of models.py), two distinct findings collapse under the same key because None is hashable. The higher-severity one wins (line 42-45), but the dedup is incorrect — unrelated findings should not merge. Using `f.advisory_id or ""` ensures None values produce distinct keys.
+Line 40 of normalizer.py uses `key = (f.advisory_id, f.category, f.package_name, f.version)` for deduplication. When advisory_id is None (valid for code-smell findings from detectors like CAL-019 per line 137 of models.py), two distinct findings collapse under the same key because None is hashable. The higher-severity one wins (line 42-45), but the dedup is incorrect — unrelated findings should not merge. Using `f.advisory_id or ""` ensures None values produce distinct keys.
 
 ### P03-1 — OPA command argument order differs from policy.py, placing --format before data.policy instead of after, breaking CLI parsing.
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/opa_adapter.py:65-74`  
+- **Location:** `src/caliper/core/opa_adapter.py:65-74`  
 - **Partition:** P03
 
 **Evidence**
@@ -137,7 +137,7 @@ opa_adapter.py cmd (lines 65-74) places "--format" before "data.policy", while p
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/opa_adapter.py:107-109`  
+- **Location:** `src/caliper/core/opa_adapter.py:107-109`  
 - **Partition:** P03
 
 **Evidence**
@@ -156,7 +156,7 @@ Line 109 uses dict.update(input.config) which replaces the entire "rules_enabled
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/pipeline.py:240-254`  
+- **Location:** `src/caliper/core/pipeline.py:240-254`  
 - **Partition:** P01
 
 **Evidence**
@@ -175,7 +175,7 @@ The finding correctly identifies that the exception handler at lines 239-254 reu
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/repo_config.py:69`  
+- **Location:** `src/caliper/core/repo_config.py:69`  
 - **Partition:** P05
 
 **Evidence**
@@ -196,11 +196,11 @@ Use explicit None checks instead of or: "disabled = pkg_config.plugins.disabled 
 
 Lines 69-70 use "or" operator which treats empty list [] as falsy. If package config explicitly sets disabled: [] to override root disabled: ["trivy"], the merge incorrectly falls back to root value because [] evaluates to False. Same bug on enabled field. Requires explicit None checks.
 
-### P05-6 — SemgrepConfig from package-level .eagle-eyed-dom.yaml is completely ignored during merge
+### P05-6 — SemgrepConfig from package-level .caliper.yaml is completely ignored during merge
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/repo_config.py:68`  
+- **Location:** `src/caliper/core/repo_config.py:68`  
 - **Partition:** P05
 
 **Evidence**
@@ -208,7 +208,7 @@ Lines 69-70 use "or" operator which treats empty list [] as falsy. If package co
 In load_merged_config(), the merged PluginConfig is constructed on line 68-71 
 with only enabled and disabled fields. The semgrep field defaults to 
 SemgrepConfig() (empty lists), completely discarding pkg_config.plugins.semgrep.
-If a package provides extra_config_dirs or exclude_rules in its .eagle-eyed-dom.yaml,
+If a package provides extra_config_dirs or exclude_rules in its .caliper.yaml,
 they are silently lost during the merge. The docstring (lines 54-59) does not mention
 that semgrep config is NOT merged, suggesting this is unintentional.
 
@@ -224,7 +224,7 @@ Lines 68-71 construct merged_plugins with only enabled/disabled fields. SemgrepC
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/seal.py:202`  
+- **Location:** `src/caliper/core/seal.py:202`  
 - **Partition:** P04
 
 **Evidence**
@@ -266,7 +266,7 @@ Line 202 sorts timestamps lexicographically using seals.sort(key=lambda x: x[0])
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/subprocess_runner.py:27-43`  
+- **Location:** `src/caliper/core/subprocess_runner.py:27-43`  
 - **Partition:** P10
 
 **Evidence**
@@ -296,7 +296,7 @@ Lines 27-43 use text=True which decodes subprocess output as UTF-8. If a tool ou
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/version.py:14-16`  
+- **Location:** `src/caliper/core/version.py:14-16`  
 - **Partition:** P10
 
 **Evidence**
@@ -304,14 +304,14 @@ Lines 27-43 use text=True which decodes subprocess output as UTF-8. If a tool ou
 Line 14-16:
 ```python
 def get_version() -> str:
-    """Return the installed eedom version from importlib.metadata."""
-    return importlib.metadata.version("eedom")
+    """Return the installed caliper version from importlib.metadata."""
+    return importlib.metadata.version("caliper")
 ```
-This function is called at module level in src/eedom/core/renderer.py:27:
+This function is called at module level in src/caliper/core/renderer.py:27:
 ```python
 _VERSION = get_version()
 ```
-If the "eedom" package is not installed (or not findable by importlib.metadata), importlib.metadata.version() raises PackageNotFoundError. This exception is not caught, causing the entire renderer module (and any module importing it) to fail to load. This is a fail-open violation: the pipeline should degrade gracefully, not crash during initialization.
+If the "caliper" package is not installed (or not findable by importlib.metadata), importlib.metadata.version() raises PackageNotFoundError. This exception is not caught, causing the entire renderer module (and any module importing it) to fail to load. This is a fail-open violation: the pipeline should degrade gracefully, not crash during initialization.
 
 **Fix**
 
@@ -319,13 +319,13 @@ Catch importlib.metadata.PackageNotFoundError in get_version() and return a sens
 
 **Verdict reason**
 
-Line 16 calls get_version() at module level in renderer.py. Line 14-16 in version.py does not catch importlib.metadata.PackageNotFoundError. If "eedom" package is not installed, this raises PackageNotFoundError during module import, crashing the entire renderer module. Violates fail-open: should degrade gracefully, not crash at initialization.
+Line 16 calls get_version() at module level in renderer.py. Line 14-16 in version.py does not catch importlib.metadata.PackageNotFoundError. If "caliper" package is not installed, this raises PackageNotFoundError during module import, crashing the entire renderer module. Violates fail-open: should degrade gracefully, not crash at initialization.
 
 ### P14-1 — _is_dangerous_merge() logic is contradictory—returns True on line 134 if unpacking exists, even when config-key check on lines 128-132 finds nothing
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/config/config_merge.py:115-134`  
+- **Location:** `src/caliper/detectors/config/config_merge.py:115-134`  
 - **Partition:** P14
 
 **Evidence**
@@ -368,7 +368,7 @@ config_merge.py _is_dangerous_merge() (lines 115-134) returns `has_unpacking` un
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/process/tested_by.py:82-88`  
+- **Location:** `src/caliper/detectors/process/tested_by.py:82-88`  
 - **Partition:** P14
 
 **Evidence**
@@ -403,7 +403,7 @@ tested_by.py lines 82-92 resolve paths with multiple issues. Line 84 `candidate 
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/reliability/subprocess_timeout.py:132-138`  
+- **Location:** `src/caliper/detectors/reliability/subprocess_timeout.py:132-138`  
 - **Partition:** P13
 
 **Evidence**
@@ -422,7 +422,7 @@ subprocess_timeout.py _popen_has_communicate_timeout() (lines 132-139) searches 
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/reliability/transaction_rollback.py:127-135`  
+- **Location:** `src/caliper/detectors/reliability/transaction_rollback.py:127-135`  
 - **Partition:** P13
 
 **Evidence**
@@ -443,7 +443,7 @@ transaction_rollback.py _is_looped_insert() (lines 122-135) uses nested ast.walk
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/_runners/cfn_nag_runner.py:76`  
+- **Location:** `src/caliper/plugins/_runners/cfn_nag_runner.py:76`  
 - **Partition:** P15
 
 **Evidence**
@@ -465,7 +465,7 @@ Line 76 in cfn_nag_runner.py references result.returncode in except ValueError c
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/_runners/graph_builder.py:392`  
+- **Location:** `src/caliper/plugins/_runners/graph_builder.py:392`  
 - **Partition:** P15
 
 **Evidence**
@@ -487,7 +487,7 @@ Line 392 in graph_builder.py dereferences .fetchone()["id"] without null-check. 
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/cdk_nag.py:32-34`  
+- **Location:** `src/caliper/plugins/cdk_nag.py:32-34`  
 - **Partition:** P17
 
 **Evidence**
@@ -506,7 +506,7 @@ cdk_nag.py line 33-34 catches all Exception generically without differentiating 
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/ls_lint.py:47`  
+- **Location:** `src/caliper/plugins/ls_lint.py:47`  
 - **Partition:** P17
 
 **Evidence**
@@ -525,7 +525,7 @@ ls_lint.py line 47 passes timeout=0 to error_msg() despite actual subprocess tim
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/supply_chain.py:292-304`  
+- **Location:** `src/caliper/plugins/supply_chain.py:292-304`  
 - **Partition:** P18
 
 **Evidence**
@@ -548,16 +548,16 @@ Move the `if not manifest_changed:` block INSIDE the for loop so each lock_dir g
 
 supply_chain.py lines 292-304: manifest_changed computed inside loop (line 294) but checked outside loop (line 295). With multiple lock directories, only the last iteration's result is validated; earlier directories' missing manifests are skipped silently.
 
-### P20-1 — WebhookSettings.secret is a required non-Optional field, but _load_app() calls WebhookSettings() without catching MissingConfigError for missing EEDOM_WEBHOOK_SECRET.
+### P20-1 — WebhookSettings.secret is a required non-Optional field, but _load_app() calls WebhookSettings() without catching MissingConfigError for missing CALIPER_WEBHOOK_SECRET.
 
 - **Severity:** high  
 - **Category:** correctness  
-- **Location:** `src/eedom/webhook/config.py:24`  
+- **Location:** `src/caliper/webhook/config.py:24`  
 - **Partition:** P20
 
 **Evidence**
 
-Lines 16-26 define secret: str (no default, no Optional); lines 246-247 construct WebhookSettings() and _bootstrap(EedomSettings()) without error handling for missing env vars; pydantic raises ValidationError if required fields are absent.
+Lines 16-26 define secret: str (no default, no Optional); lines 246-247 construct WebhookSettings() and _bootstrap(CaliperSettings()) without error handling for missing env vars; pydantic raises ValidationError if required fields are absent.
 
 **Fix**
 
@@ -565,13 +565,13 @@ Either (a) provide a default empty string for secret and validate non-empty in w
 
 **Verdict reason**
 
-Line 246 constructs WebhookSettings() without catching ValidationError for missing EEDOM_WEBHOOK_SECRET. If env var is absent, Pydantic raises ValidationError on startup. Error is mitigated by deferred loading (lines 252-265) but still unfriendly.
+Line 246 constructs WebhookSettings() without catching ValidationError for missing CALIPER_WEBHOOK_SECRET. If env var is absent, Pydantic raises ValidationError on startup. Error is mitigated by deferred loading (lines 252-265) but still unfriendly.
 
 ### P20-2 — Webhook enumerates files via rglob() directly instead of using the file_source seam (FileSourcePort), violating the architectural rule "consumers never call rglob/os.walk/git directly."
 
 - **Severity:** high  
 - **Category:** design  
-- **Location:** `src/eedom/webhook/server.py:181-189`  
+- **Location:** `src/caliper/webhook/server.py:181-189`  
 - **Partition:** P20
 
 **Evidence**
@@ -590,7 +590,7 @@ Line 187 uses _repo_path.rglob() directly instead of invoking the file_source se
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/agent/main.py:169-182`  
+- **Location:** `src/caliper/agent/main.py:169-182`  
 - **Partition:** P20
 
 **Evidence**
@@ -609,7 +609,7 @@ Line 180 returns early on first reject found. If decisions list contains multipl
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/diff.py:212`  
+- **Location:** `src/caliper/core/diff.py:212`  
 - **Partition:** P18
 
 **Evidence**
@@ -636,7 +636,7 @@ diff.py line 212 hardcodes "upgraded" on InvalidVersion exception, ignoring actu
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/diff.py:218`  
+- **Location:** `src/caliper/core/diff.py:218`  
 - **Partition:** P18
 
 **Evidence**
@@ -667,7 +667,7 @@ diff.py line 218 else clause (both versions None) is unreachable: if old_ver != 
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/memo.py:116-117`  
+- **Location:** `src/caliper/core/memo.py:116-117`  
 - **Partition:** P02
 
 **Evidence**
@@ -702,7 +702,7 @@ Line 117 of memo.py truncates at a hard character offset: `memo = memo[: _MAX_ME
 
 - **Severity:** medium  
 - **Category:** design  
-- **Location:** `src/eedom/core/opa_adapter.py:86`  
+- **Location:** `src/caliper/core/opa_adapter.py:86`  
 - **Partition:** P03
 
 **Evidence**
@@ -721,7 +721,7 @@ Lines 86, 94, 122, 128, 130, 131 construct PolicyDecision with raw string litera
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/pipeline.py:267-270`  
+- **Location:** `src/caliper/core/pipeline.py:267-270`  
 - **Partition:** P01
 
 **Evidence**
@@ -740,7 +740,7 @@ Lines 269-270 suppress all exceptions from pypi_client.close() with contextlib.s
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/pipeline.py:432-434`  
+- **Location:** `src/caliper/core/pipeline.py:432-434`  
 - **Partition:** P01
 
 **Evidence**
@@ -759,7 +759,7 @@ Lines 433-434 in evaluate_sbom() repeat the identical contextlib.suppress(Except
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/core/registry.py:149`  
+- **Location:** `src/caliper/core/registry.py:149`  
 - **Partition:** P15
 
 **Evidence**
@@ -781,7 +781,7 @@ Line 55 in registry.py silently filters out unknown dependencies with `{d for d 
 
 - **Severity:** medium  
 - **Category:** design  
-- **Location:** `src/eedom/core/seal.py:94`  
+- **Location:** `src/caliper/core/seal.py:94`  
 - **Partition:** P04
 
 **Evidence**
@@ -816,7 +816,7 @@ Line 94 uses datetime.now(UTC).isoformat() without timespec argument, returning 
 
 - **Severity:** medium  
 - **Category:** design  
-- **Location:** `src/eedom/core/subprocess_runner.py:54-63`  
+- **Location:** `src/caliper/core/subprocess_runner.py:54-63`  
 - **Partition:** P10
 
 **Evidence**
@@ -841,7 +841,7 @@ Line 54-63 only catches FileNotFoundError, but subprocess.run() can raise other 
 
 - **Severity:** medium  
 - **Category:** design  
-- **Location:** `src/eedom/core/taskfit_validator.py:185-206`  
+- **Location:** `src/caliper/core/taskfit_validator.py:185-206`  
 - **Partition:** P09
 
 **Evidence**
@@ -860,7 +860,7 @@ Lines 176-189 set recommendation=None when rec_match is None, then lines 201-206
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/ast_utils.py:659-670`  
+- **Location:** `src/caliper/detectors/ast_utils.py:659-670`  
 - **Partition:** P11
 
 **Evidence**
@@ -879,7 +879,7 @@ BatchVisitor.visit() at line 670 calls generic_visit() unconditionally, bypassin
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/config/docker_pin_drift.py:18-19`  
+- **Location:** `src/caliper/detectors/config/docker_pin_drift.py:18-19`  
 - **Partition:** P14
 
 **Evidence**
@@ -908,7 +908,7 @@ docker_pin_drift.py _PIP_PIN_RE regex (line 18) is `r"pip\s+install\b.*=="`. The
 
 - **Severity:** medium  
 - **Category:** design  
-- **Location:** `src/eedom/detectors/findings.py:49-69`  
+- **Location:** `src/caliper/detectors/findings.py:49-69`  
 - **Partition:** P11
 
 **Evidence**
@@ -927,7 +927,7 @@ DetectorFinding preserves line_number and column (lines 25-26), but to_finding()
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/metrics/high_cardinality.py:151-159`  
+- **Location:** `src/caliper/detectors/metrics/high_cardinality.py:151-159`  
 - **Partition:** P14
 
 **Evidence**
@@ -959,7 +959,7 @@ high_cardinality.py _get_high_cardinality_label_kwargs() (lines 151-159) at line
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/reliability/health_check_db.py:156`  
+- **Location:** `src/caliper/detectors/reliability/health_check_db.py:156`  
 - **Partition:** P13
 
 **Evidence**
@@ -978,7 +978,7 @@ health_check_db.py _has_db_verification() (lines 159-177) at line 169 calls _get
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/reliability/path_construction.py:123-136`  
+- **Location:** `src/caliper/detectors/reliability/path_construction.py:123-136`  
 - **Partition:** P13
 
 **Evidence**
@@ -997,7 +997,7 @@ path_construction.py _is_path_concatenation() (lines 121-136) checks line 134-13
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/security/fixed_output_delimiter.py:84-86`  
+- **Location:** `src/caliper/detectors/security/fixed_output_delimiter.py:84-86`  
 - **Partition:** P12
 
 **Evidence**
@@ -1016,7 +1016,7 @@ At line 84, context_start = max(0, i - 4) limits lookback to 4 lines. If GITHUB_
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/security/secret_str.py:76-96`  
+- **Location:** `src/caliper/detectors/security/secret_str.py:76-96`  
 - **Partition:** P12
 
 **Evidence**
@@ -1035,7 +1035,7 @@ Detector only checks ast.AnnAssign nodes (type-annotated assignments) at lines 7
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/security/sql_injection.py:75-76`  
+- **Location:** `src/caliper/detectors/security/sql_injection.py:75-76`  
 - **Partition:** P12
 
 **Evidence**
@@ -1054,7 +1054,7 @@ seen_lines dedup at lines 65-73 skips all calls on already-seen line numbers. If
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/security/sql_injection.py:117-119`  
+- **Location:** `src/caliper/detectors/security/sql_injection.py:117-119`  
 - **Partition:** P12
 
 **Evidence**
@@ -1073,7 +1073,7 @@ At lines 116-119, detector flags ANY .format() call, even `"SELECT * FROM users"
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/security/sql_injection.py:105-109`  
+- **Location:** `src/caliper/detectors/security/sql_injection.py:105-109`  
 - **Partition:** P12
 
 **Evidence**
@@ -1092,7 +1092,7 @@ At line 108, isinstance(query_arg, ast.JoinedStr) returns True for all f-strings
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/_runners/cpd_runner.py:297`  
+- **Location:** `src/caliper/plugins/_runners/cpd_runner.py:297`  
 - **Partition:** P15
 
 **Evidence**
@@ -1114,7 +1114,7 @@ Lines 280-307 in cpd_runner.py: files scanned by PMD (line 297) are counted, the
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/_runners/graph_builder.py:400-403`  
+- **Location:** `src/caliper/plugins/_runners/graph_builder.py:400-403`  
 - **Partition:** P15
 
 **Evidence**
@@ -1136,7 +1136,7 @@ Lines 400-403 in graph_builder.py use .fetchone()["c"] directly on COUNT queries
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/clamav.py:69`  
+- **Location:** `src/caliper/plugins/clamav.py:69`  
 - **Partition:** P16
 
 **Evidence**
@@ -1157,7 +1157,7 @@ Line 69 in clamav.py passes timeout=0 instead of timeout=timeout parameter in er
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/complexity.py:32-35`  
+- **Location:** `src/caliper/plugins/complexity.py:32-35`  
 - **Partition:** P17
 
 **Evidence**
@@ -1176,7 +1176,7 @@ complexity.py run() method has no timeout parameter despite complexity_runner.py
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/cpd.py:50-68`  
+- **Location:** `src/caliper/plugins/cpd.py:50-68`  
 - **Partition:** P17
 
 **Evidence**
@@ -1195,7 +1195,7 @@ cpd.py run() has no timeout parameter and generic Exception handler at line 52. 
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/cspell.py:54-72`  
+- **Location:** `src/caliper/plugins/cspell.py:54-72`  
 - **Partition:** P17
 
 **Evidence**
@@ -1214,7 +1214,7 @@ cspell.py line 77 uses contextlib.suppress() to silently swallow JSON/KeyError/T
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/kube_linter.py:29-40`  
+- **Location:** `src/caliper/plugins/kube_linter.py:29-40`  
 - **Partition:** P17
 
 **Evidence**
@@ -1233,7 +1233,7 @@ kube_linter.py lines 32-33 catch Exception generically without explicit FileNotF
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/osv_scanner.py:106`  
+- **Location:** `src/caliper/plugins/osv_scanner.py:106`  
 - **Partition:** P16
 
 **Evidence**
@@ -1254,28 +1254,28 @@ Line 106 in osv_scanner.py passes timeout=0 instead of timeout=timeout parameter
 
 - **Severity:** medium  
 - **Category:** design  
-- **Location:** `src/eedom/plugins/semgrep.py:59-62`  
+- **Location:** `src/caliper/plugins/semgrep.py:59-62`  
 - **Partition:** P16
 
 **Evidence**
 
 Lines 59-62: timeout hardcoded to 120 in RULE_RUNNERS.create("semgrep").run()
-EedomSettings.scanner_timeout defaults to 60 (core/config.py:73).
+CaliperSettings.scanner_timeout defaults to 60 (core/config.py:73).
 Inconsistent with other plugins and CLAUDE.md timeout=60s invariant.
 
 **Fix**
 
-Accept scanner_timeout from EedomSettings or config injection instead of hardcoded 120.
+Accept scanner_timeout from CaliperSettings or config injection instead of hardcoded 120.
 
 **Verdict reason**
 
-Line 62 in semgrep.py hardcodes timeout=120 instead of using EedomSettings.scanner_timeout (default 60s), inconsistent with CLAUDE.md timeout invariant.
+Line 62 in semgrep.py hardcodes timeout=120 instead of using CaliperSettings.scanner_timeout (default 60s), inconsistent with CLAUDE.md timeout invariant.
 
 ### P16-2 — Timeout error message passes 0 instead of actual timeout value.
 
 - **Severity:** medium  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/syft.py:69`  
+- **Location:** `src/caliper/plugins/syft.py:69`  
 - **Partition:** P16
 
 **Evidence**
@@ -1292,11 +1292,11 @@ Pass the hardcoded timeout value: `error_msg(ErrorCode.TIMEOUT, "syft", timeout=
 
 Line 69 in syft.py passes timeout=0 instead of the hardcoded 120 in error message.
 
-### P20-6 — main() does not validate pr_number > 0 after conversion, allowing pr_number=0 to reach GatekeeperAgent.run() which uses it in API calls, potentially causing silent failures or incorrect routing.
+### P20-6 — main() does not validate pr_number > 0 after conversion, allowing pr_number=0 to reach ForemanAgent.run() which uses it in API calls, potentially causing silent failures or incorrect routing.
 
 - **Severity:** low  
 - **Category:** correctness  
-- **Location:** `src/eedom/agent/main.py:238-271`  
+- **Location:** `src/caliper/agent/main.py:238-271`  
 - **Partition:** P20
 
 **Evidence**
@@ -1305,7 +1305,7 @@ Lines 242-245: pr_number is converted via int() and checked == 0 to raise an err
 
 **Fix**
 
-Change line 243 to `if pr_number <= 0:` or add a validation guard in GatekeeperAgent.run() to reject invalid pr_number values before use.
+Change line 243 to `if pr_number <= 0:` or add a validation guard in ForemanAgent.run() to reject invalid pr_number values before use.
 
 **Verdict reason**
 
@@ -1315,7 +1315,7 @@ Line 243 checks pr_number == 0 but not pr_number < 0. Negative values (e.g., -1)
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/core/actionability.py:37-39`  
+- **Location:** `src/caliper/core/actionability.py:37-39`  
 - **Partition:** P09
 
 **Evidence**
@@ -1330,11 +1330,11 @@ Refactor to single iteration: `crit_blocked = high_blocked = 0; crit_high_blocke
 
 Lines 37-39 iterate the blocked list three times independently: each generator expression `sum(1 for f in blocked if ...)` walks the entire list. This is O(3n) when a single pass with counters would be O(n). While lists are typically small, the inefficiency is real and the fix is straightforward.
 
-### P06-3 — Budget exhaustion logs once per enricher per finding, creating excessive log spam when timeout occurs early in multi-finding batch.
+### P06-3 — Budget exhaustion logs once per scribe per finding, creating excessive log spam when timeout occurs early in multi-finding batch.
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/core/enrich.py:40`  
+- **Location:** `src/caliper/core/scribe.py:40`  
 - **Partition:** P06
 
 **Evidence**
@@ -1342,13 +1342,13 @@ Lines 37-39 iterate the blocked list three times independently: each generator e
 Lines 39-41:
 ```python
 if time.monotonic() > deadline:
-    logger.warning("enrich.budget_exhausted", enricher=getattr(enricher, "name", "?"))
+    logger.warning("scribe.budget_exhausted", scribe=getattr(scribe, "name", "?"))
     break
 ```
 
-When enrichment_timeout is short or a single enricher is slow (e.g., code_graph build), 
-the deadline can be exceeded on the first enricher of the first finding. Then for every subsequent 
-finding and enricher, this warning fires again. With 100 findings × 2 enrichers and 30s timeout, 
+When scribe_timeout is short or a single scribe is slow (e.g., code_graph build), 
+the deadline can be exceeded on the first scribe of the first finding. Then for every subsequent 
+finding and scribe, this warning fires again. With 100 findings × 2 scribes and 30s timeout, 
 you could see 200 identical warnings.
 
 **Fix**
@@ -1358,10 +1358,10 @@ Track whether we've already logged budget exhaustion for this pass:
 budget_exhausted_logged = False
 for finding in findings:
     current = finding
-    for enricher in enrichers:
+    for scribe in scribes:
         if time.monotonic() > deadline:
             if not budget_exhausted_logged:
-                logger.warning("enrich.budget_exhausted", enrichers_remaining=len(enrichers) - enrichers.index(enricher))
+                logger.warning("scribe.budget_exhausted", scribes_remaining=len(scribes) - scribes.index(scribe))
                 budget_exhausted_logged = True
             break
 ```
@@ -1369,13 +1369,13 @@ Or log once at the start of the outer loop when budget is detected as exceeded.
 
 **Verdict reason**
 
-Lines 39-41 of enrich.py log "budget_exhausted" on EVERY finding/enricher pair after deadline, not just once. With 100 findings × 2 enrichers, creates ~200 identical log entries. Design issue, not correctness (enrichment still works).
+Lines 39-41 of scribe.py log "budget_exhausted" on EVERY finding/scribe pair after deadline, not just once. With 100 findings × 2 scribes, creates ~200 identical log entries. Design issue, not correctness (scribe still works).
 
 ### P10-5 — FakePolicyEngine.evaluate() returns bare verdict string, not DecisionVerdict enum
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/core/fake.py:24-25`  
+- **Location:** `src/caliper/core/fake.py:24-25`  
 - **Partition:** P10
 
 **Evidence**
@@ -1399,7 +1399,7 @@ Line 24-25 returns `PolicyDecision(verdict="approve")` as a raw string literal. 
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/core/opa_adapter.py:80-86`  
+- **Location:** `src/caliper/core/opa_adapter.py:80-86`  
 - **Partition:** P03
 
 **Evidence**
@@ -1418,7 +1418,7 @@ Lines 80-81 catch Exception and call log.error(). CLAUDE.md fail-open philosophy
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/core/sbom_diff.py:136-145`  
+- **Location:** `src/caliper/core/sbom_diff.py:136-145`  
 - **Partition:** P18
 
 **Evidence**
@@ -1446,7 +1446,7 @@ sbom_diff.py line 145 uses lexicographic string comparison ("10" < "2" is True) 
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/core/supply_chain_diff.py:140-150`  
+- **Location:** `src/caliper/core/supply_chain_diff.py:140-150`  
 - **Partition:** P18
 
 **Evidence**
@@ -1456,7 +1456,7 @@ Lines 140-150:
   if not vd.available:
       return [_finding(..., message=(...f"{{vd.error}}"...),)]
   ```
-The error is buried in the `message` field; no structured `error_code` or `error_type` exists in metadata. Downstream tools like GATEKEEPER PR comments or log aggregation systems cannot easily filter by "this was a timeout, please retry" vs "this was a 404, package doesn't exist".
+The error is buried in the `message` field; no structured `error_code` or `error_type` exists in metadata. Downstream tools like Foreman PR comments or log aggregation systems cannot easily filter by "this was a timeout, please retry" vs "this was a 404, package doesn't exist".
 
 **Fix**
 
@@ -1470,7 +1470,7 @@ supply_chain_diff.py lines 140-150 embeds error detail only in message string, n
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/core/use_cases.py:45`  
+- **Location:** `src/caliper/core/use_cases.py:45`  
 - **Partition:** P01
 
 **Evidence**
@@ -1489,7 +1489,7 @@ Line 44 of use_cases.py defines `results: list` with no element type, inconsiste
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/core/use_cases.py:33-34`  
+- **Location:** `src/caliper/core/use_cases.py:33-34`  
 - **Partition:** P01
 
 **Evidence**
@@ -1508,7 +1508,7 @@ Line 34 of use_cases.py defines `categories: list | None = None` with no element
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/detectors/config/config_merge.py:159-171`  
+- **Location:** `src/caliper/detectors/config/config_merge.py:159-171`  
 - **Partition:** P14
 
 **Evidence**
@@ -1549,7 +1549,7 @@ config_merge.py _is_config_key() (lines 159-171) uses substring matching `any(k 
 
 - **Severity:** low  
 - **Category:** correctness  
-- **Location:** `src/eedom/detectors/reliability/cache_eviction.py:95-96`  
+- **Location:** `src/caliper/detectors/reliability/cache_eviction.py:95-96`  
 - **Partition:** P13
 
 **Evidence**
@@ -1570,7 +1570,7 @@ cache_eviction.py _has_unbounded_cache() (line 95) checks `has_maxsize = any(kw.
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/detectors/security/rate_limiting.py:135-143`  
+- **Location:** `src/caliper/detectors/security/rate_limiting.py:135-143`  
 - **Partition:** P12
 
 **Evidence**
@@ -1589,7 +1589,7 @@ Duplicate glob implementation. ast_utils.py has matches_pattern() (line 142-152)
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/plugins/_runners/kube_linter_runner.py:66`  
+- **Location:** `src/caliper/plugins/_runners/kube_linter_runner.py:66`  
 - **Partition:** P15
 
 **Evidence**
@@ -1610,7 +1610,7 @@ Line 66 in kube_linter_runner.py hardcodes timeout=60 in error message instead o
 
 - **Severity:** low  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/blast_radius.py:68-73`  
+- **Location:** `src/caliper/plugins/blast_radius.py:68-73`  
 - **Partition:** P17
 
 **Evidence**
@@ -1629,7 +1629,7 @@ blast_radius.py line 70 directly accesses graph.stats()["symbols"] without valid
 
 - **Severity:** low  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/clamav.py:84-87`  
+- **Location:** `src/caliper/plugins/clamav.py:84-87`  
 - **Partition:** P16
 
 **Evidence**
@@ -1651,7 +1651,7 @@ Line 87 in clamav.py adds stderr to full_output again, when stderr was already i
 
 - **Severity:** low  
 - **Category:** design  
-- **Location:** `src/eedom/plugins/mypy.py:76-94`  
+- **Location:** `src/caliper/plugins/mypy.py:76-94`  
 - **Partition:** P17
 
 **Evidence**
@@ -1670,7 +1670,7 @@ mypy.py lines 76-139 duplicate subprocess orchestration (_run_mypy and _run_pyri
 
 - **Severity:** low  
 - **Category:** correctness  
-- **Location:** `src/eedom/plugins/scancode.py:56-64`  
+- **Location:** `src/caliper/plugins/scancode.py:56-64`  
 - **Partition:** P16
 
 **Evidence**
@@ -1692,24 +1692,24 @@ Line 63 in scancode.py hardcodes timeout=60 in error message. Unlike other plugi
 
 | ID | File:line | Claim | Why uncertain |
 |----|-----------|-------|---------------|
-| P19-6 | `src/eedom/cli/main.py:400-408` | Diff file path parsing via string split on "b/" is fragile and does not validate against path traversal or symlink escapes before constructing full paths. | Diff parsing via line.split(" b/") is fragile with filenames containing " b/" sequences. However, line 402 validates is_relative_to() which rejects paths escaping repo boundary, mitigating but not eliminating the issue. Proper diff parser would be safer. |
-| P03-4 | `src/eedom/core/opa_adapter.py:98-114` | _build_opa_input selects only first package from input.packages list with silent fallback to empty dict, but doesn't validate non-empty. | Line 112 uses input.packages[0] with no validation that the list is non-empty. While the fallback to {} is safe, the silent selection of only the first package when multiple exist is design-questionable and undocumented. Would benefit from explicit validation or logging. |
-| P03-5 | `src/eedom/core/policy.py:237-239` | _map_decision logic gates warn->approve_with_constraints on both "raw==approve_with_constraints" AND "(len(deny)==0 and len(warn)>0)", creating redundancy and confusing intent. | Decision logic at lines 257-258 uses OR for two conditions, creating potential ambiguity if OPA returns malformed output (e.g., raw="reject" but deny list is empty). However, actual OPA policy.rego likely prevents this case, making it defense-in-depth uncertainty rather than confirmed bug. |
-| P07-1 | `src/eedom/core/review_summary.py:101` | Skipped plugins' findings are incorrectly counted in verdict statistics | Lines 101-102 of review_summary.py increment skipped counter but lack continue, allowing skipped plugins' findings to flow through to counts (lines 104-116). Semantic bug IF skipped plugins carry findings (which shouldn't happen by design). Tests only cover empty findings. Defensive fix warranted but depends on whether skipped-with-findings is possible in practice. |
-| P04-2 | `src/eedom/core/telemetry.py:37` | Regex for path detection does not match paths with colons (e.g., Windows `C:\foo`) when preceded by certain characters, and does not handle many valid path formats. | Line 37 regex _FILE_PATH_RE has limited boundary detection. The lookahead class [\s\(\"'] omits commas, backticks, and other delimiters. However, the validator at line 150 is called on truncated stack traces post-processing where paths are already partially sanitized. Real-world impact depends on actual error message formats in telemetry — requires integration testing to confirm. |
-| P16-7 | `src/eedom/plugins/trivy.py:48-56` | Timeout handling inconsistent: trivy uses ToolRunnerPort abstraction but osv_scanner/syft use raw subprocess.run directly. | Design inconsistency noted: trivy uses SubprocessToolRunner abstraction, but osv_scanner/syft/clamav use raw subprocess.run. This is architectural, not a fail-open violation or functional bug. |
-| P06-2 | `src/eedom/core/llm_client.py:45` | LlmClient creates httpx.Client without context manager or __enter__/__exit__, causing resource leak on exception. | LlmClient lacks __enter__/__exit__ and callers never call close(), but this is acceptable for transient clients without persistent resources (httpx.Client sockets cleaned by GC). Not production-critical since LLM is optional/disabled by default. Defensive practice suggested, not a correctness bug. |
-| P04-5 | `src/eedom/core/telemetry.py:112-113` | _strip_paths_from_text() modifies stack_summary but does not validate that stripped result is still privacy-safe. | Validator at line 150 calls _strip_paths_from_text() but doesn't validate the output contains no paths. If regex fails due to P04-2 limitations, unstripped paths leak through. However, this is a validation issue on telemetry (privacy-sensitive) data; real impact depends on regex efficacy and whether telemetry is enabled in practice. |
-| P12-4 | `src/eedom/detectors/security/jwt_audience.py:76-103` | Overly conservative false-negative suppression masks potential issues with dynamic payloads | By design, returns True (no finding) when payload is not a dict literal (line 103). Per CLAUDE.md, deterministic analysis is static-only, and comment (line 102) confirms "we only flag known issues." This is intentional conservative strategy, not a bug—whether to flag dynamic payloads is a spec/design question. |
-| P15-6 | `src/eedom/plugins/_runners/complexity_runner.py:185` | Duplicate cleanup of radon failures silently suppresses errors that should be logged at warning level. | Radon timeout/missing errors logged at debug level (line 206) rather than warning. This is a logging policy choice, not a fail-open violation; fail-open is preserved. |
+| P19-6 | `src/caliper/cli/main.py:400-408` | Diff file path parsing via string split on "b/" is fragile and does not validate against path traversal or symlink escapes before constructing full paths. | Diff parsing via line.split(" b/") is fragile with filenames containing " b/" sequences. However, line 402 validates is_relative_to() which rejects paths escaping repo boundary, mitigating but not eliminating the issue. Proper diff parser would be safer. |
+| P03-4 | `src/caliper/core/opa_adapter.py:98-114` | _build_opa_input selects only first package from input.packages list with silent fallback to empty dict, but doesn't validate non-empty. | Line 112 uses input.packages[0] with no validation that the list is non-empty. While the fallback to {} is safe, the silent selection of only the first package when multiple exist is design-questionable and undocumented. Would benefit from explicit validation or logging. |
+| P03-5 | `src/caliper/core/policy.py:237-239` | _map_decision logic gates warn->approve_with_constraints on both "raw==approve_with_constraints" AND "(len(deny)==0 and len(warn)>0)", creating redundancy and confusing intent. | Decision logic at lines 257-258 uses OR for two conditions, creating potential ambiguity if OPA returns malformed output (e.g., raw="reject" but deny list is empty). However, actual OPA policy.rego likely prevents this case, making it defense-in-depth uncertainty rather than confirmed bug. |
+| P07-1 | `src/caliper/core/review_summary.py:101` | Skipped plugins' findings are incorrectly counted in verdict statistics | Lines 101-102 of review_summary.py increment skipped counter but lack continue, allowing skipped plugins' findings to flow through to counts (lines 104-116). Semantic bug IF skipped plugins carry findings (which shouldn't happen by design). Tests only cover empty findings. Defensive fix warranted but depends on whether skipped-with-findings is possible in practice. |
+| P04-2 | `src/caliper/core/telemetry.py:37` | Regex for path detection does not match paths with colons (e.g., Windows `C:\foo`) when preceded by certain characters, and does not handle many valid path formats. | Line 37 regex _FILE_PATH_RE has limited boundary detection. The lookahead class [\s\(\"'] omits commas, backticks, and other delimiters. However, the validator at line 150 is called on truncated stack traces post-processing where paths are already partially sanitized. Real-world impact depends on actual error message formats in telemetry — requires integration testing to confirm. |
+| P16-7 | `src/caliper/plugins/trivy.py:48-56` | Timeout handling inconsistent: trivy uses ToolRunnerPort abstraction but osv_scanner/syft use raw subprocess.run directly. | Design inconsistency noted: trivy uses SubprocessToolRunner abstraction, but osv_scanner/syft/clamav use raw subprocess.run. This is architectural, not a fail-open violation or functional bug. |
+| P06-2 | `src/caliper/core/llm_client.py:45` | LlmClient creates httpx.Client without context manager or __enter__/__exit__, causing resource leak on exception. | LlmClient lacks __enter__/__exit__ and callers never call close(), but this is acceptable for transient clients without persistent resources (httpx.Client sockets cleaned by GC). Not production-critical since LLM is optional/disabled by default. Defensive practice suggested, not a correctness bug. |
+| P04-5 | `src/caliper/core/telemetry.py:112-113` | _strip_paths_from_text() modifies stack_summary but does not validate that stripped result is still privacy-safe. | Validator at line 150 calls _strip_paths_from_text() but doesn't validate the output contains no paths. If regex fails due to P04-2 limitations, unstripped paths leak through. However, this is a validation issue on telemetry (privacy-sensitive) data; real impact depends on regex efficacy and whether telemetry is enabled in practice. |
+| P12-4 | `src/caliper/detectors/security/jwt_audience.py:76-103` | Overly conservative false-negative suppression masks potential issues with dynamic payloads | By design, returns True (no finding) when payload is not a dict literal (line 103). Per CLAUDE.md, deterministic analysis is static-only, and comment (line 102) confirms "we only flag known issues." This is intentional conservative strategy, not a bug—whether to flag dynamic payloads is a spec/design question. |
+| P15-6 | `src/caliper/plugins/_runners/complexity_runner.py:185` | Duplicate cleanup of radon failures silently suppresses errors that should be logged at warning level. | Radon timeout/missing errors logged at debug level (line 206) rather than warning. This is a logging policy choice, not a fail-open violation; fail-open is preserved. |
 
 ## Methodology
 
-- **Partitioning:** `src/eedom` was sharded into 20 partitions (P01–P20), each reviewed independently by a Haiku reviewer agent. The partition map is recorded in the JSON `partitions` array.
+- **Partitioning:** `src/caliper` was sharded into 20 partitions (P01–P20), each reviewed independently by a Haiku reviewer agent. The partition map is recorded in the JSON `partitions` array.
 - **Challenge pass:** the candidate findings were grouped into 9 challenger batches (batch-01–batch-09). Each Haiku challenger attempted to refute every finding it received and recorded a final verdict and severity.
 - **Models:** both the reviewer and the challenger passes ran on Haiku. No dedicated verifier model was used; the challenger pass serves as the verification step.
 - **Severity:** when the challenger recorded a final severity it takes precedence over the reviewer's; confirmed findings are ranked high > medium > low, then by file path.
-- **Fixtures excluded:** `tests/e2e/fixtures/` holds intentionally pinned old dependencies used as scan-target inputs and is not eedom's own code; it was excluded from the review scope.
+- **Fixtures excluded:** `tests/e2e/fixtures/` holds intentionally pinned old dependencies used as scan-target inputs and is not caliper's own code; it was excluded from the review scope.
 
 ### Blind spot
 

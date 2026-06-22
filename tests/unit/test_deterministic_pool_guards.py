@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files where ConnectionPool must have explicit max_size (issue #186)
 _CONNECTION_POOL_FILES: tuple[Path, ...] = (_SRC / "data" / "db.py",)

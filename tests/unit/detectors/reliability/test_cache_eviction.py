@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.reliability.cache_eviction import CacheEvictionDetector
+from caliper.detectors.reliability.cache_eviction import CacheEvictionDetector
 
 
 class TestCacheEvictionDetector:
-    """Tests for CacheEvictionDetector (EED-006)."""
+    """Tests for CacheEvictionDetector (CAL-006)."""
 
     @pytest.fixture
     def detector(self):
@@ -35,7 +35,7 @@ def get_data(key):
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-006"
+        assert findings[0].detector_id == "CAL-006"
         assert "without maxsize" in findings[0].message
 
     def test_detects_lru_cache_without_maxsize(self, detector):
@@ -125,7 +125,7 @@ def get_data(key):
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1, "@lru_cache(maxsize=None) must be flagged as an unbounded cache"
-        assert findings[0].detector_id == "EED-006"
+        assert findings[0].detector_id == "CAL-006"
 
     def test_lru_cache_maxsize_128_not_flagged(self, detector):
         """P13-10: @lru_cache(maxsize=128) must NOT be flagged (no regression)."""

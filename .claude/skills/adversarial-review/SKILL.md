@@ -40,7 +40,7 @@ verifier. Generation is cheap and parallel; the challenger is what determines pr
 Evidence (`docs/reviews/grounded-full-20-2026-06-22.*` + `grounding-conclusions-2026-06-22.md`):
 a Haiku challenger over-confirmed **57%** of findings, inflating every result until an Opus
 adjudication caught it. Hence the defaults: **Haiku reviewers, Sonnet challenger, Opus
-delta-adjudicator.** Grounding (`eedom ground`) ~doubles a cheap reviewer's true precision —
+delta-adjudicator.** Grounding (`caliper ground`) ~doubles a cheap reviewer's true precision —
 keep it **lean** (prefer signatures over code snippets, cap symbols) and keep the
 self-refutation discipline; both live in `templates/reviewer-brief.md`. Keep the reviewer
 **monolithic per-partition** — per-file decomposition is a proven anti-pattern (it removes the
@@ -50,14 +50,14 @@ refutation discipline and Haiku free-associates).
 
 ### 0. Setup
 - `mkdir -p .temp/review/raw .temp/review/verified`.
-- Confirm `.temp/` is gitignored (it is the standard eedom scratch mount). If not, use another ignored scratch dir.
+- Confirm `.temp/` is gitignored (it is the standard caliper scratch mount). If not, use another ignored scratch dir.
 
 ### 1. Partition the target
 Launch **one `Explore` agent** to map the target into review partitions. Rules:
 - Each partition ≲ **2,000 lines** so a small model can read it fully.
 - Group by cohesion (a subpackage, a feature, related files), not alphabetically.
 - Every source file lands in exactly one partition. Exclude vendored code,
-  generated files, and **test fixtures** (`tests/e2e/fixtures/**` in eedom — intentionally-pinned vuln inputs, never findings).
+  generated files, and **test fixtures** (`tests/e2e/fixtures/**` in caliper — intentionally-pinned vuln inputs, never findings).
 - Produce a numbered list `P01..PNN` each with an explicit file list.
 
 For a diff target, partition only the changed files (+ their direct call sites).
@@ -65,7 +65,7 @@ For a diff target, partition only the changed files (+ their direct call sites).
 ### 1.5 Generate grounding bundles (one per partition)
 Grounding is what makes the cheap reviewer accurate; produce a bundle per partition that the
 reviewer consults as ground truth (`.temp/review/grounding/partition-NN.json`):
-- **eedom repos** — the gated feature: `EEDOM_GROUNDING_ENABLED=1 EEDOM_DB_DSN=<any-dsn> eedom
+- **caliper repos** — the gated feature: `CALIPER_GROUNDING_ENABLED=1 CALIPER_DB_DSN=<any-dsn> caliper
   ground --files <partition files...> --out .temp/review/grounding/partition-NN.json`
   (codegraph/gitnexus providers; emits `{fact_sheet, type_context}`).
 - **any other repo** — the portable fallback: `python
@@ -79,12 +79,12 @@ is unavailable (flag off, no tool), proceed ungrounded with an empty bundle; rev
 Launch **one agent per partition**, batched into single messages for concurrency,
 `run_in_background: true`. Build each prompt from
 `templates/reviewer-brief.md`, substituting: partition id, file list, the `focus`
-set, the project invariants (for eedom: pull the bullet list from `CLAUDE.md`
+set, the project invariants (for caliper: pull the bullet list from `CLAUDE.md`
 — fail-open, `cli→core→data` import direction, enums-not-strings, typed Pydantic
 boundaries, config-driven timeouts, highest-severity-wins dedup, OPA `input.pkg`),
 the partition's grounding bundle into `{{GROUNDING_BUNDLE}}`, and the don't-flag
 ledger into `{{LEDGER}}` (= `templates/ledger-universal.md` + the project's
-`.eedom/adversarial-ledger.md`, both verbatim). The reviewer-brief requires the
+`.caliper/adversarial-ledger.md`, both verbatim). The reviewer-brief requires the
 `guard_checked` / `why_not_intended` self-refutation fields — keep them.
 Each agent **writes** `.temp/review/raw/partition-NN.json` (one JSON object per the
 reviewer-brief schema) and returns only its count.
@@ -100,7 +100,7 @@ this is the precision-determining stage).** Each reads the candidate findings AN
 the cited source, and emits a verdict per finding: `CONFIRMED` / `FALSE_POSITIVE`
 / `UNCERTAIN` with a one-line reason. Output `.temp/review/verified/batch-NN.md`.
 Inject the don't-flag ledger (`templates/ledger-universal.md` + the project's
-`.eedom/adversarial-ledger.md`) so the challenger applies the same priors.
+`.caliper/adversarial-ledger.md`) so the challenger applies the same priors.
 Challengers are told the reviewers were incentivized to over-report and that their
 job is to break weak findings. Findings on excluded fixtures → `FALSE_POSITIVE`.
 **Recall backstop (load-bearing):** a finding about a *missing* except / timeout / guard

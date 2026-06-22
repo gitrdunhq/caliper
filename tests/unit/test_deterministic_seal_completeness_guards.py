@@ -34,7 +34,7 @@ pytestmark = pytest.mark.xfail(
 
 def _setup_sealed_dir(base: Path) -> Path:
     """Create a minimal sealed evidence directory with one legitimate file."""
-    from eedom.core.seal import create_seal
+    from caliper.core.seal import create_seal
 
     evidence_dir = base / "evidence"
     evidence_dir.mkdir()
@@ -56,7 +56,7 @@ def test_264_verify_seal_fails_when_file_added_after_sealing(tmp_path: Path) -> 
     When the bug is fixed, the injected file will be detected and verify_seal()
     will return {"valid": False, ...}.
     """
-    from eedom.core.seal import verify_seal
+    from caliper.core.seal import verify_seal
 
     evidence_dir = _setup_sealed_dir(tmp_path)
 
@@ -87,7 +87,7 @@ def test_264_verify_seal_reports_injected_file_in_errors(tmp_path: Path) -> None
     problematic.  The errors list must include a reference to the injected file
     so that the incident can be investigated.
     """
-    from eedom.core.seal import verify_seal
+    from caliper.core.seal import verify_seal
 
     evidence_dir = _setup_sealed_dir(tmp_path)
     (evidence_dir / "injected.json").write_text('{"malicious": true}')

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.core.memo import _MAX_MEMO_LENGTH, generate_memo
-from eedom.core.models import (
+from caliper.core.memo import _MAX_MEMO_LENGTH, generate_memo
+from caliper.core.models import (
     DecisionVerdict,
     Finding,
     FindingCategory,

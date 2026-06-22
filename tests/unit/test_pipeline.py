@@ -1,4 +1,4 @@
-"""Tests for eedom.core.pipeline — ReviewPipeline."""
+"""Tests for caliper.core.pipeline — ReviewPipeline."""
 
 # tested-by: tests/unit/test_pipeline.py
 
@@ -52,7 +52,7 @@ class _FakePyPI:
 
 def _fake_pipeline_context(scanners=None):
     """An all-fake ApplicationContext with the pipeline collaborators wired."""
-    from eedom.composition.bootstrap import bootstrap_test
+    from caliper.composition.bootstrap import bootstrap_test
 
     ctx = bootstrap_test()
     ctx.scanners = scanners if scanners is not None else []
@@ -86,10 +86,10 @@ index 000..111 100644
 
 
 def _make_config(tmp_path: Path):
-    """Build a minimal EedomSettings pointing at tmp_path."""
-    from eedom.core.config import EedomSettings
+    """Build a minimal CaliperSettings pointing at tmp_path."""
+    from caliper.core.config import CaliperSettings
 
-    return EedomSettings(
+    return CaliperSettings(
         db_dsn="postgresql://test:test@localhost/test",
         evidence_path=str(tmp_path / "evidence"),
         opa_policy_path=str(tmp_path / "policies"),
@@ -104,7 +104,7 @@ class TestReviewPipelineNoDependencyChanges:
 
     def test_no_dependency_changes_returns_empty_list(self, tmp_path: Path) -> None:
         """When the diff has no dependency files, evaluate returns []."""
-        from eedom.core.pipeline import ReviewPipeline
+        from caliper.core.pipeline import ReviewPipeline
 
         config = _make_config(tmp_path)
         pipeline = ReviewPipeline(config)
@@ -113,7 +113,9 @@ class TestReviewPipelineNoDependencyChanges:
             diff_text=DIFF_NO_DEPS,
             pr_url="https://github.com/org/repo/pull/1",
             team="platform",
-            mode=__import__("eedom.core.models", fromlist=["OperatingMode"]).OperatingMode.monitor,
+            mode=__import__(
+                "caliper.core.models", fromlist=["OperatingMode"]
+            ).OperatingMode.monitor,
             repo_path=tmp_path,
         )
 
@@ -121,8 +123,8 @@ class TestReviewPipelineNoDependencyChanges:
 
     def test_empty_diff_returns_empty_list(self, tmp_path: Path) -> None:
         """An empty diff string returns no decisions."""
-        from eedom.core.models import OperatingMode
-        from eedom.core.pipeline import ReviewPipeline
+        from caliper.core.models import OperatingMode
+        from caliper.core.pipeline import ReviewPipeline
 
         config = _make_config(tmp_path)
         pipeline = ReviewPipeline(config)
@@ -143,7 +145,7 @@ class TestReviewPipelineConstruction:
 
     def test_constructor_does_not_raise(self, tmp_path: Path) -> None:
         """Importing and constructing ReviewPipeline with valid config raises nothing."""
-        from eedom.core.pipeline import ReviewPipeline
+        from caliper.core.pipeline import ReviewPipeline
 
         config = _make_config(tmp_path)
         pipeline = ReviewPipeline(config)
@@ -152,10 +154,10 @@ class TestReviewPipelineConstruction:
 
     def test_scanner_constructors_are_correct(self, tmp_path: Path) -> None:
         """Scanner instantiation with correct signatures does not raise."""
-        from eedom.data.scanners.osv import OsvScanner
-        from eedom.data.scanners.scancode import ScanCodeScanner
-        from eedom.data.scanners.syft import SyftScanner
-        from eedom.data.scanners.trivy import TrivyScanner
+        from caliper.data.scanners.osv import OsvScanner
+        from caliper.data.scanners.scancode import ScanCodeScanner
+        from caliper.data.scanners.syft import SyftScanner
+        from caliper.data.scanners.trivy import TrivyScanner
 
         evidence_dir = tmp_path / "evidence"
         evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -177,11 +179,11 @@ class TestReviewPipelineTimeoutEnforcement:
 
     def test_timeout_breaks_loop(self, tmp_path: Path) -> None:
         """When pipeline_timeout=0, the loop exits before processing any package."""
-        from eedom.core.config import EedomSettings
-        from eedom.core.models import OperatingMode
-        from eedom.core.pipeline import ReviewPipeline
+        from caliper.core.config import CaliperSettings
+        from caliper.core.models import OperatingMode
+        from caliper.core.pipeline import ReviewPipeline
 
-        config = EedomSettings(
+        config = CaliperSettings(
             db_dsn="postgresql://test:test@localhost/test",
             evidence_path=str(tmp_path / "evidence"),
             opa_policy_path=str(tmp_path / "policies"),
@@ -194,7 +196,7 @@ class TestReviewPipelineTimeoutEnforcement:
 
         # Patch orchestrator.run to return empty results quickly
         with patch(
-            "eedom.core.pipeline.ScanOrchestrator.run",
+            "caliper.core.pipeline.ScanOrchestrator.run",
             return_value=[],
         ):
             decisions = pipeline.evaluate(
@@ -213,8 +215,8 @@ class TestReviewPipelineRequiresContext:
     """The pipeline raises a clear error if it reaches real work without a context."""
 
     def test_evaluate_without_context_raises_on_real_changes(self, tmp_path: Path) -> None:
-        from eedom.core.models import OperatingMode
-        from eedom.core.pipeline import ReviewPipeline
+        from caliper.core.models import OperatingMode
+        from caliper.core.pipeline import ReviewPipeline
 
         config = _make_config(tmp_path)
         # No context, but the diff carries real dependency changes.
@@ -232,12 +234,12 @@ class TestReviewPipelineUsesInjectedCollaborators:
     """End-to-end-ish: the pipeline drives the injected fakes, no data imports."""
 
     def test_injected_repo_and_pypi_are_closed(self, tmp_path: Path) -> None:
-        from eedom.core.models import OperatingMode
-        from eedom.core.pipeline import ReviewPipeline
+        from caliper.core.models import OperatingMode
+        from caliper.core.pipeline import ReviewPipeline
 
         config = _make_config(tmp_path)
         ctx = _fake_pipeline_context()
-        with patch("eedom.core.pipeline.ScanOrchestrator.run", return_value=[]):
+        with patch("caliper.core.pipeline.ScanOrchestrator.run", return_value=[]):
             ReviewPipeline(config, context=ctx).evaluate(
                 diff_text=DIFF_WITH_REQUIREMENTS,
                 pr_url="https://github.com/org/repo/pull/1",
@@ -255,8 +257,8 @@ class TestCountTransitiveDepsFromScan:
 
     def test_extracts_count_from_syft_message(self) -> None:
         """Parses component count from well-formed Syft message."""
-        from eedom.core.models import ScanResult, ScanResultStatus
-        from eedom.core.pipeline_helpers import count_transitive_deps_from_scan
+        from caliper.core.models import ScanResult, ScanResultStatus
+        from caliper.core.pipeline_helpers import count_transitive_deps_from_scan
 
         results = [
             ScanResult(
@@ -272,14 +274,14 @@ class TestCountTransitiveDepsFromScan:
 
     def test_returns_none_when_syft_not_in_results(self) -> None:
         """Returns None when no Syft result is present."""
-        from eedom.core.pipeline_helpers import count_transitive_deps_from_scan
+        from caliper.core.pipeline_helpers import count_transitive_deps_from_scan
 
         assert count_transitive_deps_from_scan([]) is None
 
     def test_returns_none_when_syft_failed(self) -> None:
         """Returns None when Syft result status is failed."""
-        from eedom.core.models import ScanResult, ScanResultStatus
-        from eedom.core.pipeline_helpers import count_transitive_deps_from_scan
+        from caliper.core.models import ScanResult, ScanResultStatus
+        from caliper.core.pipeline_helpers import count_transitive_deps_from_scan
 
         results = [
             ScanResult(
@@ -306,9 +308,9 @@ class TestPolicyEvaluationConstraintsRegression:
         populated (regression for P03-3: previously constraints was always [])."""
         from unittest.mock import MagicMock
 
-        from eedom.core.models import DecisionVerdict, PolicyEvaluation
-        from eedom.core.pipeline import _policy_evaluation
-        from eedom.core.policy_port import PolicyDecision
+        from caliper.core.models import DecisionVerdict, PolicyEvaluation
+        from caliper.core.pipeline import _policy_evaluation
+        from caliper.core.policy_port import PolicyDecision
 
         warn_msgs = ["package age < 30 days", "high transitive dep count"]
 
@@ -336,9 +338,9 @@ class TestPolicyEvaluationConstraintsRegression:
         """constraints must be empty when OPA approves unconditionally."""
         from unittest.mock import MagicMock
 
-        from eedom.core.models import DecisionVerdict
-        from eedom.core.pipeline import _policy_evaluation
-        from eedom.core.policy_port import PolicyDecision
+        from caliper.core.models import DecisionVerdict
+        from caliper.core.pipeline import _policy_evaluation
+        from caliper.core.policy_port import PolicyDecision
 
         fake_engine = MagicMock()
         fake_engine.evaluate.return_value = PolicyDecision(
@@ -382,8 +384,8 @@ class TestEvaluateSbomCommitShaRegression:
         commit SHA (not None).  Before the fix, commit_sha was never assigned
         inside evaluate_sbom(), so audit/parquet records had no commit reference.
         """
-        from eedom.core.models import OperatingMode
-        from eedom.core.pipeline import ReviewPipeline
+        from caliper.core.models import OperatingMode
+        from caliper.core.pipeline import ReviewPipeline
 
         config = _make_config(tmp_path)
         ctx = _fake_pipeline_context()
@@ -402,8 +404,8 @@ class TestEvaluateSbomCommitShaRegression:
         fixed_sha = "deadbeef1234567890abcdef12345678deadbeef"
 
         with (
-            patch("eedom.core.pipeline.ScanOrchestrator.run", return_value=[]),
-            patch("eedom.core.pipeline.resolve_git_sha", return_value=fixed_sha),
+            patch("caliper.core.pipeline.ScanOrchestrator.run", return_value=[]),
+            patch("caliper.core.pipeline.resolve_git_sha", return_value=fixed_sha),
         ):
             decisions = ReviewPipeline(config, context=ctx).evaluate_sbom(
                 before_sbom=_BEFORE_SBOM,
@@ -427,8 +429,8 @@ class TestEvaluateSbomCommitShaRegression:
     def test_evaluate_sbom_commit_sha_explicit_arg_not_overridden(self, tmp_path: Path) -> None:
         """When commit_sha is passed explicitly it must be used as-is, not
         overridden by resolve_git_sha."""
-        from eedom.core.models import OperatingMode
-        from eedom.core.pipeline import ReviewPipeline
+        from caliper.core.models import OperatingMode
+        from caliper.core.pipeline import ReviewPipeline
 
         config = _make_config(tmp_path)
         ctx = _fake_pipeline_context()
@@ -444,7 +446,7 @@ class TestEvaluateSbomCommitShaRegression:
 
         explicit_sha = "aaaa0000bbbb1111cccc2222dddd3333eeee4444"
 
-        with patch("eedom.core.pipeline.ScanOrchestrator.run", return_value=[]):
+        with patch("caliper.core.pipeline.ScanOrchestrator.run", return_value=[]):
             ReviewPipeline(config, context=ctx).evaluate_sbom(
                 before_sbom=_BEFORE_SBOM,
                 after_sbom=_AFTER_SBOM,

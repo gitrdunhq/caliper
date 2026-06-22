@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.security.jwt_audience import JWTAudienceDetector
+from caliper.detectors.security.jwt_audience import JWTAudienceDetector
 
 
 class TestJWTAudienceDetector:
-    """Tests for JWTAudienceDetector (EED-001)."""
+    """Tests for JWTAudienceDetector (CAL-001)."""
 
     @pytest.fixture
     def detector(self):
@@ -32,7 +32,7 @@ token = jwt.encode({"user": "alice"}, "secret", algorithm="HS256")
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-001"
+        assert findings[0].detector_id == "CAL-001"
         assert "missing 'aud' claim" in findings[0].message
 
     def test_ignores_when_aud_present(self, detector):

@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 _EVIDENCE_FILE = _SRC / "data" / "evidence.py"
 
 # Path-related variable names that suggest path construction

@@ -25,7 +25,7 @@ pytestmark = pytest.mark.xfail(
     strict=False,
 )
 
-from eedom.data.evidence import EvidenceStore
+from caliper.data.evidence import EvidenceStore
 
 
 class TestEvidenceStoreParentDirCreation:

@@ -1,4 +1,4 @@
-# eedom Capability Matrix
+# caliper Capability Matrix
 
 <!--
   AUTO-REFRESH CONTRACT: Update this file whenever you add, remove, or modify
@@ -7,13 +7,13 @@
 
   LAST VERIFIED: 2026-06-22
   VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
-  plugin (20 ScannerPlugin subclasses total); 21 detectors in src/eedom/detectors/;
+  plugin (20 ScannerPlugin subclasses total); 21 detectors in src/caliper/detectors/;
   61 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
-Eagle Eyed Dom — fully deterministic dependency, security, and code review for CI.
+Caliper — fully deterministic dependency, security, and code review for CI.
 19 scanner plugins, 21 deterministic detectors, 61 custom semgrep rules, 12 code graph
 checks, 8 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
@@ -23,13 +23,13 @@ supply-chain version-bump narrative is advisory metadata only).
 | Metric | Count |
 |--------|-------|
 | Scanner plugins | 19 (5 categories) + OPA policy plugin |
-| Deterministic detectors | 21 (EED-001..EED-021) |
+| Deterministic detectors | 21 (CAL-001..CAL-021) |
 | Custom semgrep rules | 61 (11 rule files) |
 | Code graph SQL checks | 12 |
 | OPA Rego policy rules | 8 (5 deny, 3 warn) |
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
-| Finding enrichers | 4 (enclosing-symbol, code-graph, semgrep opt-in, supply-chain-threat opt-in) |
+| Finding scribes | 4 (enclosing-symbol, code-graph, semgrep opt-in, supply-chain-threat opt-in) |
 | CLI commands | 7 |
 | Output formats | 4 |
 | Supported ecosystems (SBOM) | 18 |
@@ -62,7 +62,7 @@ wired separately — it consumes every other plugin's findings and runs last
 | Plugin | File | Detects |
 |--------|------|---------|
 | supply-chain | `plugins/supply_chain.py` | **Three sub-checks**: (1) Unpinned deps in package.json + requirements.txt. (2) Lockfile integrity — lockfile changed without manifest or vice versa, 10 lockfile-manifest pairs, SHA-256 fingerprinting. (3) Docker floating tags — `:latest` or no tag in Dockerfiles and docker-compose. Pure Python, no binary. |
-| gitleaks | `plugins/gitleaks.py` | Secret/credential detection, 800+ patterns. Custom config via `.eedom/gitleaks.toml`. Secrets never appear in findings — only rule ID, file, line, entropy, fingerprint. Always critical severity. |
+| gitleaks | `plugins/gitleaks.py` | Secret/credential detection, 800+ patterns. Custom config via `.caliper/gitleaks.toml`. Secrets never appear in findings — only rule ID, file, line, entropy, fingerprint. Always critical severity. |
 | clamav | `plugins/clamav.py` | Malware/virus scanning via ClamAV (`clamscan`). Recursive repo scan. |
 
 ### code (5)
@@ -72,7 +72,7 @@ wired separately — it consumes every other plugin's findings and runs last
 | semgrep | `plugins/semgrep.py` | AST code pattern matching. Dynamic ruleset selection by file extension (Python, TS, JS, Go, Ruby, Java, Terraform, K8s, Shell, Docker, Swift). 61 custom org rules (see below). Supports pinned local rule snapshots. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyright (faster, stricter) when available, falls back to mypy. Error + warning severity only. |
-| swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.eedom/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
+| swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.caliper/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
 | swiftformat | `plugins/swiftformat.py` | Swift formatting lint. Reports files that need reformatting (all auto-fixable with `swiftformat .`). INFO severity only. |
 
 ### quality (4)
@@ -175,33 +175,33 @@ All in `policies/semgrep/`.
 
 ## Deterministic Detectors (21)
 
-AST-driven, fail-safe bug-pattern rules in `src/eedom/detectors/`, exposed to the pipeline
+AST-driven, fail-safe bug-pattern rules in `src/caliper/detectors/`, exposed to the pipeline
 as a single `DeterministicScanner` (`tool_name="deterministic"`). Each is suppressible inline
-with `# noqa: EED-NNN`. Full reference: [`docs/detectors.md`](detectors.md).
+with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](detectors.md).
 
 | ID | Name | Category | Severity |
 |----|------|----------|----------|
-| EED-001 | JWT Missing Audience Claim | security | high |
-| EED-002 | Error Information Exposure | security | high |
-| EED-003 | API Endpoint Missing Rate Limiting | security | medium |
-| EED-004 | Secret Should Use SecretStr | security | high |
-| EED-005 | SQL Injection via String Formatting | security | critical |
-| EED-016 | CI Verification Gate Bypass | security | high |
-| EED-017 | Presentation Tier Imports Data Tier | security | medium |
-| EED-020 | Fixed Heredoc Delimiter w/ GITHUB_OUTPUT | security | low |
-| EED-006 | Unbounded Cache Without Eviction | reliability | medium |
-| EED-007 | Circuit Breaker Missing Half-Open State | reliability | medium |
-| EED-008 | Path String Concatenation | reliability | medium |
-| EED-009 | Cache Lookup Without Freshness Check | reliability | low |
-| EED-010 | Batch Insert Without Rollback Handling | reliability | medium |
-| EED-011 | Health Check Without DB Verification | reliability | medium |
-| EED-012 | Subprocess Call Without Timeout | reliability | medium |
-| EED-015 | High Cardinality Metric Labels | reliability | medium |
-| EED-019 | Nullable advisory_id in Dedup Key | reliability | low |
-| EED-021 | Non-Atomic File Write | reliability | medium |
-| EED-013 | Config Merge Dropping Telemetry | configuration | low |
-| EED-018 | Dockerfile Pin Drift | configuration | medium |
-| EED-014 | Missing Tested-By Annotation | process | low |
+| CAL-001 | JWT Missing Audience Claim | security | high |
+| CAL-002 | Error Information Exposure | security | high |
+| CAL-003 | API Endpoint Missing Rate Limiting | security | medium |
+| CAL-004 | Secret Should Use SecretStr | security | high |
+| CAL-005 | SQL Injection via String Formatting | security | critical |
+| CAL-016 | CI Verification Gate Bypass | security | high |
+| CAL-017 | Presentation Tier Imports Data Tier | security | medium |
+| CAL-020 | Fixed Heredoc Delimiter w/ GITHUB_OUTPUT | security | low |
+| CAL-006 | Unbounded Cache Without Eviction | reliability | medium |
+| CAL-007 | Circuit Breaker Missing Half-Open State | reliability | medium |
+| CAL-008 | Path String Concatenation | reliability | medium |
+| CAL-009 | Cache Lookup Without Freshness Check | reliability | low |
+| CAL-010 | Batch Insert Without Rollback Handling | reliability | medium |
+| CAL-011 | Health Check Without DB Verification | reliability | medium |
+| CAL-012 | Subprocess Call Without Timeout | reliability | medium |
+| CAL-015 | High Cardinality Metric Labels | reliability | medium |
+| CAL-019 | Nullable advisory_id in Dedup Key | reliability | low |
+| CAL-021 | Non-Atomic File Write | reliability | medium |
+| CAL-013 | Config Merge Dropping Telemetry | configuration | low |
+| CAL-018 | Dockerfile Pin Drift | configuration | medium |
+| CAL-014 | Missing Tested-By Annotation | process | low |
 
 By category: security 8, reliability 10, configuration 2, process 1.
 
@@ -282,13 +282,13 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 
 | Command | Description |
 |---------|-------------|
-| `eedom evaluate` | Full pipeline on dependency changes. Modes: monitor/advise. Output: JSON. |
-| `eedom review` | Plugin review on repo or diff. Filter by --scanners, --category, --enable/--disable. Formats: markdown, json (schema: `docs/schema/report-v1.0.json`), SARIF. Supports --watch (watchdog, 500ms debounce), --pr N (inline PR review), --package (monorepo single package). |
-| `eedom check-health` | Verify scanner binaries and DB connectivity. |
-| `eedom plugins` | List all registered plugins with binary status and depends_on. |
-| `eedom schema` | Print the JSON Schema for `eedom review --format json` output. `--output` writes to a file. Published artifact: `docs/schema/report-v1.0.json`. |
-| `eedom query` | Natural language query against code graph SQLite database. |
-| `eedom supply-chain-diff` | Separate, feature-flag-gated step (`EEDOM_SUPPLY_CHAIN_DIFF_ENABLED=1`). Fetches the source of both versions of every dependency bump in a diff, scores deterministic supply-chain signals (which gate via OPA), and optionally attaches an advisory LLM narrative. Formats: markdown, json, sarif. Modes: monitor/advise. NOT part of the normal scan. |
+| `caliper evaluate` | Full pipeline on dependency changes. Modes: monitor/advise. Output: JSON. |
+| `caliper review` | Plugin review on repo or diff. Filter by --scanners, --category, --enable/--disable. Formats: markdown, json (schema: `docs/schema/report-v1.0.json`), SARIF. Supports --watch (watchdog, 500ms debounce), --pr N (inline PR review), --package (monorepo single package). |
+| `caliper check-health` | Verify scanner binaries and DB connectivity. |
+| `caliper plugins` | List all registered plugins with binary status and depends_on. |
+| `caliper schema` | Print the JSON Schema for `caliper review --format json` output. `--output` writes to a file. Published artifact: `docs/schema/report-v1.0.json`. |
+| `caliper query` | Natural language query against code graph SQLite database. |
+| `caliper supply-chain-diff` | Separate, feature-flag-gated step (`CALIPER_SUPPLY_CHAIN_DIFF_ENABLED=1`). Fetches the source of both versions of every dependency bump in a diff, scores deterministic supply-chain signals (which gate via OPA), and optionally attaches an advisory LLM narrative. Formats: markdown, json, sarif. Modes: monitor/advise. NOT part of the normal scan. |
 
 ---
 
@@ -297,7 +297,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Format | Where | Description |
 |--------|-------|-------------|
 | Markdown PR comment | `templates/comment.md.j2` | Verdict badge, health score (0-100), maintainability grade, per-plugin summary table, detailed sections. 65536 char max with truncation. |
-| SARIF v2.1.0 | `core/sarif.py` | GitHub Security tab integration. Severity-to-level mapping. Configurable max findings cap. Detect-then-enrich packets surface in each result's `properties.enrichment` (parity with the JSON report). |
+| SARIF v2.1.0 | `core/sarif.py` | GitHub Security tab integration. Severity-to-level mapping. Configurable max findings cap. Detect-then-scribe packets surface in each result's `properties.scribe` (parity with the JSON report). |
 | Inline PR review | `core/pr_review.py` | SARIF → GitHub PR review. Hunk-aware line placement. REQUEST_CHANGES on reject, COMMENT on approve_with_constraints. Outside-diff findings in collapsed summary. |
 | JSON decision | CLI `--output-json` | Machine-readable decision with all findings, policy evaluation, and evidence. |
 
@@ -308,8 +308,8 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Integration | File | Description |
 |-------------|------|-------------|
 | GitHub Action | `action.yml` | Composite action: diff → evaluate → PR comment (upsert) → check warning on reject. |
-| GitHub Copilot Agent | `src/eedom/agent/` | GATEKEEPER — 6 tools (evaluate_change, check_package, scan_code, scan_duplicates, scan_k8s, analyze_complexity). 8-dimension task-fit rubric. |
-| Webhook server | `src/eedom/webhook/server.py` | Starlette ASGI. GitHub PR webhooks (opened/synchronize/reopened). HMAC-SHA256 signature validation. Port 12800. |
+| GitHub Copilot Agent | `src/caliper/agent/` | Foreman — 6 tools (evaluate_change, check_package, scan_code, scan_duplicates, scan_k8s, analyze_complexity). 8-dimension task-fit rubric. |
+| Webhook server | `src/caliper/webhook/server.py` | Starlette ASGI. GitHub PR webhooks (opened/synchronize/reopened). HMAC-SHA256 signature validation. Port 12800. |
 | Jenkins | `jenkins/vars/dependencyAdmission.groovy` | Shared library for Jenkins pipelines. |
 | Container | `Dockerfile` | Podman/Docker. Read-only workspace mount. |
 
@@ -321,19 +321,19 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 |------------|------|-------------|
 | Parallel scanning | `core/orchestrator.py` | ThreadPoolExecutor with combined wall-clock timeout. |
 | Unified verdict (SoT) | `core/review_summary.py` | One `summarize_review()` computes verdict + counts + scores; the markdown badge, JSON report, SARIF properties, and CI header/label all consume it (no divergent re-derivation). Diff-scoped gate: only PR-introduced security findings block; pre-existing dependency CVEs are advisory. |
-| Detect-then-enrich | `core/enrich.py`, `core/enrichment.py` | Post-detection pass (ADR-006): every plugin finding is decorated with deterministic context in `metadata['enrichment']` — enclosing symbol (`detectors` enricher), code-graph blast radius (`plugins` enricher), opt-in nearby semgrep matches (`plugins` enricher), and the opt-in supply-chain-threat LLM narrative (`plugins` enricher). Sequential, fail-open, time-bounded (`enrichment_timeout`); verdict-independent. Pluggable via the `ENRICHERS` registry; also wired into the GATEKEEPER agent's `scan_code`. |
+| Detect-then-scribe | `core/scribe.py`, `core/scribe.py` | Post-detection pass (ADR-006): every plugin finding is decorated with deterministic context in `metadata['scribe']` — enclosing symbol (`detectors` scribe), code-graph blast radius (`plugins` scribe), opt-in nearby semgrep matches (`plugins` scribe), and the opt-in supply-chain-threat LLM narrative (`plugins` scribe). Sequential, fail-open, time-bounded (`scribe_timeout`); verdict-independent. Pluggable via the `SCRIBES` registry; also wired into the Foreman agent's `scan_code`. |
 | Cross-scanner dedup | `core/normalizer.py` | Highest severity wins per (advisory_id, category, package, version). |
 | Evidence chain | `core/seal.py` | Blockchain-style SHA-256 seals. manifest hash + previous seal → seal hash. `verify_seal()` detects tampering. |
 | Parquet audit log | `data/parquet_writer.py` | Append-only per-run audit trail. |
 | SBOM diff | `core/sbom_diff.py` | Diff two CycloneDX SBOMs: added/removed/upgraded/downgraded across 18 ecosystems. |
 | Dependency diff | `core/diff.py` | Git diff parsing for requirements.txt, pyproject.toml, and package.json (npm). |
-| Supply-chain version-bump analysis | `core/supply_chain_diff.py`, `data/pkgsrc.py`, `data/supply_chain_scan.py` | Separate gated step (`eedom supply-chain-diff`): fetches both versions of every dependency bump (PyPI sdist / npm tarball, safe extraction with traversal + zip-bomb defenses), diffs the source, and scores deterministic signals — new install hooks (critical), obfuscation/encoded payloads (high), newly introduced network/exec capability (high), publisher change (medium). Signals gate via the OPA `supply_chain_diff` rule; the optional `supply_chain_threat` enricher attaches an advisory LLM narrative (zero-LLM decision path preserved). Fail-open. |
+| Supply-chain version-bump analysis | `core/supply_chain_diff.py`, `data/pkgsrc.py`, `data/supply_chain_scan.py` | Separate gated step (`caliper supply-chain-diff`): fetches both versions of every dependency bump (PyPI sdist / npm tarball, safe extraction with traversal + zip-bomb defenses), diffs the source, and scores deterministic signals — new install hooks (critical), obfuscation/encoded payloads (high), newly introduced network/exec capability (high), publisher change (medium). Signals gate via the OPA `supply_chain_diff` rule; the optional `supply_chain_threat` scribe attaches an advisory LLM narrative (zero-LLM decision path preserved). Fail-open. |
 | Health score | `core/renderer.py` | 0-100 severity-weighted score (critical=10, high=5, medium=2, low=1). |
 | Monorepo support | `core/manifest_discovery.py` | Walk repo, discover multiple package roots (8 manifest types, 8 lockfile types), run plugins per-package with scoped config merging. |
 | Policy engine | `core/policy.py` | OPA subprocess wrapper with fail-open degradation. |
 | Topological ordering | `core/registry.py` | Plugins declare `depends_on` for execution order. `["*"]` = run last. Circular dep detection. |
-| Ignore patterns | `core/ignore.py` | `.eedomignore` with 6 built-in defaults (.git/, __pycache__/, node_modules/, .venv/, .claude/, .eedom/). |
-| Repo config | `core/repo_config.py` | `.eagle-eyed-dom.yaml` — per-plugin enable/disable, thresholds, telemetry. Root + package-level merge. |
+| Ignore patterns | `core/ignore.py` | `.caliperignore` with 6 built-in defaults (.git/, __pycache__/, node_modules/, .venv/, .claude/, .caliper/). |
+| Repo config | `core/repo_config.py` | `.caliper.yaml` — per-plugin enable/disable, thresholds, telemetry. Root + package-level merge. |
 | Task-fit advisory | `core/taskfit.py` | Optional LLM 8-dimension proportionality check (NECESSITY, MINIMALITY, MAINTENANCE, SECURITY, EXPOSURE, BLAST_RADIUS, ALTERNATIVES, BEHAVIORAL). |
 | Structured errors | `core/errors.py` | 10 error codes: NOT_INSTALLED, TIMEOUT, PARSE_ERROR, PERMISSION_DENIED, BINARY_CRASHED, NO_OUTPUT, SCANNER_DEGRADED, CONFIG_MISSING, INDEX_FAILED, NETWORK_ERROR. |
 | Telemetry | `core/telemetry.py` | Anonymous opt-in, 9 signals, Pydantic `extra="forbid"`, file-path stripping, fire-and-forget async. |
@@ -355,11 +355,11 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 
 ## Competitive Positioning
 
-**eedom = "is this change safe to ship?"** (vulns, secrets, licenses, supply chain, IaC, blast radius, code smells, policy)
+**caliper = "is this change safe to ship?"** (vulns, secrets, licenses, supply chain, IaC, blast radius, code smells, policy)
 
 ### vs SonarQube
 
-| Capability | SonarQube | eedom |
+| Capability | SonarQube | caliper |
 |------------|-----------|-------|
 | Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 61 custom rules + 21 deterministic detectors |
 | Stylistic code smells | Hundreds of built-in rules | Not primary focus |
@@ -380,7 +380,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Audit trail | No | Parquet append-only log |
 | Monorepo support | Branch analysis (paid) | Per-package scanning + config merging (free) |
 
-### Not Covered by eedom
+### Not Covered by caliper
 
 - Coverage ingestion and gating
 - Cognitive complexity metric (Lizard does cyclomatic, not cognitive)
@@ -395,11 +395,11 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 
 | Mechanism | File | Scope |
 |-----------|------|-------|
-| Env vars | `EEDOM_*` prefix | Global: operating_mode, db_dsn, evidence_path, 7 timeouts, enabled_scanners, LLM settings |
-| Repo config | `.eagle-eyed-dom.yaml` | Per-repo: plugin enable/disable, per-plugin thresholds, telemetry. Root + package-level merge. |
-| Ignore patterns | `.eedomignore` | Per-repo: fnmatch exclusions, layered on top of every file source. |
-| File source | `EEDOM_FILE_SOURCE` | Global: `auto` (git ls-files when usable, else walk), `git`, or `walk`. |
-| Gitleaks config | `.eedom/gitleaks.toml` | Per-repo: custom gitleaks rules. |
+| Env vars | `CALIPER_*` prefix | Global: operating_mode, db_dsn, evidence_path, 7 timeouts, enabled_scanners, LLM settings |
+| Repo config | `.caliper.yaml` | Per-repo: plugin enable/disable, per-plugin thresholds, telemetry. Root + package-level merge. |
+| Ignore patterns | `.caliperignore` | Per-repo: fnmatch exclusions, layered on top of every file source. |
+| File source | `CALIPER_FILE_SOURCE` | Global: `auto` (git ls-files when usable, else walk), `git`, or `walk`. |
+| Gitleaks config | `.caliper/gitleaks.toml` | Per-repo: custom gitleaks rules. |
 | ls-lint config | `.ls-lint.yml` | Per-repo: file naming conventions. |
 | OPA policy | `policies/policy.rego` | Per-repo: deny/warn rules with toggleable `rules_enabled.*`. |
 | Semgrep rules | `policies/semgrep/*.yaml` | Per-repo: custom AST pattern rules. |

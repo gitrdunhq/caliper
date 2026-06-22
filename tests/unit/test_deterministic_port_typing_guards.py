@@ -36,7 +36,7 @@ def test_253_policy_input_packages_not_list_dict() -> None:
     PolicyEnginePort boundary.  Use a TypedDict or Pydantic model that names
     the expected keys (name, version, ecosystem, first_published_date, …).
     """
-    from eedom.core.policy_port import PolicyInput
+    from caliper.core.policy_port import PolicyInput
 
     src = inspect.getsource(PolicyInput)
     assert len(src) > 20, "inspect.getsource returned empty source — class not found"
@@ -54,7 +54,7 @@ def test_253_policy_input_config_not_bare_dict() -> None:
     A bare dict annotation accepts any shape and offers no static safety.
     Replace with a typed ConfigModel or dict[str, SomeConcreteType].
     """
-    from eedom.core.policy_port import PolicyInput
+    from caliper.core.policy_port import PolicyInput
 
     src = inspect.getsource(PolicyInput)
     assert len(src) > 20, "inspect.getsource returned empty source — class not found"
@@ -72,7 +72,7 @@ def test_253_policy_decision_verdict_not_plain_str() -> None:
     checks.  Replace with a PolicyVerdict Enum so that invalid verdicts are
     caught at assignment time.
     """
-    from eedom.core.policy_port import PolicyDecision
+    from caliper.core.policy_port import PolicyDecision
 
     src = inspect.getsource(PolicyDecision)
     assert len(src) > 20, "inspect.getsource returned empty source — class not found"
@@ -89,7 +89,7 @@ def test_253_review_report_plugin_results_not_list_any() -> None:
     list[Any] disables all type checking on the results flowing out of the
     registry.  Replace with list[PluginResult] to make the contract explicit.
     """
-    from eedom.core.ports import ReviewReport
+    from caliper.core.ports import ReviewReport
 
     src = inspect.getsource(ReviewReport)
     assert len(src) > 20, "inspect.getsource returned empty source — class not found"

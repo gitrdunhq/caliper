@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.detectors.config.docker_pin_drift import DockerPinDriftDetector
+from caliper.detectors.config.docker_pin_drift import DockerPinDriftDetector
 
 
 class TestDockerPinDriftDetector:
-    """Tests for DockerPinDriftDetector (EED-018)."""
+    """Tests for DockerPinDriftDetector (CAL-018)."""
 
     @pytest.fixture
     def detector(self):
@@ -24,7 +24,7 @@ class TestDockerPinDriftDetector:
         findings = detector.detect(dockerfile)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-018"
+        assert findings[0].detector_id == "CAL-018"
         assert "pyproject.toml" in findings[0].message
 
     def test_detects_latest_image_tag(self, detector, tmp_path):
@@ -38,7 +38,7 @@ class TestDockerPinDriftDetector:
         findings = detector.detect(dockerfile)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-018"
+        assert findings[0].detector_id == "CAL-018"
         assert ":latest" in findings[0].message
 
     def test_detects_both_patterns(self, detector, tmp_path):
@@ -54,7 +54,7 @@ class TestDockerPinDriftDetector:
 
         assert len(findings) == 2
         detector_ids = {f.detector_id for f in findings}
-        assert detector_ids == {"EED-018"}
+        assert detector_ids == {"CAL-018"}
 
     def test_clean_dockerfile_no_findings(self, detector, tmp_path):
         """Dockerfile with no pip pins and no :latest tag produces no findings."""

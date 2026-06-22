@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Trust boundary files where secrets must use SecretStr
 _SECRET_BOUNDARY_FILES: tuple[Path, ...] = (
@@ -92,8 +92,8 @@ def test_261_secret_bearing_settings_use_plain_strings_at_trust_boundaries() -> 
     prevent accidental logging or exposure.
 
     Violations:
-        - src/eedom/webhook/config.py:24 - WebhookSettings.secret: str
-        - src/eedom/adapters/github_publisher.py:20 - GitHubPublisher.__init__(token: str)
+        - src/caliper/webhook/config.py:24 - WebhookSettings.secret: str
+        - src/caliper/adapters/github_publisher.py:20 - GitHubPublisher.__init__(token: str)
 
     Acceptance criteria for fix:
         - All secret-bearing fields use SecretStr or SecretStr | None

@@ -16,7 +16,7 @@ from typing import ClassVar
 import pytest
 
 _ROOT = Path(__file__).resolve().parents[2]
-_SOLVER_PATH = _ROOT / "src" / "eedom" / "core" / "solver.py"
+_SOLVER_PATH = _ROOT / "src" / "caliper" / "core" / "solver.py"
 
 
 class CircuitBreakerVisitor(ast.NodeVisitor):

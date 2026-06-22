@@ -20,7 +20,7 @@ pytestmark = pytest.mark.xfail(
 )
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Regex to find tested-by annotations
 _TESTED_BY_RE = re.compile(r"#\s*tested-by:\s*([^\s,\n]+)", re.MULTILINE)
@@ -45,7 +45,7 @@ def _find_tested_by_annotations(file_content: str) -> list[str]:
 def test_all_source_files_have_tested_by_annotations() -> None:
     """#258: every source file must have a tested-by annotation.
 
-    This test scans all Python files in src/eedom/ and verifies:
+    This test scans all Python files in src/caliper/ and verifies:
     1. Each file has at least one tested-by annotation
     2. Each annotation points to a path that exists under tests/
     3. Each referenced test file actually exists in the repo

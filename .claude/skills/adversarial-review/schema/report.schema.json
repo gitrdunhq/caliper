@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://eedom.dev/schema/adversarial-review-report.schema.json",
+  "$id": "https://caliper.dev/schema/adversarial-review-report.schema.json",
   "title": "Adversarial Review Report",
   "description": "Machine-readable output of the adversarial-review skill. The final report (docs/reviews/adversarial-<date>.json) MUST validate against this; a human-readable .md sibling renders the same data.",
   "type": "object",

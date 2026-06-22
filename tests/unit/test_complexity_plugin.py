@@ -4,8 +4,8 @@
 
 from __future__ import annotations
 
-from eedom.core.plugin import PluginResult
-from eedom.plugins.complexity import ComplexityPlugin
+from caliper.core.plugin import PluginResult
+from caliper.plugins.complexity import ComplexityPlugin
 
 
 def _make_finding(name: str, ccn: int = 3, nloc: int = 10) -> dict:

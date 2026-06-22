@@ -10,7 +10,7 @@ Evidence:
 
 Fix:
   - WebhookSettings.secret  → SecretStr
-  - EedomSettings.db_dsn    → SecretStr
+  - CaliperSettings.db_dsn    → SecretStr
   Access via .get_secret_value() at the one site that actually needs the raw string.
 
 Parent bug: #227 / Epic: #146.
@@ -39,7 +39,7 @@ def test_261_webhook_secret_uses_secret_str() -> None:
     SecretStr prevents accidental exposure by returning [redacted] from repr()
     and __str__(), while still allowing the raw value via .get_secret_value().
     """
-    from eedom.webhook.config import WebhookSettings
+    from caliper.webhook.config import WebhookSettings
 
     src = inspect.getsource(WebhookSettings)
     assert len(src) > 20, "inspect.getsource returned empty source — WebhookSettings not found"
@@ -51,8 +51,8 @@ def test_261_webhook_secret_uses_secret_str() -> None:
     )
 
 
-def test_261_eedom_settings_db_dsn_uses_secret_str() -> None:
-    """EedomSettings.db_dsn must be annotated as SecretStr, not str.
+def test_261_caliper_settings_db_dsn_uses_secret_str() -> None:
+    """CaliperSettings.db_dsn must be annotated as SecretStr, not str.
 
     A PostgreSQL DSN contains the database password in the URL.  Annotating
     it as plain str means the password appears in repr(), structured logs,
@@ -61,12 +61,12 @@ def test_261_eedom_settings_db_dsn_uses_secret_str() -> None:
     SecretStr prevents accidental password exposure while still providing
     .get_secret_value() for the one site that passes the DSN to the driver.
     """
-    from eedom.core.config import EedomSettings
+    from caliper.core.config import CaliperSettings
 
-    src = inspect.getsource(EedomSettings)
-    assert len(src) > 20, "inspect.getsource returned empty source — EedomSettings not found"
+    src = inspect.getsource(CaliperSettings)
+    assert len(src) > 20, "inspect.getsource returned empty source — CaliperSettings not found"
     assert "db_dsn: SecretStr" in src, (
-        "BUG #261: EedomSettings.db_dsn is not SecretStr. "
+        "BUG #261: CaliperSettings.db_dsn is not SecretStr. "
         "The PostgreSQL DSN (which contains the database password) is stored as "
         "plain str and will be exposed in logs and repr() output.  "
         "Change `db_dsn: str` to `db_dsn: SecretStr` and call "

@@ -9,18 +9,18 @@ Accepted
 Supply-chain attacks rarely show up as a CVE. They arrive as a *new release* of an already-trusted
 dependency: a maintainer account is compromised (or sold), and version `X.Y.Z+1` quietly adds a
 `postinstall` script that exfiltrates secrets, an obfuscated blob, or a new outbound network call.
-eedom already detects that `pkg X.Y → X.Z` (`core/diff.py`, `core/sbom_diff.py`) and fetches package
+caliper already detects that `pkg X.Y → X.Z` (`core/diff.py`, `core/sbom_diff.py`) and fetches package
 *metadata* (`data/pypi.py`), but it never looked at **what code changed between the two versions** —
 which is exactly where the attack lives.
 
 A Dependabot-style "watch the supply chain, analyze the bump" capability was requested, with the
 explicit allowance that an **LLM may tell data-driven stories** about a bump. That has to be
-reconciled with eedom's hard rule: **zero LLM in the decision path**.
+reconciled with caliper's hard rule: **zero LLM in the decision path**.
 
 ## Decision
 
-Add a **separate, feature-flag-gated step** — `eedom supply-chain-diff`
-(`EEDOM_SUPPLY_CHAIN_DIFF_ENABLED=1`) — that is **not** part of the normal scan (it needs registry
+Add a **separate, feature-flag-gated step** — `caliper supply-chain-diff`
+(`CALIPER_SUPPLY_CHAIN_DIFF_ENABLED=1`) — that is **not** part of the normal scan (it needs registry
 egress and adds latency, so the default gate is untouched). The step is split into three layers with a
 strict detect → gate → narrate separation:
 
@@ -38,9 +38,9 @@ strict detect → gate → narrate separation:
    signals and warns on medium. The verdict is therefore produced entirely by deterministic signals +
    policy — never by a model.
 
-4. **Narrate via LLM (advisory, opt-in, ADR-006).** The `supply_chain_threat` enricher (off by
+4. **Narrate via LLM (advisory, opt-in, ADR-006).** The `supply_chain_threat` scribe (off by
    default) asks an LLM to tell the data-driven story of the bump over the *already-computed*
-   deterministic facts and attaches it to `metadata['enrichment']['threat_analysis']`. It is
+   deterministic facts and attaches it to `metadata['scribe']['threat_analysis']`. It is
    verdict-independent, fail-open, time-bounded, and structurally incapable of changing the decision.
 
 ## Consequences

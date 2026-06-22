@@ -21,7 +21,7 @@ pytestmark = pytest.mark.xfail(
 )
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files where cache key construction should be analyzed
 _CACHE_KEY_FILES: tuple[Path, ...] = (

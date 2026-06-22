@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 80" width="960" height="80">
-  <title>Eagle Eyed Dom — six scanners</title>
+  <title>Caliper — six scanners</title>
   <rect x="20" y="15" width="140" height="50" fill="#f2c14a" stroke="#0e0706" stroke-width="2"></rect>
   <text x="90" y="45" font-family="monospace" font-size="14" font-weight="700" letter-spacing="2" fill="#0e0706" text-anchor="middle">SYFT</text>
   <rect x="170" y="15" width="140" height="50" fill="#d4251a" stroke="#0e0706" stroke-width="2"></rect>

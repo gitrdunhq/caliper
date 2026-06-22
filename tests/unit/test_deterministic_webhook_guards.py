@@ -46,7 +46,7 @@ def test_webhook_payload_does_not_include_full_findings():
     and never include the full results list.
     """
     repo_root = Path(__file__).parent.parent.parent
-    server_path = repo_root / "src" / "eedom" / "webhook" / "server.py"
+    server_path = repo_root / "src" / "caliper" / "webhook" / "server.py"
 
     if not server_path.exists():
         pytest.skip("webhook server.py not found")
@@ -211,7 +211,7 @@ def test_webhook_payload_has_size_enforcement():
         - Logging when truncation occurs
     """
     repo_root = Path(__file__).parent.parent.parent
-    server_path = repo_root / "src" / "eedom" / "webhook" / "server.py"
+    server_path = repo_root / "src" / "caliper" / "webhook" / "server.py"
 
     if not server_path.exists():
         pytest.skip("webhook server.py not found")
@@ -253,7 +253,7 @@ def test_webhook_does_not_log_full_findings():
     Current safe pattern: Only log verdict/scores, never raw findings.
     """
     repo_root = Path(__file__).parent.parent.parent
-    server_path = repo_root / "src" / "eedom" / "webhook" / "server.py"
+    server_path = repo_root / "src" / "caliper" / "webhook" / "server.py"
 
     if not server_path.exists():
         pytest.skip("webhook server.py not found")
@@ -313,10 +313,10 @@ def test_p20_2_webhook_handler_uses_select_file_source() -> None:
     select_file_source() instead of Path.rglob.
 
     Before the fix, the webhook handler called Path(...).rglob(...)
-    directly, bypassing the eedom exclusion layer in core/ignore.py and
+    directly, bypassing the caliper exclusion layer in core/ignore.py and
     the FileSourcePort seam.  The fix replaced that with:
 
-        from eedom.core.file_source import select_file_source
+        from caliper.core.file_source import select_file_source
         _source = select_file_source(_repo_path)
         _files = [str(p) for p in _source.list_files(_repo_path, suffixes=...)]
 
@@ -325,7 +325,7 @@ def test_p20_2_webhook_handler_uses_select_file_source() -> None:
       2. ".rglob(" is NOT present in the webhook handler closure.
     """
     repo_root = Path(__file__).parent.parent.parent
-    server_path = repo_root / "src" / "eedom" / "webhook" / "server.py"
+    server_path = repo_root / "src" / "caliper" / "webhook" / "server.py"
 
     if not server_path.exists():
         pytest.skip("webhook server.py not found")
@@ -360,32 +360,32 @@ def test_p20_2_webhook_handler_uses_select_file_source() -> None:
         assert ".rglob(" not in handler_source, (
             "P20-2 regression: '.rglob(' found inside the webhook handler. "
             "File enumeration must go through select_file_source().list_files(), "
-            "not Path.rglob — rglob bypasses the eedom exclusion layer."
+            "not Path.rglob — rglob bypasses the caliper exclusion layer."
         )
 
 
 def test_p20_2_webhook_does_not_import_ignore_directly() -> None:
-    """The rglob removal also dropped direct eedom.core.ignore imports from
+    """The rglob removal also dropped direct caliper.core.ignore imports from
     server.py (those were only needed to replicate ignore logic inline).
 
     This test confirms that server.py delegates ignore logic to file_source
     and does not re-implement it by importing from core.ignore directly.
     """
     repo_root = Path(__file__).parent.parent.parent
-    server_path = repo_root / "src" / "eedom" / "webhook" / "server.py"
+    server_path = repo_root / "src" / "caliper" / "webhook" / "server.py"
 
     if not server_path.exists():
         pytest.skip("webhook server.py not found")
 
     source = server_path.read_text()
 
-    # After P20-2, server.py should NOT import from eedom.core.ignore.
-    assert "from eedom.core.ignore" not in source, (
-        "P20-2 regression: server.py still imports from eedom.core.ignore. "
+    # After P20-2, server.py should NOT import from caliper.core.ignore.
+    assert "from caliper.core.ignore" not in source, (
+        "P20-2 regression: server.py still imports from caliper.core.ignore. "
         "Ignore logic must be delegated to select_file_source().list_files() — "
         "the server should not re-implement the exclusion layer."
     )
-    assert "import eedom.core.ignore" not in source, (
-        "P20-2 regression: server.py still imports eedom.core.ignore. "
+    assert "import caliper.core.ignore" not in source, (
+        "P20-2 regression: server.py still imports caliper.core.ignore. "
         "File enumeration and exclusions belong in the FileSourcePort seam."
     )

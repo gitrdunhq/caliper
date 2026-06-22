@@ -8,10 +8,10 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from eedom.core.plugin import PluginCategory
-from eedom.core.subprocess_runner import SubprocessToolRunner
-from eedom.core.tool_runner import ToolResult
-from eedom.plugins.gitleaks import GitleaksPlugin
+from caliper.core.plugin import PluginCategory
+from caliper.core.subprocess_runner import SubprocessToolRunner
+from caliper.core.tool_runner import ToolResult
+from caliper.plugins.gitleaks import GitleaksPlugin
 
 LEAK_OUTPUT = json.dumps(
     [
@@ -53,7 +53,7 @@ class TestGitleaksPlugin:
         p = GitleaksPlugin()
         assert p.can_run(["app.py"], Path(".")) is True
 
-    @patch("eedom.core.subprocess_runner.subprocess.run")
+    @patch("caliper.core.subprocess_runner.subprocess.run")
     def test_clean_scan(self, mock_run):
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = CLEAN_OUTPUT
@@ -62,7 +62,7 @@ class TestGitleaksPlugin:
         assert result.error == ""
         assert len(result.findings) == 0
 
-    @patch("eedom.core.subprocess_runner.subprocess.run")
+    @patch("caliper.core.subprocess_runner.subprocess.run")
     def test_detects_leaks(self, mock_run, tmp_path):
         report = tmp_path / "gl.json"
         report.write_text(LEAK_OUTPUT)
@@ -78,7 +78,7 @@ class TestGitleaksPlugin:
         assert result.findings[0]["severity"] == "critical"
         assert result.summary["leaks"] == 2
 
-    @patch("eedom.core.subprocess_runner.subprocess.run")
+    @patch("caliper.core.subprocess_runner.subprocess.run")
     def test_secrets_not_in_findings(self, mock_run, tmp_path):
         report = tmp_path / "gl.json"
         report.write_text(LEAK_OUTPUT)
@@ -93,7 +93,7 @@ class TestGitleaksPlugin:
             assert "sk-prod-abc123" not in str(f)
 
     @patch(
-        "eedom.core.subprocess_runner.subprocess.run",
+        "caliper.core.subprocess_runner.subprocess.run",
         side_effect=FileNotFoundError,
     )
     def test_binary_not_found(self, _mock):
@@ -101,7 +101,7 @@ class TestGitleaksPlugin:
         result = p.run(["app.py"], Path("."))
         assert "NOT_INSTALLED" in result.error
 
-    @patch("eedom.core.subprocess_runner.subprocess.run")
+    @patch("caliper.core.subprocess_runner.subprocess.run")
     def test_render_leaks(self, mock_run, tmp_path):
         report = tmp_path / "gl.json"
         report.write_text(LEAK_OUTPUT)
@@ -118,22 +118,22 @@ class TestGitleaksPlugin:
         assert "AKIAIOSFODNN7EXAMPLE" not in md
 
     def test_render_clean(self):
-        from eedom.core.plugin import PluginResult
+        from caliper.core.plugin import PluginResult
 
         p = GitleaksPlugin()
         result = PluginResult(plugin_name="gitleaks")
         assert p.render(result) == ""
 
     def test_render_error(self):
-        from eedom.core.plugin import PluginResult
+        from caliper.core.plugin import PluginResult
 
         p = GitleaksPlugin()
         result = PluginResult(plugin_name="gitleaks", error="not installed")
         assert "not installed" in p.render(result)
 
-    @patch("eedom.core.subprocess_runner.subprocess.run")
+    @patch("caliper.core.subprocess_runner.subprocess.run")
     def test_custom_config_passed_when_present(self, mock_run, tmp_path):
-        config_dir = tmp_path / ".eedom"
+        config_dir = tmp_path / ".caliper"
         config_dir.mkdir()
         config_file = config_dir / "gitleaks.toml"
         config_file.write_text('title = "custom"\n')
@@ -148,7 +148,7 @@ class TestGitleaksPlugin:
         assert "--config" in cmd
         assert str(config_file) in cmd
 
-    @patch("eedom.core.subprocess_runner.subprocess.run")
+    @patch("caliper.core.subprocess_runner.subprocess.run")
     def test_no_config_flag_when_absent(self, mock_run):
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = CLEAN_OUTPUT

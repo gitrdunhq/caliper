@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Webhook handler files to check
 _WEBHOOK_HANDLER_FILES: tuple[Path, ...] = (_SRC / "webhook" / "server.py",)
@@ -178,7 +178,7 @@ def test_187_webhook_handler_validates_signature() -> None:
 def test_221_webhook_server_has_verify_signature_call() -> None:
     """Specific test for _verify_signature call in webhook server.
 
-    The webhook handler in src/eedom/webhook/server.py must call
+    The webhook handler in src/caliper/webhook/server.py must call
     _verify_signature() to validate GitHub webhook signatures.
     Missing this call allows forged webhook events.
     """

@@ -2,7 +2,7 @@
 
 ## Problem
 
-The GATEKEEPER agent's block mode (`enforcement_mode=block`) determines whether to
+The Foreman agent's block mode (`enforcement_mode=block`) determines whether to
 fail the CI build by parsing the LLM's free-text prose output for reject markers
 (`["REJECTED", "reject", "🔴"]`). This is the wrong signal — the LLM's text can
 be influenced by prompt injection, and benign phrases like "not rejected" or
@@ -39,5 +39,5 @@ LLM text output to drive security-critical branching decisions.
 
 ## Files Changed
 
-- `src/eedom/agent/main.py` — `_extract_reject_from_tool_results()`,
+- `src/caliper/agent/main.py` — `_extract_reject_from_tool_results()`,
   `_REJECT_MARKERS` removed, `<diff>` tag wrapping

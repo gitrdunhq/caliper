@@ -2,14 +2,14 @@
 # tested-by: tests/unit/test_contract.py
 
 RED phase for issue #405 — these import symbols that do not exist yet and are
-expected to fail with ImportError until src/eedom/_base.py is added.
+expected to fail with ImportError until src/caliper/_base.py is added.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from eedom._base import Contract
+from caliper._base import Contract
 
 
 class _Sample(Contract):

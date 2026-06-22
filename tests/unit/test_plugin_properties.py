@@ -13,14 +13,14 @@ from pathlib import Path
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from eedom.core.plugin import (
+from caliper.core.plugin import (
     PluginCategory,
     PluginResult,
     ScannerPlugin,
     finding_get,
 )
-from eedom.core.registry import PluginRegistry
-from eedom.core.renderer import render_comment
+from caliper.core.registry import PluginRegistry
+from caliper.core.renderer import render_comment
 
 # ── Strategies ──
 
@@ -174,7 +174,7 @@ class TestTemplatePurity:
     def test_render_always_returns_string(self, results: list[PluginResult]):
         md = render_comment(results, repo="x", pr_num=0, title="t")
         assert isinstance(md, str)
-        assert "Eagle Eyed Dom" in md
+        assert "Caliper" in md
 
     @given(results=st.lists(plugin_result_st, min_size=0, max_size=3))
     @settings(max_examples=20, deadline=None)  # render time varies under load; see #413
@@ -188,7 +188,7 @@ class TestTemplatePurity:
 
 class TestDiscoverySafety:
     def test_discovery_completes_fast(self):
-        from eedom.plugins import get_default_registry
+        from caliper.plugins import get_default_registry
 
         start = time.monotonic()
         reg = get_default_registry()
@@ -197,7 +197,7 @@ class TestDiscoverySafety:
         assert len(reg.list()) >= 10
 
     def test_discovery_no_side_effects(self):
-        from eedom.plugins import get_default_registry
+        from caliper.plugins import get_default_registry
 
         reg = get_default_registry()
         for p in reg.list():

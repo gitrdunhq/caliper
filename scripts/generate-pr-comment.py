@@ -1,4 +1,4 @@
-"""Generate a simulated PR comment from GATEKEEPER tool results."""
+"""Generate a simulated PR comment from Foreman tool results."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from eedom.agent.tools import (
+from caliper.agent.tools import (
     _detect_rulesets,
     _extract_changed_files,
     _get_agent_settings,
@@ -61,7 +61,7 @@ approved = [d for d in decisions if d["decision"] == "approve"]
 c: list[str] = []
 
 # ── Header + verdict banner ──
-c.append("## ⚡ GATEKEEPER — Dependency & Code Review")
+c.append("## ⚡ Foreman — Dependency & Code Review")
 c.append("")
 if rejects:
     c.append("> 🔴 **BLOCKED** — policy violations found.")
@@ -196,7 +196,7 @@ c.append("")
 c.append("---")
 cfg = _get_agent_settings()
 c.append(
-    f"*GATEKEEPER v{cfg.policy_version} • "
+    f"*Foreman v{cfg.policy_version} • "
     f"Semgrep pinned@fdc7354 • "
     f"{len(decisions)} packages • "
     f"{len(findings)} code findings*"

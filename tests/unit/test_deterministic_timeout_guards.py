@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files where subprocess calls must have explicit timeouts (issue #260)
 _SUBPROCESS_TIMEOUT_FILES: tuple[Path, ...] = (

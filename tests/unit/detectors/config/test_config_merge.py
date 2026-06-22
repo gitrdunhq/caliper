@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.config.config_merge import ConfigMergeDetector
+from caliper.detectors.config.config_merge import ConfigMergeDetector
 
 
 class TestConfigMergeDetector:
-    """Tests for ConfigMergeDetector (EED-013)."""
+    """Tests for ConfigMergeDetector (CAL-013)."""
 
     @pytest.fixture
     def detector(self):
@@ -40,7 +40,7 @@ def load_config():
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-013"
+        assert findings[0].detector_id == "CAL-013"
 
     def test_detects_update_call_dropping_telemetry(self, detector):
         """Detects dict.update() that may drop telemetry keys."""
@@ -155,7 +155,7 @@ def merge(base_config, package_config):
         assert (
             len(findings) == 1
         ), "{**base_config, **package_config} must be flagged — 'config' is in the variable names"
-        assert findings[0].detector_id == "EED-013"
+        assert findings[0].detector_id == "CAL-013"
 
     def test_inline_config_literal_key_merge_flagged(self, detector):
         """P14-1: {**base, **user, 'debug': True} must be flagged (config-literal key present)."""

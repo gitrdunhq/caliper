@@ -1,8 +1,8 @@
-# Eagle Eyed Dom — Architecture Reference
+# Caliper — Architecture Reference
 
 ## 1. System Overview
 
-Eagle Eyed Dom is a deterministic code and dependency review platform for CI. It
+Caliper is a deterministic code and dependency review platform for CI. It
 exposes two evaluation paths — a legacy dependency review pipeline and a 19-plugin
 review system — both fully fail-open with zero LLM in the decision path.
 
@@ -17,9 +17,9 @@ an append-only Parquet audit log.
 categories (dependency, code, infra, quality, supply_chain) plus the OPA policy
 plugin (which always runs last) against a repository or diff. In addition to the
 plugins, a `DeterministicScanner` (Section 21) runs 21 AST-based detectors
-(EED-001..EED-021) in the same parallel pass. The flow is: file enumeration →
+(CAL-001..CAL-021) in the same parallel pass. The flow is: file enumeration →
 parallel scan (plugins + deterministic detectors) → normalize/dedup (highest
-severity wins) → detect-then-enrich (Section 22) → OPA policy/decision → render
+severity wins) → detect-then-scribe (Section 22) → OPA policy/decision → render
 (Markdown comment or SARIF v2.1.0) plus evidence/Parquet persistence. Plugins are
 discovered automatically, can be filtered by name or category, and each renders its
 results via a Jinja2 template. Watch mode (`--watch`) re-runs the review on every
@@ -80,7 +80,7 @@ repo path / diff
   PluginRegistry
         |
         v
-  load_repo_config(repo_path)       .eagle-eyed-dom.yaml
+  load_repo_config(repo_path)       .caliper.yaml
   (core/repo_config.py)
         |
         v
@@ -106,37 +106,37 @@ repo path / diff
 
 ## 2. Three-Tier Architecture
 
-### Presentation — `src/eedom/cli/`
+### Presentation — `src/caliper/cli/`
 
 | Module | Responsibility |
 |--------|---------------|
 | `cli/main.py` | Click CLI entry point. Six commands: `evaluate` (dependency review pipeline), `review` (19-plugin repo review), `query` (DuckDB queries over the Parquet audit log), `check-health` (binary + DB probe), `plugins` (list registered plugins), and `schema` (emit JSON Schema for domain models). Reads diff from file or stdin, constructs the appropriate pipeline or registry, delegates all logic, formats output. Never contains business logic. SARIF output (`--format sarif`) and watch mode (`--watch`) are coordinated here but implemented in `core/sarif.py` and the watchdog observer respectively. |
 
 Imports: `click`, `structlog`, `core.models.OperatingMode`, `core.pipeline.ReviewPipeline`,
-`core.config.EedomSettings`, `core.plugin.PluginCategory`, `core.renderer.render_comment`,
+`core.config.CaliperSettings`, `core.plugin.PluginCategory`, `core.renderer.render_comment`,
 `core.sarif.to_sarif`, `core.repo_config.load_repo_config`, `plugins.get_default_registry`.
 
 The CLI catches `Exception` only at the outermost boundary to exit with code 1. Watch mode
 exits cleanly on `KeyboardInterrupt` with no stack trace.
 
-#### GATEKEEPER Copilot Agent (`src/eedom/agent/`)
+#### Foreman Copilot Agent (`src/caliper/agent/`)
 
 Second presentation-tier entry point (see ADR-001 through ADR-004 in `docs/adr/`).
 
 | Module | Responsibility |
 |--------|---------------|
-| `config.py` | `AgentSettings` with `GATEKEEPER_` prefix. `EnforcementMode`, GitHub token, Semgrep timeout. |
+| `config.py` | `AgentSettings` with `FOREMAN_` prefix. `EnforcementMode`, GitHub token, Semgrep timeout. |
 | `prompt.py` | System prompt: 8-dimension rubric, comment format, Semgrep guidance. |
 | `tools.py` | `@tool` functions: `evaluate_change`, `check_package`, `scan_code`. All fail-open. |
-| `main.py` | `GatekeeperAgent` orchestrator. Copilot SDK session, PR comments, enforcement. |
+| `main.py` | `ForemanAgent` orchestrator. Copilot SDK session, PR comments, enforcement. |
 
 The agent catches all exceptions and exits 0 (fail-open). Pipeline failures never block a PR.
 
-### Logic — `src/eedom/core/`
+### Logic — `src/caliper/core/`
 
 | Module | Responsibility |
 |--------|---------------|
-| `config.py` | `EedomSettings` — Pydantic `BaseSettings` with `EEDOM_` prefix. Custom `_CommaSeparatedEnvSource` handles comma-separated scanner lists. `SecretStr` for `llm_api_key`. Validates at startup; missing `db_dsn` raises immediately. |
+| `config.py` | `CaliperSettings` — Pydantic `BaseSettings` with `CALIPER_` prefix. Custom `_CommaSeparatedEnvSource` handles comma-separated scanner lists. `SecretStr` for `llm_api_key`. Validates at startup; missing `db_dsn` raises immediately. |
 | `models.py` | All domain objects as Pydantic models. Six `StrEnum` types. `ReviewDecision.model_post_init` computes `should_comment` and `should_mark_unstable` from operating mode x verdict. |
 | `pipeline.py` | `ReviewPipeline` — stateless per call. Two entry points: `evaluate()` for diff-based (PyPI) and `evaluate_sbom()` for SBOM-based (ecosystem-agnostic). Wires all subsystems together. Enforces per-package pipeline timeout. |
 | `pipeline_helpers.py` | Extracted helpers keeping `pipeline.py` under 500 lines: `resolve_git_sha`, `count_transitive_deps_from_scan`, `parse_changes`, `sbom_changes_to_requests`. |
@@ -151,14 +151,14 @@ The agent catches all exceptions and exits 0 (fail-open). Pipeline failures neve
 | `registry.py` | `PluginRegistry` — register, filter, and run plugins. `discover_plugins()` auto-loads `ScannerPlugin` subclasses from a directory. `run_all()` runs scan plugins first, then the `opa` policy plugin with all aggregated findings. |
 | `renderer.py` | `render_comment()` — pure function assembling plugin results into Markdown via `comment.md.j2`. Computes verdict (blocked/incomplete/warnings/clear) and `calculate_severity_score()`. Truncates at 65536 chars. |
 | `sarif.py` | `to_sarif()` — pure function converting `list[PluginResult]` to a SARIF v2.1.0 document. One SARIF run per plugin. Severity mapped to SARIF levels. |
-| `repo_config.py` | `load_repo_config()` — loads `.eagle-eyed-dom.yaml` from the repo root. Returns `RepoConfig` with `plugins.enabled`, `plugins.disabled`, and `thresholds`. Missing file returns defaults. |
+| `repo_config.py` | `load_repo_config()` — loads `.caliper.yaml` from the repo root. Returns `RepoConfig` with `plugins.enabled`, `plugins.disabled`, and `thresholds`. Missing file returns defaults. |
 | `taskfit.py` | `TaskFitAdvisor` — optional LLM advisory against 8 dimensions. Structured system/user message separation. Retry loop (up to 2 retries) with rejection guidance on validation failure. |
 | `taskfit_validator.py` | `validate_taskfit_response()` — strict regex-based gate. All 8 dimensions required. No partial credit. Returns `ValidationResult` with specific errors for retry guidance. |
 | `seal.py` | `create_seal()` / `verify_seal()` / `find_previous_seal_hash()` — SHA-256 integrity chain across evidence runs. |
 
 Imports: `core` modules import only from `core` and `data.scanners.base`. The logic tier has zero knowledge of HTTP frameworks or Click.
 
-### Data — `src/eedom/data/`
+### Data — `src/caliper/data/`
 
 | Module | Responsibility |
 |--------|---------------|
@@ -288,7 +288,7 @@ plugins directory (skipping `_`-prefixed files), imports each module dynamically
 instantiates every `ScannerPlugin` subclass found.
 
 `get_default_registry()` (`plugins/__init__.py`) creates a fresh registry and registers
-all auto-discovered plugins from `src/eedom/plugins/`.
+all auto-discovered plugins from `src/caliper/plugins/`.
 
 ### All 19 Plugins (+ OPA Policy Plugin)
 
@@ -765,7 +765,7 @@ to the caller.
 
 | Component | Failure | Recovery | User-visible effect |
 |-----------|---------|----------|---------------------|
-| Config load | Missing `EEDOM_DB_DSN` | CLI exits 0 with message | "Pipeline skipped — configuration unavailable" |
+| Config load | Missing `CALIPER_DB_DSN` | CLI exits 0 with message | "Pipeline skipped — configuration unavailable" |
 | DB connect | `ConnectionPool` fails | Falls back to `NullRepository` | `db_unavailable` log warning; pipeline continues |
 | DB query | Any psycopg exception | Exception logged; method returns silently | Decision not persisted in DB |
 | Scanner binary missing | `OSError` in subprocess | `ScanResult.not_installed(name)` | Scanner listed as failed in memo |
@@ -801,7 +801,7 @@ calls in `db.py` use `_safe_dsn(self._dsn)` instead of the raw DSN.
 
 ### SecretStr for LLM API Key
 
-`EedomSettings.llm_api_key` is typed as `SecretStr | None` (`config.py:82`).
+`CaliperSettings.llm_api_key` is typed as `SecretStr | None` (`config.py:82`).
 Pydantic's `SecretStr` redacts the value in `repr()` and `str()`, preventing accidental
 logging. `taskfit.py:243` calls `get_secret_value()` explicitly when building the
 Authorization header.
@@ -838,14 +838,14 @@ Neither is passed to a shell — all subprocess calls use list-form `cmd` argume
 
 ## 15. Plugin Templates (Jinja2)
 
-Each plugin can ship a Jinja2 template at `src/eedom/templates/{plugin_name}.md.j2`.
+Each plugin can ship a Jinja2 template at `src/caliper/templates/{plugin_name}.md.j2`.
 `ScannerPlugin.render()` (`core/plugin.py:52`) checks for the template file and renders
 it with Jinja2 if found, falling back to `_render_inline()` otherwise.
 
 ### Template Directory
 
 ```
-src/eedom/templates/
+src/caliper/templates/
   comment.md.j2          <- main comment wrapper, composes per-plugin sections
   blast-radius.md.j2
   complexity.md.j2
@@ -939,7 +939,7 @@ Supported languages: Python (full AST via `ast` module), JavaScript/TypeScript (
 ### Persistence
 
 `CodeGraph(db_path=":memory:")` defaults to in-memory; the `blast-radius` plugin passes
-`repo/.eedom/code_graph.sqlite` for persistent storage across runs.
+`repo/.caliper/code_graph.sqlite` for persistent storage across runs.
 
 ### Incremental Rebuild
 
@@ -948,8 +948,8 @@ compares mtime first and falls back to SHA-256 content hash on mtime change. Onl
 changed files are re-parsed; deleted files are purged via `purge_deleted_files()`.
 
 On the first run (empty `symbols` table), `index_directory(repo_path)` performs a full
-walk, skipping `.git`, `__pycache__`, `node_modules`, `.venv`, `.claude`, `.eedom`, and
-`.eedom/reports`.
+walk, skipping `.git`, `__pycache__`, `node_modules`, `.venv`, `.claude`, `.caliper`, and
+`.caliper/reports`.
 
 ### Built-in SQL Checks
 
@@ -1026,19 +1026,19 @@ Falls back to `plugin_name` if none are present.
 ### Truncation
 
 When `max_findings_per_run > 0`, findings beyond the cap are replaced with a single
-`eedom-truncated` note result indicating how many were omitted.
+`caliper-truncated` note result indicating how many were omitted.
 
 ### CLI Usage
 
 ```bash
 # Write SARIF to file
-uv run eedom review --repo-path . --all --format sarif --output results.sarif
+uv run caliper review --repo-path . --all --format sarif --output results.sarif
 
 # Pipe to stdout
-uv run eedom review --repo-path . --format sarif
+uv run caliper review --repo-path . --format sarif
 
 # Cap findings per plugin (default: 1000)
-uv run eedom review --repo-path . --all --format sarif --sarif-max-findings 500
+uv run caliper review --repo-path . --all --format sarif --sarif-max-findings 500
 ```
 
 SARIF output is compatible with GitHub's Security tab (`upload-sarif` action) and any
@@ -1047,7 +1047,7 @@ tool that consumes the OASIS SARIF 2.1.0 spec.
 
 ## 19. Repo Configuration
 
-`.eagle-eyed-dom.yaml` in the repository root provides per-repo plugin configuration.
+`.caliper.yaml` in the repository root provides per-repo plugin configuration.
 The file is optional; absence returns defaults.
 
 ### Schema
@@ -1085,10 +1085,10 @@ runtime:
 
 ```bash
 # Disable cspell and ls-lint for this run
-uv run eedom review --repo-path . --disable cspell,ls-lint
+uv run caliper review --repo-path . --disable cspell,ls-lint
 
 # Force-enable a plugin even if config disables it
-uv run eedom review --repo-path . --enable gitleaks
+uv run caliper review --repo-path . --enable gitleaks
 ```
 
 `enabled_names` always wins over `disabled_names` within `PluginRegistry.run_all()`.
@@ -1101,7 +1101,7 @@ The `review` command supports `--watch` for interactive development workflows.
 ### Behaviour
 
 ```bash
-uv run eedom review --repo-path . --watch
+uv run caliper review --repo-path . --watch
 ```
 
 On startup the review runs once. The command then watches the repository for filesystem
@@ -1114,7 +1114,7 @@ changes and re-runs the review after a 500 ms quiet period.
 - `Observer` monitors the repo path recursively
 - `_Handler.on_any_event()` filters by file extension (`_WATCH_EXTENSIONS`:
   `.py`, `.ts`, `.js`, `.tf`, `.yaml`, `.yml`) and ignores `_IGNORE_DIRS`
-  (`__pycache__`, `.git`, `.eedom`, `.eedom/reports`)
+  (`__pycache__`, `.git`, `.caliper`, `.caliper/reports`)
 - `DebounceTimer(delay=0.5)` cancels any pending callback and restarts the timer on
   each matching event; the review fires only after 500 ms of inactivity
 
@@ -1135,8 +1135,8 @@ Watch mode is purely additive — the review command runs identically with or wi
 
 ## 21. Deterministic Detectors
 
-The `src/eedom/detectors/` module provides 21 AST-based bug detectors
-(`EED-001`..`EED-021`) that run alongside the scanner plugins. They are
+The `src/caliper/detectors/` module provides 21 AST-based bug detectors
+(`CAL-001`..`CAL-021`) that run alongside the scanner plugins. They are
 deterministic — the same source always produces the same findings — and require no
 subprocess, network, or external binary.
 
@@ -1156,7 +1156,7 @@ Detectors register via the `@register_detector` decorator into the `DETECTORS` r
 |---------|-----------|
 | Determinism | Pure AST traversal; no I/O in `detect()`; same input → same findings |
 | Fail-safe | `detect_safe()` wraps `detect()` and catches all exceptions → `[]` |
-| Suppression | `# noqa: EED-XXX` (or bare `# noqa`) on the finding's line skips it |
+| Suppression | `# noqa: CAL-XXX` (or bare `# noqa`) on the finding's line skips it |
 | Caching | `ASTCache` parses each file once and shares the tree across detectors |
 
 ### Pipeline Integration
@@ -1172,42 +1172,42 @@ parallel scan pass rather than a separate `detect` command; `--scanners determin
 runs only the detectors.
 
 
-## 22. Detect-Then-Enrich (ADR-006)
+## 22. Detect-Then-Scribe (ADR-006)
 
 After detection and dedup, but before policy evaluation, findings pass through a
-sequential **enrichment** pass that attaches deterministic context to each finding
-without changing the verdict. The seam is defined by `EnricherPort` (`applies_to` +
-`enrich`), driven by `enrich_findings()` (`core/enrich.py`) with an `EnrichmentContext`,
-and backed by the core `ENRICHERS` registry (`core/registries.py`).
+sequential **scribe** pass that attaches deterministic context to each finding
+without changing the verdict. The seam is defined by `ScribePort` (`applies_to` +
+`scribe`), driven by `scribe_findings()` (`core/scribe.py`) with an `ScribeContext`,
+and backed by the core `SCRIBES` registry (`core/registries.py`).
 
-Enrichers write only to `metadata['enrichment']`; they never add, drop, or re-rank
+Scribes write only to `metadata['scribe']`; they never add, drop, or re-rank
 findings. The pass runs sequentially (not in the plugin ThreadPool) so shared tool state
 — e.g. the CodeGraph — is built once and read without locks.
 
-### Enrichers
+### Scribes
 
-| Enricher | Key file | What it adds | Default |
+| Scribe | Key file | What it adds | Default |
 |----------|----------|--------------|---------|
-| `enclosing_symbol` | `detectors/enrichers/enclosing_symbol.py` | Enclosing function/class for a finding's line | on |
-| `code_graph` | `plugins/enrichers/code_graph.py` | Enclosing symbol + upstream blast-radius callers (capped at 25) | on |
-| `semgrep` | `plugins/enrichers/semgrep.py` | Related semgrep matches | opt-in |
+| `enclosing_symbol` | `detectors/scribes/enclosing_symbol.py` | Enclosing function/class for a finding's line | on |
+| `code_graph` | `plugins/scribes/code_graph.py` | Enclosing symbol + upstream blast-radius callers (capped at 25) | on |
+| `semgrep` | `plugins/scribes/semgrep.py` | Related semgrep matches | opt-in |
 
-`DEFAULT_ENRICHERS = ("enclosing_symbol", "code_graph")` (`core/config.py`); `semgrep`
-stays opt-in. Composition happens in `composition/bootstrap.py`: `build_enrichers(settings)`
-resolves `settings.enabled_enrichers` against the registry (unknown keys skipped), and
+`DEFAULT_SCRIBES = ("enclosing_symbol", "code_graph")` (`core/config.py`); `semgrep`
+stays opt-in. Composition happens in `composition/bootstrap.py`: `build_scribes(settings)`
+resolves `settings.enabled_scribes` against the registry (unknown keys skipped), and
 `load_adapters()` fires the registration decorators.
 
 | Concern | Mechanism |
 |---------|-----------|
-| Fail-open | A raising enricher is logged and skipped; the finding survives unchanged |
-| Verdict-independence | Writes only `metadata['enrichment']`; never affects deny/warn/decision |
-| Time-bounded | `enrichment_timeout` (30s) budget; on exhaustion remaining enrichers are skipped |
+| Fail-open | A raising scribe is logged and skipped; the finding survives unchanged |
+| Verdict-independence | Writes only `metadata['scribe']`; never affects deny/warn/decision |
+| Time-bounded | `scribe_timeout` (30s) budget; on exhaustion remaining scribes are skipped |
 | Determinism | Deterministic context (symbols, callers); no scoring or LLM |
 
 
 ## 23. Webhook Server
 
-`src/eedom/webhook/server.py` is a Starlette ASGI application exposing a single
+`src/caliper/webhook/server.py` is a Starlette ASGI application exposing a single
 `POST /webhook` route for GitHub pull-request webhooks. It is a third presentation-tier
 entry point (alongside `cli/` and `agent/`) and reuses the same `review_repository`
 use-case via the wired `ApplicationContext`.
@@ -1225,32 +1225,32 @@ use-case via the wired `ApplicationContext`.
 
 ### Config and Fail-Open
 
-Configuration is via `EEDOM_WEBHOOK_*` env vars (`webhook/config.py`, `WebhookSettings`):
+Configuration is via `CALIPER_WEBHOOK_*` env vars (`webhook/config.py`, `WebhookSettings`):
 the HMAC secret, GitHub token (`SecretStr`), and host/port (default **12800**). The
 fail-open contract is explicit: every processing error after authentication is logged and
 returns HTTP 200, so a review or comment failure never wedges GitHub's webhook delivery.
 The only non-200 responses are authentication (401) and input-validation (400/413)
 failures. The production app is built lazily and thread-safely via the module-level `app`
-attribute for `uvicorn eedom.webhook.server:app`.
+attribute for `uvicorn caliper.webhook.server:app`.
 
 
 ## 24. Composition Root
 
-`src/eedom/composition/bootstrap.py` is the presentation-side composition tier. It is
+`src/caliper/composition/bootstrap.py` is the presentation-side composition tier. It is
 the one place permitted to import `data` / `adapters` / `plugins` to construct the
 core-owned `ApplicationContext`; core depends only on the port *types*, never on this
 wiring.
 
 | Function | Responsibility |
 |----------|---------------|
-| `bootstrap(settings)` | Production wiring — builds the full `ApplicationContext` from `EedomSettings` |
+| `bootstrap(settings)` | Production wiring — builds the full `ApplicationContext` from `CaliperSettings` |
 | `load_adapters()` | Imports every adapter module so its `@REGISTRY.register` factories run (idempotent) |
-| `build_enrichers(settings)` | Resolves enabled enrichers from the `ENRICHERS` registry (Section 22) |
+| `build_scribes(settings)` | Resolves enabled scribes from the `SCRIBES` registry (Section 22) |
 | `build_scanners` / `build_decision_store` / `build_publisher` / … | Per-adapter factories threading timeouts/paths through registry factories |
 | `bootstrap_test()` / `bootstrap_review()` | All-fake / minimal contexts for unit tests and the review command |
 
 Because core may not import across tier boundaries, `load_adapters()` explicitly imports
-adapter modules (persistence, GitHub publisher, OPA, PyPI, file source, the enrichers,
+adapter modules (persistence, GitHub publisher, OPA, PyPI, file source, the scribes,
 graph/semgrep runners, etc.) to populate the registries in `core/registries.py`. Wiring
 is fail-open by construction: `build_decision_store()`/`build_decision_repository()` fall
 back to `NullRepository`/`NullDecisionStore` when `db_dsn` is unset or the connection

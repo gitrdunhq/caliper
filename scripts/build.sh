@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build the eedom production container image.
+# Build the caliper production container image.
 # Auto-detects podman vs docker and applies the right flags.
 #
 # Usage:
@@ -25,7 +25,7 @@ for arg in "$@"; do
     esac
 done
 
-IMAGE="eedom:${ARCH}"
+IMAGE="caliper:${ARCH}"
 
 if command -v podman &>/dev/null; then
     ENGINE=podman
@@ -57,11 +57,11 @@ if [[ "$ENGINE" == "podman" ]]; then
       | "$ENGINE" build \
           --platform "linux/$ARCH" \
           -t "$IMAGE" \
-          -t eedom:latest \
+          -t caliper:latest \
           "${EXTRA_ARGS[@]}" \
           -f - "$REPO_ROOT"
 else
-    BUILDER="eedom-builder"
+    BUILDER="caliper-builder"
     if ! docker buildx inspect "$BUILDER" &>/dev/null; then
         echo "Creating buildx builder '$BUILDER' with insecure entitlements..."
         docker buildx create --name "$BUILDER" --driver docker-container \
@@ -74,10 +74,10 @@ else
           --load \
           --platform "linux/$ARCH" \
           -t "$IMAGE" \
-          -t eedom:latest \
+          -t caliper:latest \
           "${EXTRA_ARGS[@]}" \
           -f - "$REPO_ROOT"
 fi
 
 echo "Built: $IMAGE"
-"$ENGINE" run --rm --platform "linux/$ARCH" --entrypoint "" "$IMAGE" eedom --version 2>&1 | tail -1
+"$ENGINE" run --rm --platform "linux/$ARCH" --entrypoint "" "$IMAGE" caliper --version 2>&1 | tail -1

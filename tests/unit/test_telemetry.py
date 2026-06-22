@@ -1,4 +1,4 @@
-"""Tests for eedom.core.telemetry — anonymous opt-in telemetry module.
+"""Tests for caliper.core.telemetry — anonymous opt-in telemetry module.
 
 # tested-by: tests/unit/test_telemetry.py
 """
@@ -14,11 +14,11 @@ class TestTelemetryEventPrivacyEnforcement:
 
     def test_extra_fields_forbidden(self) -> None:
         """TelemetryEvent must reject extra fields — schema IS the privacy contract."""
-        from eedom.core.telemetry import ConfigUsage, TelemetryEvent
+        from caliper.core.telemetry import ConfigUsage, TelemetryEvent
 
         with pytest.raises(ValidationError):
             TelemetryEvent(
-                eedom_version="1.0.0",
+                caliper_version="1.0.0",
                 plugin_results=[],
                 finding_counts={},
                 plugin_combination=[],
@@ -32,7 +32,7 @@ class TestTelemetryEventPrivacyEnforcement:
 
     def test_crash_report_rejects_file_path_in_message(self) -> None:
         """CrashReport.message must not contain file paths — privacy enforcement."""
-        from eedom.core.telemetry import CrashReport
+        from caliper.core.telemetry import CrashReport
 
         # We expect the model to either raise ValidationError or sanitize.
         # Per spec: message is "sanitized — no file paths, no package names"
@@ -46,12 +46,12 @@ class TestTelemetryEventPrivacyEnforcement:
 
     def test_crash_report_strips_file_paths_from_stack_summary(self) -> None:
         """CrashReport.stack_summary strips absolute file paths to module names only."""
-        from eedom.core.telemetry import CrashReport
+        from caliper.core.telemetry import CrashReport
 
         report = CrashReport(
             exception_type="ValueError",
             message="config error",
-            stack_summary="/home/user/project/src/eedom/core/pipeline.py:42 in evaluate",
+            stack_summary="/home/user/project/src/caliper/core/pipeline.py:42 in evaluate",
         )
         # Absolute paths must not survive in the stored stack_summary
         assert "/home" not in report.stack_summary
@@ -64,7 +64,7 @@ class TestSendTelemetry:
     @pytest.mark.asyncio
     async def test_send_telemetry_silently_drops_on_network_error(self) -> None:
         """send_telemetry must not raise when the endpoint is unreachable."""
-        from eedom.core.telemetry import (
+        from caliper.core.telemetry import (
             ConfigUsage,
             PluginTelemetry,
             TelemetryEvent,
@@ -72,7 +72,7 @@ class TestSendTelemetry:
         )
 
         event = TelemetryEvent(
-            eedom_version="1.0.0",
+            caliper_version="1.0.0",
             plugin_results=[PluginTelemetry(name="semgrep", status="ok", duration_ms=120)],
             finding_counts={"vuln": 3},
             plugin_combination=["semgrep"],
@@ -90,10 +90,10 @@ class TestSendTelemetry:
         """send_telemetry completes without exception on a well-formed event."""
         from unittest.mock import AsyncMock, patch
 
-        from eedom.core.telemetry import ConfigUsage, TelemetryEvent, send_telemetry
+        from caliper.core.telemetry import ConfigUsage, TelemetryEvent, send_telemetry
 
         event = TelemetryEvent(
-            eedom_version="2.0.0",
+            caliper_version="2.0.0",
             plugin_results=[],
             finding_counts={},
             plugin_combination=["gitleaks", "semgrep"],
@@ -111,7 +111,7 @@ class TestSendTelemetry:
         mock_client.post = AsyncMock(return_value=AsyncMock(status_code=200))
 
         with patch("httpx.AsyncClient", return_value=mock_client):
-            await send_telemetry(event, endpoint="https://telemetry.eedom.dev/v1/events")
+            await send_telemetry(event, endpoint="https://telemetry.caliper.dev/v1/events")
 
 
 class TestRepoConfigTelemetryDefaults:
@@ -119,21 +119,21 @@ class TestRepoConfigTelemetryDefaults:
 
     def test_telemetry_disabled_by_default(self) -> None:
         """TelemetryConfig must default to enabled=False — zero network calls without opt-in."""
-        from eedom.core.repo_config import RepoConfig
+        from caliper.core.repo_config import RepoConfig
 
         config = RepoConfig()
         assert config.telemetry.enabled is False
 
     def test_telemetry_default_endpoint(self) -> None:
         """Default endpoint must be set even when telemetry is disabled."""
-        from eedom.core.repo_config import RepoConfig
+        from caliper.core.repo_config import RepoConfig
 
         config = RepoConfig()
-        assert config.telemetry.endpoint == "https://telemetry.eedom.dev/v1/events"
+        assert config.telemetry.endpoint == "https://telemetry.caliper.dev/v1/events"
 
     def test_telemetry_can_be_enabled_via_config(self) -> None:
         """TelemetryConfig can be enabled explicitly."""
-        from eedom.core.repo_config import RepoConfig, TelemetryConfig
+        from caliper.core.repo_config import RepoConfig, TelemetryConfig
 
         config = RepoConfig(telemetry=TelemetryConfig(enabled=True))
         assert config.telemetry.enabled is True
@@ -144,7 +144,7 @@ class TestPluginTelemetry:
 
     def test_plugin_telemetry_accepts_valid_data(self) -> None:
         """PluginTelemetry accepts name, status, and duration_ms."""
-        from eedom.core.telemetry import PluginTelemetry
+        from caliper.core.telemetry import PluginTelemetry
 
         pt = PluginTelemetry(name="trivy", status="ok", duration_ms=350)
         assert pt.name == "trivy"
@@ -153,7 +153,7 @@ class TestPluginTelemetry:
 
     def test_plugin_telemetry_rejects_extra_fields(self) -> None:
         """PluginTelemetry must reject extra fields (extra='forbid')."""
-        from eedom.core.telemetry import PluginTelemetry
+        from caliper.core.telemetry import PluginTelemetry
 
         with pytest.raises(ValidationError):
             PluginTelemetry(
@@ -169,11 +169,11 @@ class TestConfigUsageDefaults:
 
     def test_config_usage_all_false_by_default(self) -> None:
         """ConfigUsage must default every boolean flag to False."""
-        from eedom.core.telemetry import ConfigUsage
+        from caliper.core.telemetry import ConfigUsage
 
         usage = ConfigUsage()
         assert usage.has_config_file is False
-        assert usage.has_eedomignore is False
+        assert usage.has_caliperignore is False
         assert usage.uses_disable_flag is False
         assert usage.uses_enable_flag is False
         assert usage.uses_watch_mode is False
@@ -182,7 +182,7 @@ class TestConfigUsageDefaults:
 
     def test_config_usage_rejects_extra_fields(self) -> None:
         """ConfigUsage must reject extra fields."""
-        from eedom.core.telemetry import ConfigUsage
+        from caliper.core.telemetry import ConfigUsage
 
         with pytest.raises(ValidationError):
             ConfigUsage(has_config_file=True, org_name="acme")  # FORBIDDEN extra field
@@ -193,7 +193,7 @@ class TestTelemetryEventValidData:
 
     def test_all_nine_signals_valid(self) -> None:
         """TelemetryEvent accepts a complete payload with all 9 signals."""
-        from eedom.core.telemetry import (
+        from caliper.core.telemetry import (
             ConfigUsage,
             CrashReport,
             PluginTelemetry,
@@ -201,7 +201,7 @@ class TestTelemetryEventValidData:
         )
 
         event = TelemetryEvent(
-            eedom_version="1.2.3",
+            caliper_version="1.2.3",
             plugin_results=[
                 PluginTelemetry(name="semgrep", status="ok", duration_ms=200),
                 PluginTelemetry(name="trivy", status="error", duration_ms=5000),
@@ -211,7 +211,7 @@ class TestTelemetryEventValidData:
             plugin_combination=["semgrep", "trivy"],
             config_usage=ConfigUsage(
                 has_config_file=True,
-                has_eedomignore=False,
+                has_caliperignore=False,
                 uses_disable_flag=True,
                 uses_enable_flag=False,
                 uses_watch_mode=False,
@@ -227,7 +227,7 @@ class TestTelemetryEventValidData:
                 stack_summary="pipeline.evaluate | scanners.trivy | base.run_subprocess",
             ),
         )
-        assert event.eedom_version == "1.2.3"
+        assert event.caliper_version == "1.2.3"
         assert len(event.plugin_results) == 3
         assert event.finding_counts["vuln_high"] == 2
         assert event.scan_time_bucket == "10-50"
@@ -236,10 +236,10 @@ class TestTelemetryEventValidData:
 
     def test_telemetry_event_crash_report_optional(self) -> None:
         """crash_report defaults to None (most runs have no crash)."""
-        from eedom.core.telemetry import ConfigUsage, TelemetryEvent
+        from caliper.core.telemetry import ConfigUsage, TelemetryEvent
 
         event = TelemetryEvent(
-            eedom_version="1.0.0",
+            caliper_version="1.0.0",
             plugin_results=[],
             finding_counts={},
             plugin_combination=[],
@@ -260,10 +260,10 @@ class TestScanTimeBucket:
     )
     def test_valid_buckets_accepted(self, bucket: str) -> None:
         """All defined scan time buckets must be accepted."""
-        from eedom.core.telemetry import ConfigUsage, TelemetryEvent
+        from caliper.core.telemetry import ConfigUsage, TelemetryEvent
 
         event = TelemetryEvent(
-            eedom_version="1.0.0",
+            caliper_version="1.0.0",
             plugin_results=[],
             finding_counts={},
             plugin_combination=[],
@@ -276,11 +276,11 @@ class TestScanTimeBucket:
 
     def test_invalid_bucket_rejected(self) -> None:
         """An unknown scan_time_bucket value must be rejected."""
-        from eedom.core.telemetry import ConfigUsage, TelemetryEvent
+        from caliper.core.telemetry import ConfigUsage, TelemetryEvent
 
         with pytest.raises(ValidationError):
             TelemetryEvent(
-                eedom_version="1.0.0",
+                caliper_version="1.0.0",
                 plugin_results=[],
                 finding_counts={},
                 plugin_combination=[],

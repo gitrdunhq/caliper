@@ -2,15 +2,15 @@
 
 # tested-by: tests/integration/test_dockerfile.py (infrastructure test — no source file)
 
-Requires: podman (or docker) and a built eedom image.
-Run: EEDOM_IMAGE=eedom:latest uv run pytest tests/integration/test_dockerfile.py -v
+Requires: podman (or docker) and a built caliper image.
+Run: CALIPER_IMAGE=caliper:latest uv run pytest tests/integration/test_dockerfile.py -v
 
 These tests verify the container meets the DHI hardening requirements:
 1. All scanner binaries present and executable
 2. No dynamic linking failures (ldd clean)
 3. SHA256 checksums match pinned values
 4. Python packages importable
-5. eedom CLI functional
+5. caliper CLI functional
 6. Multi-arch support
 
 All tests in this module are expected to FAIL against the current Dockerfile
@@ -18,7 +18,7 @@ All tests in this module are expected to FAIL against the current Dockerfile
 satisfy this contract.
 
 Environment variables:
-  EEDOM_IMAGE   — image tag to test against (default: eedom:latest)
+  CALIPER_IMAGE   — image tag to test against (default: caliper:latest)
   CONTAINER_RUNTIME — override runtime detection (podman | docker)
 """
 
@@ -48,7 +48,7 @@ def _detect_runtime() -> str | None:
 
 
 RUNTIME = _detect_runtime()
-IMAGE = os.environ.get("EEDOM_IMAGE", "eedom:latest")
+IMAGE = os.environ.get("CALIPER_IMAGE", "caliper:latest")
 
 _runtime_missing = pytest.mark.skipif(
     RUNTIME is None,
@@ -200,7 +200,7 @@ class TestDynamicLinking:
         assert result.returncode < 125, (
             f"Container failed to start when running ldd against {binary} "
             f"(exit {result.returncode}). Is the image built and tagged as "
-            f"EEDOM_IMAGE={IMAGE}?\nstderr: {result.stderr}"
+            f"CALIPER_IMAGE={IMAGE}?\nstderr: {result.stderr}"
         )
 
     def test_no_missing_libs_git(self, container_run):
@@ -298,15 +298,15 @@ class TestPythonPackages:
     These tests FAIL because the DHI multi-stage build is not yet implemented.
     """
 
-    def test_eedom_importable(self, container_run):
-        """import eedom succeeds — package source is on PYTHONPATH."""
+    def test_caliper_importable(self, container_run):
+        """import caliper succeeds — package source is on PYTHONPATH."""
         result = container_run(
-            ["-c", "import eedom; print(eedom.__version__)"],
+            ["-c", "import caliper; print(caliper.__version__)"],
             entrypoint="python3",
         )
         assert (
             result.returncode == 0
-        ), f"eedom not importable.\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        ), f"caliper not importable.\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
     def test_semgrep_importable(self, container_run):
         """import semgrep succeeds — semgrep Python package in site-packages."""
@@ -319,13 +319,13 @@ class TestPythonPackages:
         ), f"semgrep not importable.\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
     def test_templates_exist(self, container_run):
-        """eedom/templates/comment.md.j2 present — templates shipped with package."""
+        """caliper/templates/comment.md.j2 present — templates shipped with package."""
         result = container_run(
             [
                 "-c",
                 (
-                    "from pathlib import Path; import eedom; "
-                    "p = Path(eedom.__file__).parent / 'templates' / 'comment.md.j2'; "
+                    "from pathlib import Path; import caliper; "
+                    "p = Path(caliper.__file__).parent / 'templates' / 'comment.md.j2'; "
                     "assert p.exists(), f'Template missing: {p}'"
                 ),
             ],
@@ -357,16 +357,16 @@ class TestPythonPackages:
 
 
 # ---------------------------------------------------------------------------
-# TestEedomCLI — verify the eedom CLI works end-to-end inside the container
+# TestCaliperCLI — verify the caliper CLI works end-to-end inside the container
 # ---------------------------------------------------------------------------
 
 
 @_runtime_missing
-class TestEedomCLI:
-    """Verify the eedom CLI is functional inside the DHI hardened image.
+class TestCaliperCLI:
+    """Verify the caliper CLI is functional inside the DHI hardened image.
 
-    The DHI image runs eedom via the Python module entrypoint:
-        ENTRYPOINT ["/opt/python/bin/python3", "-m", "eedom.cli.main"]
+    The DHI image runs caliper via the Python module entrypoint:
+        ENTRYPOINT ["/opt/python/bin/python3", "-m", "caliper.cli.main"]
 
     Tests invoke the CLI by overriding the entrypoint so individual subcommands
     can be exercised without relying on the default CMD.
@@ -375,44 +375,44 @@ class TestEedomCLI:
     """
 
     def test_help(self, container_run):
-        """eedom --help exits 0 and output mentions 'review' subcommand."""
+        """caliper --help exits 0 and output mentions 'review' subcommand."""
         result = container_run(
-            ["-m", "eedom.cli.main", "--help"],
+            ["-m", "caliper.cli.main", "--help"],
             entrypoint="python3",
         )
         assert (
             result.returncode == 0
-        ), f"eedom --help failed.\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        ), f"caliper --help failed.\nstdout: {result.stdout}\nstderr: {result.stderr}"
         assert (
             "review" in result.stdout.lower()
         ), f"'review' not found in --help output:\n{result.stdout}"
 
     def test_plugins_list(self, container_run):
-        """eedom plugins exits 0 and output includes 'semgrep' plugin."""
+        """caliper plugins exits 0 and output includes 'semgrep' plugin."""
         result = container_run(
-            ["-m", "eedom.cli.main", "plugins"],
+            ["-m", "caliper.cli.main", "plugins"],
             entrypoint="python3",
         )
         assert (
             result.returncode == 0
-        ), f"eedom plugins failed.\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        ), f"caliper plugins failed.\nstdout: {result.stdout}\nstderr: {result.stderr}"
         assert (
             "semgrep" in result.stdout.lower()
         ), f"'semgrep' not listed in plugins output:\n{result.stdout}"
 
     def test_review_empty_workspace(self, container_run):
-        """eedom review --repo-path /tmp --all exits 0 on empty directory.
+        """caliper review --repo-path /tmp --all exits 0 on empty directory.
 
         An empty workspace should produce zero findings and a clean exit,
         not a crash or NOT_INSTALLED error. This verifies that all 15 plugins
         initialise cleanly and handle the no-files case gracefully.
         """
         result = container_run(
-            ["-m", "eedom.cli.main", "review", "--repo-path", "/tmp", "--all"],
+            ["-m", "caliper.cli.main", "review", "--repo-path", "/tmp", "--all"],
             entrypoint="python3",
         )
         assert result.returncode == 0, (
-            f"eedom review on empty workspace failed.\n"
+            f"caliper review on empty workspace failed.\n"
             f"stdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
@@ -471,7 +471,7 @@ class TestChecksumVerification:
         A tampered binary causes the script (and therefore this test) to fail.
         """
         result = container_run(
-            ["/opt/eedom/scripts/verify-checksums.sh"],
+            ["/opt/caliper/scripts/verify-checksums.sh"],
             entrypoint="/bin/sh",
             extra_flags=[],
         )

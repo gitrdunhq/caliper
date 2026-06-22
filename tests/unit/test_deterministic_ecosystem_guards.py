@@ -29,7 +29,7 @@ pytestmark = pytest.mark.xfail(
 
 
 def _get_evaluate_source() -> str:
-    from eedom.core.pipeline import ReviewPipeline
+    from caliper.core.pipeline import ReviewPipeline
 
     src = inspect.getsource(ReviewPipeline.evaluate)
     assert len(src) > 200, (

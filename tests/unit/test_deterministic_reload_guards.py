@@ -26,8 +26,8 @@ def test_242_policy_bundle_reload_watches_correct_file_patterns() -> None:
     This test verifies that _WATCH_EXTENSIONS includes .rego to match the
     opa_policy_path default of "./policies/policy.rego".
     """
-    from eedom.cli.watch import _WATCH_EXTENSIONS
-    from eedom.core.config import EedomSettings
+    from caliper.cli.watch import _WATCH_EXTENSIONS
+    from caliper.core.config import CaliperSettings
 
     # The watch extensions must include .rego for policy bundle hot-reload
     assert ".rego" in _WATCH_EXTENSIONS, (
@@ -36,7 +36,7 @@ def test_242_policy_bundle_reload_watches_correct_file_patterns() -> None:
     )
 
     # Verify that the default policy path uses a .rego extension
-    settings = EedomSettings(
+    settings = CaliperSettings(
         db_dsn="postgresql://test:test@localhost/test",
     )
     policy_path = Path(settings.opa_policy_path)
@@ -57,7 +57,7 @@ def test_242_policy_directory_files_match_watch_patterns(tmp_path: Path) -> None
     trigger hot-reload when modified. This test scans the policies directory
     and verifies all policy files have watchable extensions.
     """
-    from eedom.cli.watch import _WATCH_EXTENSIONS
+    from caliper.cli.watch import _WATCH_EXTENSIONS
 
     # Find the policies directory relative to this test file
     test_file = Path(__file__)

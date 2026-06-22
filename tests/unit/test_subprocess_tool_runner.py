@@ -1,5 +1,5 @@
 # tested-by: tests/unit/test_subprocess_tool_runner.py
-"""Contract tests for SubprocessToolRunner (RED — eedom.core.subprocess_runner does not exist yet).
+"""Contract tests for SubprocessToolRunner (RED — caliper.core.subprocess_runner does not exist yet).
 
 All tests in this file are expected to fail with ImportError until the production
 module is created.  Task #163.
@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from eedom.core.subprocess_runner import SubprocessToolRunner  # noqa: F401 — will ImportError
-from eedom.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
+from caliper.core.subprocess_runner import SubprocessToolRunner  # noqa: F401 — will ImportError
+from caliper.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
 
 # ---------------------------------------------------------------------------
 # Helpers

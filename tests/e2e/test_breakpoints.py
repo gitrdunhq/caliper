@@ -15,7 +15,7 @@ from tests.e2e.conftest import (
     run_review,
 )
 
-pytestmark = pytest.mark.skipif(not E2E_ENABLED, reason="E2E tests require EEDOM_E2E=1")
+pytestmark = pytest.mark.skipif(not E2E_ENABLED, reason="E2E tests require CALIPER_E2E=1")
 
 ALL_SCANNERS = [
     "gitleaks",
@@ -45,7 +45,7 @@ class TestBreakpointFilesCreated:
     def test_breakpoint_files_created(
         self, vuln_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("EEDOM_E2E_BREAKPOINTS", "1")
+        monkeypatch.setenv("CALIPER_E2E_BREAKPOINTS", "1")
 
         from tests.e2e import conftest as c
 
@@ -66,7 +66,7 @@ class TestBreakpointFilesCreated:
     def test_breakpoint_per_plugin_valid_json(
         self, vuln_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("EEDOM_E2E_BREAKPOINTS", "1")
+        monkeypatch.setenv("CALIPER_E2E_BREAKPOINTS", "1")
 
         from tests.e2e import conftest as c
 

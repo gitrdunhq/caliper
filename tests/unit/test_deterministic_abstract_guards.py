@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     pass
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 _PLUGIN_DIR = _SRC / "plugins"
 _PLUGIN_BASE_FILE = _SRC / "core" / "plugin.py"
 
@@ -69,7 +69,7 @@ def test_plugin_base_has_abstractmethod_decorators() -> None:
     required methods (name, description, category, can_run, run) lack the
     @abstractmethod decorator.
 
-    The test AST-analyzes src/eedom/core/plugin.py to verify:
+    The test AST-analyzes src/caliper/core/plugin.py to verify:
     1. ScannerPlugin class exists and inherits from abc.ABC
     2. Each required method has @abc.abstractmethod decorator
     3. Abstract properties also have @property decorator
@@ -137,7 +137,7 @@ def test_plugin_base_has_abstractmethod_decorators() -> None:
 def test_plugin_subclasses_properly_override_abstract_methods() -> None:
     """Detect plugin subclasses that may not properly override abstract methods.
 
-    This test AST-analyzes all plugin files in src/eedom/plugins/ to detect
+    This test AST-analyzes all plugin files in src/caliper/plugins/ to detect
     when a ScannerPlugin subclass:
     1. Lacks required method implementations
     2. Has placeholder implementations (pass/ellipsis only)

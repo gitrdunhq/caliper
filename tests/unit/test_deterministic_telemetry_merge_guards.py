@@ -25,7 +25,7 @@ from pathlib import Path
 
 # xfail for #262 removed — telemetry merge fix is live (P05-1).
 
-_EEDOM_CFG = ".eagle-eyed-dom.yaml"
+_CALIPER_CFG = ".caliper.yaml"
 
 
 def test_262_load_merged_config_source_handles_telemetry() -> None:
@@ -35,7 +35,7 @@ def test_262_load_merged_config_source_handles_telemetry() -> None:
     plugins= and thresholds= — there is no reference to "telemetry" in the
     entire function body.  When the bug is fixed, a telemetry merge will appear.
     """
-    from eedom.core.repo_config import load_merged_config
+    from caliper.core.repo_config import load_merged_config
 
     src = inspect.getsource(load_merged_config)
     assert len(src) > 50, "inspect.getsource returned empty source — load_merged_config not found"
@@ -54,7 +54,7 @@ def test_262_merged_config_preserves_root_telemetry_endpoint(tmp_path: Path) -> 
     with a package config (different plugins), the resulting RepoConfig must
     retain the root's telemetry endpoint, not revert to the class default.
     """
-    from eedom.core.repo_config import load_merged_config
+    from caliper.core.repo_config import load_merged_config
 
     root_dir = tmp_path / "root"
     root_dir.mkdir()
@@ -62,10 +62,10 @@ def test_262_merged_config_preserves_root_telemetry_endpoint(tmp_path: Path) -> 
     pkg_dir.mkdir()
 
     custom_endpoint = "https://custom-telemetry.example.com/v1/events"
-    (root_dir / _EEDOM_CFG).write_text(
+    (root_dir / _CALIPER_CFG).write_text(
         f"telemetry:\n  enabled: true\n  endpoint: {custom_endpoint}\n"
     )
-    (pkg_dir / _EEDOM_CFG).write_text("plugins:\n  disabled:\n    - mypy\n")
+    (pkg_dir / _CALIPER_CFG).write_text("plugins:\n  disabled:\n    - mypy\n")
 
     result = load_merged_config(root_dir, package_root=pkg_dir)
 

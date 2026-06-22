@@ -74,7 +74,7 @@ def find_unsafe_sql_in_file(file_path: Path) -> list[tuple[int, str]]:
 def find_all_db_files(repo_root: Path) -> list[Path]:
     """Find all database-related Python files."""
     db_files = []
-    data_dir = repo_root / "src" / "eedom" / "data"
+    data_dir = repo_root / "src" / "caliper" / "data"
     if data_dir.exists():
         for py_file in data_dir.rglob("*.py"):
             if py_file.name != "__init__.py":

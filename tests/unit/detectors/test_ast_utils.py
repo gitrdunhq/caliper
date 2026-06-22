@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 # These imports will fail during RED phase
-from eedom.detectors.ast_utils import (
+from caliper.detectors.ast_utils import (
     ASTCache,
     BatchVisitor,
     contains_string_formatting,

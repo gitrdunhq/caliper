@@ -22,7 +22,7 @@ pytestmark = pytest.mark.xfail(
 )
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files where PyPIClient lifecycle issues should be detected
 _PYPI_CLIENT_FILES: tuple[Path, ...] = (

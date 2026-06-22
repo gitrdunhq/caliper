@@ -6,12 +6,12 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from eedom.core.models import (
+from caliper.core.models import (
     FindingCategory,
     FindingSeverity,
     ScanResultStatus,
 )
-from eedom.data.scanners.scancode import ScanCodeScanner, to_cyclonedx
+from caliper.data.scanners.scancode import ScanCodeScanner, to_cyclonedx
 
 # ---------------------------------------------------------------------------
 # Fixtures: sample ScanCode JSON output
@@ -22,7 +22,7 @@ SCANCODE_OUTPUT = json.dumps(
         "headers": [{"tool_name": "scancode-toolkit", "tool_version": "32.1.0"}],
         "files": [
             {
-                "path": "src/eedom/__init__.py",
+                "path": "src/caliper/__init__.py",
                 "type": "file",
                 "license_detections": [
                     {
@@ -94,7 +94,7 @@ SCAN_OUTPUT_WITH_COPYRIGHT = json.dumps(
 class TestScanCodeScannerSuccess:
     """Tests for successful ScanCode scans."""
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_parses_licenses_into_findings(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, SCANCODE_OUTPUT, "")
         scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
@@ -105,7 +105,7 @@ class TestScanCodeScannerSuccess:
         assert result.tool_name == "scancode"
         assert len(result.findings) == 2
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_finding_fields_populated(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, SCANCODE_OUTPUT, "")
         scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
@@ -119,7 +119,7 @@ class TestScanCodeScannerSuccess:
         assert apache.confidence == 100.0
         assert apache.source_tool == "scancode"
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_gpl_license_detected(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, SCANCODE_OUTPUT, "")
         scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
@@ -130,7 +130,7 @@ class TestScanCodeScannerSuccess:
         assert gpl.license_id == "GPL-3.0-only"
         assert gpl.confidence == 95.5
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_no_licenses_returns_empty_findings(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, SCANCODE_NO_LICENSES, "")
         scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
@@ -140,7 +140,7 @@ class TestScanCodeScannerSuccess:
         assert result.status == ScanResultStatus.success
         assert result.findings == []
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_invokes_correct_command(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, SCANCODE_NO_LICENSES, "")
         scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
@@ -156,7 +156,7 @@ class TestScanCodeScannerSuccess:
 class TestScanCodeScannerFailure:
     """Tests for ScanCode failure modes."""
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_timeout_returns_timeout_result(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (None, "", "timeout exceeded")
         scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
@@ -165,7 +165,7 @@ class TestScanCodeScannerFailure:
 
         assert result.status == ScanResultStatus.timeout
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_not_installed_returns_failed(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (None, "", "No such file or directory")
         scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
@@ -174,7 +174,7 @@ class TestScanCodeScannerFailure:
 
         assert result.status == ScanResultStatus.failed
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_invalid_json_returns_failed(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, "not json", "")
         scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
@@ -183,7 +183,7 @@ class TestScanCodeScannerFailure:
 
         assert result.status == ScanResultStatus.failed
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_nonzero_exit_returns_failed(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (1, "", "scancode: error")
         scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
@@ -201,7 +201,7 @@ class TestScanCodeScannerSettings:
         scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"), timeout=30, license_score=50)
         assert scanner is not None
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_license_score_in_cmd_when_nonzero(self, mock_run: MagicMock) -> None:
         """--license-score is added to the command when license_score > 0."""
         mock_run.return_value = (0, SCANCODE_NO_LICENSES, "")
@@ -213,7 +213,7 @@ class TestScanCodeScannerSettings:
         assert "--license-score" in cmd
         assert "75" in cmd
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_license_score_absent_when_zero(self, mock_run: MagicMock) -> None:
         """--license-score is NOT added when license_score == 0."""
         mock_run.return_value = (0, SCANCODE_NO_LICENSES, "")
@@ -224,7 +224,7 @@ class TestScanCodeScannerSettings:
         cmd = mock_run.call_args[1].get("cmd") or mock_run.call_args[0][0]
         assert "--license-score" not in cmd
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_copyright_in_cmd(self, mock_run: MagicMock) -> None:
         """--copyright is always present in the scancode command."""
         mock_run.return_value = (0, SCANCODE_NO_LICENSES, "")
@@ -235,7 +235,7 @@ class TestScanCodeScannerSettings:
         cmd = mock_run.call_args[1].get("cmd") or mock_run.call_args[0][0]
         assert "--copyright" in cmd
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_copyright_findings_extracted(self, mock_run: MagicMock) -> None:
         """Copyright detections produce FindingCategory.copyright findings."""
         mock_run.return_value = (0, SCAN_OUTPUT_WITH_COPYRIGHT, "")
@@ -254,7 +254,7 @@ class TestScanCodeScannerSettings:
 class TestToCyclonedx:
     """Tests for the to_cyclonedx() standalone function."""
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_cyclonedx_calls_scancode_with_cyclonedx_flag(self, mock_run: MagicMock) -> None:
         """to_cyclonedx() invokes scancode with --cyclonedx."""
         mock_run.return_value = (0, "", "")
@@ -268,7 +268,7 @@ class TestToCyclonedx:
         assert "--copyright" in cmd
         assert "--package" in cmd
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_cyclonedx_returns_false_on_failure(self, mock_run: MagicMock) -> None:
         """to_cyclonedx() returns False on non-zero exit."""
         mock_run.return_value = (1, "", "scancode error")
@@ -277,7 +277,7 @@ class TestToCyclonedx:
 
         assert result is False
 
-    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.scancode.run_subprocess_with_timeout")
     def test_cyclonedx_returns_false_on_timeout(self, mock_run: MagicMock) -> None:
         """to_cyclonedx() returns False on timeout."""
         mock_run.return_value = (None, "", "timeout exceeded")

@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.security.sql_injection import SQLInjectionDetector
+from caliper.detectors.security.sql_injection import SQLInjectionDetector
 
 
 class TestSQLInjectionDetector:
-    """Tests for SQLInjectionDetector (EED-005)."""
+    """Tests for SQLInjectionDetector (CAL-005)."""
 
     @pytest.fixture
     def detector(self):
@@ -36,7 +36,7 @@ cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-005"
+        assert findings[0].detector_id == "CAL-005"
         assert "f-string" in findings[0].message
 
     def test_detects_percent_formatting_in_execute(self, detector):

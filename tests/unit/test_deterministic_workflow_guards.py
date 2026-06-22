@@ -38,7 +38,7 @@ _WRITE_PERMISSION_SCOPES = {
 }
 
 _REQUIRED_GATE_WORKFLOWS = (
-    ".github/workflows/gatekeeper.yml",
+    ".github/workflows/foreman.yml",
     ".github/workflows/build-container.yml",
     ".github/workflows/release-please.yml",
     ".github/workflows/dogfood.yml",
@@ -249,7 +249,7 @@ def _pyproject_pins(include_dev: bool) -> dict[str, str]:
         if parsed is None:
             continue
         name, operator, version = parsed
-        if name == "eedom" or operator != "==" or version is None:
+        if name == "caliper" or operator != "==" or version is None:
             continue
         pins[name] = version
     return pins
@@ -365,22 +365,22 @@ def test_required_workflows_run_container_tests_and_quality_gates() -> None:
     assert missing_gates == [], "Required workflow gates are absent: " + "; ".join(missing_gates)
 
 
-def test_gatekeeper_workflow_dispatch_enforcement_mode_is_wired_to_runtime() -> None:
-    """#214: gatekeeper workflow_dispatch enforcement_mode must affect runtime behavior."""
-    workflow = _load_yaml(".github/workflows/gatekeeper.yml")
+def test_foreman_workflow_dispatch_enforcement_mode_is_wired_to_runtime() -> None:
+    """#214: foreman workflow_dispatch enforcement_mode must affect runtime behavior."""
+    workflow = _load_yaml(".github/workflows/foreman.yml")
     on_block = _as_mapping(_github_on(workflow))
     workflow_dispatch = _as_mapping(on_block.get("workflow_dispatch"))
     dispatch_inputs = _as_mapping(workflow_dispatch.get("inputs"))
 
-    assert "enforcement_mode" in dispatch_inputs, "gatekeeper must expose enforcement_mode"
+    assert "enforcement_mode" in dispatch_inputs, "foreman must expose enforcement_mode"
 
-    jobs_text = _read_text(".github/workflows/gatekeeper.yml").split("jobs:", 1)[1]
+    jobs_text = _read_text(".github/workflows/foreman.yml").split("jobs:", 1)[1]
     assert (
         "github.event.inputs.enforcement_mode" in jobs_text
         or "inputs.enforcement_mode" in jobs_text
-    ), "gatekeeper declares enforcement_mode but never passes the dispatch input to jobs"
+    ), "foreman declares enforcement_mode but never passes the dispatch input to jobs"
 
-    fail_closed_step = _find_step(".github/workflows/gatekeeper.yml", "Fail-closed gate")
+    fail_closed_step = _find_step(".github/workflows/foreman.yml", "Fail-closed gate")
     fail_closed_run = str(fail_closed_step.get("run", ""))
     assert "enforcement" in fail_closed_run.lower(), (
         "Fail-closed gate must branch on enforcement_mode so warn/log modes do not behave "
@@ -412,7 +412,7 @@ def test_release_key_absence_blocks_publish() -> None:
 
 def test_container_only_test_policy_has_no_host_escape_hatches() -> None:
     """#216: tests must not expose host-run bypasses that contradict container-only policy."""
-    escape_var = "EEDOM_ALLOW_" + "HOST_TESTS"
+    escape_var = "CALIPER_ALLOW_" + "HOST_TESTS"
     host_target = "test-" + "host"
     scanned_roots = ["Makefile", "tests", ".github"]
     offenders: list[str] = []

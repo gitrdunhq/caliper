@@ -3,7 +3,7 @@ rules:
     pattern: sys.exit(0)
     paths:
       include:
-        - src/eedom/agent/
+        - src/caliper/agent/
     message: >
       Unconditional sys.exit(0) in agent code may bypass block-mode enforcement.
       Check enforcement_mode before exiting clean.

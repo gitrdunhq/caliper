@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Blacklist pattern indicators in variable/constant names
 _BLACKLIST_NAME_RE = re.compile(
@@ -73,7 +73,7 @@ def test_180_input_validation_uses_blacklist_instead_of_whitelist() -> None:
     "bad" inputs, which is inherently incomplete and prone to bypasses.
 
     Violations:
-        - src/eedom/core/solver.py:42 - _DANGEROUS_PATTERNS regex
+        - src/caliper/core/solver.py:42 - _DANGEROUS_PATTERNS regex
           Uses blacklist pattern to detect dangerous code constructs.
           Should use AST-based whitelist or sandboxed execution instead.
 

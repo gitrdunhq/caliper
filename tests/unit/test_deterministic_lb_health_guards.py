@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # File(s) containing health check implementations
 _HEALTHCHECK_FILES: tuple[Path, ...] = (_SRC / "cli" / "inspect_cmds.py",)
@@ -158,9 +158,9 @@ def test_163_healthchecks_missing_app_state_verification() -> None:
     actually ready to serve traffic, not just that binaries exist on disk.
 
     Current violations:
-        - src/eedom/cli/inspect_cmds.py:healthcheck() - Only uses shutil.which()
+        - src/caliper/cli/inspect_cmds.py:healthcheck() - Only uses shutil.which()
           to check binary existence, doesn't verify registry is functional
-        - src/eedom/cli/inspect_cmds.py:check_health() - Only uses shutil.which()
+        - src/caliper/cli/inspect_cmds.py:check_health() - Only uses shutil.which()
           and basic DB connect, doesn't verify application readiness
 
     A proper health check should verify:

@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from eedom.core.registry import PluginRegistry
+from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
+from caliper.core.registry import PluginRegistry
 
 # ── shared fixtures ──────────────────────────────────────────────────────────
 
@@ -286,7 +286,7 @@ class TestRegistryNoPolicyInjection:
         auto-discovered by discover_plugins(), so get_default_registry() returns
         a registry that includes an 'opa' plugin.
         """
-        from eedom.plugins import get_default_registry
+        from caliper.plugins import get_default_registry
 
         registry = get_default_registry()
         opa_plugin = registry.get("opa")

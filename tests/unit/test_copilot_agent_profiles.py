@@ -44,7 +44,7 @@ def test_release_manager_agent_profile_is_valid_and_scoped() -> None:
     for required_path in (
         ".github/workflows/release-candidate.yml",
         ".github/workflows/release-please.yml",
-        ".github/workflows/gatekeeper.yml",
+        ".github/workflows/foreman.yml",
         "tests/unit/test_github_actions_policy.py",
         "tests/unit/test_deterministic_workflow_guards.py",
         "tests/unit/test_deterministic_release_key_guards.py",
@@ -69,7 +69,7 @@ def test_release_manager_agent_preserves_release_safety_contract() -> None:
         "Nightly Release Candidate",
         "GitHub immutable releases must stay enabled",
         "Do not upload assets to a GitHub release after it is published",
-        "gh api repos/gitrdunhq/eedom/immutable-releases --jq .",
+        "gh api repos/gitrdunhq/caliper/immutable-releases --jq .",
         "Validation jobs should use read-only permissions",
         "`contents: write`",
         "third-party actions pinned to full commit SHAs",
@@ -86,6 +86,6 @@ def test_release_manager_agent_preserves_release_safety_contract() -> None:
     for required_rule in required_release_rules:
         assert required_rule in normalized_body
 
-    assert "UV_CACHE_DIR=/tmp/uv-cache EEDOM_ALLOW_HOST_TESTS=1 uv run pytest" in body
+    assert "UV_CACHE_DIR=/tmp/uv-cache CALIPER_ALLOW_HOST_TESTS=1 uv run pytest" in body
     assert "tests/unit/test_copilot_agent_profiles.py" in body
     assert "daily release" not in normalized_body.lower()

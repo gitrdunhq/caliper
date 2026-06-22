@@ -18,7 +18,7 @@ pytestmark = pytest.mark.xfail(
     strict=False,
 )
 
-from eedom.core.models import (
+from caliper.core.models import (
     DecisionVerdict,
     Finding,
     FindingCategory,

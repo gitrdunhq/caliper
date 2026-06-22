@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.security.rate_limiting import RateLimitingDetector
+from caliper.detectors.security.rate_limiting import RateLimitingDetector
 
 
 class TestRateLimitingDetector:
-    """Tests for RateLimitingDetector (EED-003)."""
+    """Tests for RateLimitingDetector (CAL-003)."""
 
     @pytest.fixture
     def detector(self):
@@ -37,7 +37,7 @@ def get_data():
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-003"
+        assert findings[0].detector_id == "CAL-003"
 
     def test_detects_flask_endpoint_without_limit(self, detector):
         """Detects Flask endpoint without rate limiting."""

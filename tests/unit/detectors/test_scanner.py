@@ -9,11 +9,11 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from eedom.core.models import FindingCategory, FindingSeverity, ScanResult
-from eedom.data.scanners.base import Scanner
+from caliper.core.models import FindingCategory, FindingSeverity, ScanResult
+from caliper.data.scanners.base import Scanner
 
 # These imports will fail during RED phase
-from eedom.detectors.scanner import DeterministicScanner
+from caliper.detectors.scanner import DeterministicScanner
 
 # =============================================================================
 # Scanner Protocol Tests
@@ -66,7 +66,7 @@ class TestDeterministicScannerFiltering:
 
     def test_filters_by_category(self):
         """Scanner can filter detectors by category."""
-        from eedom.detectors.categories import DetectorCategory
+        from caliper.detectors.categories import DetectorCategory
 
         scanner = DeterministicScanner(categories=[DetectorCategory.security])
 
@@ -81,9 +81,9 @@ class TestDeterministicScannerFiltering:
 
     def test_filters_by_detector_id(self):
         """Scanner can filter by specific detector IDs."""
-        scanner = DeterministicScanner(specific_detectors=["EED-001"])
+        scanner = DeterministicScanner(specific_detectors=["CAL-001"])
 
-        assert scanner._specific_detectors == ["EED-001"]
+        assert scanner._specific_detectors == ["CAL-001"]
 
 
 # =============================================================================
@@ -132,7 +132,7 @@ class TestDeterministicScannerResults:
 
         # If there are findings, check source_tool
         for finding in result.findings:
-            assert finding.source_tool.startswith("EED-")
+            assert finding.source_tool.startswith("CAL-")
 
     def test_finding_category_mapping(self):
         """Finding categories are correctly mapped from detector categories."""
@@ -165,7 +165,7 @@ class TestDeterministicScannerCaching:
 
     def test_uses_ast_cache(self):
         """Scanner uses AST cache for performance."""
-        from eedom.detectors.ast_utils import ASTCache
+        from caliper.detectors.ast_utils import ASTCache
 
         cache = ASTCache(maxsize=10)
         scanner = DeterministicScanner(cache=cache)
@@ -222,10 +222,10 @@ class TestDeterministicScannerFileSource:
     """The scanner enumerates via FileSourcePort, not a bare rglob.
 
     Closes the latent bug where ``.venv``/``node_modules`` were walked: the
-    scanner now honours eedom's ignore rules through the file source.
+    scanner now honours caliper's ignore rules through the file source.
     """
 
-    # jwt.encode without an 'aud' claim → EED-001 fires deterministically.
+    # jwt.encode without an 'aud' claim → CAL-001 fires deterministically.
     _BUG = "import jwt\njwt.encode({'sub': 'x'}, 'k')\n"
 
     def test_ignores_files_under_excluded_dirs(self):
@@ -235,7 +235,7 @@ class TestDeterministicScannerFileSource:
         files give a clean count signal: exactly one finding means the ``.venv``
         copy was excluded; two would mean it was walked.
         """
-        scanner = DeterministicScanner(specific_detectors=["EED-001"])
+        scanner = DeterministicScanner(specific_detectors=["CAL-001"])
 
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -246,7 +246,7 @@ class TestDeterministicScannerFileSource:
 
             result = scanner.scan(root)
 
-        eed_001 = [f for f in result.findings if f.source_tool == "EED-001"]
+        eed_001 = [f for f in result.findings if f.source_tool == "CAL-001"]
         assert len(eed_001) == 1
 
     def test_uses_injected_file_source(self):
@@ -283,7 +283,7 @@ class TestDeterministicScannerCLIIntegration:
 
     def test_scanner_registered_in_orchestrator(self):
         """DeterministicScanner can be used by ScanOrchestrator."""
-        from eedom.core.orchestrator import ScanOrchestrator
+        from caliper.core.orchestrator import ScanOrchestrator
 
         scanner = DeterministicScanner()
         orchestrator = ScanOrchestrator(scanners=[scanner], combined_timeout=300)

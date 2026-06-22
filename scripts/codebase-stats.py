@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # tested-by: tests/e2e (manual — operational script)
-"""codebase-stats.py — Machine-readable codebase inventory with enriched metadata.
+"""codebase-stats.py — Machine-readable codebase inventory with scribeed metadata.
 
 Outputs JSON to stdout. Human-readable table to stderr.
 
@@ -42,13 +42,13 @@ TIER_MAP = {
 }
 
 CATEGORY_MAP = {
-    "src/eedom/cli": "source",
-    "src/eedom/core": "source",
-    "src/eedom/data": "source",
-    "src/eedom/plugins": "source",
-    "src/eedom/agent": "source",
-    "src/eedom/webhook": "source",
-    "src/eedom/templates": "source",
+    "src/caliper/cli": "source",
+    "src/caliper/core": "source",
+    "src/caliper/data": "source",
+    "src/caliper/plugins": "source",
+    "src/caliper/agent": "source",
+    "src/caliper/webhook": "source",
+    "src/caliper/templates": "source",
     "tests/unit": "test",
     "tests/integration": "test",
     "tests/e2e": "test",
@@ -63,7 +63,7 @@ def estimate_tokens(text: str) -> int:
 
 def classify_tier(rel_path: str) -> str:
     parts = Path(rel_path).parts
-    if len(parts) >= 3 and parts[0] == "src" and parts[1] == "eedom":
+    if len(parts) >= 3 and parts[0] == "src" and parts[1] == "caliper":
         return TIER_MAP.get(parts[2], "unknown")
     return "unknown"
 
@@ -144,7 +144,7 @@ def analyze_file(path: Path) -> dict:
     }
 
 
-def _enrich_dependency_graph(files: list[dict]) -> None:
+def _scribe_dependency_graph(files: list[dict]) -> None:
     """Add imported_by and blast_radius to each file in-place."""
     path_to_module: dict[str, str] = {}
     for f in files:
@@ -267,7 +267,7 @@ def main() -> None:
     over_500 = [f["path"] for f in src_files if f["over_500"]]
     untested = [f["path"] for f in src_files if not f["tested_by"] and f["lines"] > 0]
 
-    _enrich_dependency_graph(files)
+    _scribe_dependency_graph(files)
     concerns = _cluster_concerns(src_files)
 
     report = {
@@ -313,7 +313,7 @@ def _print_table(report: dict, file=None) -> None:
     def p(*a, **kw):
         print(*a, **kw, file=file)
 
-    p(f"\n  eedom codebase — {report['branch']}@{report['commit']}")
+    p(f"\n  caliper codebase — {report['branch']}@{report['commit']}")
     p(f"  {'=' * 50}")
     p(f"  {'':>20} {'Source':>10} {'Tests':>10} {'Total':>10}")
     p(f"  {'─' * 20} {'─' * 10} {'─' * 10} {'─' * 10}")

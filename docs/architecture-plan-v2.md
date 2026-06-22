@@ -8,7 +8,7 @@
 
 This document defines a **platform-agnostic, event-driven dependency review system** for governing how third-party software packages and version upgrades are approved for use.
 
-The core objective is to move dependency security from a **reactive scanning model** to a **proactive eedom model**.
+The core objective is to move dependency security from a **reactive scanning model** to a **proactive caliper model**.
 
 Instead of discovering problems after developers have already adopted dependencies, the system evaluates requests **before** packages or upgrades are broadly consumable in the environment.
 
@@ -115,7 +115,7 @@ This system applies the same mental model to software dependencies.
 | Allow / deny / mutate               | Approve / reject / constrain              |
 | Cluster state                       | Internal artifact availability state      |
 
-The result is a **Eagle Eyed Dom**.
+The result is a **Caliper**.
 
 ## 4.2 Why this is different from standard scanning
 
@@ -261,7 +261,7 @@ These capabilities exist in mature, well-maintained open-source tools. We should
 - package request intake and normalization
 - version upgrade request intake
 - scanner orchestration and result aggregation
-- metadata enrichment
+- metadata scribe
 - SBOM generation and diffing
 - license evaluation
 - provenance and signing checks
@@ -311,7 +311,7 @@ The following are assumed to exist before product development begins. If they do
 
 ### Kubernetes admission controllers
 
-Examples: OPA Gatekeeper, Kyverno
+Examples: OPA Foreman, Kyverno
 
 These are the strongest conceptual precedent because they enforce policy before acceptance.
 
@@ -398,7 +398,7 @@ Advantages:
 
 - strong context capture
 - explicit approval history
-- easiest to enrich with business justification
+- easiest to scribe with business justification
 
 Disadvantages:
 
@@ -453,7 +453,7 @@ Purpose: evaluate whether the package or version should be permitted.
 
 Responsibilities:
 
-- metadata enrichment
+- metadata scribe
 - scanning
 - reasoning
 - policy enforcement
@@ -676,7 +676,7 @@ Examples:
 - Registry publish event → candidate approval request
 - API form submission → direct request model
 
-## 15.3 Package Metadata Enrichment Layer
+## 15.3 Package Metadata Scribe Layer
 
 Responsibilities:
 
@@ -688,7 +688,7 @@ Responsibilities:
 - detect project archival or deprecation
 - collect install script metadata where available
 
-In PoC: lightweight — registry metadata only. Full enrichment in Phase 1+.
+In PoC: lightweight — registry metadata only. Full scribe in Phase 1+.
 
 ## 15.4 Scanner Coordination Layer
 
@@ -878,9 +878,9 @@ Fields:
 }
 ```
 
-## 17.3 SCM-derived request enrichment
+## 17.3 SCM-derived request scribe
 
-When requests are created from PR changes, the system should enrich the payload with:
+When requests are created from PR changes, the system should scribe the payload with:
 
 - repository name, PR number, dependency file path, lockfile diff summary
 - commit SHA, submitter identity
@@ -899,7 +899,7 @@ When requests are created from PR changes, the system should enrich the payload 
 - persist request
 - determine operating mode for the requesting team
 
-### Step 2: Metadata enrichment
+### Step 2: Metadata scribe
 
 - resolve package and version metadata
 - find repository/source
@@ -1736,7 +1736,7 @@ A developer's build is blocked by a false positive in enforce mode.
 |---|---|---|---|
 | Developer bypass due to friction | High | High | Monitor mode default, 3-min SLA, visible bypass path |
 | Too many false positives | Medium | High | Tune policy during PoC, < 15% FP rate gate |
-| Insufficient context in submissions | Medium | Medium | PR template enforcement, enrichment from lockfile diffs |
+| Insufficient context in submissions | Medium | Medium | PR template enforcement, scribe from lockfile diffs |
 | Weak alternatives catalog | Medium | High | Bootstrap before advise mode, expand continuously |
 | Organizational resistance | Medium | High | Phase -1 readiness, executive sponsor, pilot volunteers |
 
@@ -1818,7 +1818,7 @@ Trigger Source
   → Event Layer (NATS / Webhooks)
   → Workflow Orchestration (Temporal)
   → Review Orchestrator
-      → Package Metadata Enrichment
+      → Package Metadata Scribe
       → SBOM Generation
       → Security Scanners (via Argo Workflows)
       → License Analysis
@@ -1918,7 +1918,7 @@ flowchart TB
 
     subgraph EP["Execution Plane"]
         ARGO["Argo Workflows"]
-        META["Metadata Enrichment"]
+        META["Metadata Scribe"]
         SBOM2["Syft SBOM"]
         VULN2["OSV / Trivy / Grype"]
         LICENSE["ScanCode"]
@@ -2070,7 +2070,7 @@ sequenceDiagram
     participant D as Developer
     participant API as Review API
     participant O as Orchestrator
-    participant E as Metadata Enrichment
+    participant E as Metadata Scribe
     participant S as Scanners
     participant TF as Task-Fit Engine
     participant P as OPA

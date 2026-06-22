@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from eedom.agent.prompt import build_system_prompt
+from caliper.agent.prompt import build_system_prompt
 
 _ALL_DIMENSIONS = [
     "NECESSITY",
@@ -24,9 +24,9 @@ def test_system_prompt_contains_all_eight_dimensions():
         assert dim in prompt, f"Missing dimension: {dim}"
 
 
-def test_system_prompt_contains_gatekeeper_identity():
+def test_system_prompt_contains_foreman_identity():
     prompt = build_system_prompt(policy_version="1.0.0")
-    assert "GATEKEEPER" in prompt
+    assert "Foreman" in prompt
 
 
 def test_build_system_prompt_injects_policy_version():

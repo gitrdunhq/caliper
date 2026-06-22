@@ -12,8 +12,8 @@ import json
 
 import pytest
 
-from eedom.core.plugin import PluginResult
-from eedom.core.sarif import to_sarif
+from caliper.core.plugin import PluginResult
+from caliper.core.sarif import to_sarif
 
 pytestmark = pytest.mark.xfail(
     reason="deterministic bug detector",
@@ -117,7 +117,7 @@ def test_sarif_runs_do_not_contain_invocation_stdout() -> None:
     """Detect if SARIF runs include invocation stdout/stderr fields.
 
     Bug #207: SARIF spec supports invocation objects that can capture stdout.
-    If eedom adds invocation data to runs, it must not include full stdout.
+    If caliper adds invocation data to runs, it must not include full stdout.
     """
     result = PluginResult(
         plugin_name="osv-scanner",

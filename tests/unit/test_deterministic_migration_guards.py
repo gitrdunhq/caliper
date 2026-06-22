@@ -129,5 +129,5 @@ def test_203_migrations_have_rollback_scripts() -> None:
             "Database migrations lack rollback scripts (issue #203):\n"
             "\n".join(messages) + "\n\nEvery forward migration must have a paired rollback script. "
             "Rollbacks enable safe downgrades and disaster recovery. "
-            "See: https://github.com/your-org/eedom/issues/169"
+            "See: https://github.com/your-org/caliper/issues/169"
         )

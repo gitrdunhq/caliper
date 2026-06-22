@@ -28,7 +28,7 @@ jobs:
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/workspace:ro" \
             -w /workspace \
-            -e EEDOM_ALLOW_GLOBAL=1 \
-            -e UV_PROJECT_ENVIRONMENT=/tmp/eedom-policy-venv \
+            -e CALIPER_ALLOW_GLOBAL=1 \
+            -e UV_PROJECT_ENVIRONMENT=/tmp/caliper-policy-venv \
             docker.io/library/python@sha256:d384a24aebd583543abb00fa47b2a434ec3a96559c6f244cc3cfcbe9e136a798 \
             sh -c "python -m pip install --disable-pip-version-check --no-cache-dir uv==0.11.8 && uv run --frozen pytest tests/unit/test_github_actions_policy.py tests/unit/test_copilot_agent_profiles.py tests/unit/test_dependabot_policy.py tests/unit/test_ruff_policy.py -q"

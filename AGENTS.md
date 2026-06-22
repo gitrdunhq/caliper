@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Rules for AI agents working on the eedom codebase. Read CLAUDE.md first — it has architecture, conventions, and testing rules that apply to all work.
+Rules for AI agents working on the caliper codebase. Read CLAUDE.md first — it has architecture, conventions, and testing rules that apply to all work.
 
 ## Agent Execution Model
 
@@ -29,7 +29,7 @@ Every agent prompt MUST include an acceptance checklist. The agent checks off ea
 - [ ] item 2
 - [ ] all tests pass
 - [ ] committed with correct prefix
-- [ ] self-reviewed with eedom
+- [ ] self-reviewed with caliper
 
 Report: "Checklist: X/N" with details on any failures.
 ```
@@ -38,14 +38,14 @@ If the agent can't check off an item, it reports WHY — not a generic "done."
 
 ### Self-Review — Agents Eat Their Own Dog Food
 
-Every GREEN agent runs eedom against its own changes before handing back:
+Every GREEN agent runs caliper against its own changes before handing back:
 
 ```bash
-uv run eedom review --repo-path . --all --diff <(git diff HEAD~1)
+uv run caliper review --repo-path . --all --diff <(git diff HEAD~1)
 ```
 
 - Fix any critical/high findings on changed files
-- Re-run eedom to confirm clean
+- Re-run caliper to confirm clean
 - Do not hand back with known findings
 
 This is not optional. The agent loops until its changes pass its own tool.
@@ -81,7 +81,7 @@ Read tests/unit/test_xxx.py — all N tests fail with [error].
 - [ ] Production file created
 - [ ] All N tests pass
 - [ ] Full suite passes with zero regressions
-- [ ] Self-reviewed: `uv run eedom review --repo-path . --all --diff <(git diff HEAD~1)`
+- [ ] Self-reviewed: `uv run caliper review --repo-path . --all --diff <(git diff HEAD~1)`
 - [ ] Fixed any critical/high findings on changed files
 - [ ] Committed with: `chore: [description] (GREEN for #NNN)`
 - [ ] Not pushed
@@ -91,7 +91,7 @@ Report: "Checklist: X/7"
 
 ## Testing Rules
 
-- **Container only.** Use `make test`. Never `EEDOM_ALLOW_HOST_TESTS=1`.
+- **Container only.** Use `make test`. Never `CALIPER_ALLOW_HOST_TESTS=1`.
 - **TDD mandatory.** RED before GREEN. No exceptions.
 - **Every source file** has `# tested-by: tests/unit/test_X.py`.
 - **Regression check** after every change: full unit suite must pass.
@@ -108,10 +108,10 @@ Architecture refactoring on `next` branch uses `chore:` — it's internal restru
 
 ## Dogfood Between Phases
 
-After completing each architecture packet, run eedom against itself:
+After completing each architecture packet, run caliper against itself:
 
 ```bash
-uv run eedom review --repo-path . --all --format json --output .scratch/dogfood-latest.json
+uv run caliper review --repo-path . --all --format json --output .scratch/dogfood-latest.json
 ```
 
 Track findings in `DOGFOOD-FINDINGS.md`. Each finding produces a deterministic regression test.
@@ -125,8 +125,8 @@ Track findings in `DOGFOOD-FINDINGS.md`. Each finding produces a deterministic r
 ## What NOT to Do
 
 - Never write tests and implementation in the same agent
-- Never use `EEDOM_ALLOW_HOST_TESTS=1`
+- Never use `CALIPER_ALLOW_HOST_TESTS=1`
 - Never use `feat:` for internal refactoring
 - Never hand back without running the acceptance checklist
-- Never hand back with known eedom findings on changed files
+- Never hand back with known caliper findings on changed files
 - Never skip the self-review step

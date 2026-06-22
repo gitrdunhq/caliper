@@ -1,20 +1,20 @@
 # tested-by: tests/unit/test_persistence_adapters.py
 """Contract tests for persistence adapters (issue #186).
 
-RED phase: all tests import from eedom.adapters.persistence which does not exist yet.
+RED phase: all tests import from caliper.adapters.persistence which does not exist yet.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from eedom.adapters.persistence import (  # noqa: F401 — will ImportError until green
+from caliper.adapters.persistence import (  # noqa: F401 — will ImportError until green
     FileEvidenceStore,
     NullAuditSink,
     NullDecisionStore,
     NullEvidenceStore,
 )
-from eedom.core.ports import AuditSinkPort, DecisionStorePort, EvidenceStorePort
+from caliper.core.ports import AuditSinkPort, DecisionStorePort, EvidenceStorePort
 
 # ---------------------------------------------------------------------------
 # NullDecisionStore

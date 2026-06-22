@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated": "2026-06-22",
-  "experiment": "grounded vs ungrounded Haiku adversarial review, 20 partitions of eedom, Opus delta-adjudication",
+  "experiment": "grounded vs ungrounded Haiku adversarial review, 20 partitions of caliper, Opus delta-adjudication",
   "aggregate_haiku_verifier": {
     "ungrounded": {
       "raw": 117,
@@ -47,7 +47,7 @@
     "real_suppressed_findings": {
       "P05-6": "load_merged_config drops PluginConfig.semgrep sub-config on package merge -> extra_config_dirs/exclude_rules lost",
       "P10-1": "subprocess_runner does not catch UnicodeDecodeError (text=True on binary) -> propagates, breaks fail-open",
-      "P10-2": "get_version() unguarded importlib.metadata.version(\"eedom\") at import -> PackageNotFoundError crashes renderer import",
+      "P10-2": "get_version() unguarded importlib.metadata.version(\"caliper\") at import -> PackageNotFoundError crashes renderer import",
       "P10-3": "subprocess_runner catches only FileNotFoundError, not other OSError (PermissionError) -> propagates",
       "P11-2": "DetectorFinding.to_finding() drops line_number/column (Finding model lacks them) -> SARIF/PR location lost",
       "P12-1": "secret_str only visits ast.AnnAssign; bare api_key=\"secret\" (ast.Assign) never flagged -> false negative",
@@ -79,7 +79,7 @@
       "P15-2": "graph_builder _walk_upstream .fetchone()[\"id\"] unguarded -> TypeError crash when symbol missing/stale",
       "P16-4": "osv _resolve_severity uses assignment not max() -> CVSS 5.0 downgrades a database_specific \"high\" to \"medium\"",
       "P16-5": "gitleaks crash-detect requires exit!=0/1 AND missing report -> partial report on crash silently parsed as clean",
-      "P20-1": "webhook _load_app EedomSettings() with required db_dsn no default -> ValidationError crash before fail-open bootstrap"
+      "P20-1": "webhook _load_app CaliperSettings() with required db_dsn no default -> ValidationError crash before fail-open bootstrap"
     },
     "overproduce_ids": [
       "P02-2",
@@ -93,7 +93,7 @@
     {
       "grounded_id": "P02-1",
       "ungrounded_id": "P02-1",
-      "file": "src/eedom/core/normalizer.py",
+      "file": "src/caliper/core/normalizer.py",
       "g_line": 38,
       "u_line": 40,
       "claim": "Type annotation does not match runtime tuple structure; category field is enum, not str"
@@ -101,7 +101,7 @@
     {
       "grounded_id": "P03-1",
       "ungrounded_id": "P03-2",
-      "file": "src/eedom/core/opa_adapter.py",
+      "file": "src/caliper/core/opa_adapter.py",
       "g_line": 116,
       "u_line": 107,
       "claim": "OpaRegoAdapter ignores the OPA decision field and can return incorrect verdicts when deny "
@@ -109,7 +109,7 @@
     {
       "grounded_id": "P05-1",
       "ungrounded_id": "P05-5",
-      "file": "src/eedom/core/repo_config.py",
+      "file": "src/caliper/core/repo_config.py",
       "g_line": 73,
       "u_line": 69,
       "claim": "load_merged_config silently drops telemetry field from root config when merging with packa"
@@ -117,7 +117,7 @@
     {
       "grounded_id": "P13-1",
       "ungrounded_id": "P13-3",
-      "file": "src/eedom/detectors/reliability/subprocess_timeout.py",
+      "file": "src/caliper/detectors/reliability/subprocess_timeout.py",
       "g_line": 132,
       "u_line": 132,
       "claim": "Popen timeout check uses global tree walk, missing assignment context \u2014 will flag even unr"
@@ -125,7 +125,7 @@
     {
       "grounded_id": "P14-2",
       "ungrounded_id": "P14-3",
-      "file": "src/eedom/detectors/metrics/high_cardinality.py",
+      "file": "src/caliper/detectors/metrics/high_cardinality.py",
       "g_line": 156,
       "u_line": 151,
       "claim": "_get_high_cardinality_label_kwargs calls self._is_high_cardinality(keyword.arg) without nu"
@@ -133,7 +133,7 @@
     {
       "grounded_id": "P14-3",
       "ungrounded_id": "P14-4",
-      "file": "src/eedom/detectors/process/tested_by.py",
+      "file": "src/caliper/detectors/process/tested_by.py",
       "g_line": 85,
       "u_line": 82,
       "claim": "Symlink escape check uses is_relative_to after resolve(), but the condition logic is confu"
@@ -141,7 +141,7 @@
     {
       "grounded_id": "P15-1",
       "ungrounded_id": "P15-1",
-      "file": "src/eedom/plugins/_runners/graph_builder.py",
+      "file": "src/caliper/plugins/_runners/graph_builder.py",
       "g_line": 389,
       "u_line": 392,
       "claim": "`_walk_upstream()` crashes when a queried symbol is not found in the database."
@@ -149,7 +149,7 @@
     {
       "grounded_id": "P15-3",
       "ungrounded_id": "P15-3",
-      "file": "src/eedom/plugins/_runners/cpd_runner.py",
+      "file": "src/caliper/plugins/_runners/cpd_runner.py",
       "g_line": 297,
       "u_line": 297,
       "claim": "File scan counts are inflated when PMD crashes mid-run and jscpd fallback is triggered."
@@ -157,7 +157,7 @@
     {
       "grounded_id": "P16-1",
       "ungrounded_id": "P16-1",
-      "file": "src/eedom/plugins/osv_scanner.py",
+      "file": "src/caliper/plugins/osv_scanner.py",
       "g_line": 106,
       "u_line": 106,
       "claim": "TimeoutExpired exception handler passes hardcoded timeout=0 instead of the actual timeout "
@@ -165,7 +165,7 @@
     {
       "grounded_id": "P16-2",
       "ungrounded_id": "P16-3",
-      "file": "src/eedom/plugins/clamav.py",
+      "file": "src/caliper/plugins/clamav.py",
       "g_line": 69,
       "u_line": 69,
       "claim": "TimeoutExpired exception handler passes hardcoded timeout=0 instead of the actual timeout "
@@ -173,7 +173,7 @@
     {
       "grounded_id": "P16-3",
       "ungrounded_id": "P16-2",
-      "file": "src/eedom/plugins/syft.py",
+      "file": "src/caliper/plugins/syft.py",
       "g_line": 69,
       "u_line": 69,
       "claim": "TimeoutExpired exception handler passes hardcoded timeout=0 instead of the actual timeout "
@@ -181,7 +181,7 @@
     {
       "grounded_id": "P16-6",
       "ungrounded_id": "P16-8",
-      "file": "src/eedom/plugins/scancode.py",
+      "file": "src/caliper/plugins/scancode.py",
       "g_line": 56,
       "u_line": 56,
       "claim": "Timeout value duplicated across subprocess.run() call and error message"
@@ -189,7 +189,7 @@
     {
       "grounded_id": "P17-1",
       "ungrounded_id": "P17-4",
-      "file": "src/eedom/plugins/ls_lint.py",
+      "file": "src/caliper/plugins/ls_lint.py",
       "g_line": 47,
       "u_line": 47,
       "claim": "Timeout value hardcoded to 0 instead of 30"
@@ -197,7 +197,7 @@
     {
       "grounded_id": "P18-1",
       "ungrounded_id": "P18-1",
-      "file": "src/eedom/plugins/supply_chain.py",
+      "file": "src/caliper/plugins/supply_chain.py",
       "g_line": 292,
       "u_line": 292,
       "claim": "manifest_changed is computed inside a loop but checked outside it, causing the final itera"
@@ -276,7 +276,7 @@
     },
     {
       "partition": "P06",
-      "title": "enrichment/llm",
+      "title": "scribe/llm",
       "ungrounded": {
         "confirmed": 1,
         "uncertain": 1
@@ -388,7 +388,7 @@
     },
     {
       "partition": "P14",
-      "title": "detectors config/metrics/process/enrichers",
+      "title": "detectors config/metrics/process/scribes",
       "ungrounded": {
         "confirmed": 5,
         "uncertain": 0

@@ -8,8 +8,8 @@ registry refactor silently dropping or adding one.
 
 from __future__ import annotations
 
-from eedom.core.plugin import AnalyzerPort
-from eedom.plugins import ANALYZERS, get_default_registry
+from caliper.core.plugin import AnalyzerPort
+from caliper.plugins import ANALYZERS, get_default_registry
 
 # The 19 discoverable plugins (opa is underscore-excluded, wired separately).
 _EXPECTED_PLUGINS = {

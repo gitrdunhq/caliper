@@ -1,4 +1,4 @@
-"""Tests for eedom.core.supply_chain_diff -- deterministic signal scoring.
+"""Tests for caliper.core.supply_chain_diff -- deterministic signal scoring.
 
 DPS-12 domains:
   Determinism (INVARIANT): the same VersionDiff always scores the same signals.
@@ -11,13 +11,13 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.core.models import FindingCategory
-from eedom.core.supply_chain_diff import (
+from caliper.core.models import FindingCategory
+from caliper.core.supply_chain_diff import (
     detect_upgrades,
     evaluate_gate,
     score_signals,
 )
-from eedom.core.supply_chain_models import FileChange, FileDelta, VersionDiff
+from caliper.core.supply_chain_models import FileChange, FileDelta, VersionDiff
 
 
 def _vd(**kw) -> VersionDiff:
@@ -160,8 +160,8 @@ class TestGate:
     def test_gate_denies_on_critical(self, monkeypatch) -> None:  # Integrity
         import os
 
-        os.environ["EEDOM_DB_DSN"] = "postgresql://t:t@localhost/t"
-        from eedom.core.config import EedomSettings
+        os.environ["CALIPER_DB_DSN"] = "postgresql://t:t@localhost/t"
+        from caliper.core.config import CaliperSettings
 
         captured = {}
 
@@ -172,7 +172,7 @@ class TestGate:
             def evaluate(self, findings, pkg, config):
                 captured["config"] = config
                 captured["findings"] = findings
-                from eedom.core.models import DecisionVerdict, PolicyEvaluation
+                from caliper.core.models import DecisionVerdict, PolicyEvaluation
 
                 return PolicyEvaluation(
                     decision=DecisionVerdict.reject,
@@ -180,9 +180,9 @@ class TestGate:
                     policy_bundle_version="t",
                 )
 
-        monkeypatch.setattr("eedom.core.policy.OpaEvaluator", FakeOpa)
+        monkeypatch.setattr("caliper.core.policy.OpaEvaluator", FakeOpa)
         vd = _vd(ecosystem="npm", new_install_scripts=("postinstall: x",))
-        result = evaluate_gate(score_signals(vd), EedomSettings())
+        result = evaluate_gate(score_signals(vd), CaliperSettings())
         assert str(result.decision) == "reject"
         # only the supply-chain rule is enabled for the focused evaluation
         assert captured["config"]["rules_enabled"]["supply_chain_diff"] is True

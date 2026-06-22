@@ -1,4 +1,4 @@
-"""Stress test runner — runs GATEKEEPER tools against real PR diffs.
+"""Stress test runner — runs Foreman tools against real PR diffs.
 Outputs markdown reports simulating what the agent would comment.
 """
 
@@ -173,7 +173,7 @@ def generate_report(
     )
 
     report = []
-    report.append(f"# GATEKEEPER Review — {repo}#{pr_num}")
+    report.append(f"# Foreman Review — {repo}#{pr_num}")
     report.append(f"**PR**: [{title}](https://github.com/{repo}/pull/{pr_num})")
     report.append(f"**Date**: {datetime.now(tz=UTC).strftime('%Y-%m-%d %H:%M UTC')}")
     report.append(f"**Files changed**: {len(changed_files)}")
@@ -248,7 +248,7 @@ def generate_report(
     report.append(f"**Total findings**: {total_findings} (Semgrep)")
     report.append(f"**Dependency changes**: {'Yes' if dep_changes else 'No'}")
     report.append("")
-    report.append("*GATEKEEPER PoC — dry run, no comments posted*")
+    report.append("*Foreman PoC — dry run, no comments posted*")
 
     return "\n".join(report)
 

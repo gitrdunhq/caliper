@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "generated": "2026-06-22",
-  "target": "src/eedom (entire codebase)",
+  "target": "src/caliper (entire codebase)",
   "focus": [
     "correctness",
     "design"
@@ -49,7 +49,7 @@
     {
       "id": "P10-2",
       "arm": "haiku",
-      "file": "src/eedom/core/version.py",
+      "file": "src/caliper/core/version.py",
       "line": "14-16",
       "severity": "high",
       "category": "correctness",
@@ -60,7 +60,7 @@
     {
       "id": "P02-3",
       "arm": "haiku",
-      "file": "src/eedom/core/memo.py",
+      "file": "src/caliper/core/memo.py",
       "line": "116-117",
       "severity": "medium",
       "category": "correctness",
@@ -71,7 +71,7 @@
     {
       "id": "P13-8",
       "arm": "haiku",
-      "file": "src/eedom/detectors/reliability/health_check_db.py",
+      "file": "src/caliper/detectors/reliability/health_check_db.py",
       "line": "156",
       "severity": "medium",
       "category": "correctness",
@@ -82,7 +82,7 @@
     {
       "id": "P12-8",
       "arm": "haiku",
-      "file": "src/eedom/detectors/security/sql_injection.py",
+      "file": "src/caliper/detectors/security/sql_injection.py",
       "line": "105-109",
       "severity": "medium",
       "category": "correctness",
@@ -93,7 +93,7 @@
     {
       "id": "P17-9",
       "arm": "haiku",
-      "file": "src/eedom/plugins/cspell.py",
+      "file": "src/caliper/plugins/cspell.py",
       "line": "54-72",
       "severity": "medium",
       "category": "correctness",
@@ -104,7 +104,7 @@
     {
       "id": "P01-9",
       "arm": "haiku",
-      "file": "src/eedom/core/use_cases.py",
+      "file": "src/caliper/core/use_cases.py",
       "line": "33-34",
       "severity": "low",
       "category": "design",
@@ -115,7 +115,7 @@
     {
       "id": "P16-8",
       "arm": "haiku",
-      "file": "src/eedom/plugins/scancode.py",
+      "file": "src/caliper/plugins/scancode.py",
       "line": "56-64",
       "severity": "low",
       "category": "correctness",
@@ -126,7 +126,7 @@
     {
       "id": "P02-3",
       "arm": "sonnet",
-      "file": "src/eedom/core/solver.py",
+      "file": "src/caliper/core/solver.py",
       "line": "394-401",
       "severity": "medium",
       "category": "correctness",
@@ -137,7 +137,7 @@
     {
       "id": "P03-6",
       "arm": "sonnet",
-      "file": "src/eedom/core/opa_adapter.py",
+      "file": "src/caliper/core/opa_adapter.py",
       "line": "98",
       "severity": "high",
       "category": "correctness",
@@ -148,18 +148,18 @@
     {
       "id": "P06-4",
       "arm": "sonnet",
-      "file": "src/eedom/core/enrichment.py",
+      "file": "src/caliper/core/scribe.py",
       "line": "106",
       "severity": "medium",
       "category": "correctness",
-      "claim": "merge_enrichment overwrites all existing enrichment fields with the new fields unconditionally via enrichment.update(fields), so a second enricher silently clobbers values written by the first enricher for any key they share (e.g. both write \"enclosing_symbol\").",
+      "claim": "merge_scribe overwrites all existing scribe fields with the new fields unconditionally via scribe.update(fields), so a second scribe silently clobbers values written by the first scribe for any key they share (e.g. both write \"enclosing_symbol\").",
       "opus_verdict": "CONFIRMED",
-      "opus_reason": "enrichment.update(fields) unconditionally overwrites shared keys, later enricher clobbers earlier"
+      "opus_reason": "scribe.update(fields) unconditionally overwrites shared keys, later scribe clobbers earlier"
     },
     {
       "id": "P08-2",
       "arm": "sonnet",
-      "file": "src/eedom/core/concern_review.py",
+      "file": "src/caliper/core/concern_review.py",
       "line": "453",
       "severity": "high",
       "category": "correctness",
@@ -170,7 +170,7 @@
     {
       "id": "P09-1",
       "arm": "sonnet",
-      "file": "src/eedom/core/taskfit.py",
+      "file": "src/caliper/core/taskfit.py",
       "line": "206",
       "severity": "high",
       "category": "correctness",
@@ -181,7 +181,7 @@
     {
       "id": "P10-4",
       "arm": "sonnet",
-      "file": "src/eedom/core/models.py",
+      "file": "src/caliper/core/models.py",
       "line": "18",
       "severity": "low",
       "category": "design",
@@ -192,7 +192,7 @@
     {
       "id": "P12-4",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/security/rate_limiting.py",
+      "file": "src/caliper/detectors/security/rate_limiting.py",
       "line": "103",
       "severity": "medium",
       "category": "correctness",
@@ -203,7 +203,7 @@
     {
       "id": "P13-3",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/reliability/cache_eviction.py",
+      "file": "src/caliper/detectors/reliability/cache_eviction.py",
       "line": "76",
       "severity": "high",
       "category": "correctness",
@@ -214,7 +214,7 @@
     {
       "id": "P13-11",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/reliability/health_check_db.py",
+      "file": "src/caliper/detectors/reliability/health_check_db.py",
       "line": "131",
       "severity": "low",
       "category": "correctness",
@@ -225,7 +225,7 @@
     {
       "id": "P16-7",
       "arm": "sonnet",
-      "file": "src/eedom/plugins/clamav.py",
+      "file": "src/caliper/plugins/clamav.py",
       "line": "46",
       "severity": "medium",
       "category": "correctness",
@@ -236,7 +236,7 @@
     {
       "id": "P18-5",
       "arm": "sonnet",
-      "file": "src/eedom/data/pypi.py",
+      "file": "src/caliper/data/pypi.py",
       "line": "115",
       "severity": "high",
       "category": "correctness",
@@ -247,7 +247,7 @@
     {
       "id": "P19-5",
       "arm": "sonnet",
-      "file": "src/eedom/core/nl_query.py",
+      "file": "src/caliper/core/nl_query.py",
       "line": "369",
       "severity": "medium",
       "category": "correctness",
@@ -258,7 +258,7 @@
     {
       "id": "P01-5",
       "arm": "haiku",
-      "file": "src/eedom/core/pipeline.py",
+      "file": "src/caliper/core/pipeline.py",
       "line": "240-254",
       "severity": "high",
       "category": "correctness",
@@ -269,7 +269,7 @@
     {
       "id": "P18-5",
       "arm": "haiku",
-      "file": "src/eedom/core/diff.py",
+      "file": "src/caliper/core/diff.py",
       "line": "218",
       "severity": "medium",
       "category": "correctness",
@@ -280,7 +280,7 @@
     {
       "id": "P11-2",
       "arm": "haiku",
-      "file": "src/eedom/detectors/findings.py",
+      "file": "src/caliper/detectors/findings.py",
       "line": "49-69",
       "severity": "medium",
       "category": "design",
@@ -291,7 +291,7 @@
     {
       "id": "P12-7",
       "arm": "haiku",
-      "file": "src/eedom/detectors/security/sql_injection.py",
+      "file": "src/caliper/detectors/security/sql_injection.py",
       "line": "117-119",
       "severity": "medium",
       "category": "correctness",
@@ -302,7 +302,7 @@
     {
       "id": "P17-3",
       "arm": "haiku",
-      "file": "src/eedom/plugins/cpd.py",
+      "file": "src/caliper/plugins/cpd.py",
       "line": "50-68",
       "severity": "medium",
       "category": "correctness",
@@ -313,7 +313,7 @@
     {
       "id": "P03-6",
       "arm": "haiku",
-      "file": "src/eedom/core/opa_adapter.py",
+      "file": "src/caliper/core/opa_adapter.py",
       "line": "80-86",
       "severity": "low",
       "category": "design",
@@ -324,7 +324,7 @@
     {
       "id": "P17-6",
       "arm": "haiku",
-      "file": "src/eedom/plugins/mypy.py",
+      "file": "src/caliper/plugins/mypy.py",
       "line": "76-94",
       "severity": "low",
       "category": "design",
@@ -335,7 +335,7 @@
     {
       "id": "P02-2",
       "arm": "sonnet",
-      "file": "src/eedom/core/normalizer.py",
+      "file": "src/caliper/core/normalizer.py",
       "line": "33-46",
       "severity": "high",
       "category": "correctness",
@@ -346,7 +346,7 @@
     {
       "id": "P03-5",
       "arm": "sonnet",
-      "file": "src/eedom/plugins/_opa.py",
+      "file": "src/caliper/plugins/_opa.py",
       "line": "25",
       "severity": "medium",
       "category": "design",
@@ -357,7 +357,7 @@
     {
       "id": "P06-3",
       "arm": "sonnet",
-      "file": "src/eedom/core/llm_client.py",
+      "file": "src/caliper/core/llm_client.py",
       "line": "45",
       "severity": "medium",
       "category": "correctness",
@@ -368,7 +368,7 @@
     {
       "id": "P08-1",
       "arm": "sonnet",
-      "file": "src/eedom/core/concern_review.py",
+      "file": "src/caliper/core/concern_review.py",
       "line": "360",
       "severity": "high",
       "category": "correctness",
@@ -379,7 +379,7 @@
     {
       "id": "P08-7",
       "arm": "sonnet",
-      "file": "src/eedom/core/concern_remediate.py",
+      "file": "src/caliper/core/concern_remediate.py",
       "line": "118-135",
       "severity": "medium",
       "category": "design",
@@ -390,7 +390,7 @@
     {
       "id": "P09-6",
       "arm": "sonnet",
-      "file": "src/eedom/core/actionability.py",
+      "file": "src/caliper/core/actionability.py",
       "line": "11",
       "severity": "medium",
       "category": "design",
@@ -401,7 +401,7 @@
     {
       "id": "P12-3",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/security/jwt_audience.py",
+      "file": "src/caliper/detectors/security/jwt_audience.py",
       "line": "91",
       "severity": "high",
       "category": "correctness",
@@ -412,7 +412,7 @@
     {
       "id": "P13-2",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/reliability/cache_eviction.py",
+      "file": "src/caliper/detectors/reliability/cache_eviction.py",
       "line": "67",
       "severity": "medium",
       "category": "correctness",
@@ -423,7 +423,7 @@
     {
       "id": "P13-10",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/reliability/circuit_breaker.py",
+      "file": "src/caliper/detectors/reliability/circuit_breaker.py",
       "line": "154",
       "severity": "high",
       "category": "correctness",
@@ -434,7 +434,7 @@
     {
       "id": "P16-1",
       "arm": "sonnet",
-      "file": "src/eedom/plugins/gitleaks.py",
+      "file": "src/caliper/plugins/gitleaks.py",
       "line": "56",
       "severity": "high",
       "category": "correctness",
@@ -445,7 +445,7 @@
     {
       "id": "P18-2",
       "arm": "sonnet",
-      "file": "src/eedom/plugins/supply_chain.py",
+      "file": "src/caliper/plugins/supply_chain.py",
       "line": "248",
       "severity": "high",
       "category": "correctness",
@@ -456,18 +456,18 @@
     {
       "id": "P19-4",
       "arm": "sonnet",
-      "file": "src/eedom/cli/inspect_cmds.py",
+      "file": "src/caliper/cli/inspect_cmds.py",
       "line": "79",
       "severity": "medium",
       "category": "design",
-      "claim": "`check_health` imports directly from `eedom.data.db` (the data layer), violating the cli\u2192core\u2192data import direction rule; the CLI layer must only import from `core/`, not from `data/`.",
+      "claim": "`check_health` imports directly from `caliper.data.db` (the data layer), violating the cli\u2192core\u2192data import direction rule; the CLI layer must only import from `core/`, not from `data/`.",
       "opus_verdict": "CONFIRMED",
-      "opus_reason": "inspect_cmds imports from eedom.data.db in CLI layer, violates cli->core->data direction"
+      "opus_reason": "inspect_cmds imports from caliper.data.db in CLI layer, violates cli->core->data direction"
     },
     {
       "id": "P17-1",
       "arm": "haiku",
-      "file": "src/eedom/plugins/cdk_nag.py",
+      "file": "src/caliper/plugins/cdk_nag.py",
       "line": "32-34",
       "severity": "high",
       "category": "correctness",
@@ -478,7 +478,7 @@
     {
       "id": "P01-7",
       "arm": "haiku",
-      "file": "src/eedom/core/pipeline.py",
+      "file": "src/caliper/core/pipeline.py",
       "line": "432-434",
       "severity": "medium",
       "category": "correctness",
@@ -489,7 +489,7 @@
     {
       "id": "P12-3",
       "arm": "haiku",
-      "file": "src/eedom/detectors/security/fixed_output_delimiter.py",
+      "file": "src/caliper/detectors/security/fixed_output_delimiter.py",
       "line": "84-86",
       "severity": "medium",
       "category": "correctness",
@@ -500,7 +500,7 @@
     {
       "id": "P15-2",
       "arm": "haiku",
-      "file": "src/eedom/plugins/_runners/graph_builder.py",
+      "file": "src/caliper/plugins/_runners/graph_builder.py",
       "line": "400-403",
       "severity": "medium",
       "category": "correctness",
@@ -511,18 +511,18 @@
     {
       "id": "P20-6",
       "arm": "haiku",
-      "file": "src/eedom/agent/main.py",
+      "file": "src/caliper/agent/main.py",
       "line": "238-271",
       "severity": "low",
       "category": "correctness",
-      "claim": "main() does not validate pr_number > 0 after conversion, allowing pr_number=0 to reach GatekeeperAgent.run() which uses it in API calls, potentially causing silent failures or incorrect routing.",
+      "claim": "main() does not validate pr_number > 0 after conversion, allowing pr_number=0 to reach ForemanAgent.run() which uses it in API calls, potentially causing silent failures or incorrect routing.",
       "opus_verdict": "FALSE_POSITIVE",
       "opus_reason": "main() validates pr_number==0 at line 243 and exits; cannot reach agent.run()"
     },
     {
       "id": "P13-10",
       "arm": "haiku",
-      "file": "src/eedom/detectors/reliability/cache_eviction.py",
+      "file": "src/caliper/detectors/reliability/cache_eviction.py",
       "line": "95-96",
       "severity": "low",
       "category": "correctness",
@@ -533,7 +533,7 @@
     {
       "id": "P01-2",
       "arm": "sonnet",
-      "file": "src/eedom/core/orchestrator.py",
+      "file": "src/caliper/core/orchestrator.py",
       "line": "50",
       "severity": "medium",
       "category": "correctness",
@@ -544,7 +544,7 @@
     {
       "id": "P02-5",
       "arm": "sonnet",
-      "file": "src/eedom/core/solver.py",
+      "file": "src/caliper/core/solver.py",
       "line": "172",
       "severity": "low",
       "category": "design",
@@ -555,7 +555,7 @@
     {
       "id": "P04-5",
       "arm": "sonnet",
-      "file": "src/eedom/core/telemetry.py",
+      "file": "src/caliper/core/telemetry.py",
       "line": "152",
       "severity": "low",
       "category": "design",
@@ -566,7 +566,7 @@
     {
       "id": "P07-2",
       "arm": "sonnet",
-      "file": "src/eedom/core/sarif.py",
+      "file": "src/caliper/core/sarif.py",
       "line": "57-60",
       "severity": "medium",
       "category": "correctness",
@@ -577,7 +577,7 @@
     {
       "id": "P08-4",
       "arm": "sonnet",
-      "file": "src/eedom/core/concern_review.py",
+      "file": "src/caliper/core/concern_review.py",
       "line": "484",
       "severity": "medium",
       "category": "correctness",
@@ -588,7 +588,7 @@
     {
       "id": "P09-3",
       "arm": "sonnet",
-      "file": "src/eedom/core/taskfit_validator.py",
+      "file": "src/caliper/core/taskfit_validator.py",
       "line": "151",
       "severity": "medium",
       "category": "correctness",
@@ -599,7 +599,7 @@
     {
       "id": "P11-4",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/ast_utils.py",
+      "file": "src/caliper/detectors/ast_utils.py",
       "line": "281",
       "severity": "medium",
       "category": "correctness",
@@ -610,7 +610,7 @@
     {
       "id": "P12-8",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/security/fixed_output_delimiter.py",
+      "file": "src/caliper/detectors/security/fixed_output_delimiter.py",
       "line": "20",
       "severity": "medium",
       "category": "correctness",
@@ -621,7 +621,7 @@
     {
       "id": "P13-6",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/reliability/non_atomic_write.py",
+      "file": "src/caliper/detectors/reliability/non_atomic_write.py",
       "line": "84",
       "severity": "medium",
       "category": "correctness",
@@ -632,7 +632,7 @@
     {
       "id": "P14-4",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/config/config_merge.py",
+      "file": "src/caliper/detectors/config/config_merge.py",
       "line": "59",
       "severity": "medium",
       "category": "correctness",
@@ -643,7 +643,7 @@
     {
       "id": "P16-11",
       "arm": "sonnet",
-      "file": "src/eedom/plugins/osv_scanner.py",
+      "file": "src/caliper/plugins/osv_scanner.py",
       "line": "167-176",
       "severity": "medium",
       "category": "correctness",
@@ -654,7 +654,7 @@
     {
       "id": "P18-7",
       "arm": "sonnet",
-      "file": "src/eedom/plugins/supply_chain.py",
+      "file": "src/caliper/plugins/supply_chain.py",
       "line": "262",
       "severity": "low",
       "category": "design",
@@ -665,7 +665,7 @@
     {
       "id": "P20-5",
       "arm": "sonnet",
-      "file": "src/eedom/webhook/server.py",
+      "file": "src/caliper/webhook/server.py",
       "line": "65",
       "severity": "medium",
       "category": "correctness",
@@ -676,7 +676,7 @@
     {
       "id": "P15-4",
       "arm": "haiku",
-      "file": "src/eedom/plugins/_runners/cfn_nag_runner.py",
+      "file": "src/caliper/plugins/_runners/cfn_nag_runner.py",
       "line": "76",
       "severity": "high",
       "category": "correctness",
@@ -687,7 +687,7 @@
     {
       "id": "P03-3",
       "arm": "haiku",
-      "file": "src/eedom/core/opa_adapter.py",
+      "file": "src/caliper/core/opa_adapter.py",
       "line": "86",
       "severity": "medium",
       "category": "design",
@@ -698,7 +698,7 @@
     {
       "id": "P13-7",
       "arm": "haiku",
-      "file": "src/eedom/detectors/reliability/path_construction.py",
+      "file": "src/caliper/detectors/reliability/path_construction.py",
       "line": "123-136",
       "severity": "medium",
       "category": "correctness",
@@ -709,7 +709,7 @@
     {
       "id": "P15-3",
       "arm": "haiku",
-      "file": "src/eedom/plugins/_runners/cpd_runner.py",
+      "file": "src/caliper/plugins/_runners/cpd_runner.py",
       "line": "297",
       "severity": "medium",
       "category": "correctness",
@@ -720,7 +720,7 @@
     {
       "id": "P17-5",
       "arm": "haiku",
-      "file": "src/eedom/plugins/kube_linter.py",
+      "file": "src/caliper/plugins/kube_linter.py",
       "line": "29-40",
       "severity": "medium",
       "category": "correctness",
@@ -731,7 +731,7 @@
     {
       "id": "P14-6",
       "arm": "haiku",
-      "file": "src/eedom/detectors/config/config_merge.py",
+      "file": "src/caliper/detectors/config/config_merge.py",
       "line": "159-171",
       "severity": "low",
       "category": "design",
@@ -742,7 +742,7 @@
     {
       "id": "P01-1",
       "arm": "sonnet",
-      "file": "src/eedom/core/pipeline.py",
+      "file": "src/caliper/core/pipeline.py",
       "line": "309",
       "severity": "high",
       "category": "correctness",
@@ -753,7 +753,7 @@
     {
       "id": "P02-4",
       "arm": "sonnet",
-      "file": "src/eedom/core/solver.py",
+      "file": "src/caliper/core/solver.py",
       "line": "537-547",
       "severity": "medium",
       "category": "correctness",
@@ -764,7 +764,7 @@
     {
       "id": "P04-4",
       "arm": "sonnet",
-      "file": "src/eedom/data/evidence.py",
+      "file": "src/caliper/data/evidence.py",
       "line": "179",
       "severity": "medium",
       "category": "design",
@@ -775,7 +775,7 @@
     {
       "id": "P07-1",
       "arm": "sonnet",
-      "file": "src/eedom/core/sarif.py",
+      "file": "src/caliper/core/sarif.py",
       "line": "62",
       "severity": "high",
       "category": "correctness",
@@ -786,7 +786,7 @@
     {
       "id": "P08-3",
       "arm": "sonnet",
-      "file": "src/eedom/core/concern_review.py",
+      "file": "src/caliper/core/concern_review.py",
       "line": "160",
       "severity": "low",
       "category": "correctness",
@@ -797,7 +797,7 @@
     {
       "id": "P09-2",
       "arm": "sonnet",
-      "file": "src/eedom/core/taskfit.py",
+      "file": "src/caliper/core/taskfit.py",
       "line": "247",
       "severity": "medium",
       "category": "correctness",
@@ -808,7 +808,7 @@
     {
       "id": "P10-5",
       "arm": "sonnet",
-      "file": "src/eedom/core/ports.py",
+      "file": "src/caliper/core/ports.py",
       "line": "173",
       "severity": "medium",
       "category": "design",
@@ -819,7 +819,7 @@
     {
       "id": "P12-7",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/security/secret_str.py",
+      "file": "src/caliper/detectors/security/secret_str.py",
       "line": "66",
       "severity": "medium",
       "category": "correctness",
@@ -830,7 +830,7 @@
     {
       "id": "P13-4",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/reliability/subprocess_timeout.py",
+      "file": "src/caliper/detectors/reliability/subprocess_timeout.py",
       "line": "114",
       "severity": "high",
       "category": "correctness",
@@ -841,7 +841,7 @@
     {
       "id": "P13-12",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/reliability/nullable_dedup_key.py",
+      "file": "src/caliper/detectors/reliability/nullable_dedup_key.py",
       "line": "42",
       "severity": "medium",
       "category": "correctness",
@@ -852,7 +852,7 @@
     {
       "id": "P16-10",
       "arm": "sonnet",
-      "file": "src/eedom/plugins/osv_scanner.py",
+      "file": "src/caliper/plugins/osv_scanner.py",
       "line": "149",
       "severity": "medium",
       "category": "correctness",
@@ -863,7 +863,7 @@
     {
       "id": "P18-6",
       "arm": "sonnet",
-      "file": "src/eedom/plugins/supply_chain.py",
+      "file": "src/caliper/plugins/supply_chain.py",
       "line": "62",
       "severity": "low",
       "category": "correctness",
@@ -874,7 +874,7 @@
     {
       "id": "P20-4",
       "arm": "sonnet",
-      "file": "src/eedom/composition/bootstrap.py",
+      "file": "src/caliper/composition/bootstrap.py",
       "line": "420",
       "severity": "high",
       "category": "correctness",
@@ -885,18 +885,18 @@
     {
       "id": "P20-1",
       "arm": "haiku",
-      "file": "src/eedom/webhook/config.py",
+      "file": "src/caliper/webhook/config.py",
       "line": "24",
       "severity": "high",
       "category": "correctness",
-      "claim": "WebhookSettings.secret is a required non-Optional field, but _load_app() calls WebhookSettings() without catching MissingConfigError for missing EEDOM_WEBHOOK_SECRET.",
+      "claim": "WebhookSettings.secret is a required non-Optional field, but _load_app() calls WebhookSettings() without catching MissingConfigError for missing CALIPER_WEBHOOK_SECRET.",
       "opus_verdict": "FALSE_POSITIVE",
       "opus_reason": "MissingConfigError does not exist; WebhookSettings() raises pydantic ValidationError; failing loudly on missing required secret at boot is intended"
     },
     {
       "id": "P15-7",
       "arm": "haiku",
-      "file": "src/eedom/core/registry.py",
+      "file": "src/caliper/core/registry.py",
       "line": "149",
       "severity": "medium",
       "category": "correctness",
@@ -907,7 +907,7 @@
     {
       "id": "P12-1",
       "arm": "haiku",
-      "file": "src/eedom/detectors/security/secret_str.py",
+      "file": "src/caliper/detectors/security/secret_str.py",
       "line": "76-96",
       "severity": "medium",
       "category": "correctness",
@@ -918,7 +918,7 @@
     {
       "id": "P16-3",
       "arm": "haiku",
-      "file": "src/eedom/plugins/clamav.py",
+      "file": "src/caliper/plugins/clamav.py",
       "line": "69",
       "severity": "medium",
       "category": "correctness",
@@ -929,7 +929,7 @@
     {
       "id": "P09-3",
       "arm": "haiku",
-      "file": "src/eedom/core/actionability.py",
+      "file": "src/caliper/core/actionability.py",
       "line": "37-39",
       "severity": "low",
       "category": "design",
@@ -940,7 +940,7 @@
     {
       "id": "P17-10",
       "arm": "haiku",
-      "file": "src/eedom/plugins/blast_radius.py",
+      "file": "src/caliper/plugins/blast_radius.py",
       "line": "68-73",
       "severity": "low",
       "category": "correctness",
@@ -951,7 +951,7 @@
     {
       "id": "P01-3",
       "arm": "sonnet",
-      "file": "src/eedom/core/pipeline.py",
+      "file": "src/caliper/core/pipeline.py",
       "line": "169",
       "severity": "high",
       "category": "correctness",
@@ -962,7 +962,7 @@
     {
       "id": "P02-6",
       "arm": "sonnet",
-      "file": "src/eedom/core/memo.py",
+      "file": "src/caliper/core/memo.py",
       "line": "82-84",
       "severity": "low",
       "category": "design",
@@ -973,7 +973,7 @@
     {
       "id": "P05-1",
       "arm": "sonnet",
-      "file": "src/eedom/core/file_source.py",
+      "file": "src/caliper/core/file_source.py",
       "line": "40",
       "severity": "medium",
       "category": "correctness",
@@ -984,7 +984,7 @@
     {
       "id": "P07-4",
       "arm": "sonnet",
-      "file": "src/eedom/core/renderer.py",
+      "file": "src/caliper/core/renderer.py",
       "line": "83-95",
       "severity": "medium",
       "category": "correctness",
@@ -995,7 +995,7 @@
     {
       "id": "P08-5",
       "arm": "sonnet",
-      "file": "src/eedom/core/concern_prompt.py",
+      "file": "src/caliper/core/concern_prompt.py",
       "line": "158-168",
       "severity": "high",
       "category": "correctness",
@@ -1006,7 +1006,7 @@
     {
       "id": "P09-4",
       "arm": "sonnet",
-      "file": "src/eedom/core/taskfit_validator.py",
+      "file": "src/caliper/core/taskfit_validator.py",
       "line": "199",
       "severity": "medium",
       "category": "correctness",
@@ -1017,18 +1017,18 @@
     {
       "id": "P11-5",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/_registry.py",
+      "file": "src/caliper/detectors/_registry.py",
       "line": "35",
       "severity": "medium",
       "category": "correctness",
-      "claim": "`_derive_detector_id` calls `detector_class.detector_id.fget(None)` to extract the detector id without instantiation, but all concrete detectors declare `detector_id` as a `@property` that returns a string literal \u2014 `fget(None)` passes `None` as `self`, which works only because the property bodies are pure `return \"EED-XXX\"` constants. If any future detector accesses `self` inside `detector_id` (e.g., for computed ids), `fget(None)` raises `AttributeError` silently swallowed by the `except (AttributeError, TypeError)` fallback, causing full instantiation. The silent fallthrough masks the error and makes registration non-deterministic across detector implementations.",
+      "claim": "`_derive_detector_id` calls `detector_class.detector_id.fget(None)` to extract the detector id without instantiation, but all concrete detectors declare `detector_id` as a `@property` that returns a string literal \u2014 `fget(None)` passes `None` as `self`, which works only because the property bodies are pure `return \"CAL-XXX\"` constants. If any future detector accesses `self` inside `detector_id` (e.g., for computed ids), `fget(None)` raises `AttributeError` silently swallowed by the `except (AttributeError, TypeError)` fallback, causing full instantiation. The silent fallthrough masks the error and makes registration non-deterministic across detector implementations.",
       "opus_verdict": "FALSE_POSITIVE",
       "opus_reason": "fget(None) works for all detectors, except falls back to instantiation same id, no nondeterminism, hypothetical"
     },
     {
       "id": "P12-10",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/security/arch_boundary.py",
+      "file": "src/caliper/detectors/security/arch_boundary.py",
       "line": "29",
       "severity": "medium",
       "category": "correctness",
@@ -1039,7 +1039,7 @@
     {
       "id": "P13-7",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/reliability/non_atomic_write.py",
+      "file": "src/caliper/detectors/reliability/non_atomic_write.py",
       "line": "18",
       "severity": "medium",
       "category": "correctness",
@@ -1050,7 +1050,7 @@
     {
       "id": "P14-7",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/config/docker_pin_drift.py",
+      "file": "src/caliper/detectors/config/docker_pin_drift.py",
       "line": "87",
       "severity": "low",
       "category": "correctness",
@@ -1061,7 +1061,7 @@
     {
       "id": "P17-4",
       "arm": "sonnet",
-      "file": "src/eedom/plugins/swiftlint.py",
+      "file": "src/caliper/plugins/swiftlint.py",
       "line": "30",
       "severity": "low",
       "category": "design",
@@ -1072,7 +1072,7 @@
     {
       "id": "P19-2",
       "arm": "sonnet",
-      "file": "src/eedom/data/catalog.py",
+      "file": "src/caliper/data/catalog.py",
       "line": "254",
       "severity": "high",
       "category": "correctness",
@@ -1083,7 +1083,7 @@
     {
       "id": "P03-1",
       "arm": "haiku",
-      "file": "src/eedom/core/opa_adapter.py",
+      "file": "src/caliper/core/opa_adapter.py",
       "line": "65-74",
       "severity": "high",
       "category": "correctness",
@@ -1094,7 +1094,7 @@
     {
       "id": "P18-2",
       "arm": "haiku",
-      "file": "src/eedom/core/diff.py",
+      "file": "src/caliper/core/diff.py",
       "line": "212",
       "severity": "medium",
       "category": "correctness",
@@ -1105,7 +1105,7 @@
     {
       "id": "P09-2",
       "arm": "haiku",
-      "file": "src/eedom/core/taskfit_validator.py",
+      "file": "src/caliper/core/taskfit_validator.py",
       "line": "185-206",
       "severity": "medium",
       "category": "design",
@@ -1116,7 +1116,7 @@
     {
       "id": "P12-6",
       "arm": "haiku",
-      "file": "src/eedom/detectors/security/sql_injection.py",
+      "file": "src/caliper/detectors/security/sql_injection.py",
       "line": "75-76",
       "severity": "medium",
       "category": "correctness",
@@ -1127,7 +1127,7 @@
     {
       "id": "P17-2",
       "arm": "haiku",
-      "file": "src/eedom/plugins/complexity.py",
+      "file": "src/caliper/plugins/complexity.py",
       "line": "32-35",
       "severity": "medium",
       "category": "correctness",
@@ -1138,7 +1138,7 @@
     {
       "id": "P10-5",
       "arm": "haiku",
-      "file": "src/eedom/core/fake.py",
+      "file": "src/caliper/core/fake.py",
       "line": "24-25",
       "severity": "low",
       "category": "design",
@@ -1149,7 +1149,7 @@
     {
       "id": "P16-5",
       "arm": "haiku",
-      "file": "src/eedom/plugins/clamav.py",
+      "file": "src/caliper/plugins/clamav.py",
       "line": "84-87",
       "severity": "low",
       "category": "correctness",
@@ -1160,7 +1160,7 @@
     {
       "id": "P01-5",
       "arm": "sonnet",
-      "file": "src/eedom/core/pipeline.py",
+      "file": "src/caliper/core/pipeline.py",
       "line": "38",
       "severity": "low",
       "category": "design",
@@ -1171,7 +1171,7 @@
     {
       "id": "P02-7",
       "arm": "sonnet",
-      "file": "src/eedom/core/memo.py",
+      "file": "src/caliper/core/memo.py",
       "line": "75-76",
       "severity": "medium",
       "category": "correctness",
@@ -1182,7 +1182,7 @@
     {
       "id": "P05-4",
       "arm": "sonnet",
-      "file": "src/eedom/core/manifest_discovery.py",
+      "file": "src/caliper/core/manifest_discovery.py",
       "line": "180",
       "severity": "medium",
       "category": "correctness",
@@ -1193,7 +1193,7 @@
     {
       "id": "P07-6",
       "arm": "sonnet",
-      "file": "src/eedom/core/renderer.py",
+      "file": "src/caliper/core/renderer.py",
       "line": "238-241",
       "severity": "low",
       "category": "correctness",
@@ -1204,7 +1204,7 @@
     {
       "id": "P08-6",
       "arm": "sonnet",
-      "file": "src/eedom/core/pr_review.py",
+      "file": "src/caliper/core/pr_review.py",
       "line": "199-220",
       "severity": "high",
       "category": "correctness",
@@ -1215,7 +1215,7 @@
     {
       "id": "P09-5",
       "arm": "sonnet",
-      "file": "src/eedom/core/actionability.py",
+      "file": "src/caliper/core/actionability.py",
       "line": "24",
       "severity": "high",
       "category": "correctness",
@@ -1226,7 +1226,7 @@
     {
       "id": "P11-6",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/framework.py",
+      "file": "src/caliper/detectors/framework.py",
       "line": "108",
       "severity": "medium",
       "category": "correctness",
@@ -1237,7 +1237,7 @@
     {
       "id": "P13-1",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/reliability/cache_eviction.py",
+      "file": "src/caliper/detectors/reliability/cache_eviction.py",
       "line": "83",
       "severity": "high",
       "category": "correctness",
@@ -1248,7 +1248,7 @@
     {
       "id": "P13-9",
       "arm": "sonnet",
-      "file": "src/eedom/detectors/reliability/cache_ttl.py",
+      "file": "src/caliper/detectors/reliability/cache_ttl.py",
       "line": "140",
       "severity": "medium",
       "category": "correctness",
@@ -1259,7 +1259,7 @@
     {
       "id": "P15-2",
       "arm": "sonnet",
-      "file": "src/eedom/core/registry.py",
+      "file": "src/caliper/core/registry.py",
       "line": "169",
       "severity": "high",
       "category": "correctness",
@@ -1270,18 +1270,18 @@
     {
       "id": "P17-5",
       "arm": "sonnet",
-      "file": "src/eedom/plugins/swiftlint.py",
+      "file": "src/caliper/plugins/swiftlint.py",
       "line": "134",
       "severity": "medium",
       "category": "correctness",
-      "claim": "SwiftLint severity values in the JSON output are title-case (e.g. \"Warning\", \"Error\") but `_SEV_MAP` uses only lowercase keys, so `.lower()` is applied before the lookup \u2014 but the map values are also raw strings (\"error\", \"warning\", \"info\") rather than normalized eedom severity levels (\"high\", \"medium\", \"low\"), producing non-standard severity strings in findings.",
+      "claim": "SwiftLint severity values in the JSON output are title-case (e.g. \"Warning\", \"Error\") but `_SEV_MAP` uses only lowercase keys, so `.lower()` is applied before the lookup \u2014 but the map values are also raw strings (\"error\", \"warning\", \"info\") rather than normalized caliper severity levels (\"high\", \"medium\", \"low\"), producing non-standard severity strings in findings.",
       "opus_verdict": "CONFIRMED",
       "opus_reason": "_SEV_MAP passes error/warning/info unchanged while codebase uses critical/high/medium/low/info, non-standard severity"
     },
     {
       "id": "P19-3",
       "arm": "sonnet",
-      "file": "src/eedom/data/parquet_writer.py",
+      "file": "src/caliper/data/parquet_writer.py",
       "line": "78",
       "severity": "medium",
       "category": "correctness",

@@ -33,7 +33,7 @@ jobs:
       - name: Auto-merge release PR
         run: |
           PR_NUM=$(gh pr list \
-            --head "release-please--branches--main--components--eedom" \
+            --head "release-please--branches--main--components--caliper" \
             --state open \
             --json number \
             --jq '.[0].number // ""')
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/eedom/
+      url: https://pypi.org/project/caliper/
     permissions:
       contents: write
       id-token: write

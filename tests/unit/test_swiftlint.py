@@ -8,9 +8,9 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from eedom.core.plugin import PluginCategory
-from eedom.core.tool_runner import ToolResult
-from eedom.plugins.swiftlint import SwiftLintPlugin
+from caliper.core.plugin import PluginCategory
+from caliper.core.tool_runner import ToolResult
+from caliper.plugins.swiftlint import SwiftLintPlugin
 
 _REPO = Path("/workspace")
 
@@ -169,7 +169,7 @@ class TestSwiftLintPluginRun:
         assert non_swift == []
 
     def test_uses_custom_config_when_present(self, tmp_path: Path) -> None:
-        custom_config = tmp_path / ".eedom" / "swiftlint.yml"
+        custom_config = tmp_path / ".caliper" / "swiftlint.yml"
         custom_config.parent.mkdir()
         custom_config.write_text("disabled_rules: []\n")
         runner = MagicMock()
@@ -178,7 +178,7 @@ class TestSwiftLintPluginRun:
         p.run(_SWIFT_FILES, tmp_path)
         cmd = runner.run.call_args[0][0].cmd
         config_idx = cmd.index("--config")
-        assert ".eedom/swiftlint.yml" in cmd[config_idx + 1]
+        assert ".caliper/swiftlint.yml" in cmd[config_idx + 1]
 
     def test_uses_project_swiftlint_yml_when_present(self, tmp_path: Path) -> None:
         project_config = tmp_path / ".swiftlint.yml"
@@ -193,7 +193,7 @@ class TestSwiftLintPluginRun:
 
     def test_dom_override_takes_precedence_over_project_config(self, tmp_path: Path) -> None:
         (tmp_path / ".swiftlint.yml").write_text("disabled_rules: []\n")
-        dom_config = tmp_path / ".eedom" / "swiftlint.yml"
+        dom_config = tmp_path / ".caliper" / "swiftlint.yml"
         dom_config.parent.mkdir()
         dom_config.write_text("disabled_rules: [force_cast]\n")
         runner = MagicMock()
@@ -202,7 +202,7 @@ class TestSwiftLintPluginRun:
         p.run(_SWIFT_FILES, tmp_path)
         cmd = runner.run.call_args[0][0].cmd
         config_idx = cmd.index("--config")
-        assert ".eedom/swiftlint.yml" in cmd[config_idx + 1]
+        assert ".caliper/swiftlint.yml" in cmd[config_idx + 1]
 
     def test_uses_bundled_config_as_last_resort(self) -> None:
         runner = MagicMock()
@@ -231,14 +231,14 @@ class TestSwiftLintPluginRun:
         assert "external_swiftlint" not in cmd[config_idx + 1]
 
     def test_symlinked_dom_config_outside_repo_uses_bundled(self, tmp_path: Path) -> None:
-        """Symlink inside .eedom/ pointing outside repo_path must be rejected."""
+        """Symlink inside .caliper/ pointing outside repo_path must be rejected."""
         import os
 
         external = tmp_path.parent / "evil_swiftlint.yml"
         external.write_text("disabled_rules: []\n")
-        eedom_dir = tmp_path / ".eedom"
-        eedom_dir.mkdir()
-        os.symlink(external, eedom_dir / "swiftlint.yml")
+        caliper_dir = tmp_path / ".caliper"
+        caliper_dir.mkdir()
+        os.symlink(external, caliper_dir / "swiftlint.yml")
 
         runner = MagicMock()
         runner.run.return_value = _tool_result(_CLEAN_OUTPUT)
@@ -251,14 +251,14 @@ class TestSwiftLintPluginRun:
 
 class TestSwiftLintPluginRender:
     def test_render_clean_returns_empty(self) -> None:
-        from eedom.core.plugin import PluginResult
+        from caliper.core.plugin import PluginResult
 
         p = SwiftLintPlugin()
         result = PluginResult(plugin_name="swiftlint", findings=[])
         assert p.render(result) == ""
 
     def test_render_findings_produces_markdown_table(self) -> None:
-        from eedom.core.plugin import PluginResult
+        from caliper.core.plugin import PluginResult
 
         p = SwiftLintPlugin()
         result = PluginResult(
@@ -279,7 +279,7 @@ class TestSwiftLintPluginRender:
         assert "VC.swift" in rendered
 
     def test_render_error_shows_error(self) -> None:
-        from eedom.core.plugin import PluginResult
+        from caliper.core.plugin import PluginResult
 
         p = SwiftLintPlugin()
         result = PluginResult(

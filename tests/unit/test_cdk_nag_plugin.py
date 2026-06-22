@@ -8,9 +8,9 @@ import json
 import subprocess
 from unittest.mock import MagicMock, patch
 
-from eedom.core.plugin import PluginCategory
+from caliper.core.plugin import PluginCategory
 
-RUNNER_PATH = "eedom.plugins._runners.cdk_nag_runner"
+RUNNER_PATH = "caliper.plugins._runners.cdk_nag_runner"
 
 CFN_NAG_OUTPUT = json.dumps(
     [
@@ -51,47 +51,47 @@ CLEAN_OUTPUT = json.dumps(
 
 class TestCdkNagPlugin:
     def test_name(self):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         p = CdkNagPlugin()
         assert p.name == "cdk-nag"
 
     def test_description(self):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         p = CdkNagPlugin()
         assert "CDK" in p.description
         assert "CloudFormation" in p.description
 
     def test_category(self):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         p = CdkNagPlugin()
         assert p.category == PluginCategory.infra
 
     def test_can_run_with_cdk_json(self, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         (tmp_path / "cdk.json").write_text("{}")
         p = CdkNagPlugin()
         assert p.can_run([], tmp_path) is True
 
     def test_can_run_with_cdk_out_dir(self, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         (tmp_path / "cdk.out").mkdir()
         p = CdkNagPlugin()
         assert p.can_run([], tmp_path) is True
 
     def test_cannot_run_without_cdk_files(self, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         p = CdkNagPlugin()
         assert p.can_run([], tmp_path) is False
 
     @patch(f"{RUNNER_PATH}.subprocess.run")
     def test_run_with_existing_cdk_out(self, mock_run, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         (tmp_path / "cdk.json").write_text("{}")
         cdk_out = tmp_path / "cdk.out"
@@ -134,7 +134,7 @@ class TestCdkNagPlugin:
 
     @patch(f"{RUNNER_PATH}.subprocess.run")
     def test_run_triggers_cdk_synth_when_no_cdk_out(self, mock_run, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         (tmp_path / "cdk.json").write_text("{}")
 
@@ -166,7 +166,7 @@ class TestCdkNagPlugin:
 
     @patch(f"{RUNNER_PATH}.subprocess.run")
     def test_cdk_synth_failure_returns_error(self, mock_run, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         (tmp_path / "cdk.json").write_text("{}")
 
@@ -183,7 +183,7 @@ class TestCdkNagPlugin:
 
     @patch(f"{RUNNER_PATH}.subprocess.run", side_effect=FileNotFoundError)
     def test_cdk_not_installed(self, _mock, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         # No cdk.out → will attempt cdk synth → FileNotFoundError
         (tmp_path / "cdk.json").write_text("{}")
@@ -192,7 +192,7 @@ class TestCdkNagPlugin:
         assert "NOT_INSTALLED" in result.error
 
     def test_cfn_nag_not_installed(self, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         # synth succeeds, then cfn_nag_scan raises FileNotFoundError
         cdk_out = tmp_path / "cdk.out"
@@ -215,7 +215,7 @@ class TestCdkNagPlugin:
             assert "NOT_INSTALLED" in result.error
 
     def test_cdk_synth_timeout(self, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         (tmp_path / "cdk.json").write_text("{}")
 
@@ -228,7 +228,7 @@ class TestCdkNagPlugin:
             assert "TIMEOUT" in result.error
 
     def test_cfn_nag_scan_timeout(self, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         # synth succeeds, then cfn_nag_scan times out
         cdk_out = tmp_path / "cdk.out"
@@ -252,7 +252,7 @@ class TestCdkNagPlugin:
 
     @patch(f"{RUNNER_PATH}.subprocess.run")
     def test_clean_scan_no_findings(self, mock_run, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         cdk_out = tmp_path / "cdk.out"
         cdk_out.mkdir()
@@ -273,7 +273,7 @@ class TestCdkNagPlugin:
     @patch(f"{RUNNER_PATH}.subprocess.run")
     def test_synth_called_when_cdk_json_exists(self, mock_run, tmp_path):
         """Synth must run when cdk.json exists — stale output guard."""
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         (tmp_path / "cdk.json").write_text("{}")
         cdk_out = tmp_path / "cdk.out"
@@ -305,7 +305,7 @@ class TestCdkNagPlugin:
     @patch(f"{RUNNER_PATH}.subprocess.run")
     def test_synth_failure_with_existing_cdk_out_returns_error(self, mock_run, tmp_path):
         """Synth failure must return an error even when stale cdk.out/ exists."""
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         cdk_out = tmp_path / "cdk.out"
         cdk_out.mkdir()
@@ -324,7 +324,7 @@ class TestCdkNagPlugin:
 
     @patch(f"{RUNNER_PATH}.subprocess.run")
     def test_no_templates_in_cdk_out(self, mock_run, tmp_path):
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         (tmp_path / "cdk.json").write_text("{}")
         cdk_out = tmp_path / "cdk.out"
@@ -350,7 +350,7 @@ class TestCdkNagPlugin:
     @patch(f"{RUNNER_PATH}.subprocess.run")
     def test_scanner_crash_nonzero_exit_returns_error(self, mock_run, tmp_path):
         """cfn_nag_scan non-zero exit + empty stdout during template scan must error."""
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         cdk_out = tmp_path / "cdk.out"
         cdk_out.mkdir()
@@ -378,7 +378,7 @@ class TestCdkNagPlugin:
     @patch(f"{RUNNER_PATH}.subprocess.run")
     def test_assembly_only_skips_synth(self, mock_run, tmp_path):
         """cdk.out/ exists but no cdk.json → scan templates without running cdk synth."""
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         cdk_out = tmp_path / "cdk.out"
         cdk_out.mkdir()
@@ -401,7 +401,7 @@ class TestCdkNagPlugin:
 
     def test_assembly_only_no_templates_returns_empty(self, tmp_path):
         """cdk.out/ exists with no templates and no cdk.json → no findings, no error."""
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         (tmp_path / "cdk.out").mkdir()
 
@@ -414,7 +414,7 @@ class TestCdkNagPlugin:
     @patch(f"{RUNNER_PATH}.subprocess.run")
     def test_scanner_malformed_json_returns_error(self, mock_run, tmp_path):
         """cfn_nag_scan exit-0 + malformed JSON during template scan must error."""
-        from eedom.plugins.cdk_nag import CdkNagPlugin
+        from caliper.plugins.cdk_nag import CdkNagPlugin
 
         cdk_out = tmp_path / "cdk.out"
         cdk_out.mkdir()

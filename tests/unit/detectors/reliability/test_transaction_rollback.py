@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.reliability.transaction_rollback import TransactionRollbackDetector
+from caliper.detectors.reliability.transaction_rollback import TransactionRollbackDetector
 
 
 class TestTransactionRollbackDetector:
-    """Tests for TransactionRollbackDetector (EED-010)."""
+    """Tests for TransactionRollbackDetector (CAL-010)."""
 
     @pytest.fixture
     def detector(self):
@@ -40,7 +40,7 @@ def batch_insert_users(users):
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-010"
+        assert findings[0].detector_id == "CAL-010"
 
     def test_detects_executemany_without_rollback(self, detector):
         """Detects executemany without exception handling."""

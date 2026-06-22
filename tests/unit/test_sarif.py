@@ -8,8 +8,8 @@ import json
 
 import pytest
 
-from eedom.core.plugin import PluginResult
-from eedom.core.sarif import to_sarif
+from caliper.core.plugin import PluginResult
+from caliper.core.sarif import to_sarif
 
 _SARIF_SCHEMA = (
     "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/"
@@ -93,10 +93,10 @@ class TestSinglePluginWithFindings:
         assert loc["region"]["startLine"] == 42
 
 
-class TestEnrichmentProperties:
-    """Detect-then-enrich packets (ADR-006) surface in the SARIF property bag."""
+class TestScribeNoteProperties:
+    """Detect-then-scribe packets (ADR-006) surface in the SARIF property bag."""
 
-    def _result_with_enrichment(self) -> PluginResult:
+    def _result_with_scribe(self) -> PluginResult:
         return PluginResult(
             plugin_name="semgrep",
             findings=[
@@ -107,7 +107,7 @@ class TestEnrichmentProperties:
                     "severity": "ERROR",
                     "message": "eval is dangerous",
                     "metadata": {
-                        "enrichment": {
+                        "scribe": {
                             "enclosing_symbol": "handler",
                             "enclosing_kind": "function",
                             "sources": ["enclosing_symbol", "code_graph"],
@@ -117,13 +117,13 @@ class TestEnrichmentProperties:
             ],
         )
 
-    def test_enrichment_in_properties(self) -> None:
-        out = to_sarif([self._result_with_enrichment()])
+    def test_scribe_in_properties(self) -> None:
+        out = to_sarif([self._result_with_scribe()])
         result = out["runs"][0]["results"][0]
-        assert result["properties"]["enrichment"]["enclosing_symbol"] == "handler"
-        assert "code_graph" in result["properties"]["enrichment"]["sources"]
+        assert result["properties"]["scribe"]["enclosing_symbol"] == "handler"
+        assert "code_graph" in result["properties"]["scribe"]["sources"]
 
-    def test_no_properties_key_without_enrichment(self) -> None:
+    def test_no_properties_key_without_scribe(self) -> None:
         plain = PluginResult(
             plugin_name="semgrep",
             findings=[{"rule_id": "r", "file": "a.py", "start_line": 1, "severity": "INFO"}],
@@ -131,8 +131,8 @@ class TestEnrichmentProperties:
         out = to_sarif([plain])
         assert "properties" not in out["runs"][0]["results"][0]
 
-    def test_sarif_with_enrichment_is_json_serialisable(self) -> None:
-        out = to_sarif([self._result_with_enrichment()])
+    def test_sarif_with_scribe_is_json_serialisable(self) -> None:
+        out = to_sarif([self._result_with_scribe()])
         assert json.loads(json.dumps(out))  # round-trips cleanly
 
 
@@ -229,7 +229,7 @@ class TestMultiplePlugins:
         err_result = out["runs"][0]["results"][0]
         assert err_result["level"] == "error"
         assert "timeout" in err_result["message"]["text"]
-        assert err_result["ruleId"] == "eedom-plugin-error"
+        assert err_result["ruleId"] == "caliper-plugin-error"
 
 
 class TestRuleIdFallbacks:
@@ -450,7 +450,7 @@ class TestFindingCap:
         out = to_sarif([result], max_findings_per_run=100)
         results = out["runs"][0]["results"]
         assert len(results) == 101
-        assert results[-1]["ruleId"] == "eedom-truncated"
+        assert results[-1]["ruleId"] == "caliper-truncated"
         assert "1900 additional findings truncated" in results[-1]["message"]["text"]
 
     def test_truncation_notice_is_note_level(self) -> None:
@@ -499,7 +499,7 @@ class TestPluginErrorsInSarif:
         assert out["runs"][0]["results"][0]["level"] == "error"
         assert "TIMEOUT" in out["runs"][0]["results"][0]["message"]["text"]
 
-    def test_error_result_has_eedom_plugin_error_rule_id(self) -> None:
+    def test_error_result_has_caliper_plugin_error_rule_id(self) -> None:
         result = PluginResult(
             plugin_name="blast-radius",
             findings=[],
@@ -507,7 +507,7 @@ class TestPluginErrorsInSarif:
             error="unable to open database file",
         )
         out = to_sarif([result])
-        assert out["runs"][0]["results"][0]["ruleId"] == "eedom-plugin-error"
+        assert out["runs"][0]["results"][0]["ruleId"] == "caliper-plugin-error"
 
     def test_error_plus_findings_emits_both(self) -> None:
         """A plugin that partially ran before erroring keeps its findings + error."""

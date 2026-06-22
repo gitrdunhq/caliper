@@ -32,7 +32,7 @@ repository state or controlled fixtures before product-code remediation.
 - Assert pull request workflows do not execute checked-out code on
   self-hosted runners with write-scoped tokens.
 - Assert required workflows run container tests and quality gates.
-- Assert `gatekeeper` dispatch inputs are wired into runtime behavior.
+- Assert `foreman` dispatch inputs are wired into runtime behavior.
 - Assert release publishing fails closed when the release key is absent.
 - Assert `make test` does not hide image-built dependencies with an unsafe bind
   mount.
@@ -177,7 +177,7 @@ uses the self-contained image instead of bind-mounting over `/workspace`.
 - The production `Dockerfile` now has amd64 hashes for syft, trivy,
   osv-scanner, opa, gitleaks, jq, kube-linter, and ls-lint, pins the Python
   base image by digest, and records dereferenced upstream source commits in
-  `/opt/eedom/scripts/release-revisions.txt`.
+  `/opt/caliper/scripts/release-revisions.txt`.
 - Focused post-fix container sanity checks passed for the Dockerfile/Makefile
   guards and non-root evidence-store behavior. The only selected failure was
   the existing `test_rejects_global_install` assertion, which conflicts with
@@ -188,22 +188,22 @@ uses the self-contained image instead of bind-mounting over `/workspace`.
 - Focused in-container detector run was intentionally RED on the current
   snapshot before the Dockerfile fix: `40 failed in 1.29s`.
 - Remote amd64 validation on `sambou@192.168.0.210`:
-  - `make prod-build` completed and produced `eedom:amd64`.
+  - `make prod-build` completed and produced `caliper:amd64`.
   - `make prod-smoke` completed with `--security-opt apparmor=unconfined`.
   - `docker run --rm --platform linux/amd64 --security-opt apparmor=unconfined
-    --entrypoint sh eedom:amd64 -c "cat
-    /opt/eedom/scripts/release-revisions.txt &&
-    /opt/eedom/scripts/verify-checksums.sh"` passed and reported all binary
+    --entrypoint sh caliper:amd64 -c "cat
+    /opt/caliper/scripts/release-revisions.txt &&
+    /opt/caliper/scripts/verify-checksums.sh"` passed and reported all binary
     checksums verified.
-  - `make test-build` completed and produced `eedom-test:amd64`.
+  - `make test-build` completed and produced `caliper-test:amd64`.
   - Focused test-image smoke passed:
     `2 passed in 0.77s`.
-  - Image metadata inspection reports `amd64` for both `eedom:amd64` and
-    `eedom-test:amd64`; the prod image carries Python base revision
+  - Image metadata inspection reports `amd64` for both `caliper:amd64` and
+    `caliper-test:amd64`; the prod image carries Python base revision
     `3362634339580d3232e65a66dd5a36c47ae7ff14`, and the test image carries uv
     revision `0e961dd9a2bb6f73493d9e8398b725ad2d3b3837`.
 
-The focused RED run used the existing `eedom-test:latest` image and streamed
+The focused RED run used the existing `caliper-test:latest` image and streamed
 the current repo files into the ephemeral container while `Dockerfile.test` was
 still blocked. After the Dockerfile fix, those failures remain detector signals
 for the parent bugs, not acceptance failures for the detector files.

@@ -13,30 +13,30 @@ import json
 import os
 from pathlib import Path
 
-os.environ.setdefault("EEDOM_DB_DSN", "postgresql://t:t@localhost/t")
-os.environ.setdefault("EEDOM_ALLOW_GLOBAL", "1")
+os.environ.setdefault("CALIPER_DB_DSN", "postgresql://t:t@localhost/t")
+os.environ.setdefault("CALIPER_ALLOW_GLOBAL", "1")
 
-from eedom.adapters.grounding import (  # noqa: E402
+from caliper.adapters.grounding import (  # noqa: E402
     CodeGraphGroundingProvider,
     CtagsGroundingProvider,
     GitnexusGroundingProvider,
     NullGroundingProvider,
 )
-from eedom.composition.bootstrap import (  # noqa: E402
+from caliper.composition.bootstrap import (  # noqa: E402
     build_default_codegraph_factory,
     build_grounding_provider,
     load_adapters,
     run_grounding,
 )
-from eedom.core.config import EedomSettings  # noqa: E402
-from eedom.core.ports import GroundingProviderPort  # noqa: E402
-from eedom.core.registries import GROUNDING_PROVIDERS  # noqa: E402
+from caliper.core.config import CaliperSettings  # noqa: E402
+from caliper.core.ports import GroundingProviderPort  # noqa: E402
+from caliper.core.registries import GROUNDING_PROVIDERS  # noqa: E402
 
 
-def _settings(**overrides) -> EedomSettings:
+def _settings(**overrides) -> CaliperSettings:
     base = {"db_dsn": "postgresql://t:t@localhost/t"}
     base.update(overrides)
-    return EedomSettings(**base)  # type: ignore[arg-type]
+    return CaliperSettings(**base)  # type: ignore[arg-type]
 
 
 def _write_pkg(tmp_path: Path) -> Path:
@@ -99,7 +99,7 @@ class TestCodeGraphGroundingProvider:
         # Keep the graph db inside tmp so we never touch the user cache. The
         # graph builder is injected by the composition tier (adapters may not
         # import the plugins tier where CodeGraph lives).
-        monkeypatch.setenv("EEDOM_GRAPH_DB", str(tmp_path / "graph.sqlite"))
+        monkeypatch.setenv("CALIPER_GRAPH_DB", str(tmp_path / "graph.sqlite"))
         root = _write_pkg(tmp_path)
         provider = CodeGraphGroundingProvider(graph_factory=build_default_codegraph_factory())
         facts = provider.fact_sheet(root, ["pkg/mod.py"])

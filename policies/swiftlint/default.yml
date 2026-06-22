@@ -1,4 +1,4 @@
-# eedom SwiftLint default configuration
+# caliper SwiftLint default configuration
 #
 # Sources:
 #   - openoats/AGENTS.md (Never Do list)
@@ -10,7 +10,7 @@
 #   - Cocoacasts: 5 Swift code smell categories
 #   - SwiftLint custom rule article (Ricardo Santos)
 #
-# Per-repo overrides: place .eedom/swiftlint.yml in the repo root.
+# Per-repo overrides: place .caliper/swiftlint.yml in the repo root.
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
 file_length:

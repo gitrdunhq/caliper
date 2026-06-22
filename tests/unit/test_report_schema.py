@@ -9,7 +9,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from eedom.core.plugin import PluginFinding, PluginResult
+from caliper.core.plugin import PluginFinding, PluginResult
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -36,8 +36,8 @@ def _make_result(
 class TestReportModel:
     def test_render_json_validates_against_model(self) -> None:
         """The emitted JSON parses into the published ReportModel."""
-        from eedom.core.json_report import render_json
-        from eedom.core.report_schema import ReportModel
+        from caliper.core.json_report import render_json
+        from caliper.core.report_schema import ReportModel
 
         results = [
             _make_result("trivy", findings=[{"id": "CVE-2025-1", "severity": "critical"}]),
@@ -56,8 +56,8 @@ class TestReportModel:
 
     def test_round_trip_is_lossless(self) -> None:
         """Emit -> validate -> dump reproduces the exact same document."""
-        from eedom.core.json_report import render_json
-        from eedom.core.report_schema import ReportModel
+        from caliper.core.json_report import render_json
+        from caliper.core.report_schema import ReportModel
 
         results = [
             _make_result("trivy", findings=[{"id": "CVE-2025-1", "severity": "high"}]),
@@ -68,8 +68,8 @@ class TestReportModel:
         assert report.model_dump(mode="json") == parsed
 
     def test_schema_version_pinned(self) -> None:
-        from eedom.core.json_report import render_json
-        from eedom.core.report_schema import REPORT_SCHEMA_VERSION, ReportModel
+        from caliper.core.json_report import render_json
+        from caliper.core.report_schema import REPORT_SCHEMA_VERSION, ReportModel
 
         assert REPORT_SCHEMA_VERSION == "1.0"
         output = json.loads(render_json([_make_result()]))
@@ -78,7 +78,7 @@ class TestReportModel:
 
     def test_dataclass_findings_round_trip(self) -> None:
         """PluginFinding dataclasses serialize with metadata nested, as before."""
-        from eedom.core.json_report import render_json
+        from caliper.core.json_report import render_json
 
         finding = PluginFinding(
             id="CVE-2025-9",
@@ -93,8 +93,8 @@ class TestReportModel:
         assert emitted["metadata"] == {"cwe": "CWE-79"}
 
     def test_exported_from_package_root(self) -> None:
-        """Consumers import the models from the eedom package root."""
-        from eedom import (  # noqa: F401
+        """Consumers import the models from the caliper package root."""
+        from caliper import (  # noqa: F401
             REPORT_SCHEMA_VERSION,
             FindingModel,
             PluginReportModel,
@@ -104,7 +104,7 @@ class TestReportModel:
 
 class TestFindingModel:
     def test_parses_sparse_finding_and_preserves_extras(self) -> None:
-        from eedom.core.report_schema import FindingModel
+        from caliper.core.report_schema import FindingModel
 
         finding = FindingModel.model_validate({"id": "CVE-1", "severity": "low", "cwe": "CWE-22"})
         assert finding.id == "CVE-1"
@@ -112,7 +112,7 @@ class TestFindingModel:
         assert finding.model_dump()["cwe"] == "CWE-22"
 
     def test_parses_full_to_dict_shape(self) -> None:
-        from eedom.core.report_schema import FindingModel
+        from caliper.core.report_schema import FindingModel
 
         raw = PluginFinding(id="X", severity="info", message="m").to_dict()
         finding = FindingModel.model_validate(raw)
@@ -121,7 +121,7 @@ class TestFindingModel:
 
 class TestSchemaCommand:
     def test_schema_command_prints_json_schema(self) -> None:
-        from eedom.cli.main import cli
+        from caliper.cli.main import cli
 
         runner = CliRunner()
         result = runner.invoke(cli, ["schema"])
@@ -131,7 +131,7 @@ class TestSchemaCommand:
         assert "plugins" in schema["properties"]
 
     def test_schema_command_writes_output_file(self, tmp_path) -> None:
-        from eedom.cli.main import cli
+        from caliper.cli.main import cli
 
         out = tmp_path / "report-schema.json"
         runner = CliRunner()
@@ -145,9 +145,9 @@ class TestPublishedSchemaArtifact:
     def test_checked_in_schema_matches_model(self) -> None:
         """docs/schema/report-v1.0.json stays in sync with the Pydantic model.
 
-        Regenerate with: eedom schema --output docs/schema/report-v1.0.json
+        Regenerate with: caliper schema --output docs/schema/report-v1.0.json
         """
-        from eedom.core.report_schema import report_json_schema
+        from caliper.core.report_schema import report_json_schema
 
         artifact = _REPO_ROOT / "docs" / "schema" / "report-v1.0.json"
         assert artifact.is_file(), f"missing published schema artifact: {artifact}"

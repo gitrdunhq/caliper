@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.security.error_exposure import ErrorExposureDetector
+from caliper.detectors.security.error_exposure import ErrorExposureDetector
 
 
 class TestErrorExposureDetector:
-    """Tests for ErrorExposureDetector (EED-002)."""
+    """Tests for ErrorExposureDetector (CAL-002)."""
 
     @pytest.fixture
     def detector(self):
@@ -34,7 +34,7 @@ except Exception as exc:
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-002"
+        assert findings[0].detector_id == "CAL-002"
         assert "exc" in findings[0].message
 
     def test_detects_exc_in_str_format(self, detector):

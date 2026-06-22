@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Patterns that indicate a download function
 _DOWNLOAD_PATTERNS: Set[str] = {
@@ -265,11 +265,11 @@ def test_188_policy_config_requires_checksum_field() -> None:
 
     tree = ast.parse(config_path.read_text(), filename=str(config_path))
 
-    # Look for EedomSettings class
+    # Look for CaliperSettings class
     config_fields: list[tuple[str, str, int]] = []  # (name, annotation, lineno)
 
     for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and node.name == "EedomSettings":
+        if isinstance(node, ast.ClassDef) and node.name == "CaliperSettings":
             for item in node.body:
                 if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
                     field_name = item.target.id.lower()
@@ -289,7 +289,7 @@ def test_188_policy_config_requires_checksum_field() -> None:
             f"When policy bundles are downloaded from remote URLs, the configuration "
             f"must include a field to specify the expected SHA256 checksum.\n\n"
             f"Required: Add 'policy_bundle_checksum: str' or similar field to "
-            f"EedomSettings for checksum verification."
+            f"CaliperSettings for checksum verification."
         )
 
     # If no policy URL config exists, the bug is latent - documented as detection

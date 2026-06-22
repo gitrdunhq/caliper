@@ -1,8 +1,8 @@
-"""Tests for eedom.core.diff — dependency diff detection."""
+"""Tests for caliper.core.diff — dependency diff detection."""
 
 from __future__ import annotations
 
-from eedom.core.models import OperatingMode, RequestType
+from caliper.core.models import OperatingMode, RequestType
 
 # ---------------------------------------------------------------------------
 # Fixtures: sample diff texts
@@ -81,7 +81,7 @@ class TestDetectChangedFiles:
     """Tests for DependencyDiffDetector.detect_changed_files."""
 
     def test_finds_requirements_txt(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         result = detector.detect_changed_files(DIFF_WITH_REQUIREMENTS)
@@ -89,7 +89,7 @@ class TestDetectChangedFiles:
         assert "requirements.txt" in result
 
     def test_finds_pyproject_toml(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         result = detector.detect_changed_files(DIFF_WITH_PYPROJECT)
@@ -97,7 +97,7 @@ class TestDetectChangedFiles:
         assert "pyproject.toml" in result
 
     def test_finds_pipfile(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         result = detector.detect_changed_files(DIFF_WITH_PIPFILE)
@@ -105,7 +105,7 @@ class TestDetectChangedFiles:
         assert "Pipfile" in result
 
     def test_returns_empty_for_non_dependency_files(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         result = detector.detect_changed_files(DIFF_NO_DEPENDENCY_FILES)
@@ -113,7 +113,7 @@ class TestDetectChangedFiles:
         assert result == []
 
     def test_returns_only_dependency_files_from_mixed_diff(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         result = detector.detect_changed_files(DIFF_MULTIPLE_FILES)
@@ -132,7 +132,7 @@ class TestParseRequirementsDiff:
     """Tests for DependencyDiffDetector.parse_requirements_diff."""
 
     def test_new_package_added(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "flask==2.3.0\nclick>=8.0\n"
@@ -147,7 +147,7 @@ class TestParseRequirementsDiff:
         assert added[0]["old_version"] is None
 
     def test_package_upgraded(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "requests==2.28.0\n"
@@ -162,7 +162,7 @@ class TestParseRequirementsDiff:
         assert upgraded[0]["new_version"] == "2.31.0"
 
     def test_package_downgraded(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "requests==2.31.0\n"
@@ -176,7 +176,7 @@ class TestParseRequirementsDiff:
         assert downgraded[0]["new_version"] == "2.28.0"
 
     def test_package_removed(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "flask==2.3.0\nrequests==2.31.0\n"
@@ -191,7 +191,7 @@ class TestParseRequirementsDiff:
         assert removed[0]["new_version"] is None
 
     def test_comment_only_change_ignored(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "# old comment\nflask==2.3.0\n"
@@ -202,7 +202,7 @@ class TestParseRequirementsDiff:
         assert changes == []
 
     def test_whitespace_only_change_ignored(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "flask==2.3.0\n\n"
@@ -213,7 +213,7 @@ class TestParseRequirementsDiff:
         assert changes == []
 
     def test_extras_handled(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = ""
@@ -226,7 +226,7 @@ class TestParseRequirementsDiff:
         assert added[0]["package"] == "requests"
 
     def test_range_specifier(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = ""
@@ -249,7 +249,7 @@ class TestParsePyprojectDiff:
     """Tests for DependencyDiffDetector.parse_pyproject_diff."""
 
     def test_dependency_added(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         deps_one = '[project]\nname = "myapp"\ndependencies = [\n    "flask>=2.3",\n]\n'
@@ -268,7 +268,7 @@ class TestParsePyprojectDiff:
         assert added[0]["new_version"] == "0.27"
 
     def test_dependency_removed(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         deps_one = '[project]\nname = "myapp"\ndependencies = [\n    "flask>=2.3",\n]\n'
@@ -286,7 +286,7 @@ class TestParsePyprojectDiff:
         assert removed[0]["package"] == "httpx"
 
     def test_dependency_upgraded(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = '[project]\nname = "myapp"\ndependencies = [\n    "flask>=2.3",\n]\n'
@@ -310,7 +310,7 @@ class TestCreateRequests:
     """Tests for DependencyDiffDetector.create_requests."""
 
     def test_added_creates_new_package_request(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         changes = [
@@ -337,7 +337,7 @@ class TestCreateRequests:
         assert requests[0].current_version is None
 
     def test_upgraded_creates_upgrade_request_with_current_version(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         changes = [
@@ -365,7 +365,7 @@ class TestCreateRequests:
         assert requests[0].operating_mode == OperatingMode.advise
 
     def test_downgraded_creates_upgrade_request(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         changes = [
@@ -390,7 +390,7 @@ class TestCreateRequests:
         assert requests[0].current_version == "3.0.0"
 
     def test_removed_generates_no_request(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         changes = [
@@ -413,7 +413,7 @@ class TestCreateRequests:
         assert len(requests) == 0
 
     def test_mixed_changes_filter_removals(self) -> None:
-        from eedom.core.diff import DependencyDiffDetector
+        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         changes = [

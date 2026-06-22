@@ -1,4 +1,4 @@
-"""Tests for repo-level config loading from .eagle-eyed-dom.yaml.
+"""Tests for repo-level config loading from .caliper.yaml.
 # tested-by: tests/unit/test_repo_config.py
 """
 
@@ -9,13 +9,13 @@ from pathlib import Path
 import pytest
 import yaml
 
-from eedom.core.repo_config import PluginConfig, RepoConfig, load_repo_config
+from caliper.core.repo_config import PluginConfig, RepoConfig, load_repo_config
 
 # ── Helpers ──
 
 
 def _write_config(tmp_path: Path, content: dict) -> Path:
-    cfg = tmp_path / ".eagle-eyed-dom.yaml"
+    cfg = tmp_path / ".caliper.yaml"
     cfg.write_text(yaml.dump(content))
     return tmp_path
 
@@ -34,7 +34,7 @@ class TestLoadRepoConfigDefaults:
 
     def test_empty_config_file_returns_defaults(self, tmp_path: Path) -> None:
         """An empty YAML file produces default RepoConfig."""
-        cfg = tmp_path / ".eagle-eyed-dom.yaml"
+        cfg = tmp_path / ".caliper.yaml"
         cfg.write_text("")
         config = load_repo_config(tmp_path)
         assert isinstance(config, RepoConfig)
@@ -95,14 +95,14 @@ class TestLoadRepoConfigThresholds:
 class TestLoadRepoConfigErrors:
     def test_invalid_yaml_raises_value_error(self, tmp_path: Path) -> None:
         """Invalid YAML raises ValueError with a message — never silently passes."""
-        cfg = tmp_path / ".eagle-eyed-dom.yaml"
+        cfg = tmp_path / ".caliper.yaml"
         cfg.write_text("plugins: {disabled: [unclosed\n  bad: yaml: here: [")
         with pytest.raises((ValueError, Exception)):
             load_repo_config(tmp_path)
 
     def test_wrong_type_for_disabled_raises(self, tmp_path: Path) -> None:
         """disabled must be a list — a scalar string raises a validation error."""
-        cfg = tmp_path / ".eagle-eyed-dom.yaml"
+        cfg = tmp_path / ".caliper.yaml"
         cfg.write_text("plugins:\n  disabled: not-a-list\n")
         with pytest.raises(Exception):
             load_repo_config(tmp_path)
@@ -161,7 +161,7 @@ class TestSemgrepConfig:
         assert rc.plugins.semgrep.exclude_rules == []
 
     def test_semgrep_config_from_yaml(self, tmp_path: Path) -> None:
-        """Semgrep tuning keys are parsed from .eagle-eyed-dom.yaml."""
+        """Semgrep tuning keys are parsed from .caliper.yaml."""
         _write_config(
             tmp_path,
             {

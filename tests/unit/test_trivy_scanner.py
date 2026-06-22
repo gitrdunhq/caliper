@@ -6,12 +6,12 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from eedom.core.models import (
+from caliper.core.models import (
     FindingCategory,
     FindingSeverity,
     ScanResultStatus,
 )
-from eedom.data.scanners.trivy import TrivyScanner
+from caliper.data.scanners.trivy import TrivyScanner
 
 # ---------------------------------------------------------------------------
 # Fixtures: sample Trivy JSON output
@@ -82,7 +82,7 @@ TRIVY_OUTPUT_EMPTY_RESULTS = json.dumps({"SchemaVersion": 2, "Results": []})
 class TestTrivyScannerSuccess:
     """Tests for successful Trivy scans."""
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_parses_vulnerabilities_into_findings(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, TRIVY_OUTPUT_WITH_VULNS, "")
         scanner = TrivyScanner()
@@ -93,7 +93,7 @@ class TestTrivyScannerSuccess:
         assert result.tool_name == "trivy"
         assert len(result.findings) == 3
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_finding_fields_populated(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, TRIVY_OUTPUT_WITH_VULNS, "")
         scanner = TrivyScanner()
@@ -108,7 +108,7 @@ class TestTrivyScannerSuccess:
         assert finding.version == "2.25.0"
         assert finding.advisory_url == "https://avd.aquasec.com/nvd/cve-2023-32681"
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_severity_mapping_critical(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, TRIVY_OUTPUT_WITH_VULNS, "")
         scanner = TrivyScanner()
@@ -118,7 +118,7 @@ class TestTrivyScannerSuccess:
         critical_finding = next(f for f in result.findings if f.advisory_id == "CVE-2024-35195")
         assert critical_finding.severity == FindingSeverity.critical
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_severity_mapping_high(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, TRIVY_OUTPUT_WITH_VULNS, "")
         scanner = TrivyScanner()
@@ -128,7 +128,7 @@ class TestTrivyScannerSuccess:
         high_finding = next(f for f in result.findings if f.advisory_id == "CVE-2023-43804")
         assert high_finding.severity == FindingSeverity.high
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_severity_mapping_medium(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, TRIVY_OUTPUT_WITH_VULNS, "")
         scanner = TrivyScanner()
@@ -138,7 +138,7 @@ class TestTrivyScannerSuccess:
         med_finding = next(f for f in result.findings if f.advisory_id == "CVE-2023-32681")
         assert med_finding.severity == FindingSeverity.medium
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_zero_vulns_returns_success_empty_findings(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, TRIVY_OUTPUT_ZERO_VULNS, "")
         scanner = TrivyScanner()
@@ -148,7 +148,7 @@ class TestTrivyScannerSuccess:
         assert result.status == ScanResultStatus.success
         assert result.findings == []
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_empty_results_returns_success(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, TRIVY_OUTPUT_EMPTY_RESULTS, "")
         scanner = TrivyScanner()
@@ -158,7 +158,7 @@ class TestTrivyScannerSuccess:
         assert result.status == ScanResultStatus.success
         assert result.findings == []
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_invokes_correct_command(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, TRIVY_OUTPUT_EMPTY_RESULTS, "")
         scanner = TrivyScanner()
@@ -173,7 +173,7 @@ class TestTrivyScannerSuccess:
         assert "--scanners" in cmd
         assert "vuln" in cmd
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_skip_dirs_excludes_node_modules_and_dist(self, mock_run: MagicMock) -> None:
         """Trivy must pass --skip-dirs for node_modules, dist, and .git.
 
@@ -199,7 +199,7 @@ class TestTrivyScannerSuccess:
         ), f"--skip-dirs value {skip_val!r} must include node_modules"
         assert "dist" in skip_val, f"--skip-dirs value {skip_val!r} must include dist"
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_respects_gitignore(self, mock_run: MagicMock) -> None:
         """Trivy must pass --respect-gitignore to avoid scanning vendored/generated files.
 
@@ -222,7 +222,7 @@ class TestTrivyScannerSuccess:
 class TestTrivyScannerFailure:
     """Tests for Trivy failure modes."""
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_timeout_returns_timeout_result(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (None, "", "timeout exceeded")
         scanner = TrivyScanner()
@@ -231,7 +231,7 @@ class TestTrivyScannerFailure:
 
         assert result.status == ScanResultStatus.timeout
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_not_installed_returns_failed(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (None, "", "No such file or directory")
         scanner = TrivyScanner()
@@ -240,7 +240,7 @@ class TestTrivyScannerFailure:
 
         assert result.status == ScanResultStatus.failed
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_invalid_json_returns_failed(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, "not json", "")
         scanner = TrivyScanner()
@@ -249,7 +249,7 @@ class TestTrivyScannerFailure:
 
         assert result.status == ScanResultStatus.failed
 
-    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.trivy.run_subprocess_with_timeout")
     def test_nonzero_exit_returns_failed(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (2, "", "fatal error")
         scanner = TrivyScanner()

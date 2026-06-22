@@ -4,12 +4,12 @@
 
 from __future__ import annotations
 
-from eedom.core.actionability import (
+from caliper.core.actionability import (
     Actionability,
     ActionabilitySummary,
     classify_findings,
 )
-from eedom.core.plugin import PluginResult
+from caliper.core.plugin import PluginResult
 
 # ---------------------------------------------------------------------------
 # Helpers

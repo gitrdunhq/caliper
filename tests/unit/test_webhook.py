@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-pytest.importorskip("starlette", reason="starlette not installed (eedom[copilot])")
+pytest.importorskip("starlette", reason="starlette not installed (caliper[copilot])")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -55,7 +55,7 @@ def secret() -> str:
 
 @pytest.fixture
 def settings(secret: str):
-    from eedom.webhook.config import WebhookSettings
+    from caliper.webhook.config import WebhookSettings
 
     return WebhookSettings(
         secret=secret,
@@ -66,8 +66,8 @@ def settings(secret: str):
 
 @pytest.fixture
 def app(settings):
-    from eedom.composition.bootstrap import bootstrap_test
-    from eedom.webhook.server import build_app
+    from caliper.composition.bootstrap import bootstrap_test
+    from caliper.webhook.server import build_app
 
     return build_app(settings, context=bootstrap_test())
 
@@ -92,8 +92,8 @@ def _quiet_processing_mocks():
         results=[], verdict="clear", security_score=100.0, quality_score=100.0
     )
     return (
-        patch("eedom.webhook.server.review_repository", return_value=mock_review_result),
-        patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock),
+        patch("caliper.webhook.server.review_repository", return_value=mock_review_result),
+        patch("caliper.webhook.server._post_pr_comment", new_callable=AsyncMock),
     )
 
 
@@ -109,8 +109,8 @@ class TestSignatureValidation:
 
         mock_result = MagicMock(stdout="ok", stderr="", returncode=0)
         with (
-            patch("eedom.webhook.server.subprocess.run", return_value=mock_result),
-            patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock),
+            patch("caliper.webhook.server.subprocess.run", return_value=mock_result),
+            patch("caliper.webhook.server._post_pr_comment", new_callable=AsyncMock),
         ):
             resp = await client.post(
                 "/webhook",
@@ -167,9 +167,11 @@ class TestEventParsing:
         )
         with (
             patch(
-                "eedom.webhook.server.review_repository", return_value=mock_review_result
+                "caliper.webhook.server.review_repository", return_value=mock_review_result
             ) as mock_review,
-            patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock) as mock_comment,
+            patch(
+                "caliper.webhook.server._post_pr_comment", new_callable=AsyncMock
+            ) as mock_comment,
         ):
             resp = await client.post(
                 "/webhook",
@@ -200,9 +202,9 @@ class TestEventParsing:
         )
         with (
             patch(
-                "eedom.webhook.server.review_repository", return_value=mock_review_result
+                "caliper.webhook.server.review_repository", return_value=mock_review_result
             ) as mock_review,
-            patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock),
+            patch("caliper.webhook.server._post_pr_comment", new_callable=AsyncMock),
         ):
             resp = await client.post(
                 "/webhook",
@@ -231,9 +233,9 @@ class TestEventParsing:
         )
         with (
             patch(
-                "eedom.webhook.server.review_repository", return_value=mock_review_result
+                "caliper.webhook.server.review_repository", return_value=mock_review_result
             ) as mock_review,
-            patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock),
+            patch("caliper.webhook.server._post_pr_comment", new_callable=AsyncMock),
         ):
             resp = await client.post(
                 "/webhook",
@@ -253,7 +255,7 @@ class TestEventParsing:
         body = json.dumps({"ref": "refs/heads/main", "commits": []}).encode()
         sig = _sign(body, secret)
 
-        with patch("eedom.webhook.server.subprocess.run") as mock_run:
+        with patch("caliper.webhook.server.subprocess.run") as mock_run:
             resp = await client.post(
                 "/webhook",
                 content=body,
@@ -271,7 +273,7 @@ class TestEventParsing:
         body = _pr_body("closed")
         sig = _sign(body, secret)
 
-        with patch("eedom.webhook.server.subprocess.run") as mock_run:
+        with patch("caliper.webhook.server.subprocess.run") as mock_run:
             resp = await client.post(
                 "/webhook",
                 content=body,
@@ -298,10 +300,10 @@ class TestFailOpen:
 
         with (
             patch(
-                "eedom.webhook.server.subprocess.run",
-                side_effect=subprocess.TimeoutExpired(cmd="eedom", timeout=300),
+                "caliper.webhook.server.subprocess.run",
+                side_effect=subprocess.TimeoutExpired(cmd="caliper", timeout=300),
             ),
-            patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock),
+            patch("caliper.webhook.server._post_pr_comment", new_callable=AsyncMock),
         ):
             resp = await client.post(
                 "/webhook",
@@ -321,10 +323,10 @@ class TestFailOpen:
 
         with (
             patch(
-                "eedom.webhook.server.subprocess.run",
-                side_effect=OSError("eedom binary not found"),
+                "caliper.webhook.server.subprocess.run",
+                side_effect=OSError("caliper binary not found"),
             ),
-            patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock),
+            patch("caliper.webhook.server._post_pr_comment", new_callable=AsyncMock),
         ):
             resp = await client.post(
                 "/webhook",
@@ -344,9 +346,9 @@ class TestFailOpen:
 
         mock_result = MagicMock(stdout="review output", stderr="", returncode=0)
         with (
-            patch("eedom.webhook.server.subprocess.run", return_value=mock_result),
+            patch("caliper.webhook.server.subprocess.run", return_value=mock_result),
             patch(
-                "eedom.webhook.server._post_pr_comment",
+                "caliper.webhook.server._post_pr_comment",
                 new_callable=AsyncMock,
                 side_effect=httpx.HTTPStatusError(
                     "403 Forbidden",
@@ -375,11 +377,11 @@ class TestFailOpen:
 
 class TestConfig:
     def test_config_loads_from_env_vars(self, monkeypatch):
-        monkeypatch.setenv("EEDOM_WEBHOOK_SECRET", "env-secret-value")
-        monkeypatch.setenv("EEDOM_WEBHOOK_GITHUB_TOKEN", "ghp_env_token_xyz")
-        monkeypatch.setenv("EEDOM_WEBHOOK_PORT", "12900")
+        monkeypatch.setenv("CALIPER_WEBHOOK_SECRET", "env-secret-value")
+        monkeypatch.setenv("CALIPER_WEBHOOK_GITHUB_TOKEN", "ghp_env_token_xyz")
+        monkeypatch.setenv("CALIPER_WEBHOOK_PORT", "12900")
 
-        from eedom.webhook.config import WebhookSettings
+        from caliper.webhook.config import WebhookSettings
 
         settings = WebhookSettings()  # type: ignore[call-arg]
 
@@ -388,10 +390,10 @@ class TestConfig:
         assert settings.port == 12900
 
     def test_config_port_defaults_to_12800(self, monkeypatch):
-        monkeypatch.setenv("EEDOM_WEBHOOK_SECRET", "s")
-        monkeypatch.setenv("EEDOM_WEBHOOK_GITHUB_TOKEN", "t")
+        monkeypatch.setenv("CALIPER_WEBHOOK_SECRET", "s")
+        monkeypatch.setenv("CALIPER_WEBHOOK_GITHUB_TOKEN", "t")
 
-        from eedom.webhook.config import WebhookSettings
+        from caliper.webhook.config import WebhookSettings
 
         settings = WebhookSettings()  # type: ignore[call-arg]
         assert settings.port == 12800
@@ -421,7 +423,7 @@ class TestPostPRCommentValidation:
     )
     async def test_malicious_full_repo_raises_value_error(self, bad_repo: str) -> None:
         """Malformed full_repo must raise ValueError without touching the network."""
-        from eedom.webhook.server import _post_pr_comment
+        from caliper.webhook.server import _post_pr_comment
 
         with pytest.raises(ValueError, match="Invalid repo"):
             await _post_pr_comment(
@@ -442,7 +444,7 @@ class TestPostPRCommentValidation:
     )
     async def test_valid_full_repo_does_not_raise_on_validation(self, good_repo: str) -> None:
         """Valid full_repo passes the regex check (HTTP call is mocked)."""
-        from eedom.webhook.server import _post_pr_comment
+        from caliper.webhook.server import _post_pr_comment
 
         mock_resp = AsyncMock()
         mock_resp.raise_for_status = MagicMock()
@@ -451,7 +453,7 @@ class TestPostPRCommentValidation:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.post = AsyncMock(return_value=mock_resp)
 
-        with patch("eedom.webhook.server.httpx.AsyncClient", return_value=mock_client):
+        with patch("caliper.webhook.server.httpx.AsyncClient", return_value=mock_client):
             # Should not raise — just needs to pass validation and attempt the HTTP call
             await _post_pr_comment(
                 token="ghp_fake",
@@ -469,7 +471,7 @@ class TestPostPRCommentValidation:
 class TestTokenScrubbingInWebhookLogs:
     def test_scrub_token_from_error_removes_token(self):
         """_scrub_token_from_error replaces the raw token with [REDACTED]."""
-        from eedom.webhook.server import _scrub_token_from_error
+        from caliper.webhook.server import _scrub_token_from_error
 
         token = "ghp_secret_abc123"
         exc_msg = f"HTTPStatusError: 401 Bearer {token} is not valid"
@@ -479,7 +481,7 @@ class TestTokenScrubbingInWebhookLogs:
 
     def test_scrub_token_from_error_is_noop_when_token_absent(self):
         """_scrub_token_from_error does not modify text without the token."""
-        from eedom.webhook.server import _scrub_token_from_error
+        from caliper.webhook.server import _scrub_token_from_error
 
         result = _scrub_token_from_error("Connection refused", "ghp_secret_abc123")
         assert result == "Connection refused"
@@ -499,9 +501,9 @@ class TestTokenScrubbingInWebhookLogs:
             raise Exception(f"Authorization failed: Bearer {token_value} rejected")
 
         with (
-            patch("eedom.webhook.server.review_repository", return_value=mock_review_result),
-            patch("eedom.webhook.server._post_pr_comment", side_effect=_raise_with_token),
-            patch("eedom.webhook.server.logger") as mock_logger,
+            patch("caliper.webhook.server.review_repository", return_value=mock_review_result),
+            patch("caliper.webhook.server._post_pr_comment", side_effect=_raise_with_token),
+            patch("caliper.webhook.server.logger") as mock_logger,
         ):
             resp = await client.post(
                 "/webhook",
@@ -538,7 +540,7 @@ class TestModuleGetattr:
         distinct instances and introducing a race on concurrent access.
         After the fix the result is cached and _load_app() is called exactly once.
         """
-        import eedom.webhook.server as srv
+        import caliper.webhook.server as srv
 
         fake_app = object()
         call_count = [0]
@@ -579,7 +581,7 @@ class TestReviewTimeout:
         """
         import time
 
-        import eedom.webhook.server as srv
+        import caliper.webhook.server as srv
 
         body = _pr_body("opened")
         sig = _sign(body, secret)
@@ -591,9 +593,9 @@ class TestReviewTimeout:
             return MagicMock(verdict="clear", security_score=100.0, quality_score=100.0)
 
         with (
-            patch("eedom.webhook.server.review_repository", side_effect=slow_review),
-            patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock),
-            patch("eedom.webhook.server.logger") as mock_logger,
+            patch("caliper.webhook.server.review_repository", side_effect=slow_review),
+            patch("caliper.webhook.server._post_pr_comment", new_callable=AsyncMock),
+            patch("caliper.webhook.server.logger") as mock_logger,
         ):
             resp = await client.post(
                 "/webhook",

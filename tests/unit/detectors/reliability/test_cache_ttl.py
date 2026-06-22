@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.reliability.cache_ttl import CacheTTLDetector
+from caliper.detectors.reliability.cache_ttl import CacheTTLDetector
 
 
 class TestCacheTTLDetector:
-    """Tests for CacheTTLDetector (EED-009)."""
+    """Tests for CacheTTLDetector (CAL-009)."""
 
     @pytest.fixture
     def detector(self):
@@ -41,7 +41,7 @@ def get_user(user_id):
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-009"
+        assert findings[0].detector_id == "CAL-009"
 
     def test_detects_dict_cache_without_freshness(self, detector):
         """Detects dict cache lookup without freshness check."""

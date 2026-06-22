@@ -239,7 +239,7 @@ def test_telemetry_event_high_cardinality_fields_have_sampling() -> None:
     - Sampling/throttling
     - Key bucketing/normalization
     """
-    telemetry_path = _ROOT / "src" / "eedom" / "core" / "telemetry.py"
+    telemetry_path = _ROOT / "src" / "caliper" / "core" / "telemetry.py"
     if not telemetry_path.exists():
         pytest.skip("telemetry.py not found")
 
@@ -304,7 +304,7 @@ def test_metrics_collection_limits_cardinality_before_emission() -> None:
     (file paths, package names, unique IDs) flows into metrics without
     prior aggregation or sampling.
     """
-    source_root = _ROOT / "src" / "eedom"
+    source_root = _ROOT / "src" / "caliper"
     if not source_root.exists():
         pytest.skip("source directory not found")
 
@@ -368,7 +368,7 @@ def test_telemetry_event_schema_enforces_cardinality_bounds() -> None:
     High-cardinality fields should use bounded types like Literal[...]
     or have explicit MaxLength validators rather than unbounded dict[str, ...].
     """
-    telemetry_path = _ROOT / "src" / "eedom" / "core" / "telemetry.py"
+    telemetry_path = _ROOT / "src" / "caliper" / "core" / "telemetry.py"
     if not telemetry_path.exists():
         pytest.skip("telemetry.py not found")
 

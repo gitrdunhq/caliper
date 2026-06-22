@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.reliability.health_check_db import HealthCheckDBDetector
+from caliper.detectors.reliability.health_check_db import HealthCheckDBDetector
 
 
 class TestHealthCheckDBDetector:
-    """Tests for HealthCheckDBDetector (EED-011)."""
+    """Tests for HealthCheckDBDetector (CAL-011)."""
 
     @pytest.fixture
     def detector(self):
@@ -37,7 +37,7 @@ def health():
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-011"
+        assert findings[0].detector_id == "CAL-011"
 
     def test_detects_fastapi_health_without_db(self, detector):
         """Detects FastAPI health endpoint without DB check."""

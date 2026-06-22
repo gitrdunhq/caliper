@@ -19,10 +19,10 @@ def test_262_config_merge_preserves_telemetry_settings(tmp_path: Path) -> None:
     - Root telemetry settings (enabled, endpoint) must survive merge
     - Package config can override, but root values are the default
     """
-    from eedom.core.repo_config import load_merged_config
+    from caliper.core.repo_config import load_merged_config
 
     # Create root config with explicit telemetry settings
-    (tmp_path / ".eagle-eyed-dom.yaml").write_text(
+    (tmp_path / ".caliper.yaml").write_text(
         "telemetry:\n"
         "  enabled: true\n"
         "  endpoint: https://custom.telemetry.example.com/v1/events\n"
@@ -34,7 +34,7 @@ def test_262_config_merge_preserves_telemetry_settings(tmp_path: Path) -> None:
     # Create package config WITHOUT telemetry section
     package_root = tmp_path / "packages" / "api"
     package_root.mkdir(parents=True)
-    (package_root / ".eagle-eyed-dom.yaml").write_text(
+    (package_root / ".caliper.yaml").write_text(
         "thresholds:\n" "  semgrep:\n" "    max_findings: 5\n"
     )
 

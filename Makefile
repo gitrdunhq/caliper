@@ -20,9 +20,9 @@ CONTAINER_RUN_SECURITY := $(if $(filter podman,$(CONTAINER_COMMAND)),--security-
 TEST_BUILD_COMMAND ?= $(if $(filter docker,$(CONTAINER_COMMAND)),$(CONTAINER_ENGINE) buildx build --allow security.insecure --load,$(CONTAINER_ENGINE) build --security-opt apparmor=unconfined)
 PROD_BUILD_COMMAND ?= $(if $(filter docker,$(CONTAINER_COMMAND)),$(CONTAINER_ENGINE) buildx build --allow security.insecure --load,$(CONTAINER_ENGINE) build --security-opt apparmor=unconfined)
 TEST_PLATFORM ?= linux/amd64
-TEST_IMAGE ?= eedom-test:amd64
+TEST_IMAGE ?= caliper-test:amd64
 PROD_PLATFORM ?= linux/amd64
-PROD_IMAGE ?= eedom:amd64
+PROD_IMAGE ?= caliper:amd64
 
 test-build:
 	@$(TEST_BUILD_COMMAND) --platform $(TEST_PLATFORM) -f Dockerfile.test -t $(TEST_IMAGE) .
@@ -45,22 +45,22 @@ prod-smoke: prod-build
 	@$(CONTAINER_ENGINE) run --rm \
 		--platform $(PROD_PLATFORM) \
 		$(CONTAINER_SECURITY_OPT) \
-		--entrypoint eedom \
+		--entrypoint caliper \
 		$(PROD_IMAGE) \
 		--help >/dev/null
 
 test-host:
-	@EEDOM_ALLOW_HOST_TESTS=1 uv run pytest tests/ -v
+	@CALIPER_ALLOW_HOST_TESTS=1 uv run pytest tests/ -v
 
 test-e2e:
-	@$(CONTAINER_ENGINE) build -t eedom:latest .
+	@$(CONTAINER_ENGINE) build -t caliper:latest .
 	@$(CONTAINER_ENGINE) run --rm \
 		-v "$(CURDIR):/workspace:ro" \
 		-w /workspace \
-		-e EEDOM_E2E=1 \
-		-e EEDOM_ALLOW_GLOBAL=1 \
+		-e CALIPER_E2E=1 \
+		-e CALIPER_ALLOW_GLOBAL=1 \
 		--entrypoint "" \
-		eedom:latest \
+		caliper:latest \
 		python3 -m pytest tests/e2e/ -v
 
 test-all: test test-e2e

@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files with HTTP client code that must handle Retry-After (issue #192)
 _HTTP_CLIENT_FILES: tuple[Path, ...] = (

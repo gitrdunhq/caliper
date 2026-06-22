@@ -1,4 +1,4 @@
-"""Tests for eedom.core.seal — evidence integrity chain.
+"""Tests for caliper.core.seal — evidence integrity chain.
 
 # tested-by: tests/unit/test_seal.py
 """
@@ -12,7 +12,7 @@ from pathlib import Path
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from eedom.core.seal import (
+from caliper.core.seal import (
     SEAL_FILENAME,
     create_seal,
     find_previous_seal_hash,

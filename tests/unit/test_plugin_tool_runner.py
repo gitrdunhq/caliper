@@ -13,9 +13,9 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from eedom.core.tool_runner import ToolInvocation, ToolResult
-from eedom.plugins.gitleaks import GitleaksPlugin
-from eedom.plugins.trivy import TrivyPlugin
+from caliper.core.tool_runner import ToolInvocation, ToolResult
+from caliper.plugins.gitleaks import GitleaksPlugin
+from caliper.plugins.trivy import TrivyPlugin
 
 # ---------------------------------------------------------------------------
 # Fake ToolRunner — satisfies ToolRunnerPort structurally, never spawns real

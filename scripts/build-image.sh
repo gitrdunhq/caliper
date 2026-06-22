@@ -8,14 +8,14 @@
 #   bash scripts/build-image.sh --compare          # build + compare size to previous
 #
 # Environment:
-#   EEDOM_AMD64_HOST    Remote host for amd64 builds (default: sambou@192.168.0.210)
-#   EEDOM_IMAGE_TAG     Image tag (default: eedom:latest)
+#   CALIPER_AMD64_HOST    Remote host for amd64 builds (default: sambou@192.168.0.210)
+#   CALIPER_IMAGE_TAG     Image tag (default: caliper:latest)
 #   CONTAINER_ENGINE    podman or docker (auto-detected)
 
 set -euo pipefail
 
-TAG="${EEDOM_IMAGE_TAG:-eedom:latest}"
-AMD64_HOST="${EEDOM_AMD64_HOST:-sambou@192.168.0.210}"
+TAG="${CALIPER_IMAGE_TAG:-caliper:latest}"
+AMD64_HOST="${CALIPER_AMD64_HOST:-sambou@192.168.0.210}"
 ENGINE="${CONTAINER_ENGINE:-$(command -v podman 2>/dev/null || command -v docker 2>/dev/null)}"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
@@ -45,9 +45,9 @@ verify_image() {
     printf "\n=== Verifying %s (%s) ===\n" "$tag" "$arch"
 
     if "$engine" run --rm "$tag" --version >/dev/null 2>&1; then
-        pass "eedom CLI + checksum verification"
+        pass "caliper CLI + checksum verification"
     else
-        fail "eedom CLI"; failed=1
+        fail "caliper CLI"; failed=1
     fi
 
     local tools="opengrep scancode lizard mypy"
@@ -82,7 +82,7 @@ build_arm64() {
 build_amd64() {
     printf "\n=== Building amd64 (remote: %s) ===\n" "$AMD64_HOST"
 
-    local remote_dir="/tmp/eedom-build-$$"
+    local remote_dir="/tmp/caliper-build-$$"
     info "Syncing repo to $AMD64_HOST:$remote_dir"
 
     ssh "$AMD64_HOST" "mkdir -p $remote_dir"
@@ -91,7 +91,7 @@ build_amd64() {
         "$REPO_ROOT/" "$AMD64_HOST:$remote_dir/"
 
     info "Building on remote host"
-    ssh "$AMD64_HOST" "cd $remote_dir && docker buildx build --builder eedom-builder --allow security.insecure --platform linux/amd64 --load -t $TAG . 2>&1"
+    ssh "$AMD64_HOST" "cd $remote_dir && docker buildx build --builder caliper-builder --allow security.insecure --platform linux/amd64 --load -t $TAG . 2>&1"
 
     if [ $? -eq 0 ]; then
         pass "amd64 build succeeded"
@@ -116,7 +116,7 @@ build_amd64() {
     ssh "$AMD64_HOST" "rm -rf $remote_dir"
 }
 
-printf "eedom image build — %s\n" "$(date +%Y-%m-%d\ %H:%M:%S)"
+printf "caliper image build — %s\n" "$(date +%Y-%m-%d\ %H:%M:%S)"
 printf "Engine: %s\n" "$ENGINE"
 printf "Tag: %s\n" "$TAG"
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build and run the eedom test container.
+# Build and run the caliper test container.
 # Auto-detects podman vs docker, strips --security=insecure for podman.
 #
 # Usage:
@@ -15,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ARCH="amd64"
 FAST=false
-IMAGE="eedom-test:${ARCH}"
+IMAGE="caliper-test:${ARCH}"
 BUILD=true
 RUN=true
 PYTEST_ARGS=("tests/" "-v")
@@ -24,7 +24,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --build-only) RUN=false; shift ;;
         --run-only)   BUILD=false; shift ;;
-        --fast) FAST=true; ARCH="arm64"; IMAGE="eedom-test:arm64"; shift ;;
+        --fast) FAST=true; ARCH="arm64"; IMAGE="caliper-test:arm64"; shift ;;
         --) shift; PYTEST_ARGS=("$@"); break ;;
         *) PYTEST_ARGS=("$@"); break ;;
     esac
@@ -50,7 +50,7 @@ if "$BUILD"; then
               -t "$IMAGE" \
               -f - "$REPO_ROOT"
     else
-        BUILDER="eedom-builder"
+        BUILDER="caliper-builder"
         if ! docker buildx inspect "$BUILDER" &>/dev/null; then
             echo "Creating buildx builder '$BUILDER'..."
             docker buildx create --name "$BUILDER" --driver docker-container \

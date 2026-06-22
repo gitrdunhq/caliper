@@ -1,7 +1,7 @@
 # Grounded vs. ungrounded Haiku review — first data point
 
 **Question:** does feeding a cheap (Haiku) reviewer cross-file *type contracts + symbol
-facts* (the `eedom ground` bundle) plus a *don't-flag ledger*, and requiring it to
+facts* (the `caliper ground` bundle) plus a *don't-flag ledger*, and requiring it to
 self-refute before emitting, actually recover the precision gap vs an expensive model?
 The thesis was **unproven** until this run.
 
@@ -10,7 +10,7 @@ Same three partitions, same Haiku reviewer model, same plain Haiku challenger (n
 — identical ruler to the original baseline) so the comparison isolates the **reviewer**
 change. Partitions were chosen because they were **false-positive-heavy** in the baseline
 (selection bias — see caveats). Grounding bundles generated with
-`eedom ground` (codegraph provider, 34–40 defs + 40 cross-file contracts each).
+`caliper ground` (codegraph provider, 34–40 defs + 40 cross-file contracts each).
 
 ## Result
 

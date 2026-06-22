@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-from eedom.core.plugin import PluginResult
-from eedom.core.ports import ReportRendererPort, ReviewReport
+from caliper.core.plugin import PluginResult
+from caliper.core.ports import ReportRendererPort, ReviewReport
 
 
 def _make_report(plugin_results=None):
@@ -19,18 +19,18 @@ def _make_report(plugin_results=None):
 
 class TestMarkdownRendererPort:
     def test_class_exists(self):
-        from eedom.core.renderer import MarkdownRenderer
+        from caliper.core.renderer import MarkdownRenderer
 
         assert MarkdownRenderer is not None
 
     def test_implements_report_renderer_port(self):
-        from eedom.core.renderer import MarkdownRenderer
+        from caliper.core.renderer import MarkdownRenderer
 
         renderer = MarkdownRenderer()
         assert isinstance(renderer, ReportRendererPort)
 
     def test_render_returns_string(self):
-        from eedom.core.renderer import MarkdownRenderer
+        from caliper.core.renderer import MarkdownRenderer
 
         renderer = MarkdownRenderer()
         report = _make_report()
@@ -38,7 +38,7 @@ class TestMarkdownRendererPort:
         assert isinstance(result, str)
 
     def test_render_with_findings(self):
-        from eedom.core.renderer import MarkdownRenderer
+        from caliper.core.renderer import MarkdownRenderer
 
         pr = PluginResult(
             plugin_name="semgrep",

@@ -21,7 +21,7 @@ import pytest
 
 def _get_normalizer_source_info():
     """Get source info for normalizer.py to parse AST."""
-    from eedom.core import normalizer
+    from caliper.core import normalizer
 
     source_path = Path(inspect.getfile(normalizer))
     source = source_path.read_text()
@@ -145,7 +145,7 @@ def test_composite_action_fixed_memo_eof_delimiter():
 
 def _get_persistence_source_info():
     """Get source info for persistence.py to parse AST."""
-    from eedom.adapters import persistence
+    from caliper.adapters import persistence
 
     source_path = Path(inspect.getfile(persistence))
     source = source_path.read_text()

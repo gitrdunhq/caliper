@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # SPDX license list URL for reference
 _SPDX_LICENSE_LIST_URL = "https://spdx.org/licenses/"
@@ -50,8 +50,8 @@ _SPDX_STANDARDIZATION_PATTERNS: Sequence[re.Pattern[str]] = (
 # Files that are allowed to use license-related regex (they implement SPDX handling)
 _EXCLUDED_PATHS: set[str] = {
     # ScanCode scanner properly handles SPDX
-    "src/eedom/data/scanners/scancode.py",
-    "src/eedom/plugins/scancode.py",
+    "src/caliper/data/scanners/scancode.py",
+    "src/caliper/plugins/scancode.py",
 }
 
 

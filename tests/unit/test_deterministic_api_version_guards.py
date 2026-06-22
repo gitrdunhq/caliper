@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # API version pattern: /v{N} or /api/v{N} where N is a positive integer
 _API_VERSION_RE = re.compile(r"^/(api/)?v\d+/", re.IGNORECASE)
@@ -132,7 +132,7 @@ def test_173_api_routes_must_have_version_prefix() -> None:
     Parent #146: Epic for API contract and versioning issues.
 
     Violations:
-        - src/eedom/webhook/server.py:233 - Route("/webhook", ...) should be Route("/v1/webhook", ...)
+        - src/caliper/webhook/server.py:233 - Route("/webhook", ...) should be Route("/v1/webhook", ...)
 
     Best practices for API versioning:
         - URL path versioning: /v1/resource, /v2/resource

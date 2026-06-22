@@ -1,21 +1,21 @@
 services:
   postgres:
     image: postgres:16
-    container_name: eedom-postgres
+    container_name: caliper-postgres
     environment:
-      POSTGRES_DB: eedom
-      POSTGRES_USER: eedom
-      POSTGRES_PASSWORD: eedom_dev
+      POSTGRES_DB: caliper
+      POSTGRES_USER: caliper
+      POSTGRES_PASSWORD: caliper_dev
     ports:
       - "12432:5432"
     volumes:
-      - eedom_pgdata:/var/lib/postgresql/data
+      - caliper_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eedom -d eedom"]
+      test: ["CMD-SHELL", "pg_isready -U caliper -d caliper"]
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 10s
 
 volumes:
-  eedom_pgdata:
+  caliper_pgdata:

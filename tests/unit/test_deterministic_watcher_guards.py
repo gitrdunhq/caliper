@@ -103,8 +103,8 @@ def _find_watchdog_imports_and_usage(source_code: str, filename: str) -> dict:
 
 
 def _get_source_files(repo_root: Path) -> list[tuple[Path, str]]:
-    """Get all Python source files from src/eedom."""
-    src_dir = repo_root / "src" / "eedom"
+    """Get all Python source files from src/caliper."""
+    src_dir = repo_root / "src" / "caliper"
     files: list[tuple[Path, str]] = []
 
     if not src_dir.exists():
@@ -192,7 +192,7 @@ def test_203_watchdog_uses_native_observer():
     PollingObserver) and doesn't force polling mode.
     """
     repo_root = Path(__file__).resolve().parents[2]
-    watch_py = repo_root / "src" / "eedom" / "cli" / "watch.py"
+    watch_py = repo_root / "src" / "caliper" / "cli" / "watch.py"
 
     if not watch_py.exists():
         pytest.skip("watch.py not found - no file watcher to validate")

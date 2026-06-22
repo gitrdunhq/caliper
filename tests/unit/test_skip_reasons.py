@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
+from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
 
 
 class _StubPlugin(ScannerPlugin):
@@ -66,7 +66,7 @@ class TestScannerPluginSkipReason:
 
 class TestRegistryPopulatesSkipReason:
     def test_skipped_plugin_has_skip_reason_in_result(self) -> None:
-        from eedom.core.registry import PluginRegistry
+        from caliper.core.registry import PluginRegistry
 
         registry = PluginRegistry()
         registry.register(_StubPlugin())

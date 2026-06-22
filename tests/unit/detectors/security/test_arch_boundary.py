@@ -1,4 +1,4 @@
-"""Tests for ArchBoundaryDetector (EED-017).
+"""Tests for ArchBoundaryDetector (CAL-017).
 # tested-by: tests/unit/detectors/security/test_arch_boundary.py
 """
 
@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.security.arch_boundary import ArchBoundaryDetector
+from caliper.detectors.security.arch_boundary import ArchBoundaryDetector
 
 
 class TestArchBoundaryDetector:
-    """Tests for ArchBoundaryDetector (EED-017).
+    """Tests for ArchBoundaryDetector (CAL-017).
 
     Verifies that direct presentation→data imports are flagged, while
     core→data imports and non-presentation-tier files are allowed.
@@ -27,15 +27,15 @@ class TestArchBoundaryDetector:
     # ------------------------------------------------------------------ #
 
     def test_detector_id(self, detector: ArchBoundaryDetector) -> None:
-        assert detector.detector_id == "EED-017"
+        assert detector.detector_id == "CAL-017"
 
     def test_category_is_security(self, detector: ArchBoundaryDetector) -> None:
-        from eedom.detectors.categories import DetectorCategory
+        from caliper.detectors.categories import DetectorCategory
 
         assert detector.category == DetectorCategory.security
 
     def test_severity_is_medium(self, detector: ArchBoundaryDetector) -> None:
-        from eedom.core.models import FindingSeverity
+        from caliper.core.models import FindingSeverity
 
         assert detector.severity == FindingSeverity.medium
 
@@ -43,57 +43,57 @@ class TestArchBoundaryDetector:
     # Positive cases — should produce a finding                           #
     # ------------------------------------------------------------------ #
 
-    def test_from_eedom_data_import_in_agent_is_flagged(
+    def test_from_caliper_data_import_in_agent_is_flagged(
         self, detector: ArchBoundaryDetector, tmp_path: Path
     ) -> None:
-        """Presentation-tier (agent/) importing from eedom.data → 1 finding."""
+        """Presentation-tier (agent/) importing from caliper.data → 1 finding."""
         agent_dir = tmp_path / "agent"
         agent_dir.mkdir()
         file_path = agent_dir / "tool_helpers.py"
         file_path.write_text(
-            "from eedom.data import SomeRepo\n\ndef handler(): pass\n",
+            "from caliper.data import SomeRepo\n\ndef handler(): pass\n",
             encoding="utf-8",
         )
 
         findings = detector.detect(file_path)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-017"
+        assert findings[0].detector_id == "CAL-017"
         assert findings[0].line_number >= 1
 
-    def test_import_eedom_data_in_agent_is_flagged(
+    def test_import_caliper_data_in_agent_is_flagged(
         self, detector: ArchBoundaryDetector, tmp_path: Path
     ) -> None:
-        """bare `import eedom.data` in agent/ → 1 finding."""
+        """bare `import caliper.data` in agent/ → 1 finding."""
         agent_dir = tmp_path / "agent"
         agent_dir.mkdir()
         file_path = agent_dir / "helpers.py"
         file_path.write_text(
-            "import eedom.data\n\nx = eedom.data.Repo()\n",
+            "import caliper.data\n\nx = caliper.data.Repo()\n",
             encoding="utf-8",
         )
 
         findings = detector.detect(file_path)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-017"
+        assert findings[0].detector_id == "CAL-017"
 
-    def test_from_eedom_data_import_in_cli_is_flagged(
+    def test_from_caliper_data_import_in_cli_is_flagged(
         self, detector: ArchBoundaryDetector, tmp_path: Path
     ) -> None:
-        """Presentation-tier (cli/) importing from eedom.data → 1 finding."""
+        """Presentation-tier (cli/) importing from caliper.data → 1 finding."""
         cli_dir = tmp_path / "cli"
         cli_dir.mkdir()
         file_path = cli_dir / "main.py"
         file_path.write_text(
-            "from eedom.data import PyPIClient\n",
+            "from caliper.data import PyPIClient\n",
             encoding="utf-8",
         )
 
         findings = detector.detect(file_path)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-017"
+        assert findings[0].detector_id == "CAL-017"
 
     def test_multiple_violations_all_reported(
         self, detector: ArchBoundaryDetector, tmp_path: Path
@@ -103,14 +103,14 @@ class TestArchBoundaryDetector:
         agent_dir.mkdir()
         file_path = agent_dir / "multi.py"
         file_path.write_text(
-            "from eedom.data import RepoA\nfrom eedom.data import RepoB\n",
+            "from caliper.data import RepoA\nfrom caliper.data import RepoB\n",
             encoding="utf-8",
         )
 
         findings = detector.detect(file_path)
 
         assert len(findings) == 2
-        assert all(f.detector_id == "EED-017" for f in findings)
+        assert all(f.detector_id == "CAL-017" for f in findings)
 
     def test_finding_has_correct_line_number(
         self, detector: ArchBoundaryDetector, tmp_path: Path
@@ -121,7 +121,7 @@ class TestArchBoundaryDetector:
         file_path = agent_dir / "positioned.py"
         # The violation is on line 3
         file_path.write_text(
-            '"""Module docstring."""\n\nfrom eedom.data import SomeClient\n',
+            '"""Module docstring."""\n\nfrom caliper.data import SomeClient\n',
             encoding="utf-8",
         )
 
@@ -137,12 +137,12 @@ class TestArchBoundaryDetector:
     def test_core_import_in_agent_is_allowed(
         self, detector: ArchBoundaryDetector, tmp_path: Path
     ) -> None:
-        """agent/ importing from eedom.core is the correct pattern — no finding."""
+        """agent/ importing from caliper.core is the correct pattern — no finding."""
         agent_dir = tmp_path / "agent"
         agent_dir.mkdir()
         file_path = agent_dir / "tool_helpers.py"
         file_path.write_text(
-            "from eedom.core import pipeline\n\ndef handler(): pass\n",
+            "from caliper.core import pipeline\n\ndef handler(): pass\n",
             encoding="utf-8",
         )
 
@@ -153,12 +153,12 @@ class TestArchBoundaryDetector:
     def test_data_import_in_core_is_allowed(
         self, detector: ArchBoundaryDetector, tmp_path: Path
     ) -> None:
-        """core/ importing from eedom.data is allowed (core→data boundary)."""
+        """core/ importing from caliper.data is allowed (core→data boundary)."""
         core_dir = tmp_path / "core"
         core_dir.mkdir()
         file_path = core_dir / "pipeline.py"
         file_path.write_text(
-            "from eedom.data import EvidenceStore\n",
+            "from caliper.data import EvidenceStore\n",
             encoding="utf-8",
         )
 
@@ -169,12 +169,12 @@ class TestArchBoundaryDetector:
     def test_data_import_in_non_presentation_path_is_allowed(
         self, detector: ArchBoundaryDetector, tmp_path: Path
     ) -> None:
-        """A file outside agent/ and cli/ importing eedom.data is not flagged."""
+        """A file outside agent/ and cli/ importing caliper.data is not flagged."""
         util_dir = tmp_path / "utils"
         util_dir.mkdir()
         file_path = util_dir / "helpers.py"
         file_path.write_text(
-            "from eedom.data import SomeModel\n",
+            "from caliper.data import SomeModel\n",
             encoding="utf-8",
         )
 
@@ -195,15 +195,15 @@ class TestArchBoundaryDetector:
 
         assert len(findings) == 0
 
-    def test_eedom_data_in_comment_not_flagged(
+    def test_caliper_data_in_comment_not_flagged(
         self, detector: ArchBoundaryDetector, tmp_path: Path
     ) -> None:
-        """A comment referencing eedom.data is not flagged (no real import)."""
+        """A comment referencing caliper.data is not flagged (no real import)."""
         agent_dir = tmp_path / "agent"
         agent_dir.mkdir()
         file_path = agent_dir / "commented.py"
         file_path.write_text(
-            "# from eedom.data import Foo  -- do NOT import from data directly\n",
+            "# from caliper.data import Foo  -- do NOT import from data directly\n",
             encoding="utf-8",
         )
 
@@ -211,7 +211,7 @@ class TestArchBoundaryDetector:
 
         # Comment-only lines still match the regex — this is intentional for
         # conservative detection (matches the spec). Verify the detector makes
-        # a decision either way; callers can add a per-line EED-017 suppression.
+        # a decision either way; callers can add a per-line CAL-017 suppression.
         # The important thing: no exception is raised.
         assert isinstance(findings, list)
 
@@ -228,16 +228,16 @@ class TestArchBoundaryDetector:
     def test_data_submodule_import_in_agent_is_flagged(
         self, detector: ArchBoundaryDetector, tmp_path: Path
     ) -> None:
-        """from eedom.data.something import X in agent/ → 1 finding."""
+        """from caliper.data.something import X in agent/ → 1 finding."""
         agent_dir = tmp_path / "agent"
         agent_dir.mkdir()
         file_path = agent_dir / "deep.py"
         file_path.write_text(
-            "from eedom.data.pypi_client import PyPIClient\n",
+            "from caliper.data.pypi_client import PyPIClient\n",
             encoding="utf-8",
         )
 
         findings = detector.detect(file_path)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-017"
+        assert findings[0].detector_id == "CAL-017"

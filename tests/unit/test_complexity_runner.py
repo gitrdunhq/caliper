@@ -8,7 +8,7 @@ import json
 import subprocess
 from unittest.mock import MagicMock, patch
 
-from eedom.plugins._runners.complexity_runner import (
+from caliper.plugins._runners.complexity_runner import (
     _halstead_mi,
     run_complexity,
 )
@@ -223,7 +223,7 @@ class TestEscomplexFallback:
         escomplex_not_found = FileNotFoundError("No such file: escomplex")
 
         with patch("subprocess.run", side_effect=lizard_side + [escomplex_not_found]):
-            with patch("eedom.plugins._runners.complexity_runner.logger") as mock_logger:
+            with patch("caliper.plugins._runners.complexity_runner.logger") as mock_logger:
                 run_complexity(["app.js"], "/repo")
                 mock_logger.warning.assert_called_once()
                 call_kwargs = mock_logger.warning.call_args

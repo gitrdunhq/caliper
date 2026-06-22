@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-pytest.importorskip("agent_framework", reason="agent_framework not installed (eedom[copilot])")
+pytest.importorskip("agent_framework", reason="agent_framework not installed (caliper[copilot])")
 
-from eedom.agent.config import AgentSettings, EnforcementMode
+from caliper.agent.config import AgentSettings, EnforcementMode
 
 
 def _make_settings(**overrides) -> AgentSettings:
@@ -23,13 +23,13 @@ def _make_settings(**overrides) -> AgentSettings:
     return AgentSettings(**defaults)
 
 
-class TestGatekeeperAgent:
+class TestForemanAgent:
     @pytest.mark.asyncio
     async def test_run_posts_reviewing_comment_first(self):
-        from eedom.agent.main import GatekeeperAgent
+        from caliper.agent.main import ForemanAgent
 
         config = _make_settings()
-        agent = GatekeeperAgent(config)
+        agent = ForemanAgent(config)
 
         with (
             patch.object(
@@ -59,10 +59,10 @@ class TestGatekeeperAgent:
 
     @pytest.mark.asyncio
     async def test_block_mode_reject_from_structured_data(self):
-        from eedom.agent.main import GatekeeperAgent
+        from caliper.agent.main import ForemanAgent
 
         config = _make_settings(enforcement_mode="block")
-        agent = GatekeeperAgent(config)
+        agent = ForemanAgent(config)
         agent._decisions_have_reject = True
 
         with (
@@ -87,10 +87,10 @@ class TestGatekeeperAgent:
 
     @pytest.mark.asyncio
     async def test_warn_mode_reject_exits_zero(self):
-        from eedom.agent.main import GatekeeperAgent
+        from caliper.agent.main import ForemanAgent
 
         config = _make_settings(enforcement_mode="warn")
-        agent = GatekeeperAgent(config)
+        agent = ForemanAgent(config)
 
         with (
             patch.object(agent, "_post_comment", new_callable=AsyncMock),
@@ -115,10 +115,10 @@ class TestGatekeeperAgent:
 
     @pytest.mark.asyncio
     async def test_log_mode_no_comment_posted(self):
-        from eedom.agent.main import GatekeeperAgent
+        from caliper.agent.main import ForemanAgent
 
         config = _make_settings(enforcement_mode="log")
-        agent = GatekeeperAgent(config)
+        agent = ForemanAgent(config)
 
         with (
             patch.object(
@@ -147,10 +147,10 @@ class TestGatekeeperAgent:
 
     @pytest.mark.asyncio
     async def test_pipeline_failure_exits_zero(self):
-        from eedom.agent.main import GatekeeperAgent
+        from caliper.agent.main import ForemanAgent
 
         config = _make_settings()
-        agent = GatekeeperAgent(config)
+        agent = ForemanAgent(config)
 
         with (
             patch.object(agent, "_post_comment", new_callable=AsyncMock),
@@ -174,10 +174,10 @@ class TestGatekeeperAgent:
 
     @pytest.mark.asyncio
     async def test_long_comment_is_truncated(self):
-        from eedom.agent.main import GatekeeperAgent
+        from caliper.agent.main import ForemanAgent
 
         config = _make_settings(max_comment_length=500)
-        agent = GatekeeperAgent(config)
+        agent = ForemanAgent(config)
 
         with (
             patch.object(
@@ -233,7 +233,7 @@ class TestAgentTierViolation:
     in the use-case / tool_helpers tier, not in the presentation-tier entry
     point.
 
-    TODO: Fix requires creating eedom/agent/use_cases.py, calling
+    TODO: Fix requires creating caliper/agent/use_cases.py, calling
     use_cases.review_repository() in _run_agent_session, passing tools=[],
     and adapting _extract_reject_from_tool_results to the pre-computed result.
     Deferred because it restructures multiple call sites across main.py.
@@ -244,7 +244,7 @@ class TestAgentTierViolation:
         strict=True,
         reason=(
             "DEFERRED: tier violation — _run_agent_session passes plugin callables "
-            "directly to GitHubCopilotAgent. Fix requires eedom/agent/use_cases.py "
+            "directly to GitHubCopilotAgent. Fix requires caliper/agent/use_cases.py "
             "and restructuring _run_agent_session + _extract_reject_from_tool_results."
         ),
     )
@@ -253,10 +253,10 @@ class TestAgentTierViolation:
         """Agent framework must not receive individual plugin functions as tools."""
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from eedom.agent.main import GatekeeperAgent
+        from caliper.agent.main import ForemanAgent
 
         config = _make_settings()
-        agent = GatekeeperAgent(config)
+        agent = ForemanAgent(config)
 
         captured_tools: list = []
 

@@ -7,9 +7,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from eedom.core.plugin import PluginCategory
-from eedom.core.tool_runner import ToolResult
-from eedom.plugins.swiftformat import SwiftFormatPlugin
+from caliper.core.plugin import PluginCategory
+from caliper.core.tool_runner import ToolResult
+from caliper.plugins.swiftformat import SwiftFormatPlugin
 
 _REPO = Path("/workspace")
 _SWIFT_FILES = ["Sources/App/ViewController.swift", "Sources/App/Service.swift"]
@@ -145,13 +145,13 @@ class TestSwiftFormatPluginRun:
 
 class TestSwiftFormatPluginRender:
     def test_render_clean_is_empty(self) -> None:
-        from eedom.core.plugin import PluginResult
+        from caliper.core.plugin import PluginResult
 
         p = SwiftFormatPlugin()
         assert p.render(PluginResult(plugin_name="swiftformat")) == ""
 
     def test_render_findings_shows_fix_command(self) -> None:
-        from eedom.core.plugin import PluginResult
+        from caliper.core.plugin import PluginResult
 
         p = SwiftFormatPlugin()
         result = PluginResult(
@@ -171,7 +171,7 @@ class TestSwiftFormatPluginRender:
         assert "Foo.swift" in rendered
 
     def test_render_error_shows_message(self) -> None:
-        from eedom.core.plugin import PluginResult
+        from caliper.core.plugin import PluginResult
 
         p = SwiftFormatPlugin()
         result = PluginResult(

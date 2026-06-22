@@ -19,8 +19,8 @@ jobs:
       - name: Install deps
         run: uv sync --group dev
 
-      - name: Run eedom self-review
-        run: uv run eedom review --repo-path . --all --format sarif --output dogfood-results.sarif
+      - name: Run caliper self-review
+        run: uv run caliper review --repo-path . --all --format sarif --output dogfood-results.sarif
 
       - name: Upload SARIF
         if: always()

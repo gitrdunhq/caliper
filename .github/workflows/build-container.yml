@@ -31,7 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      # The eedom image bundles 18 scanners and is large; reclaim space the
+      # The caliper image bundles 18 scanners and is large; reclaim space the
       # GitHub-hosted runner spends on preinstalled toolchains we never use.
       - name: Free disk space
         run: |
@@ -41,11 +41,11 @@ jobs:
 
       # docker-container driver + the security.insecure entitlement, created
       # inline (no external action — actions-allowlist policy). Replaces the
-      # pre-provisioned "eedom-builder" the self-hosted x86 host carried, so the
+      # pre-provisioned "caliper-builder" the self-hosted x86 host carried, so the
       # Dockerfile's `RUN --security=insecure` steps work on a hosted runner.
       - name: Set up Buildx builder with insecure entitlement
         run: |
-          docker buildx create --name eedom-builder --driver docker-container \
+          docker buildx create --name caliper-builder --driver docker-container \
             --buildkitd-flags '--allow-insecure-entitlement security.insecure' --use
           docker buildx inspect --bootstrap
 
@@ -69,7 +69,7 @@ jobs:
           # without disk pressure, so push directly and read the digest from the
           # build metadata.
           docker buildx build \
-            --builder eedom-builder \
+            --builder caliper-builder \
             --allow security.insecure \
             --push \
             --tag "$TAG" \

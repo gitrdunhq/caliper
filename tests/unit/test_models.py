@@ -1,4 +1,4 @@
-"""Tests for eedom.core.models — core data models."""
+"""Tests for caliper.core.models — core data models."""
 
 from __future__ import annotations
 
@@ -13,38 +13,38 @@ class TestEnumValidation:
     """Enum fields reject invalid string values."""
 
     def test_operating_mode_rejects_invalid(self) -> None:
-        from eedom.core.models import OperatingMode
+        from caliper.core.models import OperatingMode
 
         with pytest.raises(ValueError):
             OperatingMode("enforce")
 
     def test_operating_mode_accepts_valid(self) -> None:
-        from eedom.core.models import OperatingMode
+        from caliper.core.models import OperatingMode
 
         assert OperatingMode("monitor").value == "monitor"
         assert OperatingMode("advise").value == "advise"
 
     def test_scan_result_status_rejects_invalid(self) -> None:
-        from eedom.core.models import ScanResultStatus
+        from caliper.core.models import ScanResultStatus
 
         with pytest.raises(ValueError):
             ScanResultStatus("unknown")
 
     def test_decision_verdict_accepts_all_valid(self) -> None:
-        from eedom.core.models import DecisionVerdict
+        from caliper.core.models import DecisionVerdict
 
         valid = ["approve", "reject", "needs_review", "approve_with_constraints"]
         for v in valid:
             assert DecisionVerdict(v).value == v
 
     def test_finding_severity_rejects_invalid(self) -> None:
-        from eedom.core.models import FindingSeverity
+        from caliper.core.models import FindingSeverity
 
         with pytest.raises(ValueError):
             FindingSeverity("extreme")
 
     def test_finding_category_accepts_all_valid(self) -> None:
-        from eedom.core.models import FindingCategory
+        from caliper.core.models import FindingCategory
 
         valid = [
             "vulnerability",
@@ -65,23 +65,23 @@ class TestNormalizeSeverity:
     """normalize_severity handles upstream tool severity formats."""
 
     def test_standard_values_pass_through(self) -> None:
-        from eedom.core.models import FindingSeverity, normalize_severity
+        from caliper.core.models import FindingSeverity, normalize_severity
 
         for val in ("critical", "high", "medium", "low", "info"):
             assert normalize_severity(val) == FindingSeverity(val)
 
     def test_semgrep_error_maps_to_critical(self) -> None:
-        from eedom.core.models import FindingSeverity, normalize_severity
+        from caliper.core.models import FindingSeverity, normalize_severity
 
         assert normalize_severity("ERROR") == FindingSeverity.critical
 
     def test_semgrep_warning_maps_to_medium(self) -> None:
-        from eedom.core.models import FindingSeverity, normalize_severity
+        from caliper.core.models import FindingSeverity, normalize_severity
 
         assert normalize_severity("WARNING") == FindingSeverity.medium
 
     def test_uppercase_variants_normalized(self) -> None:
-        from eedom.core.models import FindingSeverity, normalize_severity
+        from caliper.core.models import FindingSeverity, normalize_severity
 
         assert normalize_severity("CRITICAL") == FindingSeverity.critical
         assert normalize_severity("HIGH") == FindingSeverity.high
@@ -90,25 +90,25 @@ class TestNormalizeSeverity:
         assert normalize_severity("INFO") == FindingSeverity.info
 
     def test_moderate_maps_to_medium(self) -> None:
-        from eedom.core.models import FindingSeverity, normalize_severity
+        from caliper.core.models import FindingSeverity, normalize_severity
 
         assert normalize_severity("moderate") == FindingSeverity.medium
         assert normalize_severity("MODERATE") == FindingSeverity.medium
 
     def test_note_maps_to_info(self) -> None:
-        from eedom.core.models import FindingSeverity, normalize_severity
+        from caliper.core.models import FindingSeverity, normalize_severity
 
         assert normalize_severity("note") == FindingSeverity.info
         assert normalize_severity("NOTE") == FindingSeverity.info
 
     def test_unknown_value_falls_back_to_info(self) -> None:
-        from eedom.core.models import FindingSeverity, normalize_severity
+        from caliper.core.models import FindingSeverity, normalize_severity
 
         assert normalize_severity("bananas") == FindingSeverity.info
         assert normalize_severity("") == FindingSeverity.info
 
     def test_request_type_rejects_invalid(self) -> None:
-        from eedom.core.models import RequestType
+        from caliper.core.models import RequestType
 
         with pytest.raises(ValueError):
             RequestType("delete")
@@ -131,7 +131,7 @@ class TestFinding:
         return defaults
 
     def test_finding_round_trip_json(self) -> None:
-        from eedom.core.models import Finding
+        from caliper.core.models import Finding
 
         data = self._make_finding(advisory_id="CVE-2024-1234", confidence=0.95)
         finding = Finding.model_validate(data)
@@ -146,7 +146,7 @@ class TestFinding:
         assert restored.confidence == 0.95
 
     def test_finding_optional_fields_default_none(self) -> None:
-        from eedom.core.models import Finding
+        from caliper.core.models import Finding
 
         finding = Finding.model_validate(self._make_finding())
         assert finding.advisory_id is None
@@ -155,7 +155,7 @@ class TestFinding:
         assert finding.confidence is None
 
     def test_finding_rejects_invalid_severity(self) -> None:
-        from eedom.core.models import Finding
+        from caliper.core.models import Finding
 
         with pytest.raises(ValidationError):
             Finding.model_validate(self._make_finding(severity="extreme"))
@@ -165,7 +165,7 @@ class TestScanResult:
     """ScanResult model validation and serialization."""
 
     def test_scan_result_defaults(self) -> None:
-        from eedom.core.models import ScanResult
+        from caliper.core.models import ScanResult
 
         result = ScanResult.model_validate(
             {
@@ -179,7 +179,7 @@ class TestScanResult:
         assert result.message is None
 
     def test_scan_result_round_trip(self) -> None:
-        from eedom.core.models import ScanResult
+        from caliper.core.models import ScanResult
 
         data = {
             "tool_name": "trivy",
@@ -225,13 +225,13 @@ class TestReviewRequest:
         return defaults
 
     def test_uuid_auto_generated(self) -> None:
-        from eedom.core.models import ReviewRequest
+        from caliper.core.models import ReviewRequest
 
         req = ReviewRequest.model_validate(self._make_request())
         assert isinstance(req.request_id, uuid.UUID)
 
     def test_created_at_auto_generated(self) -> None:
-        from eedom.core.models import ReviewRequest
+        from caliper.core.models import ReviewRequest
 
         req = ReviewRequest.model_validate(self._make_request())
         assert isinstance(req.created_at, datetime)
@@ -240,13 +240,13 @@ class TestReviewRequest:
         assert delta.total_seconds() < 10
 
     def test_default_scope_is_runtime(self) -> None:
-        from eedom.core.models import ReviewRequest
+        from caliper.core.models import ReviewRequest
 
         req = ReviewRequest.model_validate(self._make_request())
         assert req.scope == "runtime"
 
     def test_optional_fields_default_none(self) -> None:
-        from eedom.core.models import ReviewRequest
+        from caliper.core.models import ReviewRequest
 
         req = ReviewRequest.model_validate(self._make_request())
         assert req.current_version is None
@@ -257,7 +257,7 @@ class TestReviewRequest:
         assert req.use_case is None
 
     def test_round_trip_json(self) -> None:
-        from eedom.core.models import ReviewRequest
+        from caliper.core.models import ReviewRequest
 
         req = ReviewRequest.model_validate(
             self._make_request(
@@ -279,7 +279,7 @@ class TestPolicyEvaluation:
     """PolicyEvaluation model."""
 
     def test_policy_evaluation_defaults(self) -> None:
-        from eedom.core.models import PolicyEvaluation
+        from caliper.core.models import PolicyEvaluation
 
         pe = PolicyEvaluation.model_validate(
             {
@@ -292,7 +292,7 @@ class TestPolicyEvaluation:
         assert pe.note is None
 
     def test_policy_evaluation_round_trip(self) -> None:
-        from eedom.core.models import PolicyEvaluation
+        from caliper.core.models import PolicyEvaluation
 
         data = {
             "decision": "approve_with_constraints",
@@ -354,20 +354,20 @@ class TestReviewDecision:
         }
 
     def test_uuid_auto_generated(self) -> None:
-        from eedom.core.models import ReviewDecision
+        from caliper.core.models import ReviewDecision
 
         decision = ReviewDecision.model_validate(self._make_decision())
         assert isinstance(decision.decision_id, uuid.UUID)
 
     def test_created_at_auto_generated(self) -> None:
-        from eedom.core.models import ReviewDecision
+        from caliper.core.models import ReviewDecision
 
         decision = ReviewDecision.model_validate(self._make_decision())
         assert isinstance(decision.created_at, datetime)
 
     def test_monitor_mode_never_comments_or_marks_unstable(self) -> None:
         """In monitor mode, the system logs only — no PR comment, no build unstable."""
-        from eedom.core.models import ReviewDecision
+        from caliper.core.models import ReviewDecision
 
         decision = ReviewDecision.model_validate(
             self._make_decision(operating_mode="monitor", verdict="reject")
@@ -377,7 +377,7 @@ class TestReviewDecision:
 
     def test_advise_mode_reject_comments_and_marks_unstable(self) -> None:
         """In advise mode with a reject verdict, both comment and mark unstable."""
-        from eedom.core.models import ReviewDecision
+        from caliper.core.models import ReviewDecision
 
         decision = ReviewDecision.model_validate(
             self._make_decision(operating_mode="advise", verdict="reject")
@@ -387,7 +387,7 @@ class TestReviewDecision:
 
     def test_advise_mode_approve_no_comment_no_unstable(self) -> None:
         """In advise mode with approve, no comment or unstable marking needed."""
-        from eedom.core.models import ReviewDecision
+        from caliper.core.models import ReviewDecision
 
         decision = ReviewDecision.model_validate(
             self._make_decision(operating_mode="advise", verdict="approve")
@@ -397,7 +397,7 @@ class TestReviewDecision:
 
     def test_advise_mode_needs_review_comments_and_marks_unstable(self) -> None:
         """In advise mode with needs_review, comment and mark unstable."""
-        from eedom.core.models import ReviewDecision
+        from caliper.core.models import ReviewDecision
 
         decision = ReviewDecision.model_validate(
             self._make_decision(operating_mode="advise", verdict="needs_review")
@@ -407,7 +407,7 @@ class TestReviewDecision:
 
     def test_advise_mode_approve_with_constraints_comments_no_unstable(self) -> None:
         """In advise mode with approve_with_constraints, comment but don't mark unstable."""
-        from eedom.core.models import ReviewDecision
+        from caliper.core.models import ReviewDecision
 
         decision = ReviewDecision.model_validate(
             self._make_decision(operating_mode="advise", verdict="approve_with_constraints")
@@ -416,7 +416,7 @@ class TestReviewDecision:
         assert decision.should_mark_unstable is False
 
     def test_round_trip_json(self) -> None:
-        from eedom.core.models import ReviewDecision
+        from caliper.core.models import ReviewDecision
 
         decision = ReviewDecision.model_validate(self._make_decision())
         dumped = decision.model_dump(mode="json")
@@ -428,7 +428,7 @@ class TestReviewDecision:
         assert restored.pipeline_duration_seconds == 25.0
 
     def test_default_optional_fields(self) -> None:
-        from eedom.core.models import ReviewDecision
+        from caliper.core.models import ReviewDecision
 
         decision = ReviewDecision.model_validate(self._make_decision())
         assert decision.evidence_bundle_path is None
@@ -439,7 +439,7 @@ class TestBypassRecord:
     """BypassRecord model."""
 
     def test_bypass_record_auto_fields(self) -> None:
-        from eedom.core.models import BypassRecord
+        from caliper.core.models import BypassRecord
 
         record = BypassRecord.model_validate(
             {
@@ -453,7 +453,7 @@ class TestBypassRecord:
         assert isinstance(record.timestamp, datetime)
 
     def test_bypass_record_round_trip(self) -> None:
-        from eedom.core.models import BypassRecord
+        from caliper.core.models import BypassRecord
 
         req_id = uuid.uuid4()
         record = BypassRecord.model_validate(

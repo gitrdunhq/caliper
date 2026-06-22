@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from eedom.core.registry import PluginRegistry
+from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
+from caliper.core.registry import PluginRegistry
 
 if TYPE_CHECKING:
     pass
@@ -189,7 +189,7 @@ def test_sequential_execution_pattern_detection():
     """
     import inspect
 
-    from eedom.core import registry
+    from caliper.core import registry
 
     # Get the source code of run_all and _run_all_per_package
     run_all_source = inspect.getsource(registry.PluginRegistry.run_all)

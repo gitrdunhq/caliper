@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from eedom.plugins.supply_chain import SupplyChainPlugin
+from caliper.plugins.supply_chain import SupplyChainPlugin
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -184,8 +184,8 @@ class TestUnpinnedFileSourceExclusion:
         findings = SupplyChainPlugin()._check_unpinned(tmp_path)
         assert findings == []
 
-    def test_eedomignored_path_excluded(self, tmp_path):
-        (tmp_path / ".eedomignore").write_text("third_party/\n")
+    def test_caliperignored_path_excluded(self, tmp_path):
+        (tmp_path / ".caliperignore").write_text("third_party/\n")
         vendored = tmp_path / "third_party"
         vendored.mkdir()
         (vendored / "package.json").write_text('{"dependencies": {"react": "*"}}')

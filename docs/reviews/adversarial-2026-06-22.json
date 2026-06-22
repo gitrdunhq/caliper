@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "generated": "2026-06-22",
-  "target": "src/eedom (entire codebase)",
+  "target": "src/caliper (entire codebase)",
   "focus": [
     "correctness",
     "design"
@@ -25,20 +25,20 @@
   "findings": [
     {
       "id": "P02-1",
-      "file": "src/eedom/core/normalizer.py",
+      "file": "src/caliper/core/normalizer.py",
       "line": "40",
       "severity": "high",
       "category": "correctness",
       "claim": "Dedup key includes advisory_id which may be None, causing unrelated findings to silently collide and disappear.",
-      "evidence": "Line 38-45: The dedup logic uses `key = (f.advisory_id, f.category, f.package_name, f.version)`. \nWhen advisory_id is None (valid for findings from detectors, e.g., EED-019), two distinct \ncode smell findings collapse under the same key. The higher-severity one wins (line 42-45), \nbut the dedup is silent and incorrect \u2014 they should not deduplicate at all.\n\nPer models.py line 137: `advisory_id: str | None = None` \u2014 advisory_id is nullable.\nPer EED-019 detector: This exact pattern is flagged as a reliability issue in production code.",
+      "evidence": "Line 38-45: The dedup logic uses `key = (f.advisory_id, f.category, f.package_name, f.version)`. \nWhen advisory_id is None (valid for findings from detectors, e.g., CAL-019), two distinct \ncode smell findings collapse under the same key. The higher-severity one wins (line 42-45), \nbut the dedup is silent and incorrect \u2014 they should not deduplicate at all.\n\nPer models.py line 137: `advisory_id: str | None = None` \u2014 advisory_id is nullable.\nPer CAL-019 detector: This exact pattern is flagged as a reliability issue in production code.",
       "fix": "Use `advisory_id or \"\"` to ensure None advisory_ids produce distinct keys. \nChange line 40 to: `key = (f.advisory_id or \"\", f.category, f.package_name, f.version)`",
       "verdict": "CONFIRMED",
-      "verdict_reason": "Line 40 of normalizer.py uses `key = (f.advisory_id, f.category, f.package_name, f.version)` for deduplication. When advisory_id is None (valid for code-smell findings from detectors like EED-019 per line 137 of models.py), two distinct findings collapse under the same key because None is hashable. The higher-severity one wins (line 42-45), but the dedup is incorrect \u2014 unrelated findings should not merge. Using `f.advisory_id or \"\"` ensures None values produce distinct keys.",
+      "verdict_reason": "Line 40 of normalizer.py uses `key = (f.advisory_id, f.category, f.package_name, f.version)` for deduplication. When advisory_id is None (valid for code-smell findings from detectors like CAL-019 per line 137 of models.py), two distinct findings collapse under the same key because None is hashable. The higher-severity one wins (line 42-45), but the dedup is incorrect \u2014 unrelated findings should not merge. Using `f.advisory_id or \"\"` ensures None values produce distinct keys.",
       "partition": "P02"
     },
     {
       "id": "P03-1",
-      "file": "src/eedom/core/opa_adapter.py",
+      "file": "src/caliper/core/opa_adapter.py",
       "line": "65-74",
       "severity": "high",
       "category": "correctness",
@@ -51,7 +51,7 @@
     },
     {
       "id": "P03-2",
-      "file": "src/eedom/core/opa_adapter.py",
+      "file": "src/caliper/core/opa_adapter.py",
       "line": "107-109",
       "severity": "high",
       "category": "correctness",
@@ -64,7 +64,7 @@
     },
     {
       "id": "P01-5",
-      "file": "src/eedom/core/pipeline.py",
+      "file": "src/caliper/core/pipeline.py",
       "line": "240-254",
       "severity": "high",
       "category": "correctness",
@@ -77,7 +77,7 @@
     },
     {
       "id": "P05-5",
-      "file": "src/eedom/core/repo_config.py",
+      "file": "src/caliper/core/repo_config.py",
       "line": "69",
       "severity": "high",
       "category": "correctness",
@@ -90,12 +90,12 @@
     },
     {
       "id": "P05-6",
-      "file": "src/eedom/core/repo_config.py",
+      "file": "src/caliper/core/repo_config.py",
       "line": "68",
       "severity": "high",
       "category": "correctness",
-      "claim": "SemgrepConfig from package-level .eagle-eyed-dom.yaml is completely ignored during merge",
-      "evidence": "In load_merged_config(), the merged PluginConfig is constructed on line 68-71 \nwith only enabled and disabled fields. The semgrep field defaults to \nSemgrepConfig() (empty lists), completely discarding pkg_config.plugins.semgrep.\nIf a package provides extra_config_dirs or exclude_rules in its .eagle-eyed-dom.yaml,\nthey are silently lost during the merge. The docstring (lines 54-59) does not mention\nthat semgrep config is NOT merged, suggesting this is unintentional.",
+      "claim": "SemgrepConfig from package-level .caliper.yaml is completely ignored during merge",
+      "evidence": "In load_merged_config(), the merged PluginConfig is constructed on line 68-71 \nwith only enabled and disabled fields. The semgrep field defaults to \nSemgrepConfig() (empty lists), completely discarding pkg_config.plugins.semgrep.\nIf a package provides extra_config_dirs or exclude_rules in its .caliper.yaml,\nthey are silently lost during the merge. The docstring (lines 54-59) does not mention\nthat semgrep config is NOT merged, suggesting this is unintentional.",
       "fix": "Merge semgrep config: create merged_semgrep = SemgrepConfig(...) that combines root and package values, then pass it to PluginConfig",
       "verdict": "CONFIRMED",
       "verdict_reason": "Lines 68-71 construct merged_plugins with only enabled/disabled fields. SemgrepConfig defaults to empty SemgrepConfig() on line 31, completely discarding pkg_config.plugins.semgrep. Package-level extra_config_dirs or exclude_rules are silently lost during merge, contradicting the docstring intent.",
@@ -103,7 +103,7 @@
     },
     {
       "id": "P04-1",
-      "file": "src/eedom/core/seal.py",
+      "file": "src/caliper/core/seal.py",
       "line": "202",
       "severity": "high",
       "category": "correctness",
@@ -116,7 +116,7 @@
     },
     {
       "id": "P10-1",
-      "file": "src/eedom/core/subprocess_runner.py",
+      "file": "src/caliper/core/subprocess_runner.py",
       "line": "27-43",
       "severity": "high",
       "category": "correctness",
@@ -129,20 +129,20 @@
     },
     {
       "id": "P10-2",
-      "file": "src/eedom/core/version.py",
+      "file": "src/caliper/core/version.py",
       "line": "14-16",
       "severity": "high",
       "category": "correctness",
       "claim": "get_version() does not handle PackageNotFoundError, causing module import to fail",
-      "evidence": "Line 14-16:\n```python\ndef get_version() -> str:\n    \"\"\"Return the installed eedom version from importlib.metadata.\"\"\"\n    return importlib.metadata.version(\"eedom\")\n```\nThis function is called at module level in src/eedom/core/renderer.py:27:\n```python\n_VERSION = get_version()\n```\nIf the \"eedom\" package is not installed (or not findable by importlib.metadata), importlib.metadata.version() raises PackageNotFoundError. This exception is not caught, causing the entire renderer module (and any module importing it) to fail to load. This is a fail-open violation: the pipeline should degrade gracefully, not crash during initialization.",
+      "evidence": "Line 14-16:\n```python\ndef get_version() -> str:\n    \"\"\"Return the installed caliper version from importlib.metadata.\"\"\"\n    return importlib.metadata.version(\"caliper\")\n```\nThis function is called at module level in src/caliper/core/renderer.py:27:\n```python\n_VERSION = get_version()\n```\nIf the \"caliper\" package is not installed (or not findable by importlib.metadata), importlib.metadata.version() raises PackageNotFoundError. This exception is not caught, causing the entire renderer module (and any module importing it) to fail to load. This is a fail-open violation: the pipeline should degrade gracefully, not crash during initialization.",
       "fix": "Catch importlib.metadata.PackageNotFoundError in get_version() and return a sensible default (e.g., \"dev\" or \"unknown\") instead of raising.",
       "verdict": "CONFIRMED",
-      "verdict_reason": "Line 16 calls get_version() at module level in renderer.py. Line 14-16 in version.py does not catch importlib.metadata.PackageNotFoundError. If \"eedom\" package is not installed, this raises PackageNotFoundError during module import, crashing the entire renderer module. Violates fail-open: should degrade gracefully, not crash at initialization.",
+      "verdict_reason": "Line 16 calls get_version() at module level in renderer.py. Line 14-16 in version.py does not catch importlib.metadata.PackageNotFoundError. If \"caliper\" package is not installed, this raises PackageNotFoundError during module import, crashing the entire renderer module. Violates fail-open: should degrade gracefully, not crash at initialization.",
       "partition": "P10"
     },
     {
       "id": "P14-1",
-      "file": "src/eedom/detectors/config/config_merge.py",
+      "file": "src/caliper/detectors/config/config_merge.py",
       "line": "115-134",
       "severity": "high",
       "category": "correctness",
@@ -155,7 +155,7 @@
     },
     {
       "id": "P14-4",
-      "file": "src/eedom/detectors/process/tested_by.py",
+      "file": "src/caliper/detectors/process/tested_by.py",
       "line": "82-88",
       "severity": "high",
       "category": "correctness",
@@ -168,7 +168,7 @@
     },
     {
       "id": "P13-3",
-      "file": "src/eedom/detectors/reliability/subprocess_timeout.py",
+      "file": "src/caliper/detectors/reliability/subprocess_timeout.py",
       "line": "132-138",
       "severity": "high",
       "category": "correctness",
@@ -181,7 +181,7 @@
     },
     {
       "id": "P13-4",
-      "file": "src/eedom/detectors/reliability/transaction_rollback.py",
+      "file": "src/caliper/detectors/reliability/transaction_rollback.py",
       "line": "127-135",
       "severity": "high",
       "category": "correctness",
@@ -194,7 +194,7 @@
     },
     {
       "id": "P15-4",
-      "file": "src/eedom/plugins/_runners/cfn_nag_runner.py",
+      "file": "src/caliper/plugins/_runners/cfn_nag_runner.py",
       "line": "76",
       "severity": "high",
       "category": "correctness",
@@ -207,7 +207,7 @@
     },
     {
       "id": "P15-1",
-      "file": "src/eedom/plugins/_runners/graph_builder.py",
+      "file": "src/caliper/plugins/_runners/graph_builder.py",
       "line": "392",
       "severity": "high",
       "category": "correctness",
@@ -220,7 +220,7 @@
     },
     {
       "id": "P17-1",
-      "file": "src/eedom/plugins/cdk_nag.py",
+      "file": "src/caliper/plugins/cdk_nag.py",
       "line": "32-34",
       "severity": "high",
       "category": "correctness",
@@ -233,7 +233,7 @@
     },
     {
       "id": "P17-4",
-      "file": "src/eedom/plugins/ls_lint.py",
+      "file": "src/caliper/plugins/ls_lint.py",
       "line": "47",
       "severity": "high",
       "category": "correctness",
@@ -246,7 +246,7 @@
     },
     {
       "id": "P18-1",
-      "file": "src/eedom/plugins/supply_chain.py",
+      "file": "src/caliper/plugins/supply_chain.py",
       "line": "292-304",
       "severity": "high",
       "category": "correctness",
@@ -259,20 +259,20 @@
     },
     {
       "id": "P20-1",
-      "file": "src/eedom/webhook/config.py",
+      "file": "src/caliper/webhook/config.py",
       "line": "24",
       "severity": "high",
       "category": "correctness",
-      "claim": "WebhookSettings.secret is a required non-Optional field, but _load_app() calls WebhookSettings() without catching MissingConfigError for missing EEDOM_WEBHOOK_SECRET.",
-      "evidence": "Lines 16-26 define secret: str (no default, no Optional); lines 246-247 construct WebhookSettings() and _bootstrap(EedomSettings()) without error handling for missing env vars; pydantic raises ValidationError if required fields are absent.",
+      "claim": "WebhookSettings.secret is a required non-Optional field, but _load_app() calls WebhookSettings() without catching MissingConfigError for missing CALIPER_WEBHOOK_SECRET.",
+      "evidence": "Lines 16-26 define secret: str (no default, no Optional); lines 246-247 construct WebhookSettings() and _bootstrap(CaliperSettings()) without error handling for missing env vars; pydantic raises ValidationError if required fields are absent.",
       "fix": "Either (a) provide a default empty string for secret and validate non-empty in webhook handler, or (b) wrap WebhookSettings() in try-except to catch ValidationError and provide a clear error message, or (c) make secret Optional with a validation check before use.",
       "verdict": "CONFIRMED",
-      "verdict_reason": "Line 246 constructs WebhookSettings() without catching ValidationError for missing EEDOM_WEBHOOK_SECRET. If env var is absent, Pydantic raises ValidationError on startup. Error is mitigated by deferred loading (lines 252-265) but still unfriendly.",
+      "verdict_reason": "Line 246 constructs WebhookSettings() without catching ValidationError for missing CALIPER_WEBHOOK_SECRET. If env var is absent, Pydantic raises ValidationError on startup. Error is mitigated by deferred loading (lines 252-265) but still unfriendly.",
       "partition": "P20"
     },
     {
       "id": "P20-2",
-      "file": "src/eedom/webhook/server.py",
+      "file": "src/caliper/webhook/server.py",
       "line": "181-189",
       "severity": "high",
       "category": "design",
@@ -285,7 +285,7 @@
     },
     {
       "id": "P20-3",
-      "file": "src/eedom/agent/main.py",
+      "file": "src/caliper/agent/main.py",
       "line": "169-182",
       "severity": "medium",
       "category": "correctness",
@@ -298,7 +298,7 @@
     },
     {
       "id": "P18-2",
-      "file": "src/eedom/core/diff.py",
+      "file": "src/caliper/core/diff.py",
       "line": "212",
       "severity": "medium",
       "category": "correctness",
@@ -311,7 +311,7 @@
     },
     {
       "id": "P18-5",
-      "file": "src/eedom/core/diff.py",
+      "file": "src/caliper/core/diff.py",
       "line": "218",
       "severity": "medium",
       "category": "correctness",
@@ -324,7 +324,7 @@
     },
     {
       "id": "P02-3",
-      "file": "src/eedom/core/memo.py",
+      "file": "src/caliper/core/memo.py",
       "line": "116-117",
       "severity": "medium",
       "category": "correctness",
@@ -337,7 +337,7 @@
     },
     {
       "id": "P03-3",
-      "file": "src/eedom/core/opa_adapter.py",
+      "file": "src/caliper/core/opa_adapter.py",
       "line": "86",
       "severity": "medium",
       "category": "design",
@@ -350,7 +350,7 @@
     },
     {
       "id": "P01-6",
-      "file": "src/eedom/core/pipeline.py",
+      "file": "src/caliper/core/pipeline.py",
       "line": "267-270",
       "severity": "medium",
       "category": "correctness",
@@ -363,7 +363,7 @@
     },
     {
       "id": "P01-7",
-      "file": "src/eedom/core/pipeline.py",
+      "file": "src/caliper/core/pipeline.py",
       "line": "432-434",
       "severity": "medium",
       "category": "correctness",
@@ -376,7 +376,7 @@
     },
     {
       "id": "P15-7",
-      "file": "src/eedom/core/registry.py",
+      "file": "src/caliper/core/registry.py",
       "line": "149",
       "severity": "medium",
       "category": "correctness",
@@ -389,7 +389,7 @@
     },
     {
       "id": "P04-4",
-      "file": "src/eedom/core/seal.py",
+      "file": "src/caliper/core/seal.py",
       "line": "94",
       "severity": "medium",
       "category": "design",
@@ -402,7 +402,7 @@
     },
     {
       "id": "P10-3",
-      "file": "src/eedom/core/subprocess_runner.py",
+      "file": "src/caliper/core/subprocess_runner.py",
       "line": "54-63",
       "severity": "medium",
       "category": "design",
@@ -415,7 +415,7 @@
     },
     {
       "id": "P09-2",
-      "file": "src/eedom/core/taskfit_validator.py",
+      "file": "src/caliper/core/taskfit_validator.py",
       "line": "185-206",
       "severity": "medium",
       "category": "design",
@@ -428,7 +428,7 @@
     },
     {
       "id": "P11-3",
-      "file": "src/eedom/detectors/ast_utils.py",
+      "file": "src/caliper/detectors/ast_utils.py",
       "line": "659-670",
       "severity": "medium",
       "category": "correctness",
@@ -441,7 +441,7 @@
     },
     {
       "id": "P14-2",
-      "file": "src/eedom/detectors/config/docker_pin_drift.py",
+      "file": "src/caliper/detectors/config/docker_pin_drift.py",
       "line": "18-19",
       "severity": "medium",
       "category": "correctness",
@@ -454,7 +454,7 @@
     },
     {
       "id": "P11-2",
-      "file": "src/eedom/detectors/findings.py",
+      "file": "src/caliper/detectors/findings.py",
       "line": "49-69",
       "severity": "medium",
       "category": "design",
@@ -467,7 +467,7 @@
     },
     {
       "id": "P14-3",
-      "file": "src/eedom/detectors/metrics/high_cardinality.py",
+      "file": "src/caliper/detectors/metrics/high_cardinality.py",
       "line": "151-159",
       "severity": "medium",
       "category": "correctness",
@@ -480,7 +480,7 @@
     },
     {
       "id": "P13-8",
-      "file": "src/eedom/detectors/reliability/health_check_db.py",
+      "file": "src/caliper/detectors/reliability/health_check_db.py",
       "line": "156",
       "severity": "medium",
       "category": "correctness",
@@ -493,7 +493,7 @@
     },
     {
       "id": "P13-7",
-      "file": "src/eedom/detectors/reliability/path_construction.py",
+      "file": "src/caliper/detectors/reliability/path_construction.py",
       "line": "123-136",
       "severity": "medium",
       "category": "correctness",
@@ -506,7 +506,7 @@
     },
     {
       "id": "P12-3",
-      "file": "src/eedom/detectors/security/fixed_output_delimiter.py",
+      "file": "src/caliper/detectors/security/fixed_output_delimiter.py",
       "line": "84-86",
       "severity": "medium",
       "category": "correctness",
@@ -519,7 +519,7 @@
     },
     {
       "id": "P12-1",
-      "file": "src/eedom/detectors/security/secret_str.py",
+      "file": "src/caliper/detectors/security/secret_str.py",
       "line": "76-96",
       "severity": "medium",
       "category": "correctness",
@@ -532,7 +532,7 @@
     },
     {
       "id": "P12-6",
-      "file": "src/eedom/detectors/security/sql_injection.py",
+      "file": "src/caliper/detectors/security/sql_injection.py",
       "line": "75-76",
       "severity": "medium",
       "category": "correctness",
@@ -545,7 +545,7 @@
     },
     {
       "id": "P12-7",
-      "file": "src/eedom/detectors/security/sql_injection.py",
+      "file": "src/caliper/detectors/security/sql_injection.py",
       "line": "117-119",
       "severity": "medium",
       "category": "correctness",
@@ -558,7 +558,7 @@
     },
     {
       "id": "P12-8",
-      "file": "src/eedom/detectors/security/sql_injection.py",
+      "file": "src/caliper/detectors/security/sql_injection.py",
       "line": "105-109",
       "severity": "medium",
       "category": "correctness",
@@ -571,7 +571,7 @@
     },
     {
       "id": "P15-3",
-      "file": "src/eedom/plugins/_runners/cpd_runner.py",
+      "file": "src/caliper/plugins/_runners/cpd_runner.py",
       "line": "297",
       "severity": "medium",
       "category": "correctness",
@@ -584,7 +584,7 @@
     },
     {
       "id": "P15-2",
-      "file": "src/eedom/plugins/_runners/graph_builder.py",
+      "file": "src/caliper/plugins/_runners/graph_builder.py",
       "line": "400-403",
       "severity": "medium",
       "category": "correctness",
@@ -597,7 +597,7 @@
     },
     {
       "id": "P16-3",
-      "file": "src/eedom/plugins/clamav.py",
+      "file": "src/caliper/plugins/clamav.py",
       "line": "69",
       "severity": "medium",
       "category": "correctness",
@@ -610,7 +610,7 @@
     },
     {
       "id": "P17-2",
-      "file": "src/eedom/plugins/complexity.py",
+      "file": "src/caliper/plugins/complexity.py",
       "line": "32-35",
       "severity": "medium",
       "category": "correctness",
@@ -623,7 +623,7 @@
     },
     {
       "id": "P17-3",
-      "file": "src/eedom/plugins/cpd.py",
+      "file": "src/caliper/plugins/cpd.py",
       "line": "50-68",
       "severity": "medium",
       "category": "correctness",
@@ -636,7 +636,7 @@
     },
     {
       "id": "P17-9",
-      "file": "src/eedom/plugins/cspell.py",
+      "file": "src/caliper/plugins/cspell.py",
       "line": "54-72",
       "severity": "medium",
       "category": "correctness",
@@ -649,7 +649,7 @@
     },
     {
       "id": "P17-5",
-      "file": "src/eedom/plugins/kube_linter.py",
+      "file": "src/caliper/plugins/kube_linter.py",
       "line": "29-40",
       "severity": "medium",
       "category": "correctness",
@@ -662,7 +662,7 @@
     },
     {
       "id": "P16-1",
-      "file": "src/eedom/plugins/osv_scanner.py",
+      "file": "src/caliper/plugins/osv_scanner.py",
       "line": "106",
       "severity": "medium",
       "category": "correctness",
@@ -675,20 +675,20 @@
     },
     {
       "id": "P16-6",
-      "file": "src/eedom/plugins/semgrep.py",
+      "file": "src/caliper/plugins/semgrep.py",
       "line": "59-62",
       "severity": "medium",
       "category": "design",
       "claim": "Timeout hardcoded to 120 instead of using scanner_timeout from config (60s).",
-      "evidence": "Lines 59-62: timeout hardcoded to 120 in RULE_RUNNERS.create(\"semgrep\").run()\nEedomSettings.scanner_timeout defaults to 60 (core/config.py:73).\nInconsistent with other plugins and CLAUDE.md timeout=60s invariant.",
-      "fix": "Accept scanner_timeout from EedomSettings or config injection instead of hardcoded 120.",
+      "evidence": "Lines 59-62: timeout hardcoded to 120 in RULE_RUNNERS.create(\"semgrep\").run()\nCaliperSettings.scanner_timeout defaults to 60 (core/config.py:73).\nInconsistent with other plugins and CLAUDE.md timeout=60s invariant.",
+      "fix": "Accept scanner_timeout from CaliperSettings or config injection instead of hardcoded 120.",
       "verdict": "CONFIRMED",
-      "verdict_reason": "Line 62 in semgrep.py hardcodes timeout=120 instead of using EedomSettings.scanner_timeout (default 60s), inconsistent with CLAUDE.md timeout invariant.",
+      "verdict_reason": "Line 62 in semgrep.py hardcodes timeout=120 instead of using CaliperSettings.scanner_timeout (default 60s), inconsistent with CLAUDE.md timeout invariant.",
       "partition": "P16"
     },
     {
       "id": "P16-2",
-      "file": "src/eedom/plugins/syft.py",
+      "file": "src/caliper/plugins/syft.py",
       "line": "69",
       "severity": "medium",
       "category": "correctness",
@@ -701,20 +701,20 @@
     },
     {
       "id": "P20-6",
-      "file": "src/eedom/agent/main.py",
+      "file": "src/caliper/agent/main.py",
       "line": "238-271",
       "severity": "low",
       "category": "correctness",
-      "claim": "main() does not validate pr_number > 0 after conversion, allowing pr_number=0 to reach GatekeeperAgent.run() which uses it in API calls, potentially causing silent failures or incorrect routing.",
+      "claim": "main() does not validate pr_number > 0 after conversion, allowing pr_number=0 to reach ForemanAgent.run() which uses it in API calls, potentially causing silent failures or incorrect routing.",
       "evidence": "Lines 242-245: pr_number is converted via int() and checked == 0 to raise an error. However, if conversion succeeds but pr_number is negative or invalid (e.g., pr_number=-1), no error occurs. Line 261 passes the unchecked value to agent.run(). GitHub PR numbers are always positive; a negative or zero value should trigger an error.",
-      "fix": "Change line 243 to `if pr_number <= 0:` or add a validation guard in GatekeeperAgent.run() to reject invalid pr_number values before use.",
+      "fix": "Change line 243 to `if pr_number <= 0:` or add a validation guard in ForemanAgent.run() to reject invalid pr_number values before use.",
       "verdict": "CONFIRMED",
       "verdict_reason": "Line 243 checks pr_number == 0 but not pr_number < 0. Negative values (e.g., -1) bypass validation and reach agent.run(). Should validate pr_number > 0 instead.",
       "partition": "P20"
     },
     {
       "id": "P09-3",
-      "file": "src/eedom/core/actionability.py",
+      "file": "src/caliper/core/actionability.py",
       "line": "37-39",
       "severity": "low",
       "category": "design",
@@ -727,20 +727,20 @@
     },
     {
       "id": "P06-3",
-      "file": "src/eedom/core/enrich.py",
+      "file": "src/caliper/core/scribe.py",
       "line": "40",
       "severity": "low",
       "category": "design",
-      "claim": "Budget exhaustion logs once per enricher per finding, creating excessive log spam when timeout occurs early in multi-finding batch.",
-      "evidence": "Lines 39-41:\n```python\nif time.monotonic() > deadline:\n    logger.warning(\"enrich.budget_exhausted\", enricher=getattr(enricher, \"name\", \"?\"))\n    break\n```\n\nWhen enrichment_timeout is short or a single enricher is slow (e.g., code_graph build), \nthe deadline can be exceeded on the first enricher of the first finding. Then for every subsequent \nfinding and enricher, this warning fires again. With 100 findings \u00d7 2 enrichers and 30s timeout, \nyou could see 200 identical warnings.",
-      "fix": "Track whether we've already logged budget exhaustion for this pass:\n```python\nbudget_exhausted_logged = False\nfor finding in findings:\n    current = finding\n    for enricher in enrichers:\n        if time.monotonic() > deadline:\n            if not budget_exhausted_logged:\n                logger.warning(\"enrich.budget_exhausted\", enrichers_remaining=len(enrichers) - enrichers.index(enricher))\n                budget_exhausted_logged = True\n            break\n```\nOr log once at the start of the outer loop when budget is detected as exceeded.",
+      "claim": "Budget exhaustion logs once per scribe per finding, creating excessive log spam when timeout occurs early in multi-finding batch.",
+      "evidence": "Lines 39-41:\n```python\nif time.monotonic() > deadline:\n    logger.warning(\"scribe.budget_exhausted\", scribe=getattr(scribe, \"name\", \"?\"))\n    break\n```\n\nWhen scribe_timeout is short or a single scribe is slow (e.g., code_graph build), \nthe deadline can be exceeded on the first scribe of the first finding. Then for every subsequent \nfinding and scribe, this warning fires again. With 100 findings \u00d7 2 scribes and 30s timeout, \nyou could see 200 identical warnings.",
+      "fix": "Track whether we've already logged budget exhaustion for this pass:\n```python\nbudget_exhausted_logged = False\nfor finding in findings:\n    current = finding\n    for scribe in scribes:\n        if time.monotonic() > deadline:\n            if not budget_exhausted_logged:\n                logger.warning(\"scribe.budget_exhausted\", scribes_remaining=len(scribes) - scribes.index(scribe))\n                budget_exhausted_logged = True\n            break\n```\nOr log once at the start of the outer loop when budget is detected as exceeded.",
       "verdict": "CONFIRMED",
-      "verdict_reason": "Lines 39-41 of enrich.py log \"budget_exhausted\" on EVERY finding/enricher pair after deadline, not just once. With 100 findings \u00d7 2 enrichers, creates ~200 identical log entries. Design issue, not correctness (enrichment still works).",
+      "verdict_reason": "Lines 39-41 of scribe.py log \"budget_exhausted\" on EVERY finding/scribe pair after deadline, not just once. With 100 findings \u00d7 2 scribes, creates ~200 identical log entries. Design issue, not correctness (scribe still works).",
       "partition": "P06"
     },
     {
       "id": "P10-5",
-      "file": "src/eedom/core/fake.py",
+      "file": "src/caliper/core/fake.py",
       "line": "24-25",
       "severity": "low",
       "category": "design",
@@ -753,7 +753,7 @@
     },
     {
       "id": "P03-6",
-      "file": "src/eedom/core/opa_adapter.py",
+      "file": "src/caliper/core/opa_adapter.py",
       "line": "80-86",
       "severity": "low",
       "category": "design",
@@ -766,7 +766,7 @@
     },
     {
       "id": "P18-3",
-      "file": "src/eedom/core/sbom_diff.py",
+      "file": "src/caliper/core/sbom_diff.py",
       "line": "136-145",
       "severity": "low",
       "category": "design",
@@ -779,12 +779,12 @@
     },
     {
       "id": "P18-4",
-      "file": "src/eedom/core/supply_chain_diff.py",
+      "file": "src/caliper/core/supply_chain_diff.py",
       "line": "140-150",
       "severity": "low",
       "category": "design",
       "claim": "Fail-open on source unavailable embeds error detail only in message string, not as a separate field, making it hard for automated tools to distinguish error types (404 vs timeout vs extraction failure).",
-      "evidence": "Lines 140-150:\n  ```python\n  if not vd.available:\n      return [_finding(..., message=(...f\"{{vd.error}}\"...),)]\n  ```\nThe error is buried in the `message` field; no structured `error_code` or `error_type` exists in metadata. Downstream tools like GATEKEEPER PR comments or log aggregation systems cannot easily filter by \"this was a timeout, please retry\" vs \"this was a 404, package doesn't exist\".",
+      "evidence": "Lines 140-150:\n  ```python\n  if not vd.available:\n      return [_finding(..., message=(...f\"{{vd.error}}\"...),)]\n  ```\nThe error is buried in the `message` field; no structured `error_code` or `error_type` exists in metadata. Downstream tools like Foreman PR comments or log aggregation systems cannot easily filter by \"this was a timeout, please retry\" vs \"this was a 404, package doesn't exist\".",
       "fix": "Add `error_type` to metadata with values like \"not_found\", \"timeout\", \"extract_failed\", \"network_error\", enabling structured error handling.",
       "verdict": "CONFIRMED",
       "verdict_reason": "supply_chain_diff.py lines 140-150 embeds error detail only in message string, not as structured metadata. No error_type field exists; downstream tools cannot distinguish \"404 not found\" from \"timeout\" from \"extraction failed\".",
@@ -792,7 +792,7 @@
     },
     {
       "id": "P01-10",
-      "file": "src/eedom/core/use_cases.py",
+      "file": "src/caliper/core/use_cases.py",
       "line": "45",
       "severity": "low",
       "category": "design",
@@ -805,7 +805,7 @@
     },
     {
       "id": "P01-9",
-      "file": "src/eedom/core/use_cases.py",
+      "file": "src/caliper/core/use_cases.py",
       "line": "33-34",
       "severity": "low",
       "category": "design",
@@ -818,7 +818,7 @@
     },
     {
       "id": "P14-6",
-      "file": "src/eedom/detectors/config/config_merge.py",
+      "file": "src/caliper/detectors/config/config_merge.py",
       "line": "159-171",
       "severity": "low",
       "category": "design",
@@ -831,7 +831,7 @@
     },
     {
       "id": "P13-10",
-      "file": "src/eedom/detectors/reliability/cache_eviction.py",
+      "file": "src/caliper/detectors/reliability/cache_eviction.py",
       "line": "95-96",
       "severity": "low",
       "category": "correctness",
@@ -844,7 +844,7 @@
     },
     {
       "id": "P12-5",
-      "file": "src/eedom/detectors/security/rate_limiting.py",
+      "file": "src/caliper/detectors/security/rate_limiting.py",
       "line": "135-143",
       "severity": "low",
       "category": "design",
@@ -857,7 +857,7 @@
     },
     {
       "id": "P15-5",
-      "file": "src/eedom/plugins/_runners/kube_linter_runner.py",
+      "file": "src/caliper/plugins/_runners/kube_linter_runner.py",
       "line": "66",
       "severity": "low",
       "category": "design",
@@ -870,7 +870,7 @@
     },
     {
       "id": "P17-10",
-      "file": "src/eedom/plugins/blast_radius.py",
+      "file": "src/caliper/plugins/blast_radius.py",
       "line": "68-73",
       "severity": "low",
       "category": "correctness",
@@ -883,7 +883,7 @@
     },
     {
       "id": "P16-5",
-      "file": "src/eedom/plugins/clamav.py",
+      "file": "src/caliper/plugins/clamav.py",
       "line": "84-87",
       "severity": "low",
       "category": "correctness",
@@ -896,7 +896,7 @@
     },
     {
       "id": "P17-6",
-      "file": "src/eedom/plugins/mypy.py",
+      "file": "src/caliper/plugins/mypy.py",
       "line": "76-94",
       "severity": "low",
       "category": "design",
@@ -909,7 +909,7 @@
     },
     {
       "id": "P16-8",
-      "file": "src/eedom/plugins/scancode.py",
+      "file": "src/caliper/plugins/scancode.py",
       "line": "56-64",
       "severity": "low",
       "category": "correctness",
@@ -924,7 +924,7 @@
   "uncertain": [
     {
       "id": "P19-6",
-      "file": "src/eedom/cli/main.py",
+      "file": "src/caliper/cli/main.py",
       "line": "400-408",
       "severity": "medium",
       "category": "correctness",
@@ -937,7 +937,7 @@
     },
     {
       "id": "P03-4",
-      "file": "src/eedom/core/opa_adapter.py",
+      "file": "src/caliper/core/opa_adapter.py",
       "line": "98-114",
       "severity": "medium",
       "category": "design",
@@ -950,7 +950,7 @@
     },
     {
       "id": "P03-5",
-      "file": "src/eedom/core/policy.py",
+      "file": "src/caliper/core/policy.py",
       "line": "237-239",
       "severity": "medium",
       "category": "design",
@@ -963,7 +963,7 @@
     },
     {
       "id": "P07-1",
-      "file": "src/eedom/core/review_summary.py",
+      "file": "src/caliper/core/review_summary.py",
       "line": "101",
       "severity": "medium",
       "category": "correctness",
@@ -976,20 +976,20 @@
     },
     {
       "id": "P04-2",
-      "file": "src/eedom/core/telemetry.py",
+      "file": "src/caliper/core/telemetry.py",
       "line": "37",
       "severity": "medium",
       "category": "correctness",
       "claim": "Regex for path detection does not match paths with colons (e.g., Windows `C:\\foo`) when preceded by certain characters, and does not handle many valid path formats.",
       "evidence": "Line 37: `_FILE_PATH_RE = re.compile(r\"(?:^|[\\s\\(\\\"'])(/[\\w./\\-]+|[A-Za-z]:\\\\[\\w\\\\/.\\-]+)\")`\n\nIssues:\n1. Windows path pattern `[A-Za-z]:\\\\` requires colon AND backslash, but the lookahead\n   only succeeds when preceded by (^, space, paren, quote). A path like \"file C:\\foo\"\n   (after comma-space) will not match because comma is not in the character class.\n2. POSIX pattern `/[\\w./\\-]+` stops at whitespace or special chars, so \n   \"/home/user/my-project_2/file@host.py\" truncates before \"@\" and \"(\" chars.\n3. Backticks, brackets, `<>` are common in error messages but not in the prefix class.\n\nReal stack traces like \"  File \\\"/usr/lib/python3.11/site-packages/pkg/mod.py\\\" line 42\"\nwill not match the quoted path due to backslash inside the quoted string being \nunexpectedly part of the path match.\n\nThe regex is tested at line 54 but test cases (lines 43-44) use simplified paths.",
-      "fix": "Use a more inclusive path detector with better boundary handling:\n```python\n_FILE_PATH_RE = re.compile(\n    r\"(?:\"\n    r\"(?<=[\\s\\(\\[<\\\"'\\`])|^\"  # preceded by whitespace/bracket/quote/backtick\n    r\")\"\n    r\"(?:\"\n    r\"(?:/[\\w./_\\-]+)\"  # POSIX: / followed by word chars, dots, slashes, underscores, hyphens\n    r\"|\"\n    r\"(?:[A-Za-z]:\\\\[\\w\\\\/._\\-]+)\"  # Windows: drive letter colon backslash\n    r\")\"\n)\n```\nOr use a simpler strategy: detect only standard library/site-packages prefixes\n(e.g., `/opt/eedom`, `/usr/lib`, `C:\\Python`, `/home/user/.venv`) rather than\nmatching all paths universally.",
+      "fix": "Use a more inclusive path detector with better boundary handling:\n```python\n_FILE_PATH_RE = re.compile(\n    r\"(?:\"\n    r\"(?<=[\\s\\(\\[<\\\"'\\`])|^\"  # preceded by whitespace/bracket/quote/backtick\n    r\")\"\n    r\"(?:\"\n    r\"(?:/[\\w./_\\-]+)\"  # POSIX: / followed by word chars, dots, slashes, underscores, hyphens\n    r\"|\"\n    r\"(?:[A-Za-z]:\\\\[\\w\\\\/._\\-]+)\"  # Windows: drive letter colon backslash\n    r\")\"\n)\n```\nOr use a simpler strategy: detect only standard library/site-packages prefixes\n(e.g., `/opt/caliper`, `/usr/lib`, `C:\\Python`, `/home/user/.venv`) rather than\nmatching all paths universally.",
       "verdict": "UNCERTAIN",
       "verdict_reason": "Line 37 regex _FILE_PATH_RE has limited boundary detection. The lookahead class [\\s\\(\\\"'] omits commas, backticks, and other delimiters. However, the validator at line 150 is called on truncated stack traces post-processing where paths are already partially sanitized. Real-world impact depends on actual error message formats in telemetry \u2014 requires integration testing to confirm.",
       "partition": "P04"
     },
     {
       "id": "P16-7",
-      "file": "src/eedom/plugins/trivy.py",
+      "file": "src/caliper/plugins/trivy.py",
       "line": "48-56",
       "severity": "medium",
       "category": "design",
@@ -1002,7 +1002,7 @@
     },
     {
       "id": "P06-2",
-      "file": "src/eedom/core/llm_client.py",
+      "file": "src/caliper/core/llm_client.py",
       "line": "45",
       "severity": "low",
       "category": "design",
@@ -1015,12 +1015,12 @@
     },
     {
       "id": "P04-5",
-      "file": "src/eedom/core/telemetry.py",
+      "file": "src/caliper/core/telemetry.py",
       "line": "112-113",
       "severity": "low",
       "category": "design",
       "claim": "_strip_paths_from_text() modifies stack_summary but does not validate that stripped result is still privacy-safe.",
-      "evidence": "Lines 110-113:\n```python\n@field_validator(\"stack_summary\")\n@classmethod\ndef _strip_file_paths_from_stack(cls, v: str) -> str:\n    return _strip_paths_from_text(v)\n```\n\nThe validator calls _strip_paths_from_text() but does not validate the *output*.\nIf _strip_paths_from_text() fails to match a path (due to regex limitations from P04-2),\nthe validator returns the unstripped text with full paths intact.\n\nAlso, after stripping, the result could still contain other PII like:\n- Python module qualnames that expose internal packages: \"eedom.core.pipeline\"\n- Usernames from error messages: \"Permission denied: /home/alice/...\"\n\nThe validator should validate the *result* to confirm no absolute paths remain.",
+      "evidence": "Lines 110-113:\n```python\n@field_validator(\"stack_summary\")\n@classmethod\ndef _strip_file_paths_from_stack(cls, v: str) -> str:\n    return _strip_paths_from_text(v)\n```\n\nThe validator calls _strip_paths_from_text() but does not validate the *output*.\nIf _strip_paths_from_text() fails to match a path (due to regex limitations from P04-2),\nthe validator returns the unstripped text with full paths intact.\n\nAlso, after stripping, the result could still contain other PII like:\n- Python module qualnames that expose internal packages: \"caliper.core.pipeline\"\n- Usernames from error messages: \"Permission denied: /home/alice/...\"\n\nThe validator should validate the *result* to confirm no absolute paths remain.",
       "fix": "Add a post-strip validation:\n```python\n@field_validator(\"stack_summary\")\n@classmethod\ndef _strip_file_paths_from_stack(cls, v: str) -> str:\n    stripped = _strip_paths_from_text(v)\n    # Validate the stripped result does not contain absolute paths\n    if _has_file_path(stripped):\n        raise ValueError(\n            \"stack_summary still contains absolute paths after stripping. \"\n            \"Strip all paths before constructing CrashReport.\"\n        )\n    return stripped\n```",
       "verdict": "UNCERTAIN",
       "verdict_reason": "Validator at line 150 calls _strip_paths_from_text() but doesn't validate the output contains no paths. If regex fails due to P04-2 limitations, unstripped paths leak through. However, this is a validation issue on telemetry (privacy-sensitive) data; real impact depends on regex efficacy and whether telemetry is enabled in practice.",
@@ -1028,7 +1028,7 @@
     },
     {
       "id": "P12-4",
-      "file": "src/eedom/detectors/security/jwt_audience.py",
+      "file": "src/caliper/detectors/security/jwt_audience.py",
       "line": "76-103",
       "severity": "low",
       "category": "design",
@@ -1041,7 +1041,7 @@
     },
     {
       "id": "P15-6",
-      "file": "src/eedom/plugins/_runners/complexity_runner.py",
+      "file": "src/caliper/plugins/_runners/complexity_runner.py",
       "line": "185",
       "severity": "low",
       "category": "design",
@@ -1058,211 +1058,211 @@
       "id": "P01",
       "title": "pipeline/orchestration",
       "files": [
-        "src/eedom/core/pipeline_helpers.py",
-        "src/eedom/core/diff.py",
-        "src/eedom/core/pipeline.py",
-        "src/eedom/core/orchestrator.py",
-        "src/eedom/core/use_cases.py"
+        "src/caliper/core/pipeline_helpers.py",
+        "src/caliper/core/diff.py",
+        "src/caliper/core/pipeline.py",
+        "src/caliper/core/orchestrator.py",
+        "src/caliper/core/use_cases.py"
       ]
     },
     {
       "id": "P02",
       "title": "solver/normalizer",
       "files": [
-        "src/eedom/core/normalizer.py",
-        "src/eedom/core/solver.py",
-        "src/eedom/core/memo.py",
-        "src/eedom/core/accessors.py"
+        "src/caliper/core/normalizer.py",
+        "src/caliper/core/solver.py",
+        "src/caliper/core/memo.py",
+        "src/caliper/core/accessors.py"
       ]
     },
     {
       "id": "P03",
       "title": "policy/OPA",
       "files": [
-        "src/eedom/core/opa_adapter.py",
-        "src/eedom/core/policy.py"
+        "src/caliper/core/opa_adapter.py",
+        "src/caliper/core/policy.py"
       ]
     },
     {
       "id": "P04",
       "title": "seal/evidence/telemetry",
       "files": [
-        "src/eedom/core/seal.py",
-        "src/eedom/core/telemetry.py",
-        "src/eedom/data/evidence.py"
+        "src/caliper/core/seal.py",
+        "src/caliper/core/telemetry.py",
+        "src/caliper/data/evidence.py"
       ]
     },
     {
       "id": "P05",
       "title": "config/file-enumeration",
       "files": [
-        "src/eedom/core/ignore.py",
-        "src/eedom/core/file_source.py",
-        "src/eedom/core/repo_config.py"
+        "src/caliper/core/ignore.py",
+        "src/caliper/core/file_source.py",
+        "src/caliper/core/repo_config.py"
       ]
     },
     {
       "id": "P06",
-      "title": "enrichment/llm",
+      "title": "scribe/llm",
       "files": [
-        "src/eedom/core/enrichment.py",
-        "src/eedom/core/llm_client.py",
-        "src/eedom/core/enrich.py"
+        "src/caliper/core/scribe.py",
+        "src/caliper/core/llm_client.py",
+        "src/caliper/core/scribe.py"
       ]
     },
     {
       "id": "P07",
       "title": "output/render/sarif",
       "files": [
-        "src/eedom/core/review_summary.py",
-        "src/eedom/core/sarif.py",
-        "src/eedom/core/renderer.py"
+        "src/caliper/core/review_summary.py",
+        "src/caliper/core/sarif.py",
+        "src/caliper/core/renderer.py"
       ]
     },
     {
       "id": "P08",
       "title": "concern/review",
       "files": [
-        "src/eedom/core/concern_prompt.py",
-        "src/eedom/core/concern_remediate.py"
+        "src/caliper/core/concern_prompt.py",
+        "src/caliper/core/concern_remediate.py"
       ]
     },
     {
       "id": "P09",
       "title": "taskfit/actionability",
       "files": [
-        "src/eedom/core/taskfit.py",
-        "src/eedom/core/taskfit_validator.py",
-        "src/eedom/core/actionability.py"
+        "src/caliper/core/taskfit.py",
+        "src/caliper/core/taskfit_validator.py",
+        "src/caliper/core/actionability.py"
       ]
     },
     {
       "id": "P10",
       "title": "models/infra",
       "files": [
-        "src/eedom/core/subprocess_runner.py",
-        "src/eedom/core/version.py",
-        "src/eedom/core/models.py",
-        "src/eedom/core/fake.py"
+        "src/caliper/core/subprocess_runner.py",
+        "src/caliper/core/version.py",
+        "src/caliper/core/models.py",
+        "src/caliper/core/fake.py"
       ]
     },
     {
       "id": "P11",
       "title": "detector framework",
       "files": [
-        "src/eedom/detectors/scanner.py",
-        "src/eedom/detectors/findings.py",
-        "src/eedom/detectors/ast_utils.py"
+        "src/caliper/detectors/scanner.py",
+        "src/caliper/detectors/findings.py",
+        "src/caliper/detectors/ast_utils.py"
       ]
     },
     {
       "id": "P12",
       "title": "detectors/security",
       "files": [
-        "src/eedom/detectors/security/secret_str.py",
-        "src/eedom/detectors/security/error_exposure.py",
-        "src/eedom/detectors/security/fixed_output_delimiter.py",
-        "src/eedom/detectors/security/jwt_audience.py",
-        "src/eedom/detectors/security/rate_limiting.py",
-        "src/eedom/detectors/security/sql_injection.py"
+        "src/caliper/detectors/security/secret_str.py",
+        "src/caliper/detectors/security/error_exposure.py",
+        "src/caliper/detectors/security/fixed_output_delimiter.py",
+        "src/caliper/detectors/security/jwt_audience.py",
+        "src/caliper/detectors/security/rate_limiting.py",
+        "src/caliper/detectors/security/sql_injection.py"
       ]
     },
     {
       "id": "P13",
       "title": "detectors/reliability",
       "files": [
-        "src/eedom/detectors/reliability/cache_ttl.py",
-        "src/eedom/detectors/reliability/circuit_breaker.py",
-        "src/eedom/detectors/reliability/subprocess_timeout.py",
-        "src/eedom/detectors/reliability/transaction_rollback.py",
-        "src/eedom/detectors/reliability/non_atomic_write.py",
-        "src/eedom/detectors/reliability/nullable_dedup_key.py",
-        "src/eedom/detectors/reliability/path_construction.py",
-        "src/eedom/detectors/reliability/health_check_db.py",
-        "src/eedom/detectors/reliability/cache_eviction.py"
+        "src/caliper/detectors/reliability/cache_ttl.py",
+        "src/caliper/detectors/reliability/circuit_breaker.py",
+        "src/caliper/detectors/reliability/subprocess_timeout.py",
+        "src/caliper/detectors/reliability/transaction_rollback.py",
+        "src/caliper/detectors/reliability/non_atomic_write.py",
+        "src/caliper/detectors/reliability/nullable_dedup_key.py",
+        "src/caliper/detectors/reliability/path_construction.py",
+        "src/caliper/detectors/reliability/health_check_db.py",
+        "src/caliper/detectors/reliability/cache_eviction.py"
       ]
     },
     {
       "id": "P14",
-      "title": "detectors config/metrics/process/enrichers",
+      "title": "detectors config/metrics/process/scribes",
       "files": [
-        "src/eedom/detectors/config/config_merge.py",
-        "src/eedom/detectors/config/docker_pin_drift.py",
-        "src/eedom/detectors/metrics/high_cardinality.py",
-        "src/eedom/detectors/process/tested_by.py",
-        "src/eedom/detectors/enrichers/enclosing_symbol.py"
+        "src/caliper/detectors/config/config_merge.py",
+        "src/caliper/detectors/config/docker_pin_drift.py",
+        "src/caliper/detectors/metrics/high_cardinality.py",
+        "src/caliper/detectors/process/tested_by.py",
+        "src/caliper/detectors/scribes/enclosing_symbol.py"
       ]
     },
     {
       "id": "P15",
       "title": "plugin infra/runners",
       "files": [
-        "src/eedom/plugins/_runners/graph_builder.py",
-        "src/eedom/plugins/_runners/cpd_runner.py",
-        "src/eedom/plugins/_runners/cfn_nag_runner.py",
-        "src/eedom/plugins/_runners/kube_linter_runner.py",
-        "src/eedom/plugins/_runners/complexity_runner.py",
-        "src/eedom/core/registry.py"
+        "src/caliper/plugins/_runners/graph_builder.py",
+        "src/caliper/plugins/_runners/cpd_runner.py",
+        "src/caliper/plugins/_runners/cfn_nag_runner.py",
+        "src/caliper/plugins/_runners/kube_linter_runner.py",
+        "src/caliper/plugins/_runners/complexity_runner.py",
+        "src/caliper/core/registry.py"
       ]
     },
     {
       "id": "P16",
       "title": "scanner plugins A",
       "files": [
-        "src/eedom/plugins/osv_scanner.py",
-        "src/eedom/plugins/syft.py",
-        "src/eedom/plugins/clamav.py",
-        "src/eedom/plugins/gitleaks.py",
-        "src/eedom/plugins/semgrep.py",
-        "src/eedom/plugins/trivy.py",
-        "src/eedom/plugins/scancode.py"
+        "src/caliper/plugins/osv_scanner.py",
+        "src/caliper/plugins/syft.py",
+        "src/caliper/plugins/clamav.py",
+        "src/caliper/plugins/gitleaks.py",
+        "src/caliper/plugins/semgrep.py",
+        "src/caliper/plugins/trivy.py",
+        "src/caliper/plugins/scancode.py"
       ]
     },
     {
       "id": "P17",
       "title": "scanner plugins B",
       "files": [
-        "src/eedom/plugins/cdk_nag.py",
-        "src/eedom/plugins/complexity.py",
-        "src/eedom/plugins/cpd.py",
-        "src/eedom/plugins/ls_lint.py",
-        "src/eedom/plugins/kube_linter.py",
-        "src/eedom/plugins/mypy.py",
-        "src/eedom/plugins/swiftlint.py",
-        "src/eedom/plugins/swiftformat.py",
-        "src/eedom/plugins/cspell.py",
-        "src/eedom/plugins/blast_radius.py"
+        "src/caliper/plugins/cdk_nag.py",
+        "src/caliper/plugins/complexity.py",
+        "src/caliper/plugins/cpd.py",
+        "src/caliper/plugins/ls_lint.py",
+        "src/caliper/plugins/kube_linter.py",
+        "src/caliper/plugins/mypy.py",
+        "src/caliper/plugins/swiftlint.py",
+        "src/caliper/plugins/swiftformat.py",
+        "src/caliper/plugins/cspell.py",
+        "src/caliper/plugins/blast_radius.py"
       ]
     },
     {
       "id": "P18",
       "title": "supply-chain",
       "files": [
-        "src/eedom/plugins/supply_chain.py",
-        "src/eedom/core/diff.py",
-        "src/eedom/core/sbom_diff.py",
-        "src/eedom/core/supply_chain_diff.py"
+        "src/caliper/plugins/supply_chain.py",
+        "src/caliper/core/diff.py",
+        "src/caliper/core/sbom_diff.py",
+        "src/caliper/core/supply_chain_diff.py"
       ]
     },
     {
       "id": "P19",
       "title": "data/cli",
       "files": [
-        "src/eedom/data/db.py",
-        "src/eedom/data/catalog.py",
-        "src/eedom/data/parquet_writer.py",
-        "src/eedom/cli/main.py",
-        "src/eedom/cli/inspect_cmds.py"
+        "src/caliper/data/db.py",
+        "src/caliper/data/catalog.py",
+        "src/caliper/data/parquet_writer.py",
+        "src/caliper/cli/main.py",
+        "src/caliper/cli/inspect_cmds.py"
       ]
     },
     {
       "id": "P20",
       "title": "composition/agent/webhook",
       "files": [
-        "src/eedom/webhook/config.py",
-        "src/eedom/webhook/server.py",
-        "src/eedom/agent/main.py",
-        "src/eedom/agent/tool_helpers.py"
+        "src/caliper/webhook/config.py",
+        "src/caliper/webhook/server.py",
+        "src/caliper/agent/main.py",
+        "src/caliper/agent/tool_helpers.py"
       ]
     }
   ]

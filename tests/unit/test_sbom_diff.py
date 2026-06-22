@@ -1,4 +1,4 @@
-"""Tests for eedom.core.sbom_diff.
+"""Tests for caliper.core.sbom_diff.
 
 # tested-by: tests/unit/test_sbom_diff.py
 
@@ -12,7 +12,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from eedom.core.sbom_diff import PackageInfo, diff_sboms, parse_sbom_packages
+from caliper.core.sbom_diff import PackageInfo, diff_sboms, parse_sbom_packages
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -404,7 +404,7 @@ class TestMakeChangeHelper:
 
     def test_make_change_added(self) -> None:
         """_make_change('added', None, new) produces correct structure."""
-        from eedom.core.sbom_diff import _make_change
+        from caliper.core.sbom_diff import _make_change
 
         new = PackageInfo(
             name="requests", version="2.31.0", ecosystem="pypi", purl="pkg:pypi/requests@2.31.0"
@@ -420,7 +420,7 @@ class TestMakeChangeHelper:
 
     def test_make_change_removed(self) -> None:
         """_make_change('removed', old, None) produces correct structure."""
-        from eedom.core.sbom_diff import _make_change
+        from caliper.core.sbom_diff import _make_change
 
         old = PackageInfo(
             name="flask", version="2.0.0", ecosystem="pypi", purl="pkg:pypi/flask@2.0.0"
@@ -436,7 +436,7 @@ class TestMakeChangeHelper:
 
     def test_make_change_upgraded(self) -> None:
         """_make_change('upgraded', old, new) uses new package info for name/ecosystem/purl."""
-        from eedom.core.sbom_diff import _make_change
+        from caliper.core.sbom_diff import _make_change
 
         old = PackageInfo(
             name="lodash", version="4.17.20", ecosystem="npm", purl="pkg:npm/lodash@4.17.20"
@@ -453,7 +453,7 @@ class TestMakeChangeHelper:
 
     def test_make_change_all_actions_have_identical_key_set(self) -> None:
         """All action types produce dicts with exactly the same set of keys."""
-        from eedom.core.sbom_diff import _make_change
+        from caliper.core.sbom_diff import _make_change
 
         pkg = PackageInfo(name="x", version="1.0.0", ecosystem="pypi", purl="pkg:pypi/x@1.0.0")
         required_keys = {"action", "package", "ecosystem", "old_version", "new_version", "purl"}
@@ -477,7 +477,7 @@ class TestClassifyVersionChangeFallback:
         actual ordering.
         After fix: lexicographic string comparison determines the direction.
         """
-        from eedom.core.sbom_diff import _classify_version_change
+        from caliper.core.sbom_diff import _classify_version_change
 
         # Lexicographically "z_ver" > "a_ver", so this is a downgrade
         result = _classify_version_change("z_ver", "a_ver")
@@ -488,7 +488,7 @@ class TestClassifyVersionChangeFallback:
 
     def test_fallback_returns_upgraded_when_new_greater(self) -> None:
         """String comparison fallback must classify upgrade correctly."""
-        from eedom.core.sbom_diff import _classify_version_change
+        from caliper.core.sbom_diff import _classify_version_change
 
         result = _classify_version_change("a_ver", "z_ver")
         assert result == "upgraded"
@@ -497,9 +497,9 @@ class TestClassifyVersionChangeFallback:
         """The fallback log message must mention string comparison so operators know."""
         from unittest.mock import patch
 
-        from eedom.core.sbom_diff import _classify_version_change
+        from caliper.core.sbom_diff import _classify_version_change
 
-        with patch("eedom.core.sbom_diff.logger") as mock_logger:
+        with patch("caliper.core.sbom_diff.logger") as mock_logger:
             _classify_version_change("not-semver-x", "not-semver-y")
 
             mock_logger.warning.assert_called_once()
@@ -513,7 +513,7 @@ class TestClassifyVersionChangeFallback:
 
     def test_valid_semver_uses_semver_comparison(self) -> None:
         """Valid semver versions must use semantic comparison, not string comparison."""
-        from eedom.core.sbom_diff import _classify_version_change
+        from caliper.core.sbom_diff import _classify_version_change
 
         # "10.0.0" > "9.0.0" semantically but "10" < "9" lexicographically
         result = _classify_version_change("9.0.0", "10.0.0")

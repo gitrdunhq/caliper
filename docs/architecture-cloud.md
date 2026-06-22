@@ -1,12 +1,12 @@
-# Eedom Cloud SaaS Architecture
+# Caliper Cloud SaaS Architecture
 
-Cloud deployment readiness assessment and migration plan for Eagle Eyed Dom.
+Cloud deployment readiness assessment and migration plan for Caliper.
 
 ## 1. Current State Assessment
 
 ### What Is Cloud-Ready Today
 
-**Stateless pipeline core.** `ReviewPipeline` (`src/eedom/core/pipeline.py`) is
+**Stateless pipeline core.** `ReviewPipeline` (`src/caliper/core/pipeline.py`) is
 stateless per call -- it accepts inputs, wires subsystems, returns
 `list[ReviewDecision]`. No in-memory state survives between invocations. This is
 the single most important property for cloud deployment: each pipeline invocation
@@ -19,7 +19,7 @@ This means a cloud worker that loses its backing store mid-scan will not produce
 a false-positive build failure -- it will degrade to manual review.
 
 **Timeout budget already defined.** All timeout values are centralized in
-`EedomSettings` (`src/eedom/core/config.py:65-71`): scanner=60s, combined=180s,
+`CaliperSettings` (`src/caliper/core/config.py:65-71`): scanner=60s, combined=180s,
 OPA=10s, pipeline=300s. These translate directly to Lambda/Cloud Run timeout
 configuration without guesswork.
 
@@ -34,43 +34,43 @@ compatible with GitHub's Security tab. A cloud service can upload SARIF via the
 GitHub Code Scanning API without custom formatting.
 
 **Database fallback pattern.** The `NullRepository` pattern
-(`src/eedom/data/db.py:412`) means the pipeline can run without a database. This
+(`src/caliper/data/db.py:412`) means the pipeline can run without a database. This
 is useful during the migration: cloud workers can start with no DB and add
 persistence incrementally.
 
 **Pydantic-typed boundaries everywhere.** Every data exchange uses typed Pydantic
-models (`src/eedom/core/models.py`). These serialize to JSON natively, which
+models (`src/caliper/core/models.py`). These serialize to JSON natively, which
 means queue messages, API responses, and webhook payloads all have
 machine-validated schemas from day one.
 
 ### What Is NOT Cloud-Ready
 
-**Local filesystem evidence.** `EvidenceStore` (`src/eedom/data/evidence.py`)
+**Local filesystem evidence.** `EvidenceStore` (`src/caliper/data/evidence.py`)
 writes to local disk via `os.rename`. The `root_path` is a local directory
 (default `./evidence`). Cloud workers are ephemeral -- local disk is lost on
 termination.
 
 **Local Parquet audit log.** `append_decisions()`
-(`src/eedom/data/parquet_writer.py`) reads the full existing Parquet file, appends
+(`src/caliper/data/parquet_writer.py`) reads the full existing Parquet file, appends
 rows, and overwrites. This is fundamentally incompatible with concurrent cloud
 workers -- two workers appending simultaneously will produce data loss.
 
 **Seal chain assumes local directory scan.** `find_previous_seal_hash()`
-(`src/eedom/core/seal.py`) walks the local filesystem to find prior `seal.json`
+(`src/caliper/core/seal.py`) walks the local filesystem to find prior `seal.json`
 files. This requires all evidence to be on the same filesystem.
 
 **Self-hosted runner assumption.** Both GitHub Actions workflows
-(`.github/workflows/gatekeeper.yml`, `build-container.yml`) use
-`runs-on: self-hosted`. The gatekeeper workflow expects the container image to be
-locally available (`podman image exists eedom:latest`).
+(`.github/workflows/foreman.yml`, `build-container.yml`) use
+`runs-on: self-hosted`. The foreman workflow expects the container image to be
+locally available (`podman image exists caliper:latest`).
 
-**Direct GitHub API calls.** The GATEKEEPER agent (`src/eedom/agent/main.py`)
+**Direct GitHub API calls.** The Foreman agent (`src/caliper/agent/main.py`)
 posts comments and sets commit statuses using raw `httpx` calls with a
 `GITHUB_TOKEN`. A cloud service needs GitHub App authentication (installation
 tokens, JWT signing) instead of PATs.
 
 **Single-process scanner parallelism.** `ScanOrchestrator`
-(`src/eedom/core/orchestrator.py`) uses `ThreadPoolExecutor` within a single
+(`src/caliper/core/orchestrator.py`) uses `ThreadPoolExecutor` within a single
 process. For cloud-scale scanning, scanner execution should be distributable
 across separate containers.
 
@@ -80,10 +80,10 @@ Scanner plugins shell out to binaries (Syft, Trivy, Semgrep) that have full
 filesystem access within the container.
 
 **No usage metering.** No scan-count tracking, no per-org billing signals, no
-rate limiting. `EedomSettings` has no fields for tenant context.
+rate limiting. `CaliperSettings` has no fields for tenant context.
 
-**Hardcoded PostgreSQL.** `DecisionRepository` (`src/eedom/data/db.py`) uses
-`psycopg3` directly. The catalog (`src/eedom/data/catalog.py`) requires
+**Hardcoded PostgreSQL.** `DecisionRepository` (`src/caliper/data/db.py`) uses
+`psycopg3` directly. The catalog (`src/caliper/data/catalog.py`) requires
 pgvector. There is no storage abstraction layer.
 
 
@@ -155,7 +155,7 @@ types instead of 1) with no proportional benefit. The current
 
 **One container image. One scan job. One result.**
 
-The scan worker IS the current `eedom:latest` container with a thin HTTP/queue
+The scan worker IS the current `caliper:latest` container with a thin HTTP/queue
 adapter replacing the CLI entry point.
 
 ### What Becomes a Separate Service
@@ -172,13 +172,13 @@ adapter replacing the CLI entry point.
 
 | Module | Location | Purpose |
 |--------|----------|---------|
-| `src/eedom/cloud/webhook.py` | New | GitHub App webhook validation, event parsing |
-| `src/eedom/cloud/worker.py` | New | Queue consumer, invokes `ReviewPipeline` |
-| `src/eedom/cloud/github_app.py` | New | GitHub App JWT signing, installation token management |
-| `src/eedom/cloud/tenant.py` | New | Tenant context, org settings, rate limiting |
-| `src/eedom/cloud/metering.py` | New | Usage event emission (scans, findings, duration) |
-| `src/eedom/data/object_store.py` | New | S3/GCS/R2 abstraction for evidence storage |
-| `src/eedom/api/` | New | REST API presentation tier (FastAPI) |
+| `src/caliper/cloud/webhook.py` | New | GitHub App webhook validation, event parsing |
+| `src/caliper/cloud/worker.py` | New | Queue consumer, invokes `ReviewPipeline` |
+| `src/caliper/cloud/github_app.py` | New | GitHub App JWT signing, installation token management |
+| `src/caliper/cloud/tenant.py` | New | Tenant context, org settings, rate limiting |
+| `src/caliper/cloud/metering.py` | New | Usage event emission (scans, findings, duration) |
+| `src/caliper/data/object_store.py` | New | S3/GCS/R2 abstraction for evidence storage |
+| `src/caliper/api/` | New | REST API presentation tier (FastAPI) |
 
 
 ## 4. Data Architecture
@@ -190,7 +190,7 @@ adapter replacing the CLI entry point.
 **Cloud:** Replace with an object storage adapter behind the same interface.
 
 ```
-Bucket: eedom-evidence-{region}
+Bucket: caliper-evidence-{region}
 Prefix: {tenant_id}/{run_id}/{artifact_name}
 
 Examples:
@@ -199,13 +199,13 @@ Examples:
   org-acme/abc123def012-202604241530/seal.json
 ```
 
-**Implementation:** Create `src/eedom/data/object_store.py` implementing the same
+**Implementation:** Create `src/caliper/data/object_store.py` implementing the same
 `store()` / `store_file()` / `get_path()` / `list_artifacts()` interface as
 `EvidenceStore`. The pipeline receives an `EvidenceStoreProtocol` (new protocol
-in `src/eedom/data/evidence.py`) and works identically with either backend.
+in `src/caliper/data/evidence.py`) and works identically with either backend.
 
 ```python
-# src/eedom/data/evidence.py — add protocol
+# src/caliper/data/evidence.py — add protocol
 class EvidenceStoreProtocol(Protocol):
     def store(self, key: str, artifact_name: str, content: bytes | str) -> str: ...
     def store_file(self, key: str, artifact_name: str, source_path: Path) -> str: ...
@@ -214,7 +214,7 @@ class EvidenceStoreProtocol(Protocol):
 ```
 
 ```python
-# src/eedom/data/object_store.py — new module
+# src/caliper/data/object_store.py — new module
 class S3EvidenceStore:
     """Evidence storage backed by S3-compatible object storage."""
     def __init__(self, bucket: str, prefix: str, client: S3Client) -> None: ...
@@ -228,7 +228,7 @@ class S3EvidenceStore:
 **Cloud:** Write one Parquet file per run, partitioned by tenant and date:
 
 ```
-s3://eedom-audit-{region}/
+s3://caliper-audit-{region}/
   tenant_id=org-acme/
     year=2026/
       month=04/
@@ -238,14 +238,14 @@ s3://eedom-audit-{region}/
 
 Query with Athena/DuckDB:
 ```sql
-SELECT * FROM eedom_audit
+SELECT * FROM caliper_audit
 WHERE tenant_id = 'org-acme'
   AND year = 2026 AND month = 4
   AND decision = 'reject'
 ORDER BY timestamp DESC
 ```
 
-**Implementation change in `src/eedom/data/parquet_writer.py`:**
+**Implementation change in `src/caliper/data/parquet_writer.py`:**
 - `append_decisions()` writes a new Parquet file per run (no read-modify-write)
 - File goes to object storage via `S3EvidenceStore`
 - The read-modify-write append pattern is removed entirely
@@ -334,9 +334,9 @@ CREATE INDEX idx_scan_events_billing ON scan_events (tenant_id, created_at)
 
 ```
 Developer opens PR
-  -> GitHub Actions triggers gatekeeper.yml
+  -> GitHub Actions triggers foreman.yml
   -> Self-hosted runner pulls code
-  -> Runner executes eedom CLI
+  -> Runner executes caliper CLI
   -> Runner posts PR comment via GITHUB_TOKEN
 ```
 
@@ -344,7 +344,7 @@ Developer opens PR
 
 ```
 Developer opens PR
-  -> GitHub sends webhook to eedom cloud
+  -> GitHub sends webhook to caliper cloud
   -> Webhook handler validates signature
   -> Handler enqueues scan job with PR metadata
   -> Worker clones repo at PR HEAD (shallow, read-only)
@@ -353,7 +353,7 @@ Developer opens PR
   -> Worker uploads SARIF via Code Scanning API
 ```
 
-### New Module: `src/eedom/cloud/github_app.py`
+### New Module: `src/caliper/cloud/github_app.py`
 
 ```python
 class GitHubAppAuth:
@@ -378,7 +378,7 @@ class GitHubAppAuth:
     ) -> None: ...
 ```
 
-### Webhook Handler: `src/eedom/cloud/webhook.py`
+### Webhook Handler: `src/caliper/cloud/webhook.py`
 
 ```python
 async def handle_webhook(request: Request) -> Response:
@@ -394,17 +394,17 @@ async def handle_webhook(request: Request) -> Response:
 
 ### Changes to Existing Files
 
-**`src/eedom/agent/main.py`**: The `GatekeeperAgent` class currently uses raw
+**`src/caliper/agent/main.py`**: The `ForemanAgent` class currently uses raw
 `httpx` calls with a `GITHUB_TOKEN`. Replace `_github_headers()`,
 `_post_comment()`, and `_set_check_status()` to accept a `GitHubAppAuth`
 instance. The agent's `run()` method signature gains an `installation_id`
 parameter.
 
-**`src/eedom/agent/config.py`**: `AgentSettings.github_token` becomes optional.
+**`src/caliper/agent/config.py`**: `AgentSettings.github_token` becomes optional.
 Add `github_app_id`, `github_app_private_key`, and `github_installation_id`
-fields with the `GATEKEEPER_` prefix.
+fields with the `FOREMAN_` prefix.
 
-**`.github/workflows/gatekeeper.yml`**: In the cloud model, this workflow is no
+**`.github/workflows/foreman.yml`**: In the cloud model, this workflow is no
 longer needed for cloud tenants. It remains available for self-hosted/hybrid
 deployments where customers run their own runners.
 
@@ -413,10 +413,10 @@ deployments where customers run their own runners.
 
 ### Threat Model
 
-Eedom scans customer source code. A malicious repository could contain:
+Caliper scans customer source code. A malicious repository could contain:
 - Files designed to exploit scanner binaries (crafted JSON, deep nesting)
 - Symlinks escaping the workspace
-- `.eagle-eyed-dom.yaml` with adversarial plugin config
+- `.caliper.yaml` with adversarial plugin config
 
 ### Isolation Architecture
 
@@ -437,12 +437,12 @@ scan step runs without it.
 [Clone Container]  --network=host-->  git clone --depth 1
         |
         v  (read-only volume)
-[Scan Container]   --network=none-->  eedom review --repo-path /workspace
+[Scan Container]   --network=none-->  caliper review --repo-path /workspace
 ```
 
 **OPA policy sandboxing.** OPA evaluates customer-defined policies in a sandboxed
 subprocess with `--timeout`. The existing 10-second timeout
-(`EedomSettings.opa_timeout`) prevents denial-of-service via expensive Rego
+(`CaliperSettings.opa_timeout`) prevents denial-of-service via expensive Rego
 queries.
 
 **No tenant data cross-contamination.** Each container processes exactly one
@@ -546,9 +546,9 @@ Some customers require evidence artifacts to stay in a specific region (GDPR,
 SOC2). Object storage buckets are region-scoped:
 
 ```
-eedom-evidence-us-east-1    (US tenants)
-eedom-evidence-eu-west-1    (EU tenants)
-eedom-evidence-ap-southeast-1  (APAC tenants)
+caliper-evidence-us-east-1    (US tenants)
+caliper-evidence-eu-west-1    (EU tenants)
+caliper-evidence-ap-southeast-1  (APAC tenants)
 ```
 
 The `tenants` table stores `evidence_region`. The scan worker uses this to select
@@ -600,7 +600,7 @@ The pipeline already produces everything needed for usage tracking:
 Add a metering event emitter to the scan worker:
 
 ```python
-# src/eedom/cloud/metering.py
+# src/caliper/cloud/metering.py
 @dataclass
 class ScanEvent:
     tenant_id: str
@@ -635,7 +635,7 @@ enqueuing). Over-quota scans return a PR comment explaining the limit.
 
 ## 10. API Surface
 
-### REST API for Cloud Eedom
+### REST API for Cloud Caliper
 
 The cloud service needs a REST API for:
 1. Dashboard data (scan history, findings, trends)
@@ -669,10 +669,10 @@ GET    /api/v1/billing/usage             # Current billing period usage
 
 #### Implementation
 
-New presentation tier at `src/eedom/api/` using FastAPI:
+New presentation tier at `src/caliper/api/` using FastAPI:
 
 ```
-src/eedom/api/
+src/caliper/api/
   __init__.py
   app.py           # FastAPI app factory
   routes/
@@ -733,14 +733,14 @@ external behavior. All existing tests continue to pass.
 
 | Change | File | Description |
 |--------|------|-------------|
-| Add `EvidenceStoreProtocol` | `src/eedom/data/evidence.py` | Protocol with `store()`, `store_file()`, `get_path()`, `list_artifacts()` |
-| Create `S3EvidenceStore` | `src/eedom/data/object_store.py` | S3-compatible implementation of `EvidenceStoreProtocol` |
-| Add `evidence_backend` config | `src/eedom/core/config.py` | New field: `evidence_backend: str = "local"` with values `local`, `s3` |
-| Add `evidence_bucket` config | `src/eedom/core/config.py` | New field: `evidence_bucket: str = ""` |
-| Factory for evidence store | `src/eedom/core/pipeline.py` | Construct `EvidenceStore` or `S3EvidenceStore` based on config |
-| Rewrite Parquet writer | `src/eedom/data/parquet_writer.py` | Write per-run Parquet files instead of read-modify-write |
+| Add `EvidenceStoreProtocol` | `src/caliper/data/evidence.py` | Protocol with `store()`, `store_file()`, `get_path()`, `list_artifacts()` |
+| Create `S3EvidenceStore` | `src/caliper/data/object_store.py` | S3-compatible implementation of `EvidenceStoreProtocol` |
+| Add `evidence_backend` config | `src/caliper/core/config.py` | New field: `evidence_backend: str = "local"` with values `local`, `s3` |
+| Add `evidence_bucket` config | `src/caliper/core/config.py` | New field: `evidence_bucket: str = ""` |
+| Factory for evidence store | `src/caliper/core/pipeline.py` | Construct `EvidenceStore` or `S3EvidenceStore` based on config |
+| Rewrite Parquet writer | `src/caliper/data/parquet_writer.py` | Write per-run Parquet files instead of read-modify-write |
 | Add seal index table | `migrations/003_cloud.sql` | `seal_index` table for seal chain lookup |
-| Update `find_previous_seal_hash` | `src/eedom/core/seal.py` | Accept a `SealIndexProtocol` for DB-backed lookup |
+| Update `find_previous_seal_hash` | `src/caliper/core/seal.py` | Accept a `SealIndexProtocol` for DB-backed lookup |
 
 ### Phase 2: GitHub App + Webhook Handler (2-3 weeks)
 
@@ -749,12 +749,12 @@ runner.
 
 | Change | File | Description |
 |--------|------|-------------|
-| GitHub App auth module | `src/eedom/cloud/github_app.py` | JWT signing, installation token exchange |
-| Webhook handler | `src/eedom/cloud/webhook.py` | Validate, parse, enqueue |
-| Queue consumer | `src/eedom/cloud/worker.py` | Dequeue, clone, scan, post results |
-| Tenant model | `src/eedom/cloud/tenant.py` | Tenant lookup by installation_id |
-| Cloud config | `src/eedom/cloud/config.py` | `CloudSettings` with `EEDOM_CLOUD_` prefix |
-| Update agent for App auth | `src/eedom/agent/main.py` | Accept `GitHubAppAuth` instead of raw token |
+| GitHub App auth module | `src/caliper/cloud/github_app.py` | JWT signing, installation token exchange |
+| Webhook handler | `src/caliper/cloud/webhook.py` | Validate, parse, enqueue |
+| Queue consumer | `src/caliper/cloud/worker.py` | Dequeue, clone, scan, post results |
+| Tenant model | `src/caliper/cloud/tenant.py` | Tenant lookup by installation_id |
+| Cloud config | `src/caliper/cloud/config.py` | `CloudSettings` with `CALIPER_CLOUD_` prefix |
+| Update agent for App auth | `src/caliper/agent/main.py` | Accept `GitHubAppAuth` instead of raw token |
 | Migration 003 | `migrations/003_cloud.sql` | `tenants`, `scan_events`, `seal_index` tables |
 
 ### Phase 3: Multi-Tenancy + API (3-4 weeks)
@@ -766,12 +766,12 @@ isolation and a REST API.
 |--------|------|-------------|
 | Add `tenant_id` columns | `migrations/004_multi_tenant.sql` | All existing tables get `tenant_id` |
 | Row-level security policies | `migrations/004_multi_tenant.sql` | RLS on all tables |
-| Tenant context middleware | `src/eedom/api/middleware/tenant.py` | Extract tenant from JWT, set `app.tenant_id` |
-| REST API routes | `src/eedom/api/routes/*.py` | All endpoints from Section 10 |
-| FastAPI app factory | `src/eedom/api/app.py` | Wire routes, middleware, deps |
-| Rate limiting | `src/eedom/api/middleware/rate_limit.py` | Per-tenant rate limits |
-| Update `DecisionRepository` | `src/eedom/data/db.py` | All queries include `tenant_id` filter |
-| Update `PackageCatalog` | `src/eedom/data/catalog.py` | All queries include `tenant_id` filter |
+| Tenant context middleware | `src/caliper/api/middleware/tenant.py` | Extract tenant from JWT, set `app.tenant_id` |
+| REST API routes | `src/caliper/api/routes/*.py` | All endpoints from Section 10 |
+| FastAPI app factory | `src/caliper/api/app.py` | Wire routes, middleware, deps |
+| Rate limiting | `src/caliper/api/middleware/rate_limit.py` | Per-tenant rate limits |
+| Update `DecisionRepository` | `src/caliper/data/db.py` | All queries include `tenant_id` filter |
+| Update `PackageCatalog` | `src/caliper/data/catalog.py` | All queries include `tenant_id` filter |
 
 ### Phase 4: Metering + Billing (2 weeks)
 
@@ -779,9 +779,9 @@ isolation and a REST API.
 
 | Change | File | Description |
 |--------|------|-------------|
-| Metering emitter | `src/eedom/cloud/metering.py` | Emit scan events to Kinesis/Pub/Sub |
-| Quota enforcement | `src/eedom/cloud/webhook.py` | Check `scans_used_this_month < scan_quota_monthly` |
-| Billing API routes | `src/eedom/api/routes/billing.py` | Usage summary endpoint |
+| Metering emitter | `src/caliper/cloud/metering.py` | Emit scan events to Kinesis/Pub/Sub |
+| Quota enforcement | `src/caliper/cloud/webhook.py` | Check `scans_used_this_month < scan_quota_monthly` |
+| Billing API routes | `src/caliper/api/routes/billing.py` | Usage summary endpoint |
 | Billing aggregation Lambda | `infra/lambda/billing_aggregator.py` | Consume metering stream, update tenant counts |
 
 ### Phase 5: Dashboard UI (3-4 weeks)
@@ -798,10 +798,10 @@ Vercel.
 
 | Change | File | Description |
 |--------|------|-------------|
-| Region-aware evidence routing | `src/eedom/cloud/worker.py` | Select bucket by tenant's `evidence_region` |
+| Region-aware evidence routing | `src/caliper/cloud/worker.py` | Select bucket by tenant's `evidence_region` |
 | DB read replicas | Infrastructure | Read replica per region for dashboard queries |
 | Regional scan workers | Infrastructure | Cloud Run/ECS in eu-west-1 and ap-southeast-1 |
-| Tenant region config | `src/eedom/cloud/tenant.py` | `evidence_region` field on tenant |
+| Tenant region config | `src/caliper/cloud/tenant.py` | `evidence_region` field on tenant |
 
 
 ## 13. Infrastructure as Code
@@ -851,42 +851,42 @@ infra/
 
 | File | Change Type | What Changes |
 |------|------------|--------------|
-| `src/eedom/core/config.py` | Modify | Add `evidence_backend`, `evidence_bucket`, `evidence_region` fields |
-| `src/eedom/core/pipeline.py` | Modify | Accept `EvidenceStoreProtocol` via DI instead of constructing `EvidenceStore` directly |
-| `src/eedom/core/seal.py` | Modify | Accept `SealIndexProtocol` for DB-backed previous seal lookup |
-| `src/eedom/data/evidence.py` | Modify | Extract `EvidenceStoreProtocol`; existing class implements it |
-| `src/eedom/data/parquet_writer.py` | Modify | Write per-run files; accept storage backend parameter |
-| `src/eedom/data/db.py` | Modify | Add `tenant_id` to all queries; accept tenant context |
-| `src/eedom/data/catalog.py` | Modify | Add `tenant_id` to all queries |
-| `src/eedom/agent/main.py` | Modify | Support `GitHubAppAuth` alongside raw token |
-| `src/eedom/agent/config.py` | Modify | Add GitHub App config fields |
-| `.github/workflows/gatekeeper.yml` | Keep | Remains for self-hosted/hybrid deployments |
+| `src/caliper/core/config.py` | Modify | Add `evidence_backend`, `evidence_bucket`, `evidence_region` fields |
+| `src/caliper/core/pipeline.py` | Modify | Accept `EvidenceStoreProtocol` via DI instead of constructing `EvidenceStore` directly |
+| `src/caliper/core/seal.py` | Modify | Accept `SealIndexProtocol` for DB-backed previous seal lookup |
+| `src/caliper/data/evidence.py` | Modify | Extract `EvidenceStoreProtocol`; existing class implements it |
+| `src/caliper/data/parquet_writer.py` | Modify | Write per-run files; accept storage backend parameter |
+| `src/caliper/data/db.py` | Modify | Add `tenant_id` to all queries; accept tenant context |
+| `src/caliper/data/catalog.py` | Modify | Add `tenant_id` to all queries |
+| `src/caliper/agent/main.py` | Modify | Support `GitHubAppAuth` alongside raw token |
+| `src/caliper/agent/config.py` | Modify | Add GitHub App config fields |
+| `.github/workflows/foreman.yml` | Keep | Remains for self-hosted/hybrid deployments |
 | `Dockerfile` | Keep | Scan worker image; add `CMD` override for queue consumer mode |
 
 ### New Files
 
 | File | Purpose |
 |------|---------|
-| `src/eedom/cloud/__init__.py` | Cloud module package |
-| `src/eedom/cloud/config.py` | `CloudSettings` with `EEDOM_CLOUD_` prefix |
-| `src/eedom/cloud/github_app.py` | GitHub App JWT auth + installation tokens |
-| `src/eedom/cloud/webhook.py` | Webhook validation, parsing, job enqueue |
-| `src/eedom/cloud/worker.py` | Queue consumer, scan orchestration |
-| `src/eedom/cloud/tenant.py` | Tenant model, lookup, quota check |
-| `src/eedom/cloud/metering.py` | Usage event emission |
-| `src/eedom/data/object_store.py` | S3/GCS evidence store implementation |
-| `src/eedom/api/__init__.py` | API module package |
-| `src/eedom/api/app.py` | FastAPI application factory |
-| `src/eedom/api/deps.py` | Dependency injection |
-| `src/eedom/api/routes/webhooks.py` | Webhook endpoint |
-| `src/eedom/api/routes/scans.py` | Scan history endpoints |
-| `src/eedom/api/routes/packages.py` | Package catalog endpoints |
-| `src/eedom/api/routes/stats.py` | Dashboard stats endpoints |
-| `src/eedom/api/routes/settings.py` | Org settings endpoints |
-| `src/eedom/api/routes/auth.py` | GitHub App installation flow |
-| `src/eedom/api/routes/billing.py` | Usage and billing endpoints |
-| `src/eedom/api/middleware/tenant.py` | Tenant context extraction |
-| `src/eedom/api/middleware/rate_limit.py` | Per-tenant rate limiting |
+| `src/caliper/cloud/__init__.py` | Cloud module package |
+| `src/caliper/cloud/config.py` | `CloudSettings` with `CALIPER_CLOUD_` prefix |
+| `src/caliper/cloud/github_app.py` | GitHub App JWT auth + installation tokens |
+| `src/caliper/cloud/webhook.py` | Webhook validation, parsing, job enqueue |
+| `src/caliper/cloud/worker.py` | Queue consumer, scan orchestration |
+| `src/caliper/cloud/tenant.py` | Tenant model, lookup, quota check |
+| `src/caliper/cloud/metering.py` | Usage event emission |
+| `src/caliper/data/object_store.py` | S3/GCS evidence store implementation |
+| `src/caliper/api/__init__.py` | API module package |
+| `src/caliper/api/app.py` | FastAPI application factory |
+| `src/caliper/api/deps.py` | Dependency injection |
+| `src/caliper/api/routes/webhooks.py` | Webhook endpoint |
+| `src/caliper/api/routes/scans.py` | Scan history endpoints |
+| `src/caliper/api/routes/packages.py` | Package catalog endpoints |
+| `src/caliper/api/routes/stats.py` | Dashboard stats endpoints |
+| `src/caliper/api/routes/settings.py` | Org settings endpoints |
+| `src/caliper/api/routes/auth.py` | GitHub App installation flow |
+| `src/caliper/api/routes/billing.py` | Usage and billing endpoints |
+| `src/caliper/api/middleware/tenant.py` | Tenant context extraction |
+| `src/caliper/api/middleware/rate_limit.py` | Per-tenant rate limiting |
 | `migrations/003_cloud.sql` | Cloud tables: tenants, scan_events, seal_index |
 | `migrations/004_multi_tenant.sql` | Add tenant_id + RLS to all existing tables |
 
@@ -895,26 +895,26 @@ infra/
 
 The following modules are cloud-ready as-is and require zero modifications:
 
-- `src/eedom/core/models.py` -- all domain models
-- `src/eedom/core/orchestrator.py` -- scanner parallelism
-- `src/eedom/core/normalizer.py` -- finding dedup
-- `src/eedom/core/policy.py` -- OPA evaluation
-- `src/eedom/core/decision.py` -- decision assembly
-- `src/eedom/core/memo.py` -- memo generation
-- `src/eedom/core/diff.py` -- diff parsing
-- `src/eedom/core/sbom_diff.py` -- SBOM diffing
-- `src/eedom/core/plugin.py` -- plugin ABC
-- `src/eedom/core/registry.py` -- plugin registry
-- `src/eedom/core/renderer.py` -- comment rendering
-- `src/eedom/core/sarif.py` -- SARIF generation
-- `src/eedom/core/repo_config.py` -- repo config loading
-- `src/eedom/core/taskfit.py` -- LLM advisory
-- `src/eedom/plugins/*` -- all 19 plugins
-- `src/eedom/data/scanners/*` -- all scanner implementations
-- `src/eedom/data/pypi.py` -- PyPI client
-- `src/eedom/cli/` -- CLI entry point (self-hosted mode)
+- `src/caliper/core/models.py` -- all domain models
+- `src/caliper/core/orchestrator.py` -- scanner parallelism
+- `src/caliper/core/normalizer.py` -- finding dedup
+- `src/caliper/core/policy.py` -- OPA evaluation
+- `src/caliper/core/decision.py` -- decision assembly
+- `src/caliper/core/memo.py` -- memo generation
+- `src/caliper/core/diff.py` -- diff parsing
+- `src/caliper/core/sbom_diff.py` -- SBOM diffing
+- `src/caliper/core/plugin.py` -- plugin ABC
+- `src/caliper/core/registry.py` -- plugin registry
+- `src/caliper/core/renderer.py` -- comment rendering
+- `src/caliper/core/sarif.py` -- SARIF generation
+- `src/caliper/core/repo_config.py` -- repo config loading
+- `src/caliper/core/taskfit.py` -- LLM advisory
+- `src/caliper/plugins/*` -- all 19 plugins
+- `src/caliper/data/scanners/*` -- all scanner implementations
+- `src/caliper/data/pypi.py` -- PyPI client
+- `src/caliper/cli/` -- CLI entry point (self-hosted mode)
 - `policies/` -- OPA Rego policies
-- `src/eedom/templates/` -- Jinja2 templates
+- `src/caliper/templates/` -- Jinja2 templates
 
 This is 80%+ of the codebase. The core logic, plugins, scanners, policy engine,
 and rendering pipeline all work unchanged in the cloud. The migration is

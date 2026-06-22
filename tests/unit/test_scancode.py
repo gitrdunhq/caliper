@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from eedom.plugins.scancode import ScanCodePlugin
+from caliper.plugins.scancode import ScanCodePlugin
 
 
 class TestScanCodePluginDisabled:

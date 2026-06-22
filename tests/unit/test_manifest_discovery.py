@@ -1,4 +1,4 @@
-"""Tests for eedom.core.manifest_discovery — PackageUnit + discover_packages().
+"""Tests for caliper.core.manifest_discovery — PackageUnit + discover_packages().
 
 TDD red-green: every test was written before the implementation.
 """
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from eedom.core.manifest_discovery import PackageUnit, discover_packages
+from caliper.core.manifest_discovery import PackageUnit, discover_packages
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -318,7 +318,7 @@ class TestDeeplyNestedManifest:
 class TestSkipDirectories:
     @pytest.mark.parametrize(
         "skip_dir",
-        ["vendor", "__pycache__", ".venv", ".claude", ".eedom", ".dogfood"],
+        ["vendor", "__pycache__", ".venv", ".claude", ".caliper", ".dogfood"],
     )
     def test_known_skip_dirs_are_excluded(self, tmp_path: Path, skip_dir: str) -> None:
         """Known skip directories are never traversed."""
@@ -423,7 +423,7 @@ class TestMalformedEcosystem:
 
         _write(tmp_path / "package.json", '{"name": "test"}')
         malformed_map = {"package.json": ""}
-        with patch("eedom.core.manifest_discovery.MANIFEST_MAP", malformed_map):
+        with patch("caliper.core.manifest_discovery.MANIFEST_MAP", malformed_map):
             units = discover_packages(tmp_path)
         assert len(units) == 0
 
@@ -433,7 +433,7 @@ class TestMalformedEcosystem:
 
         _write(tmp_path / "package.json", '{"name": "test"}')
         malformed_map = {"package.json": "npm/malicious"}
-        with patch("eedom.core.manifest_discovery.MANIFEST_MAP", malformed_map):
+        with patch("caliper.core.manifest_discovery.MANIFEST_MAP", malformed_map):
             units = discover_packages(tmp_path)
         assert len(units) == 0
 

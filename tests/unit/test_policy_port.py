@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.core.plugin import PluginFinding
+from caliper.core.plugin import PluginFinding
 
-# These imports will raise ImportError until src/eedom/core/policy_port.py exists.
-from eedom.core.policy_port import PolicyDecision, PolicyEnginePort, PolicyInput
+# These imports will raise ImportError until src/caliper/core/policy_port.py exists.
+from caliper.core.policy_port import PolicyDecision, PolicyEnginePort, PolicyInput
 
 # ---------------------------------------------------------------------------
 # PolicyInput construction

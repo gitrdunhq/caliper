@@ -4,8 +4,8 @@
 
 from __future__ import annotations
 
-from eedom.core.plugin import PluginResult
-from eedom.core.renderer import _build_sections
+from caliper.core.plugin import PluginResult
+from caliper.core.renderer import _build_sections
 
 _SECURITY_CATEGORIES = {"dependency", "supply_chain", "infra"}
 _QUALITY_CATEGORIES = {"quality", "code"}

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from eedom.core.repo_config import RepoConfig
+from caliper.core.repo_config import RepoConfig
 
 
 class TestFanOutThresholdConfig:
@@ -25,7 +25,7 @@ class TestFanOutQueryParameterization:
         checks_path = (
             Path(__file__).parent.parent.parent
             / "src"
-            / "eedom"
+            / "caliper"
             / "plugins"
             / "_runners"
             / "checks.yaml"
