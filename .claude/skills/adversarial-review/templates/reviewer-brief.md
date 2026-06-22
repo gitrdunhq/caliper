@@ -24,9 +24,15 @@ Before you flag a "raw string that should be an enum", a "missing timeout", a "f
 unvalidated value", or a "wrong type", check the bundle: a value that is typed,
 injected from config, or constrained by a contract below is NOT a defect.
 
-Before you emit ANY finding, try to REFUTE it first. Fill in `guard_checked` and
-`why_not_intended` honestly; if you cannot, drop the finding — it is probably a false
-positive. For any "missing X" claim you MUST cite a second location proving X is absent
+DON'T-FLAG LEDGER (patterns that look like bugs but usually aren't — a finding matching
+one of these is a likely false positive unless you specifically rule the pattern out):
+{{LEDGER}}
+The ledger is two parts: a universal prior (`templates/ledger-universal.md`, applies to
+any model/repo) plus the project's auto-grown section. Always inject both.
+
+Before you emit ANY finding, try to REFUTE it first — against the grounding bundle AND
+the ledger. Fill in `guard_checked` and `why_not_intended` honestly; if you cannot, drop
+the finding. For any "missing X" claim you MUST cite a second location proving X is absent
 (you looked there and it is not there), not just the line where you expected it.
 
 REVIEW THESE FILES (read each fully):
