@@ -321,6 +321,11 @@ class ReviewPipeline:
         if not requests:
             return []
 
+        # Stamp the resolved commit SHA on each request so audit/parquet records it.
+        # evaluate() does this; evaluate_sbom() left it None (P01-1).
+        for req in requests:
+            req.commit_sha = commit_sha
+
         context = self._require_context()
         orchestrator = ScanOrchestrator(
             scanners=get_scanners(context),
