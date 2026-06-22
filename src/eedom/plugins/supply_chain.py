@@ -292,16 +292,18 @@ class SupplyChainPlugin(ScannerPlugin):
             for lock_dir in lock_dirs:
                 dir_files = changed_dirs.get(lock_dir, set())
                 manifest_changed = any(m in dir_files for m in manifests)
-            if not manifest_changed:
-                findings.append(
-                    {
-                        "type": "lockfile",
-                        "lockfile": lock,
-                        "severity": "high",
-                        "sha256": _sha256(Path(lock_dir) / lock),
-                        "message": (f"`{lock}` changed but {'/'.join(manifests)} did NOT"),
-                    }
-                )
+                # Per-directory check: this must stay INSIDE the loop, else only the
+                # last lock_dir is evaluated and monorepo findings are silently lost.
+                if not manifest_changed:
+                    findings.append(
+                        {
+                            "type": "lockfile",
+                            "lockfile": lock,
+                            "severity": "high",
+                            "sha256": _sha256(Path(lock_dir) / lock),
+                            "message": (f"`{lock}` changed but {'/'.join(manifests)} did NOT"),
+                        }
+                    )
 
         for manifest in [
             "package.json",

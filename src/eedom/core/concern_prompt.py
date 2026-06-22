@@ -61,7 +61,8 @@ def post_with_retry(
             if is_anthropic:
                 return data["content"][0]["text"]
             return data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError) as exc:
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            # ValueError covers json.JSONDecodeError from resp.json() on a malformed body.
             logger.warning("concern_review.parse_error", error=str(exc))
             return ""
 
