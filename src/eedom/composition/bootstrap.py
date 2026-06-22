@@ -29,11 +29,13 @@ from eedom.core.context import ApplicationContext
 from eedom.core.ports import (
     AuditSinkPort,
     DecisionStorePort,
+    GroundingProviderPort,
     PullRequestPublisherPort,
 )
 from eedom.core.registries import (
     DECISION_STORES,
     EVIDENCE_STORES,
+    GROUNDING_PROVIDERS,
     PACKAGE_INDEXES,
     POLICY_ENGINES,
     PUBLISHERS,
@@ -54,6 +56,9 @@ __all__ = [
     "build_decision_repository",
     "build_decision_store",
     "build_evidence_writer",
+    "build_default_codegraph_factory",
+    "build_grounding_provider",
+    "run_grounding",
     "build_package_index",
     "build_package_metadata",
     "build_publisher",
@@ -287,6 +292,142 @@ def run_supply_chain_scan(diff_text: str, settings: EedomSettings, *, sources=No
     return run_supply_chain_diff(diff_text, settings, sources=sources)
 
 
+def build_default_codegraph_factory():
+    """Return a ``(root) -> built+indexed CodeGraph | None`` factory (fail-open).
+
+    The composition tier may import ``plugins`` (the ``adapters`` tier may not),
+    so the ``CodeGraphGroundingProvider`` receives the graph builder via this
+    injected callable rather than importing ``graph_builder`` itself. The factory
+    resolves the per-repo SQLite db path, ensures its parent dir exists, builds
+    the graph, and indexes the directory once when empty. Any failure yields
+    ``None`` so the provider degrades to an empty (but valid) bundle.
+    """
+    import contextlib
+
+    import structlog
+
+    log = structlog.get_logger()
+
+    def _factory(root: Path):
+        try:
+            from eedom.plugins._runners.graph_builder import (
+                CodeGraph,
+                resolve_graph_db_path,
+            )
+
+            db_file = resolve_graph_db_path(root)
+            with contextlib.suppress(Exception):
+                db_file.parent.mkdir(parents=True, exist_ok=True)
+            graph = CodeGraph(db_path=str(db_file), repo_root=Path(root))
+            if graph.stats()["symbols"] == 0:
+                graph.index_directory(Path(root))
+            return graph
+        except Exception:
+            log.debug("grounding_codegraph_build_failed", root=str(root))
+            return None
+
+    return _factory
+
+
+def build_grounding_provider(settings: EedomSettings) -> GroundingProviderPort:
+    """Return the GroundingProviderPort for *settings* (gated, fail-open).
+
+    When ``grounding_enabled`` is False this always returns the null provider, so
+    grounding is invisible on the normal path. When enabled, the provider is
+    resolved by ``grounding_provider``:
+
+    * ``"auto"`` tries, in order, gitnexus (only if ``gitnexus_graph_path`` is set
+      and exists) -> codegraph -> ctags -> null.
+    * an explicit name resolves to that provider, or null on any failure.
+
+    All construction is wrapped in try/except -> null, so a broken provider never
+    blocks the caller (mirrors the supply-chain analyzer's fail-open shape).
+    """
+    import structlog
+
+    log = structlog.get_logger()
+    load_adapters()
+    if not settings.grounding_enabled:
+        return GROUNDING_PROVIDERS.create("null")
+
+    max_symbols = getattr(settings, "grounding_max_symbols", 40)
+    graph_path = getattr(settings, "gitnexus_graph_path", None)
+
+    def _make(name: str) -> GroundingProviderPort:
+        if name == "gitnexus":
+            return GROUNDING_PROVIDERS.create(
+                "gitnexus", graph_path=graph_path, max_symbols=max_symbols
+            )
+        if name == "codegraph":
+            return GROUNDING_PROVIDERS.create(
+                "codegraph",
+                max_symbols=max_symbols,
+                graph_factory=build_default_codegraph_factory(),
+            )
+        if name == "ctags":
+            return GROUNDING_PROVIDERS.create("ctags", max_symbols=max_symbols)
+        return GROUNDING_PROVIDERS.create("null")
+
+    provider = settings.grounding_provider
+    try:
+        if provider == "auto":
+            if graph_path and Path(graph_path).exists():
+                return _make("gitnexus")
+            return _make("codegraph")
+        return _make(provider)
+    except Exception:
+        log.warning(
+            "grounding_null",
+            msg=f"Failed to build grounding provider {provider!r} — using null",
+            exc_info=True,
+        )
+        return GROUNDING_PROVIDERS.create("null")
+
+
+def run_grounding(files: list[str], settings: EedomSettings, *, root: str | None = None) -> dict:
+    """Composition entry point for the gated ``ground`` step.
+
+    Keeps the presentation tier (the CLI command) from importing
+    ``eedom.adapters`` directly. Builds the configured provider, gathers the fact
+    sheet + type context for *files*, and returns a bundle dict::
+
+        {"provider": str, "root": str, "fact_sheet": [...], "type_context": [...]}
+
+    Best-effort and time-bounded by ``grounding_timeout`` (a soft wall-clock check
+    — no hard threads). Always returns a valid dict (fail-open).
+    """
+    import contextlib
+    import time
+
+    import structlog
+
+    log = structlog.get_logger()
+    load_adapters()
+    resolved_root = root or str(Path.cwd())
+    bundle: dict = {
+        "provider": "null",
+        "root": resolved_root,
+        "fact_sheet": [],
+        "type_context": [],
+    }
+    provider = build_grounding_provider(settings)
+    bundle["provider"] = provider.name
+    timeout = getattr(settings, "grounding_timeout", 60)
+    deadline = time.monotonic() + timeout
+    try:
+        bundle["fact_sheet"] = provider.fact_sheet(Path(resolved_root), files)
+        if time.monotonic() < deadline:
+            bundle["type_context"] = provider.type_context(Path(resolved_root), files)
+        else:
+            log.warning("grounding_timeout", msg="grounding_timeout exceeded after fact_sheet")
+    except Exception:
+        log.warning("grounding_failed", msg="grounding step failed — returning partial bundle")
+    finally:
+        with contextlib.suppress(Exception):
+            provider.close()
+    return bundle
+
+
 def build_scanners(settings: EedomSettings) -> list:
     """Build the enabled scanners from the SCANNERS registry.
 
@@ -384,6 +525,7 @@ def load_adapters() -> None:
     Idempotent — imports are cached in ``sys.modules``.
     """
     import eedom.adapters.github_publisher  # noqa: F401
+    import eedom.adapters.grounding  # noqa: F401
     import eedom.adapters.persistence  # noqa: F401
     import eedom.adapters.repo_snapshot  # noqa: F401
     import eedom.core.fake  # noqa: F401
@@ -445,4 +587,5 @@ def bootstrap(settings: EedomSettings) -> ApplicationContext:
         decision_repository=build_decision_repository(settings),
         audit_log_appender=build_audit_log_appender(),
         enrichers=build_enrichers(settings),
+        grounding=build_grounding_provider(settings),
     )

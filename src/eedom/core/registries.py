@@ -22,6 +22,7 @@ from eedom.core.ports import (
     EnricherPort,
     EvidenceStorePort,
     FileSourcePort,
+    GroundingProviderPort,
     PackageMetadataPort,
     PackageSourcePort,
     PullRequestPublisherPort,
@@ -38,6 +39,9 @@ RULE_RUNNERS: Registry[SemgrepRunnerPort] = Registry("rule_runner")
 CODEGRAPH_CHECKS: Registry[CodeGraphCheckPort] = Registry("codegraph_check")
 # git ls-files vs. filesystem walk — one seam for file enumeration.
 FILE_SOURCES: Registry[FileSourcePort] = Registry("file_source")
+# Gated, on-demand code-grounding sources (codegraph/ctags/gitnexus/null). Off
+# unless grounding_enabled; mirrors the supply-chain analyzer's producer shape.
+GROUNDING_PROVIDERS: Registry[GroundingProviderPort] = Registry("grounding_provider")
 # data/pypi's PyPIClient implements PackageMetadataPort (fetch_metadata/close),
 # which is the real PyPI contract the pipeline uses; PackageIndexPort is vestigial.
 PACKAGE_INDEXES: Registry[PackageMetadataPort] = Registry("package_index")
@@ -55,6 +59,7 @@ __all__ = [
     "ENRICHERS",
     "EVIDENCE_STORES",
     "FILE_SOURCES",
+    "GROUNDING_PROVIDERS",
     "PACKAGE_INDEXES",
     "PACKAGE_SOURCES",
     "POLICY_ENGINES",

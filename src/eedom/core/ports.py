@@ -210,6 +210,38 @@ class PackageSourcePort(Protocol):
 
 
 @runtime_checkable
+class GroundingProviderPort(Protocol):
+    """Contract for an on-demand code-grounding source (gated, producer/consumer).
+
+    Mirrors the supply-chain analyzer's gated shape: invisible unless
+    ``grounding_enabled``. A provider answers three deterministic questions about
+    the symbols around a set of changed files so a downstream consumer (a cheap
+    reviewer model) starts grounded rather than guessing:
+
+    * ``fact_sheet`` — symbols DEFINED inside *files*.
+    * ``type_context`` — type-like definitions REFERENCED by *files* but defined
+      elsewhere (the contracts whose absence causes most false positives).
+    * ``neighbors`` — callers/callees (blast radius) of one symbol.
+
+    Every method is fail-open: any error (missing graph/index, unreadable file,
+    absent tool) yields ``[]`` rather than raising. ``fact_sheet`` /
+    ``type_context`` dicts carry ``{"name","kind","file","line","signature"}``;
+    ``neighbors`` dicts carry ``{"name","file","line","relation"}``.
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    def fact_sheet(self, root: Path, files: list[str]) -> list[dict]: ...
+
+    def type_context(self, root: Path, files: list[str]) -> list[dict]: ...
+
+    def neighbors(self, root: Path, symbol: str) -> list[dict]: ...
+
+    def close(self) -> None: ...
+
+
+@runtime_checkable
 class EnricherPort(Protocol):
     """Contract for a deterministic finding enricher (detect-then-enrich, ADR-006).
 

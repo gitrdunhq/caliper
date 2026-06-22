@@ -21,6 +21,7 @@ from eedom.core.ports import (
     EnricherPort,
     EvidenceStorePort,
     EvidenceWriterPort,
+    GroundingProviderPort,
     PackageIndexPort,
     PackageMetadataPort,
     PullRequestPublisherPort,
@@ -56,3 +57,7 @@ class ApplicationContext:
     decision_repository: DecisionRepositoryPort | None = None
     audit_log_appender: Callable[[Path, list, str], object] | None = None
     enrichers: list[EnricherPort] = field(default_factory=list)
+
+    # Gated, on-demand code-grounding provider (invisible unless grounding_enabled;
+    # NullGroundingProvider otherwise). Not consulted by the normal review path.
+    grounding: GroundingProviderPort | None = None

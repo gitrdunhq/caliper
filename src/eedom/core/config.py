@@ -114,6 +114,17 @@ class EedomSettings(BaseSettings):
     supply_chain_diff_ecosystems: list[str] = Field(default=["pypi", "npm"])
     supply_chain_diff_max_archive_bytes: int = 64 * 1024 * 1024
 
+    # Code grounding (a separate, gated, on-demand producer/consumer step —
+    # NOT part of the normal scan). Off by default. Produces a deterministic
+    # "fact sheet" (symbols defined in the changed files) + "type context"
+    # (type-like contracts referenced from elsewhere) so a downstream consumer
+    # starts grounded. Mirrors the supply-chain analyzer's gated shape.
+    grounding_enabled: bool = False
+    grounding_provider: str = "auto"
+    grounding_timeout: int = 60
+    grounding_max_symbols: int = 40
+    gitnexus_graph_path: str | None = None
+
     # Alternatives catalog
     alternatives_path: str = "./alternatives.json"
 
