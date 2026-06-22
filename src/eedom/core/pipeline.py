@@ -77,9 +77,15 @@ def _policy_evaluation(
         verdict = DecisionVerdict(verdict_str)
     except (ValueError, AttributeError):
         verdict = DecisionVerdict.needs_review
+    deny_reasons = list(getattr(pd, "deny_reasons", []) or [])
+    warn_reasons = list(getattr(pd, "warn_reasons", []) or [])
+    triggered = list(getattr(pd, "triggered_rules", []) or []) or (deny_reasons + warn_reasons)
     return PolicyEvaluation(
         decision=verdict,
-        triggered_rules=getattr(pd, "triggered_rules", []),
+        triggered_rules=triggered,
+        # warn_reasons are the constraints surfaced under approve_with_constraints;
+        # without this they render empty.
+        constraints=warn_reasons,
         policy_bundle_version="port-injected",
     )
 

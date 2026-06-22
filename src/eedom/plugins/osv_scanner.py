@@ -158,23 +158,27 @@ class OsvScannerPlugin(ScannerPlugin):
         return findings[:_MAX_FINDINGS]
 
     def _resolve_severity(self, vuln: dict) -> str:
-        sev = "info"
+        # Take the HIGHEST severity across all signals — never let a lower
+        # CVSS-derived band overwrite a higher database_specific rating (a
+        # CVSS 5.0 must not downgrade a database_specific "high" to "medium").
+        rank = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+        candidates = ["info"]
         db_sev = vuln.get("database_specific", {}).get("severity", "")
         if isinstance(db_sev, str):
-            sev = _SEV_MAP.get(db_sev.upper(), sev)
+            candidates.append(_SEV_MAP.get(db_sev.upper(), "info"))
         for sv in vuln.get("severity", []):
             score = sv.get("score", "")
             with contextlib.suppress(ValueError):
                 cvss = float(str(score))
                 if cvss >= 9.0:
-                    sev = "critical"
+                    candidates.append("critical")
                 elif cvss >= 7.0:
-                    sev = "high"
+                    candidates.append("high")
                 elif cvss >= 4.0:
-                    sev = "medium"
-                elif sev == "info":
-                    sev = "low"
-        return sev
+                    candidates.append("medium")
+                else:
+                    candidates.append("low")
+        return max(candidates, key=lambda s: rank.get(s, 0))
 
     def render(
         self,

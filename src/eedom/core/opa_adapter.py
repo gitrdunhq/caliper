@@ -124,10 +124,20 @@ class OpaRegoAdapter:
         deny: list[str] = list(value.get("deny", []))
         warn: list[str] = list(value.get("warn", []))
 
+        triggered = deny + warn  # the rules that fired — surfaced to the user via the memo
         if deny:
-            return PolicyDecision(verdict="reject", deny_reasons=deny, warn_reasons=warn)
+            return PolicyDecision(
+                verdict="reject",
+                deny_reasons=deny,
+                warn_reasons=warn,
+                triggered_rules=triggered,
+            )
         if warn:
-            return PolicyDecision(verdict="approve_with_constraints", warn_reasons=warn)
+            return PolicyDecision(
+                verdict="approve_with_constraints",
+                warn_reasons=warn,
+                triggered_rules=triggered,
+            )
         return PolicyDecision(verdict="approve")
 
 

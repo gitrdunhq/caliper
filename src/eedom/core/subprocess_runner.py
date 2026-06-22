@@ -28,6 +28,7 @@ class SubprocessToolRunner:
                 invocation.cmd,
                 capture_output=True,
                 text=True,
+                errors="replace",  # binary/non-UTF-8 tool output must not raise UnicodeDecodeError
                 cwd=invocation.cwd,
                 timeout=invocation.timeout,
                 env=invocation.env,
@@ -60,4 +61,16 @@ class SubprocessToolRunner:
                 timed_out=False,
                 duration_ms=duration_ms,
                 not_installed=True,
+            )
+        except OSError as exc:
+            # PermissionError, NotADirectoryError, ... — degrade, never propagate
+            # (the seam's contract is that callers never see a raw subprocess exception).
+            duration_ms = int((time.monotonic() - start) * 1000)
+            return ToolResult(
+                exit_code=-1,
+                stdout="",
+                stderr=f"subprocess error: {exc}",
+                timed_out=False,
+                duration_ms=duration_ms,
+                not_installed=False,
             )

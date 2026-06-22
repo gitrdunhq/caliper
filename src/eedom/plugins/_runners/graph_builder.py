@@ -385,16 +385,20 @@ class CodeGraph:
                     "confidence": row["confidence"],
                 }
             )
-            self._walk_upstream(
-                self.conn.execute(
-                    "SELECT id FROM symbols WHERE name = ? AND file = ?",
-                    (row["name"], row["file"]),
-                ).fetchone()["id"],
-                depth + 1,
-                max_depth,
-                visited,
-                results,
-            )
+            upstream = self.conn.execute(
+                "SELECT id FROM symbols WHERE name = ? AND file = ?",
+                (row["name"], row["file"]),
+            ).fetchone()
+            # Dangling edge: the referenced symbol may be absent from `symbols`
+            # (stale graph / cross-file edge). Skip recursion rather than crash.
+            if upstream is not None:
+                self._walk_upstream(
+                    upstream["id"],
+                    depth + 1,
+                    max_depth,
+                    visited,
+                    results,
+                )
 
     def stats(self) -> dict:
         symbols = self.conn.execute("SELECT COUNT(*) as c FROM symbols").fetchone()["c"]
