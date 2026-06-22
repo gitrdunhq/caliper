@@ -120,9 +120,7 @@ class ConfigMergeDetector(BugDetector):
         false positives. Now a merge is dangerous only when a config-literal key
         is present OR an unpacked source name looks like config.
         """
-        unpack_values = [
-            v for k, v in zip(node.keys, node.values, strict=True) if k is None
-        ]
+        unpack_values = [v for k, v in zip(node.keys, node.values, strict=True) if k is None]
         if not unpack_values:
             return False
 
