@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "generated": "2026-06-22",
+  "experiment": "grounded vs ungrounded Haiku reviewer, same partitions/challenger",
+  "method": "same Haiku reviewer+plain-Haiku-challenger; reviewer change only = grounding bundle (eedom ground, codegraph) + don't-flag ledger + self-refutation. Partitions selected for being FP-heavy in baseline (selection bias).",
+  "partitions": {
+    "P03": {"label": "policy/OPA",  "ungrounded": {"raw": 6, "confirmed": 4, "false_positive": 0, "uncertain": 2}, "grounded": {"raw": 3, "confirmed": 3, "false_positive": 0, "uncertain": 0}},
+    "P16": {"label": "scanners",    "ungrounded": {"raw": 9, "confirmed": 6, "false_positive": 2, "uncertain": 1}, "grounded": {"raw": 6, "confirmed": 6, "false_positive": 0, "uncertain": 0}},
+    "P19": {"label": "data/cli",    "ungrounded": {"raw": 7, "confirmed": 0, "false_positive": 6, "uncertain": 1}, "grounded": {"raw": 0, "confirmed": 0, "false_positive": 0, "uncertain": 0}}
+  },
+  "totals": {
+    "ungrounded": {"raw": 22, "confirmed": 10, "false_positive": 8, "uncertain": 4, "confirm_rate": 0.45, "fp_rate": 0.36},
+    "grounded":   {"raw": 9,  "confirmed": 9,  "false_positive": 0, "uncertain": 0, "confirm_rate": 1.0,  "fp_rate": 0.0}
+  },
+  "headline": "Grounding cut raw findings 22->9, eliminated all 8 false positives, raised confirm-rate 45%->100%, preserved real-bug yield (9 vs 10), and surfaced a new class of cross-file contract bugs (P03 OpaRegoAdapter).",
+  "caveats": [
+    "n=1, 3 partitions, single run, no variance",
+    "selection bias: partitions chosen for being FP-heavy",
+    "verifier is Haiku; no Opus adjudication or human label on the grounded set",
+    "recall unmeasured (possible false negatives from over-suppression)"
+  ],
+  "next_step": "full 20-partition grounded rerun + Opus adjudication on deltas for an unbiased, recall-aware number"
+}
