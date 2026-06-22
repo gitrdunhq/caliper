@@ -53,3 +53,10 @@ diagrams/
 .dogood/
 docs/pitch-page/
 .scratch/
+
+# Sandbox container-test scratch (CA-injected build workaround — env-specific, never commit)
+Dockerfile.ci-test
+Dockerfile.test.ci
+cabuild/
+egress-gateway-ca-*.crt
+swp-ca-*.crt
