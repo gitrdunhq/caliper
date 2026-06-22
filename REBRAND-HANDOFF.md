@@ -1,6 +1,13 @@
 # Caliper Rebrand — Session Handoff
 
-**Branch (all repos):** `claude/sleepy-einstein-o5zd76`
+**Work branch — same name in every repo:** `claude/sleepy-einstein-o5zd76`
+
+| Repo | Branch | State |
+|------|--------|-------|
+| `gitrdunhq/eedom` (Caliper) | `claude/sleepy-einstein-o5zd76` | renamed + pushed |
+| `gitrdunhq/datum` | `claude/sleepy-einstein-o5zd76` | renamed + pushed |
+| `gitrdunhq/eedom-community-rules` → `caliper-community-rules` | `claude/sleepy-einstein-o5zd76` (use same name) | pending — repo out of scope |
+
 **Status:** eedom + datum renamed and pushed. `caliper-community-rules` pending (out of scope).
 **Last session date:** 2026-06-22
 
