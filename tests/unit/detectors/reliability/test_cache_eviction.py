@@ -92,3 +92,74 @@ def get_items():
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 2
+
+
+class TestCacheEvictionRegressions:
+    """Regression tests for P13-10 fix: lru_cache(maxsize=None) treated as UNBOUNDED (#432).
+
+    Before the fix, maxsize=None was accepted as a bounded cache because the
+    check only tested for the *presence* of the maxsize keyword, not its value.
+    Python documents maxsize=None as equivalent to @cache (unbounded growth).
+    """
+
+    @pytest.fixture
+    def detector(self):
+        return CacheEvictionDetector()
+
+    def test_lru_cache_maxsize_none_is_flagged(self, detector):
+        """P13-10: @lru_cache(maxsize=None) must be flagged as UNBOUNDED.
+
+        None is Python's documented way of making lru_cache grow without
+        limit — identical to @cache.  This was a false negative before the fix.
+        """
+        code = """
+from functools import lru_cache
+
+@lru_cache(maxsize=None)
+def get_data(key):
+    return expensive_lookup(key)
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            f.flush()
+            findings = detector.detect(Path(f.name))
+
+        assert len(findings) == 1, "@lru_cache(maxsize=None) must be flagged as an unbounded cache"
+        assert findings[0].detector_id == "EED-006"
+
+    def test_lru_cache_maxsize_128_not_flagged(self, detector):
+        """P13-10: @lru_cache(maxsize=128) must NOT be flagged (no regression)."""
+        code = """
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def get_data(key):
+    return expensive_lookup(key)
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            f.flush()
+            findings = detector.detect(Path(f.name))
+
+        assert (
+            len(findings) == 0
+        ), "@lru_cache(maxsize=128) must NOT be flagged — it has a bounded eviction policy"
+
+    def test_lru_cache_maxsize_zero_not_flagged(self, detector):
+        """@lru_cache(maxsize=0) effectively disables caching — not unbounded, not flagged."""
+        code = """
+from functools import lru_cache
+
+@lru_cache(maxsize=0)
+def no_cache(key):
+    return compute(key)
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            f.flush()
+            findings = detector.detect(Path(f.name))
+
+        # maxsize=0 disables caching entirely (no memory growth) so not an OOM risk
+        assert (
+            len(findings) == 0
+        ), "@lru_cache(maxsize=0) does not accumulate entries — should not be flagged"
