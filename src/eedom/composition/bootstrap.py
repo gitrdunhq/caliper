@@ -485,6 +485,9 @@ def build_decision_repository(settings: EedomSettings):
     from eedom.data.db import DecisionRepository, NullRepository
 
     log = structlog.get_logger()
+    if not settings.db_dsn:
+        # No DSN configured — persist nothing rather than attempt a doomed connect.
+        return NullRepository()
     try:
         repo = DecisionRepository(dsn=settings.db_dsn, query_timeout=10)
         if not repo.connect():
