@@ -36,7 +36,6 @@ except ImportError as _exc:
         "starlette is required for the webhook server. Install with: pip install eedom[copilot]"
     ) from _exc
 
-from eedom.core.ignore import load_ignore_patterns, should_ignore
 from eedom.core.use_cases import ReviewOptions, review_repository
 from eedom.webhook.config import WebhookSettings
 
@@ -177,16 +176,14 @@ def build_app(
 
         logger.info("webhook_pr_received", pr_url=pr_url, action=action)
 
-        # --- Build file list from repo (same pattern as CLI review) -----------
+        # --- Build file list via the FileSourcePort seam (never rglob directly;
+        # the resolved source already applies the eedom exclusion layer) -------
+        from eedom.core.file_source import select_file_source
+
         _repo_path = Path(".")
-        _ignore_patterns = load_ignore_patterns(_repo_path)
-        _files: list[str] = []
-        for _ext in ("*.py", "*.ts", "*.js", "*.tf", "*.yaml", "*.yml", "*.json"):
-            _files.extend(
-                str(p)
-                for p in _repo_path.rglob(_ext)
-                if not should_ignore(str(p.relative_to(_repo_path)), _ignore_patterns)
-            )
+        _suffixes = (".py", ".ts", ".js", ".tf", ".yaml", ".yml", ".json")
+        _source = select_file_source(_repo_path)
+        _files = [str(p) for p in _source.list_files(_repo_path, suffixes=_suffixes)]
 
         # --- Run eedom review via use-case with timeout (fail-open) (patch-19) ---
         review_output: str
