@@ -13,6 +13,10 @@ They were incentivized to OVER-REPORT, so expect false positives. Your job is to
 Read these candidate-finding files (each is a JSON object with a `findings` array):
 {{RAW_FILES_IN_BATCH}}
 
+Consult this don't-flag ledger — a finding matching one of these is a likely
+FALSE_POSITIVE unless the evidence specifically rules the pattern out:
+{{LEDGER}}
+
 For EACH finding: open the cited `file` + `line` in the actual source, verify the
 claim against the real control flow, and assign a verdict. Be adversarial toward
 the FINDING. A finding survives only if you cannot refute it from the source.
