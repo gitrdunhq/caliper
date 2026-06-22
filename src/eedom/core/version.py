@@ -12,5 +12,13 @@ import importlib.metadata
 
 
 def get_version() -> str:
-    """Return the installed eedom version from importlib.metadata."""
-    return importlib.metadata.version("eedom")
+    """Return the installed eedom version from importlib.metadata.
+
+    Fail-open: when eedom is not installed as a distribution (e.g. run straight
+    from a source checkout), ``version()`` raises ``PackageNotFoundError`` — that
+    must not crash importers (the renderer imports this at module load).
+    """
+    try:
+        return importlib.metadata.version("eedom")
+    except importlib.metadata.PackageNotFoundError:
+        return "0.0.0+unknown"
