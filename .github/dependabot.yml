@@ -12,8 +12,19 @@ updates:
     cooldown:
       default-days: 14
     open-pull-requests-limit: 5
+    # Keep intentionally-pinned vulnerable e2e scan fixtures out of Dependabot
+    # (see config/scan-exclusions.toml); enforced by tests/unit/test_dependabot_policy.py.
     exclude-paths:
       - "tests/e2e/fixtures/**"
+    # Defense-in-depth: also ignore the fixture-only packages that are NOT real
+    # eedom deps, to cut PR noise if exclude-paths is not honored for nested pip
+    # manifests. jinja2 is a real dep and is intentionally NOT listed here; any
+    # fixture bump that still slips through is caught by the guard test above
+    # plus the generated osv-scanner.toml ignores.
+    ignore:
+      - dependency-name: "requests"
+      - dependency-name: "flask"
+      - dependency-name: "cryptography"
     groups:
       python-runtime:
         patterns:
