@@ -95,6 +95,32 @@ class SecretStrDetector(BugDetector):
                     )
                 )
 
+            # Bare assignment of a string literal to a secret-named var: api_key = "..."
+            # (a hardcoded secret stored as plain str — was a false negative).
+            elif (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and self._is_secret_name(node.targets[0].id)
+                and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)
+            ):
+                var_name = node.targets[0].id
+                findings.append(
+                    DetectorFinding(
+                        detector_id=self.detector_id,
+                        detector_name=self.name,
+                        category=self.category,
+                        severity=self.severity,
+                        file_path=str(file_path),
+                        line_number=node.lineno,
+                        message=f"'{var_name}' should be SecretStr instead of str",
+                        snippet=self._get_line(content, node.lineno),
+                        issue_reference="#227, #261",
+                        fix_hint=f"Wrap '{var_name}' in SecretStr instead of a plain str literal",
+                    )
+                )
+
         return findings
 
     def _is_secret_name(self, name: str) -> bool:

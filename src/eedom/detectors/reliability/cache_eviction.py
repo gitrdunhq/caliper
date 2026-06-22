@@ -91,9 +91,14 @@ class CacheEvictionDetector(BugDetector):
                 and isinstance(decorator.func, ast.Name)
                 and decorator.func.id == "lru_cache"
             ):
-                # Check if maxsize is specified
-                has_maxsize = any(kw.arg == "maxsize" for kw in decorator.keywords)
-                return not has_maxsize
+                # Unbounded unless an explicit, non-None maxsize is given.
+                # maxsize=None means UNBOUNDED — it was wrongly treated as bounded.
+                has_explicit_bound = any(
+                    kw.arg == "maxsize"
+                    and not (isinstance(kw.value, ast.Constant) and kw.value.value is None)
+                    for kw in decorator.keywords
+                )
+                return not has_explicit_bound
 
         return False
 
