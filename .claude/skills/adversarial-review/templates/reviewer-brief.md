@@ -15,6 +15,20 @@ Ignore anything under {{EXCLUDED_PATHS}}.
 Project invariants to test against:
 {{INVARIANTS}}
 
+GROUNDING (read before reviewing — these are ground truth, trust them over your
+assumptions about the code's shape):
+{{GROUNDING_BUNDLE}}
+The grounding bundle lists symbols DEFINED in these files (signatures) and the
+cross-file CONTRACTS they reference (enums, typed models, config/settings, constants).
+Before you flag a "raw string that should be an enum", a "missing timeout", a "falsy/
+unvalidated value", or a "wrong type", check the bundle: a value that is typed,
+injected from config, or constrained by a contract below is NOT a defect.
+
+Before you emit ANY finding, try to REFUTE it first. Fill in `guard_checked` and
+`why_not_intended` honestly; if you cannot, drop the finding — it is probably a false
+positive. For any "missing X" claim you MUST cite a second location proving X is absent
+(you looked there and it is not there), not just the line where you expected it.
+
 REVIEW THESE FILES (read each fully):
 {{FILE_LIST}}
 
@@ -35,6 +49,8 @@ with EXACTLY this shape and nothing else (no markdown, no prose, no code fences)
       "category": "correctness",
       "claim": "one sentence — what is wrong",
       "evidence": "why it is wrong; quote offending lines or trace control flow; for detectors give a concrete code example that triggers a false positive/negative",
+      "guard_checked": "where you looked for the thing that would make this NOT a bug (the type/enum def, the config-sourced timeout, the validation, the guard clause) and what you found",
+      "why_not_intended": "why this is a real defect and not deliberate behavior (fail-open, documented default, by-design asymmetry)",
       "fix": "concrete suggested change"
     }
   ]
@@ -45,6 +61,8 @@ Field constraints (validate before writing):
 - `line`: a string — a single line `"142"` or a range `"107-109"`.
 - `severity`: one of `"high"`, `"medium"`, `"low"`.
 - `category`: one of the in-scope focus types only (e.g. `"correctness"`, `"design"`).
+- `guard_checked` / `why_not_intended`: required, non-empty. An empty or hand-wavy
+  value means you have not refuted the finding — drop it.
 - All string values must be valid JSON (escape quotes/newlines). The file must
   `json.loads()` cleanly — emit ONE object, no trailing commas, no comments.
 - If a file has no real defects, return an empty `findings` array. Quality over quantity.
