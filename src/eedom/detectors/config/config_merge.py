@@ -113,25 +113,33 @@ class ConfigMergeDetector(BugDetector):
         return findings
 
     def _is_dangerous_merge(self, node: ast.Dict) -> bool:
-        """Check if dict literal with unpacking is a dangerous merge."""
-        # Look for {**base, **override} pattern
-        has_unpacking = False
-        for key in node.keys:
-            if key is None:  # None key indicates dict unpacking (**dict)
-                has_unpacking = True
-                break
+        """Flag a dict-unpacking merge only when it looks config-related.
 
-        if not has_unpacking:
+        Previously this returned ``has_unpacking`` unconditionally, making the
+        config-key check below dead code and flagging ANY ``{**a, **b}`` — broad
+        false positives. Now a merge is dangerous only when a config-literal key
+        is present OR an unpacked source name looks like config.
+        """
+        unpack_values = [v for k, v in zip(node.keys, node.values) if k is None]
+        if not unpack_values:
             return False
 
-        # Check if keys look like config-related
+        # A config-literal key alongside the unpacking (e.g. {**base, "telemetry": x}).
         for key in node.keys:
             if key is not None:
                 key_str = self._get_key_name(key)
                 if key_str and self._is_config_key(key_str):
                     return True
 
-        return has_unpacking
+        # Or an unpacked source whose name looks like config
+        # (catches the #262 case: {**base_config, **package_config}).
+        config_indicators = ("config", "cfg", "settings", "opts", "options")
+        for value in unpack_values:
+            name = self._get_object_name(value)
+            if name and any(ind in name.lower() for ind in config_indicators):
+                return True
+
+        return False
 
     def _is_update_on_config(self, call: ast.Call) -> bool:
         """Check if update() is called on what looks like a config dict."""

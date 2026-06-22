@@ -88,7 +88,13 @@ class BugDetector(abc.ABC):
 
     def is_applicable(self, file_path: Path) -> bool:
         """Check if this detector applies to the given file."""
-        return any(fnmatch.fnmatch(file_path.name, pattern) for pattern in self.target_files)
+        # Match the basename AND the full relative path, so patterns that include a
+        # directory (e.g. "config/*.yaml") are not silently unmatchable.
+        path_str = str(file_path).replace("\\", "/")
+        return any(
+            fnmatch.fnmatch(file_path.name, pattern) or fnmatch.fnmatch(path_str, pattern)
+            for pattern in self.target_files
+        )
 
     def is_suppressed(
         self, file_path: Path, line_number: int, detector_id: str | None = None
