@@ -553,14 +553,25 @@ jobs:
             echo "verdict=$VERDICT"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Set dom label
+      - name: Set foreman label
         if: github.event_name == 'pull_request' && steps.upstream.outputs.upstream_ok == 'true'
         run: |
           for LABEL in "foreman: approved" "foreman: warnings" "foreman: blocked" "foreman: incomplete"; do
             gh issue edit "$PR_NUM" --remove-label "$LABEL" 2>/dev/null || true
           done
 
-          gh issue edit "$PR_NUM" --add-label "foreman: $VERDICT"
+          # Self-provision the verdict label so a fresh repo (or a post-rebrand
+          # label rename) doesn't hard-fail the gate. Create-if-missing only —
+          # never overwrites an existing label's colour. Labeling is cosmetic,
+          # so the add is tolerant; the fail-closed verdict check is what gates.
+          case "$VERDICT" in
+            approved)   COLOR="0e8a16" ;;
+            warnings)   COLOR="fbca04" ;;
+            blocked)    COLOR="d73a4a" ;;
+            *)          COLOR="ededed" ;;
+          esac
+          gh label create "foreman: $VERDICT" --color "$COLOR" --description "Foreman review verdict" 2>/dev/null || true
+          gh issue edit "$PR_NUM" --add-label "foreman: $VERDICT" || true
 
           echo "## foreman: $VERDICT" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -669,7 +680,8 @@ jobs:
           if gh pr edit "$PR_NUM" --add-reviewer @copilot 2>/dev/null; then
             gh issue edit "$PR_NUM" --remove-label "foreman: needs-copilot" 2>/dev/null || true
           else
-            gh issue edit "$PR_NUM" --add-label "foreman: needs-copilot"
+            gh label create "foreman: needs-copilot" --color "5319e7" --description "Foreman could not auto-request a Copilot review" 2>/dev/null || true
+            gh issue edit "$PR_NUM" --add-label "foreman: needs-copilot" || true
             gh pr comment "$PR_NUM" --body "⚠️ **Could not request Copilot review.** The workflow token lacks permission to add reviewers. Run manually: \`gh pr edit $PR_NUM --add-reviewer @copilot\`"
           fi
         env:
