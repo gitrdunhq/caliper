@@ -82,9 +82,7 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
     # Previously RepoConfig was built without telemetry, dropping root telemetry to
     # defaults during a package merge (#262).
     merged_telemetry = (
-        pkg_config.telemetry
-        if pkg_config.telemetry != TelemetryConfig()
-        else root_config.telemetry
+        pkg_config.telemetry if pkg_config.telemetry != TelemetryConfig() else root_config.telemetry
     )
     return RepoConfig(
         plugins=merged_plugins,
