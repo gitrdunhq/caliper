@@ -6,9 +6,10 @@
 |------|--------|-------|
 | `gitrdunhq/eedom` (Caliper) | `claude/sleepy-einstein-o5zd76` | renamed + pushed |
 | `gitrdunhq/datum` | `claude/sleepy-einstein-o5zd76` | renamed + pushed |
-| `gitrdunhq/eedom-community-rules` → `caliper-community-rules` | `claude/sleepy-einstein-o5zd76` (use same name) | pending — repo out of scope |
+| `gitrdunhq/eedom-community-rules` → `caliper-community-rules` | `claude/sleepy-einstein-o5zd76` | renamed + pushed |
 
-**Status:** eedom + datum renamed and pushed. `caliper-community-rules` pending (out of scope).
+**Status:** eedom + datum + community-rules all renamed and pushed. Only the
+out-of-band human actions (GitHub repo/GHCR/PyPI renames) remain.
 **Last session date:** 2026-06-22
 
 The datum-ax stack rebrand. Naming family — **Caliper** (scanner, was eedom) *measures*,
@@ -51,23 +52,29 @@ The datum-ax stack rebrand. Naming family — **Caliper** (scanner, was eedom) *
 
 ---
 
-## ⏳ Pending — `gitrdunhq/eedom-community-rules` → `caliper-community-rules`
-Could not be done last session: the repo is **outside session scope** and the repo-add tools
-(`claude-code-remote` MCP) were not available. The canonical `KIRBY-SEC-*` security rules live
-here; datum vendors a copy.
+## ✅ Done and pushed — `gitrdunhq/eedom-community-rules` → `caliper-community-rules` — branch `claude/sleepy-einstein-o5zd76`
+- 88 files re-branded, eedom-family only: prose → **Caliper** (sentence/heading case,
+  lowercase `caliper` in commands + identifiers); `eedom-plugin`→`caliper-plugin` (rules +
+  `validate.yml` metadata check); self-referencing URLs → `gitrdunhq/caliper-community-rules`,
+  scanner URL → `gitrdunhq/caliper`; `.eedom/`→`.caliper/`; `package-name` + release tarball →
+  `caliper-community-rules`.
+- **Decision applied (per maintainer):** branded tfsec codes `EEDOM-AWS-*`/`EEDOM-AZ-*`/
+  `EEDOM-GCP-*` → `CALIPER-*` across checks, fixtures, suppression examples, and docs. Consumer
+  `# tfsec-ignore:` comments referencing old codes must be updated downstream.
+- **Kept unchanged (zero consumer impact):** `KIRBY-*` ids (external taxonomy), semgrep rule
+  `id`s (descriptive), and all rule logic/patterns.
+- Validated: YAML+JSON parse clean, Kirby-metadata CI check passes, rule `id`s identical to
+  `origin/main`. Semgrep `--test` not run locally (tool unavailable offline) — runs in
+  `validate.yml` CI on push.
 
-**To pick up:** once the repo is added to session scope —
-1. Survey contents (rules, README, CI, metadata).
-2. eedom→Caliper rename, eedom-family only: branding, `eedom-plugin`→`caliper-plugin`,
-   self-referencing URLs → `caliper-community-rules`. **Keep rule `id`s** (descriptive, not
-   branded) and **`KIRBY-*` ids** (external taxonomy) unchanged — zero consumer impact.
-3. Validate the ruleset parses (`semgrep/opengrep --validate`); confirm no residual `eedom`.
-4. Re-vendor the renamed rules into datum's `policies/semgrep/` to prevent drift.
-5. Commit + push to `claude/sleepy-einstein-o5zd76`.
+### Re-vendored into datum — branch `claude/sleepy-einstein-o5zd76`
+- Re-copied the 20 `rules/**/semgrep/*.yaml` (dockerfile-semgrep excluded by the vendor glob)
+  into `policies/semgrep/`; all now byte-identical to community-rules. Net change: 4 reference
+  URLs aligned `sam-fakhreddine`→`gitrdunhq` + vendor README sync date bumped to 2026-06-22.
 
-**Live risk — stale URLs (decided: keep new URLs):** datum already cites
-`caliper-community-rules`, which **404s until the GitHub repo is actually renamed** (GitHub
-redirects are old→new only). Rename the repo close to when this work merges.
+**Live risk — stale URLs:** datum + community-rules now cite `gitrdunhq/caliper-community-rules`,
+which **404s until the GitHub repo is actually renamed** (GitHub redirects are old→new only).
+Rename the repo close to when this work merges.
 
 ---
 
