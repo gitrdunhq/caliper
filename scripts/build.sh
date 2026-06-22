@@ -7,7 +7,7 @@ set -euo pipefail
 # Usage:
 #   bash scripts/build.sh                    # default: linux/amd64
 #   bash scripts/build.sh arm64              # explicit arch
-#   bash scripts/build.sh --fast             # native arm64, skip scancode (local dev)
+#   bash scripts/build.sh --fast             # native arm64 (local dev)
 #   bash scripts/build.sh amd64 --no-cache   # force clean rebuild
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -38,17 +38,13 @@ fi
 
 "$ENGINE" info >/dev/null 2>&1 || { echo "ERROR: $ENGINE is installed but not running" >&2; exit 1; }
 
-echo "Engine: $ENGINE | Platform: linux/$ARCH | Image: $IMAGE${FAST:+ (fast — no scancode)}"
+echo "Engine: $ENGINE | Platform: linux/$ARCH | Image: $IMAGE${FAST:+ (fast — native arm64)}"
 
 # Prepare Dockerfile: strip --security=insecure for podman
 DOCKERFILE_CONTENT=$(cat "$REPO_ROOT/Dockerfile")
 
 if [[ "$ENGINE" == "podman" ]]; then
     DOCKERFILE_CONTENT=$(echo "$DOCKERFILE_CONTENT" | sed 's/--security=insecure //g')
-fi
-
-if [[ -n "$FAST" ]]; then
-    EXTRA_ARGS+=("--build-arg" "SKIP_SCANCODE=1")
 fi
 
 if ! echo "$DOCKERFILE_CONTENT" | grep -q '^FROM '; then

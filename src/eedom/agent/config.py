@@ -52,7 +52,7 @@ class AgentSettings(BaseSettings):
     repo_path: Path = Path(".")
     evidence_path: Path = Path("./evidence")
     opa_policy_path: Path = Path("./policies")
-    enabled_scanners: list[str] = Field(default=["syft", "osv-scanner", "trivy", "scancode"])
+    enabled_scanners: list[str] = Field(default=["syft", "osv-scanner", "trivy"])
     semgrep_timeout: int = 120
     pipeline_timeout: int = 300
     # TODO: replace with Optional[str] once no-DB mode is implemented.

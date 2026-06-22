@@ -124,7 +124,7 @@ class TestEedomSettings:
         assert settings.alternatives_path == "./alternatives.json"
 
         # Scanner defaults
-        assert settings.enabled_scanners == ["syft", "osv-scanner", "trivy", "scancode"]
+        assert settings.enabled_scanners == ["syft", "osv-scanner", "trivy"]
 
         # LLM defaults
         assert settings.llm_enabled is False

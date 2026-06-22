@@ -22,6 +22,7 @@ ARG CFN_NAG_VERSION=0.8.10
 ARG LS_LINT_VERSION=2.3.1
 ARG PMD_VERSION=7.24.0
 ARG SWIFTLINT_VERSION=0.57.1
+ARG SWIFTFORMAT_VERSION=0.61.1
 
 # ── Source revision pins ─────────────────────────────────────────────────────
 # GitHub release assets are still addressed by release version because that is
@@ -51,6 +52,9 @@ ARG PMD_SHA256=110934b36d39c19094d1b77386931978093f238f2c2f1851748822b69c7367ac
 ARG OPENGREP_SHA256_ARM64=3bade33c9aee60edf88899cac2b58086bf728caf0a93aced97dd77c272a740f1
 # SwiftLint — arm64 Linux binary not yet available; plugin degrades gracefully if missing
 ARG SWIFTLINT_SHA256_AMD64=81cb02135897dc982b4d1049dba8510db3e982b0b0e8e138293982d77e4154e0
+# SwiftFormat — linux binaries for both arches (0.61.1)
+ARG SWIFTFORMAT_SHA256_AMD64=7bc8706e3fd51963f1f29eb99098ebdf482f3497fa527c68e6cf75cbee29c77a
+ARG SWIFTFORMAT_SHA256_ARM64=42a35b557a6d56975fba3a48e78d39ab5388c8faac65d4819f25d3e20c7504c0
 
 # AMD64 checksums
 ARG SYFT_SHA256_AMD64=7b98251d2d08926bb5d4639b56b1f0996a58ef6667c5830e3fe3cd3ad5f4214a
@@ -99,7 +103,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
       curl ca-certificates unzip pkg-config libicu-dev gcc g++ python3-dev
 
-RUN mkdir -p /staging/gobin /staging/jq /staging/pmd /staging/scripts
+RUN mkdir -p /staging/gobin /staging/jq /staging/pmd /staging/scripts /staging/swiftbin
 
 # ── All Go/native binaries — single layer, arch-aware ────────────────────────
 # kube-linter uses no arch suffix for amd64, _arm64 suffix for arm64.
@@ -151,17 +155,31 @@ RUN set -eux; \
     rm -f /tmp/*.tar.gz /tmp/*.zip; \
     chmod +x /staging/gobin/* /staging/jq/jq
 
-# ── SwiftLint — amd64 only (no official arm64 Linux binary yet) ───────────────
-# Plugin degrades gracefully (NOT_INSTALLED) if this step is skipped.
-# Before building: verify SHA256 at https://github.com/realm/SwiftLint/releases
-# and replace FIXME_verify_sha256_before_building in the ARG above.
+# ── SwiftFormat (amd64 + arm64) + SwiftLint (amd64 only) → /staging/swiftbin ──
+# SwiftFormat ships linux binaries for both arches. SwiftLint ships amd64 only;
+# it is best-effort and its plugin degrades to NOT_INSTALLED when absent. Both
+# land in /staging/swiftbin, which the runtime stage COPYs as a directory so a
+# missing (arm64) swiftlint does not break the build.
+ARG SWIFTFORMAT_VERSION SWIFTFORMAT_SHA256_AMD64 SWIFTFORMAT_SHA256_ARM64
 RUN set -eux; \
+    case "${TARGETARCH}" in \
+        "amd64") SF_ASSET="swiftformat_linux.zip";         SF_BIN="swiftformat_linux";         SF_SHA="${SWIFTFORMAT_SHA256_AMD64}" ;; \
+        "arm64") SF_ASSET="swiftformat_linux_aarch64.zip"; SF_BIN="swiftformat_linux_aarch64"; SF_SHA="${SWIFTFORMAT_SHA256_ARM64}" ;; \
+        *) echo "Unsupported arch: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -sSfL -o /tmp/swiftformat.zip \
+        "https://github.com/nicklockwood/SwiftFormat/releases/download/${SWIFTFORMAT_VERSION}/${SF_ASSET}"; \
+    echo "${SF_SHA}  /tmp/swiftformat.zip" | sha256sum --strict -c -; \
+    unzip -q /tmp/swiftformat.zip "${SF_BIN}" -d /tmp/; \
+    mv "/tmp/${SF_BIN}" /staging/swiftbin/swiftformat; \
+    chmod +x /staging/swiftbin/swiftformat; \
+    rm /tmp/swiftformat.zip; \
     if [ "${TARGETARCH}" = "amd64" ] && [ "${SWIFTLINT_SHA256_AMD64}" != "FIXME_verify_sha256_before_building" ]; then \
         curl -sSfL -o /tmp/swiftlint.zip \
             "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/swiftlint_linux.zip"; \
         echo "${SWIFTLINT_SHA256_AMD64}  /tmp/swiftlint.zip" | sha256sum --strict -c -; \
-        unzip -q /tmp/swiftlint.zip swiftlint -d /usr/local/bin/; \
-        chmod +x /usr/local/bin/swiftlint; \
+        unzip -q /tmp/swiftlint.zip swiftlint -d /staging/swiftbin/; \
+        chmod +x /staging/swiftbin/swiftlint; \
         rm /tmp/swiftlint.zip; \
     else \
         echo "SwiftLint: skipping (arm64 or SHA256 not yet verified)"; \
@@ -203,16 +221,12 @@ RUN --security=insecure --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra all --no-editable
 
 # Scanner tools — external CLIs installed into the same venv, version-pinned by ARG.
-# Not in the lockfile because scancode-toolkit's transitive dep (extractcode-7z)
-# lacks arm64 wheels, breaking cross-platform uv sync.
-# SKIP_SCANCODE=1 omits scancode for fast arm64 dev builds.
-ARG SKIP_SCANCODE=0
+# scancode is intentionally ORPHANED (disabled): its transitive dep (extractcode-7z)
+# lacks arm64 wheels and breaks cross-platform uv sync. To re-enable, add
+# "scancode-toolkit==${SCANCODE_VERSION}" to this install, restore the deferred-import
+# wrapper, and add "scancode" back to EEDOM_ENABLED_SCANNERS below.
 RUN --security=insecure --mount=type=cache,target=/root/.cache/uv \
-    if [ "$SKIP_SCANCODE" = "1" ]; then \
-      uv pip install "lizard==${LIZARD_VERSION}" "mypy==${MYPY_VERSION}"; \
-    else \
-      uv pip install "scancode-toolkit==${SCANCODE_VERSION}" "lizard==${LIZARD_VERSION}" "mypy==${MYPY_VERSION}"; \
-    fi
+    uv pip install "lizard==${LIZARD_VERSION}" "mypy==${MYPY_VERSION}"
 
 # opengrep — self-contained binary, sha256-verified
 ARG OPENGREP_SHA256_ARM64 OPENGREP_SHA256_AMD64
@@ -228,22 +242,7 @@ RUN set -eux; \
     chmod +x /usr/local/bin/opengrep; \
     sha256sum /usr/local/bin/opengrep >> /staging/scripts/checksums.txt
 
-# scancode's plugin loader crashes on arm64 (extractcode-libarchive has no arm64 wheel).
-# Replace the console_script with a wrapper that defers the import.
-# Skipped when SKIP_SCANCODE=1.
-RUN if [ "$SKIP_SCANCODE" != "1" ]; then \
-      printf '%s\n' \
-        '#!/opt/eedom/.venv/bin/python3' \
-        'import sys' \
-        'if "--version" in sys.argv:' \
-        '    from importlib.metadata import version' \
-        '    print("ScanCode version", version("scancode-toolkit"))' \
-        '    sys.exit(0)' \
-        'from scancode.cli import scancode' \
-        'scancode()' \
-      > /opt/eedom/.venv/bin/scancode \
-      && chmod +x /opt/eedom/.venv/bin/scancode; \
-    fi
+# scancode wrapper removed — scancode is orphaned (see install step above).
 
 # ════════════════════════════════════════════════════════════════════════════
 # Stage 2: runtime
@@ -306,6 +305,8 @@ COPY --from=builder /staging/gobin/ls-lint    /usr/local/bin/ls-lint
 COPY --from=builder /usr/local/bin/opengrep   /usr/local/bin/opengrep
 COPY --from=builder /staging/pmd/              /opt/pmd/
 COPY --from=builder /staging/jq/jq             /usr/bin/jq
+# Swift tools (swiftformat always; swiftlint on amd64) — dir COPY tolerates absence.
+COPY --from=builder /staging/swiftbin/         /usr/local/bin/
 
 # Venv with all Python deps + eedom itself — console_scripts are in .venv/bin/
 COPY --from=builder /opt/eedom/.venv /opt/eedom/.venv
@@ -333,7 +334,7 @@ ENV PATH="/opt/eedom/.venv/bin:$PATH" \
     XDG_CACHE_HOME=/home/eedom/.cache \
     EEDOM_OPERATING_MODE=monitor \
     EEDOM_OPA_POLICY_PATH=/opt/eedom/policies \
-    EEDOM_ENABLED_SCANNERS=syft,osv-scanner,trivy,scancode,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,cspell,ls-lint,cdk-nag,cfn-nag
+    EEDOM_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,cspell,ls-lint,cdk-nag,cfn-nag
 
 USER eedom
 WORKDIR /home/eedom
