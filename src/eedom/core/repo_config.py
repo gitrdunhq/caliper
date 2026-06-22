@@ -68,9 +68,29 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
     merged_plugins = PluginConfig(
         enabled=pkg_config.plugins.enabled or root_config.plugins.enabled,
         disabled=pkg_config.plugins.disabled or root_config.plugins.disabled,
+        # Preserve the semgrep sub-config (extra_config_dirs / exclude_rules): package
+        # takes precedence when it sets one, else fall back to root. Previously this was
+        # reconstructed without semgrep and silently reset to defaults (P05-6).
+        semgrep=(
+            pkg_config.plugins.semgrep
+            if pkg_config.plugins.semgrep != PluginConfig().semgrep
+            else root_config.plugins.semgrep
+        ),
     )
     merged_thresholds = {**root_config.thresholds, **pkg_config.thresholds}
-    return RepoConfig(plugins=merged_plugins, thresholds=merged_thresholds)
+    # Carry telemetry through the merge (package precedence when set, else root).
+    # Previously RepoConfig was built without telemetry, dropping root telemetry to
+    # defaults during a package merge (#262).
+    merged_telemetry = (
+        pkg_config.telemetry
+        if pkg_config.telemetry != TelemetryConfig()
+        else root_config.telemetry
+    )
+    return RepoConfig(
+        plugins=merged_plugins,
+        thresholds=merged_thresholds,
+        telemetry=merged_telemetry,
+    )
 
 
 def load_repo_config(repo_path: Path) -> RepoConfig:
