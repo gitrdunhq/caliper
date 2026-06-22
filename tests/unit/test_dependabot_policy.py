@@ -34,17 +34,35 @@ def _dependabot_updates() -> list[dict[object, object]]:
     return [update for update in updates if isinstance(update, dict)]
 
 
-def test_dependabot_excludes_intentional_vulnerability_fixture() -> None:
-    pip_updates = [
+def _root_python_updates() -> list[dict[object, object]]:
+    """Root Python update blocks, regardless of pip/uv ecosystem naming."""
+    return [
         update
         for update in _dependabot_updates()
-        if update.get("package-ecosystem") == "pip" and update.get("directory") == "/"
+        if update.get("package-ecosystem") in {"uv", "pip"} and update.get("directory") == "/"
     ]
-    assert pip_updates, "Dependabot must have a root pip update block"
+
+
+def test_dependabot_root_python_uses_uv_ecosystem() -> None:
+    """Root Python updates must use the uv ecosystem, not pip.
+
+    The pip ecosystem edits pyproject.toml without regenerating uv.lock, which
+    produces un-mergeable lockfile drift. uv updates both atomically.
+    """
+    root = _root_python_updates()
+    assert root, "Dependabot must have a root Python update block"
+    assert all(
+        update.get("package-ecosystem") == "uv" for update in root
+    ), "Root Python updates must use package-ecosystem 'uv' to keep pyproject.toml and uv.lock in sync"
+
+
+def test_dependabot_excludes_intentional_vulnerability_fixture() -> None:
+    python_updates = _root_python_updates()
+    assert python_updates, "Dependabot must have a root Python update block"
 
     excluded = {
         item
-        for update in pip_updates
+        for update in python_updates
         for item in update.get("exclude-paths", [])
         if isinstance(item, str)
     }
@@ -59,13 +77,9 @@ def test_dependabot_excludes_intentional_vulnerability_fixture() -> None:
 
 
 def test_dependabot_version_updates_have_minimum_package_age() -> None:
-    pip_update = next(
-        update
-        for update in _dependabot_updates()
-        if update.get("package-ecosystem") == "pip" and update.get("directory") == "/"
-    )
-    cooldown = pip_update.get("cooldown")
-    assert isinstance(cooldown, dict), "Root pip updates must define a cooldown"
+    python_update = next(iter(_root_python_updates()))
+    cooldown = python_update.get("cooldown")
+    assert isinstance(cooldown, dict), "Root Python updates must define a cooldown"
     assert cooldown.get("default-days") == 14
 
 
