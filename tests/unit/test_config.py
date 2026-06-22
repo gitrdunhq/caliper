@@ -75,16 +75,17 @@ class TestEedomSettings:
         with patch.dict(os.environ, env, clear=True):
             assert EedomSettings().file_source == "walk"
 
-    def test_missing_db_dsn_raises_validation_error(self) -> None:
-        """Config without DB_DSN must fail with a clear validation error."""
+    def test_missing_db_dsn_defaults_to_none(self) -> None:
+        """db_dsn is optional — unset means None (NullRepository fallback), not a crash.
+
+        The webhook/ground entry points construct EedomSettings() with no DSN and
+        rely on the composition root's NullRepository fallback rather than failing
+        at startup with a ValidationError.
+        """
         from eedom.core.config import EedomSettings
 
-        with patch.dict(os.environ, {}, clear=True), pytest.raises(ValidationError) as exc_info:
-            EedomSettings()
-
-        errors = exc_info.value.errors()
-        field_names = [e["loc"][-1] for e in errors]
-        assert "db_dsn" in field_names
+        with patch.dict(os.environ, {}, clear=True):
+            assert EedomSettings().db_dsn is None
 
     def test_invalid_operating_mode_raises_validation_error(self) -> None:
         """Operating mode must be restricted to 'monitor' and 'advise'."""
