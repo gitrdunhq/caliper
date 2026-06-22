@@ -1,5 +1,22 @@
 """eedom — Eagle Eyed Dom, deterministic dependency and code review for CI."""
 
-__version__ = "0.2.23"
+from eedom.core.report_schema import (
+    REPORT_SCHEMA_VERSION,
+    FindingModel,
+    PluginReportModel,
+    PluginStatus,
+    ReportModel,
+    ReportVerdict,
+)
 
-__all__ = ["__version__"]
+__version__ = "0.2.25"
+
+__all__ = [
+    "__version__",
+    "REPORT_SCHEMA_VERSION",
+    "FindingModel",
+    "PluginReportModel",
+    "PluginStatus",
+    "ReportModel",
+    "ReportVerdict",
+]

@@ -281,8 +281,43 @@ class TestPurgeDeletedFiles:
         g = CodeGraph(db_path=db_file)
         g.rebuild_incremental([str(file_a), str(file_b)])
 
+        file_b.unlink()
         count = g.purge_deleted_files([str(file_a)])
         assert count == 1
+
+    def test_single_file_rebuild_preserves_other_tracked_files(self, tmp_path):
+        """rebuild_incremental([one_file]) must NOT purge other tracked files
+        that still exist on disk.
+
+        Regression for the per-write incremental pattern (datum agent-loop):
+        write A -> rebuild_incremental([A]); write B -> rebuild_incremental([B]).
+        The second call passed only B, and purge_deleted_files treated 'not in
+        the argument list' as 'deleted from disk', destroying A's symbols.
+        Purge must key on actual disk existence, not list membership.
+        """
+        db_file = str(tmp_path / "graph.sqlite")
+        file_a = tmp_path / "a.py"
+        file_b = tmp_path / "b.py"
+        file_a.write_text(SAMPLE_A)
+        file_b.write_text(SAMPLE_B)
+
+        g = CodeGraph(db_path=db_file)
+        # Per-write pattern: each file rebuilt in its own call
+        g.rebuild_incremental([str(file_a)])
+        g.rebuild_incremental([str(file_b)])
+
+        names = {
+            r["name"]
+            for r in g.conn.execute("SELECT name FROM symbols WHERE kind = 'function'").fetchall()
+        }
+        assert "alpha" in names, "file_a still exists on disk — its symbols must survive"
+        assert "gamma" in names
+
+        # And the metadata row for file_a must survive too
+        row = g.conn.execute(
+            "SELECT path FROM file_metadata WHERE path = ?", (str(file_a),)
+        ).fetchone()
+        assert row is not None, "file_a metadata must not be purged while it exists on disk"
 
     def test_purge_with_all_files_present_returns_zero(self, tmp_path):
         """purge_deleted_files with all files still present returns 0."""
@@ -300,6 +335,88 @@ class TestPurgeDeletedFiles:
             for r in g.conn.execute("SELECT name FROM symbols WHERE kind = 'function'").fetchall()
         }
         assert "alpha" in names
+
+
+class TestPathNormalization:
+    """Issue #387 — CodeGraph normalizes paths at the API boundary.
+
+    Convention: symbols/file_metadata store paths RELATIVE to the repo root.
+    Every public method accepts either repo-relative or absolute paths once a
+    repo root is known (constructor arg or index_directory), and absolute
+    paths outside the root are rejected loudly.
+    """
+
+    def _build(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "a.py").write_text(SAMPLE_A)
+        (repo / "b.py").write_text(SAMPLE_B)
+        g = CodeGraph(db_path=str(tmp_path / "graph.sqlite"))
+        g.index_directory(repo)
+        return repo, g
+
+    def test_run_checks_accepts_absolute_paths(self, tmp_path):
+        repo, g = self._build(tmp_path)
+        rel = g.run_checks(["a.py"])
+        absolute = g.run_checks([str(repo / "a.py")])
+        assert rel, "relative path must produce findings (orphan alpha/beta)"
+        assert absolute == rel, "absolute path must match the same stored rows"
+
+    def test_run_checks_for_file_accepts_both_forms(self, tmp_path):
+        repo, g = self._build(tmp_path)
+        rel = g.run_checks_for_file("a.py")
+        absolute = g.run_checks_for_file(str(repo / "a.py"))
+        assert rel
+        assert absolute == rel
+
+    def test_rebuild_stores_relative_paths_no_duplicate_spellings(self, tmp_path):
+        repo, g = self._build(tmp_path)
+        (repo / "a.py").write_text(SAMPLE_A_MODIFIED)
+        os.utime(repo / "a.py", (time.time() + 2, time.time() + 2))
+
+        g.rebuild_incremental([str(repo / "a.py"), str(repo / "b.py")])
+
+        files = {
+            r["file"]
+            for r in g.conn.execute("SELECT DISTINCT file FROM symbols").fetchall()
+            if r["file"].endswith(".py")
+        }
+        assert files == {"a.py", "b.py"}, f"expected only relative spellings, got: {files}"
+        # And the rebuilt content must be queryable via the relative form.
+        findings = g.run_checks(["a.py"])
+        names = {f.get("name") for f in findings}
+        assert "epsilon" in names
+
+    def test_needs_rebuild_accepts_relative_path(self, tmp_path):
+        repo, g = self._build(tmp_path)
+        g.rebuild_incremental(["a.py"])
+        assert g.needs_rebuild("a.py") is False
+        assert g.needs_rebuild(str(repo / "a.py")) is False
+
+    def test_absolute_path_outside_root_rejected_loudly(self, tmp_path):
+        repo, g = self._build(tmp_path)
+        outside = tmp_path / "elsewhere" / "x.py"
+        with pytest.raises(ValueError, match="repo root"):
+            g.run_checks([str(outside)])
+
+    def test_constructor_repo_root(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "a.py").write_text(SAMPLE_A)
+        g = CodeGraph(db_path=str(tmp_path / "g.sqlite"), repo_root=repo)
+        g.rebuild_incremental([str(repo / "a.py")])
+        row = g.conn.execute("SELECT path FROM file_metadata").fetchone()
+        assert row["path"] == "a.py", "metadata must use the repo-relative key"
+        assert g.run_checks_for_file(str(repo / "a.py"))
+
+    def test_no_repo_root_keeps_legacy_behavior(self, tmp_path):
+        """Without a known root, paths are stored exactly as given."""
+        py_file = tmp_path / "module.py"
+        py_file.write_text(SAMPLE_A)
+        g = CodeGraph()
+        g.rebuild_file(str(py_file))
+        row = g.conn.execute("SELECT path FROM file_metadata").fetchone()
+        assert row["path"] == str(py_file)
 
 
 class TestImportEdgePathTraversal:
@@ -402,6 +519,7 @@ class TestBlastRadiusPersistence:
         """BlastRadiusPlugin reads db_path from config and passes it to CodeGraph."""
         from eedom.plugins.blast_radius import BlastRadiusPlugin
 
+        monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
         plugin = BlastRadiusPlugin()
         # The plugin's run() should not crash when called with a tmp repo_path
         # Create a minimal Python file so indexing succeeds

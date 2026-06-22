@@ -61,8 +61,9 @@ def test_generate_config_schema_contains_all_repo_config_fields():
 def test_generate_plugin_inventory_returns_list_of_strings():
     """generate_plugin_inventory() must exist and return a non-empty list of str."""
     from eedom.core.doc_gen import generate_plugin_inventory  # noqa: PLC0415
+    from eedom.plugins import get_default_registry
 
-    inventory = generate_plugin_inventory()
+    inventory = generate_plugin_inventory(get_default_registry())
     assert isinstance(inventory, list), f"Expected list, got {type(inventory).__name__}"
     assert len(inventory) > 0, "Plugin inventory must not be empty"
     for name in inventory:
@@ -74,8 +75,9 @@ def test_generate_plugin_inventory_matches_default_registry():
     from eedom.core.doc_gen import generate_plugin_inventory  # noqa: PLC0415
     from eedom.plugins import get_default_registry
 
-    inventory = set(generate_plugin_inventory())
-    registry_names = {p.name for p in get_default_registry().list()}
+    registry = get_default_registry()
+    inventory = set(generate_plugin_inventory(registry))
+    registry_names = {p.name for p in registry.list()}
 
     assert inventory == registry_names, (
         f"Inventory drift detected.\n"
@@ -94,8 +96,9 @@ _CAPABILITIES_PLUGIN_COUNT = 19
 def test_plugin_inventory_count_matches_capabilities_md():
     """Inventory length must equal the canonical count declared in docs/CAPABILITIES.md."""
     from eedom.core.doc_gen import generate_plugin_inventory  # noqa: PLC0415
+    from eedom.plugins import get_default_registry
 
-    inventory = generate_plugin_inventory()
+    inventory = generate_plugin_inventory(get_default_registry())
     assert len(inventory) == _CAPABILITIES_PLUGIN_COUNT, (
         f"Expected {_CAPABILITIES_PLUGIN_COUNT} plugins per docs/CAPABILITIES.md, "
         f"got {len(inventory)}.  Update CAPABILITIES.md or add the missing plugin."

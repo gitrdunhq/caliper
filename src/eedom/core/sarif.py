@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 from eedom.core.plugin import PluginResult
+from eedom.core.review_summary import SEVERITY_TO_LEVEL, ReviewSummary, summarize_review
 from eedom.core.version import get_version
 
 _SARIF_SCHEMA = (
@@ -18,19 +19,9 @@ _SARIF_SCHEMA = (
     "schema/sarif-schema-2.1.0.json"
 )
 
-# Maps finding severity strings (any case) to SARIF level values.
-# Unmapped values fall back to "note" (least alarming safe default).
-_SEVERITY_TO_LEVEL: dict[str, str] = {
-    "critical": "error",
-    "high": "error",
-    "error": "error",
-    "medium": "warning",
-    "moderate": "warning",
-    "warning": "warning",
-    "low": "note",
-    "info": "note",
-    "note": "note",
-}
+# Severity -> SARIF level uses the canonical map (review_summary), so SARIF, the
+# JSON report, and the verdict all classify severities identically.
+_SEVERITY_TO_LEVEL = SEVERITY_TO_LEVEL
 
 
 def _rule_id(finding: dict, plugin_name: str) -> str:
@@ -79,6 +70,17 @@ def _make_locations(finding: dict, repo_path: str | None) -> list[dict]:
     ]
 
 
+def _enrichment(finding: dict) -> dict | None:
+    """Return the detect-then-enrich packet (ADR-006) for *finding*, or None.
+
+    Surfaced verbatim into the SARIF result's property bag so enrichment reaches
+    SARIF consumers at parity with the JSON report.
+    """
+    metadata = finding.get("metadata") or {}
+    enrichment = metadata.get("enrichment")
+    return enrichment or None
+
+
 def _plugin_to_run(
     result: PluginResult,
     repo_path: str | None,
@@ -101,6 +103,9 @@ def _plugin_to_run(
         locations = _make_locations(finding, repo_path)
         if locations:
             sarif_result["locations"] = locations
+        enrichment = _enrichment(finding)
+        if enrichment:
+            sarif_result["properties"] = {"enrichment": enrichment}
         sarif_results.append(sarif_result)
 
     if result.error:
@@ -144,6 +149,7 @@ def to_sarif(
     results: list[PluginResult],
     repo_path: str | None = None,
     max_findings_per_run: int = 0,
+    summary: ReviewSummary | None = None,
 ) -> dict:
     """Convert plugin results to a SARIF v2.1.0 document.
 
@@ -156,11 +162,28 @@ def to_sarif(
     Returns:
         A dict that serialises to a valid SARIF 2.1.0 JSON document.
     """
-    return {
+    if summary is None:
+        summary = summarize_review(results)
+    doc = {
         "$schema": _SARIF_SCHEMA,
         "version": "2.1.0",
+        # Canonical verdict/counts (single source of truth) as a top-level property
+        # bag so SARIF consumers and the CI gate read the same conclusion as the
+        # markdown badge and JSON report.
+        "properties": {
+            "eedom_verdict": summary.verdict.value,
+            "error_count": summary.error_count,
+            "warning_count": summary.warning_count,
+            "note_count": summary.note_count,
+            "crashed_count": summary.crashed_count,
+            "skipped_count": summary.skipped_count,
+            "blocking_count": summary.blocking_count,
+            "security_score": summary.security_score,
+            "quality_score": summary.quality_score,
+        },
         "runs": [_plugin_to_run(r, repo_path, max_findings_per_run) for r in results],
     }
+    return doc
 
 
 class SarifRenderer:
@@ -169,3 +192,11 @@ class SarifRenderer:
     def render(self, report) -> str:  # report: ReviewReport
         doc = to_sarif(report.plugin_results)
         return json.dumps(doc, indent=2)
+
+
+from eedom.core.registries import RENDERERS  # noqa: E402  (registration wiring)
+
+
+@RENDERERS.register("sarif")
+def build_sarif_renderer() -> SarifRenderer:
+    return SarifRenderer()

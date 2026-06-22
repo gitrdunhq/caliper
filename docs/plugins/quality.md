@@ -18,6 +18,30 @@ Counts how many symbols depend on a given function, surfacing the change surface
 
 Even advisory, this tells a reviewer whether a one-line change touches 2 callers or 40.
 
+### Graph database location
+
+Reviewing a repo never writes into the repo itself. The code graph SQLite db is resolved in this order:
+
+1. `EEDOM_GRAPH_DB` environment variable — explicit override.
+2. `thresholds.blast-radius.graph_db` in `.eagle-eyed-dom.yaml` — relative paths resolve against the repo root.
+3. A pre-existing legacy `<repo>/.eedom/code_graph.sqlite` keeps being used.
+4. Default: `$XDG_CACHE_HOME/eedom/graphs/<repo-hash>/code_graph.sqlite` (`~/.cache` when `XDG_CACHE_HOME` is unset).
+
+`eedom query` reads the same resolved location by default; pass `--db` to point elsewhere.
+
+### Path conventions (library API)
+
+`CodeGraph` stores `symbols.file` and `file_metadata.path` RELATIVE to the repo root. Once a repo root is known (constructor `repo_root=` or inferred by `index_directory()`), every public method — `run_checks`, `run_checks_for_file`, `needs_rebuild`, `rebuild_file`, `rebuild_incremental`, `purge_deleted_files` — accepts either repo-relative or absolute paths and normalizes at the API boundary. Absolute paths outside the repo root raise `ValueError`.
+
+For per-file queries use the convenience API:
+
+```python
+graph = CodeGraph(db_path=db, repo_root="/path/to/repo")
+findings = graph.run_checks_for_file("/path/to/repo/src/mod.py")  # or "src/mod.py"
+```
+
+Without a repo root (ad hoc `CodeGraph()`), paths are stored and matched exactly as given.
+
 ---
 
 ## complexity
@@ -71,3 +95,46 @@ Enforces file and directory naming conventions across the project tree.
 | Warning | File or directory name does not match the configured pattern |
 
 Consistent naming makes navigation predictable and removes the cognitive load of guessing whether a file is `UserService`, `user-service`, or `user_service`.
+
+---
+
+## mypy
+
+Runs cross-file type checking. Prefers pyright (faster, stricter) when available, falls back to mypy.
+
+| Severity | Condition |
+|----------|-----------|
+| Error | Type incompatibility at a public API boundary |
+| Warning | Missing type annotation on a public function |
+
+Advisory — helps reviewers understand type contract violations early without blocking merges. Type mismatches are cheaper to fix in review than to trace in production.
+
+---
+
+## swiftlint
+
+Detects Swift style and code smell violations using 200+ built-in rules plus 13 project-specific custom rules.
+
+| Severity | Condition |
+|----------|-----------|
+| Warning | Swift style violation or code smell (e.g., force try/cast, NSLock in async context, weak self handling) |
+
+Advisory — surfaces patterns that are unlikely to pass thorough code review, making the conversation about simplification and safety easier to start.
+
+---
+
+## swiftformat
+
+Reports Swift source files that need reformatting. All findings are auto-fixable with `swiftformat .`.
+
+| Severity | Condition |
+|----------|-----------|
+| Info | File does not match the configured formatting rules |
+
+Advisory — purely informational. Formatting consistency improves readability and reduces review friction.
+
+---
+
+## See also
+
+- [Deterministic detectors](../detectors.md) — 21 AST-based bug-pattern rules (EED-001..EED-021) that run alongside the plugins.

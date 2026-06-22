@@ -13,19 +13,22 @@ import contextlib
 import time
 from pathlib import Path
 
+from eedom.core.file_source import select_file_source
 from eedom.core.models import FindingSeverity, ScanResult, ScanResultStatus
-from eedom.data.scanners.base import Scanner
+from eedom.core.ports import FileSourcePort
+from eedom.detectors._registry import discover_detectors, get_all_detectors
 from eedom.detectors.ast_utils import ASTCache
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 
-class DeterministicScanner(Scanner):
+class DeterministicScanner:
     """Scanner implementation that runs all bug detectors.
 
-    Integrates with ScanOrchestrator via Scanner protocol.
+    Satisfies the core ``ScannerPort`` structurally (``name`` + ``scan``) — no
+    inheritance; conformance is asserted by an isinstance test.
+    Integrates with ScanOrchestrator via the Scanner protocol.
     Uses AST caching (ADR-DET-007) and visitor pattern batching (VAL-H1).
 
     Per ADR-DET-006: This scanner is integrated into the 'review' command
@@ -48,6 +51,7 @@ class DeterministicScanner(Scanner):
         severities: list[FindingSeverity] | None = None,
         specific_detectors: list[str] | None = None,
         cache: ASTCache | None = None,
+        file_source: FileSourcePort | None = None,
     ) -> None:
         """Initialize with optional filters.
 
@@ -56,14 +60,17 @@ class DeterministicScanner(Scanner):
             severities: Filter detectors by severity (None = all)
             specific_detectors: Run only specific detector IDs (None = all)
             cache: Optional AST cache for performance
+            file_source: Optional FileSourcePort for enumeration (None =
+                resolved per scan via ``select_file_source``)
         """
         self._categories = categories
         self._severities = severities
         self._specific_detectors = specific_detectors
         self._cache = cache or ASTCache(maxsize=100)
+        self._file_source = file_source
 
         # Ensure registry is discovered
-        DetectorRegistry.discover()
+        discover_detectors()
 
     def _get_applicable_detectors(self, file_path: Path) -> list[BugDetector]:
         """Get detectors applicable to the given file.
@@ -77,7 +84,7 @@ class DeterministicScanner(Scanner):
         Returns:
             List of applicable detector instances
         """
-        all_detectors = DetectorRegistry.get_all_detectors()
+        all_detectors = get_all_detectors()
         applicable = []
 
         for detector in all_detectors:
@@ -174,9 +181,11 @@ class DeterministicScanner(Scanner):
             if target_path.suffix == ".py":
                 files_to_scan.append(target_path)
         else:
-            # Find all Python files recursively
+            # Enumerate via the file source so ignore rules (.venv, node_modules,
+            # .eedomignore, …) are honoured instead of a bare rglob.
+            source = self._file_source or select_file_source(target_path)
             with contextlib.suppress(OSError, PermissionError):
-                files_to_scan = list(target_path.rglob("*.py"))
+                files_to_scan = source.list_files(target_path, suffixes=(".py",))
 
         # Run detectors on all files
         all_findings: list[DetectorFinding] = []

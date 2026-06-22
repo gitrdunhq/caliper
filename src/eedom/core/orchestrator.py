@@ -18,7 +18,7 @@ import structlog
 from eedom.core.models import ScanResult
 
 if TYPE_CHECKING:
-    from eedom.data.scanners.base import Scanner
+    from eedom.core.ports import ScannerPort
 
 logger = structlog.get_logger()
 
@@ -26,7 +26,7 @@ logger = structlog.get_logger()
 class ScanOrchestrator:
     """Runs a list of scanners in parallel with combined timeout enforcement."""
 
-    def __init__(self, scanners: list[Scanner], combined_timeout: int) -> None:
+    def __init__(self, scanners: list[ScannerPort], combined_timeout: int) -> None:
         self._scanners = scanners
         self._combined_timeout = combined_timeout
 

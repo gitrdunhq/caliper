@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from eedom.core.ports import AuditSinkPort, DecisionStorePort, EvidenceStorePort
-
 
 class NullDecisionStore:
     """No-op DecisionStorePort — discards all decisions silently."""
@@ -57,13 +55,19 @@ class FileEvidenceStore:
         return str(target)
 
 
-assert isinstance(
-    NullDecisionStore(), DecisionStorePort
-), "NullDecisionStore must satisfy DecisionStorePort"
-assert isinstance(
-    NullEvidenceStore(), EvidenceStorePort
-), "NullEvidenceStore must satisfy EvidenceStorePort"
-assert isinstance(NullAuditSink(), AuditSinkPort), "NullAuditSink must satisfy AuditSinkPort"
-assert isinstance(
-    FileEvidenceStore(Path(".")), EvidenceStorePort
-), "FileEvidenceStore must satisfy EvidenceStorePort"
+from eedom.core.registries import DECISION_STORES, EVIDENCE_STORES  # noqa: E402  (wiring)
+
+
+@DECISION_STORES.register("null")
+def build_null_decision_store() -> NullDecisionStore:
+    return NullDecisionStore()
+
+
+@EVIDENCE_STORES.register("file")
+def build_file_evidence_store(*, base_dir: Path) -> FileEvidenceStore:
+    return FileEvidenceStore(base_dir=base_dir)
+
+
+@EVIDENCE_STORES.register("null")
+def build_null_evidence_store() -> NullEvidenceStore:
+    return NullEvidenceStore()

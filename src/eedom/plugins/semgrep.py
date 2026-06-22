@@ -7,7 +7,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from eedom.plugins._runners.semgrep_runner import run_semgrep as _run
+from eedom.core.registries import RULE_RUNNERS
+from eedom.plugins._runners import semgrep_runner  # noqa: F401  (registers RULE_RUNNERS["semgrep"])
 
 _CODE_EXTS = {
     ".py",
@@ -45,8 +46,23 @@ class SemgrepPlugin(ScannerPlugin):
         return any(Path(f).suffix in _CODE_EXTS for f in files)
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
+        from eedom.core.repo_config import RepoConfig, load_repo_config
+
+        repo_config: RepoConfig
         try:
-            data = _run(files, str(repo_path), timeout=120)
+            repo_config = load_repo_config(repo_path)
+        except (ValueError, OSError):
+            repo_config = RepoConfig()
+        sg = repo_config.plugins.semgrep
+
+        try:
+            data = RULE_RUNNERS.create("semgrep").run(
+                files,
+                str(repo_path),
+                timeout=120,
+                extra_config_dirs=sg.extra_config_dirs,
+                exclude_rules=sg.exclude_rules,
+            )
         except Exception as exc:
             return PluginResult(plugin_name=self.name, error=str(exc))
 
@@ -98,3 +114,12 @@ class SemgrepPlugin(ScannerPlugin):
             lines.append(f"> {f['message'][:200]}\n")
         lines.append("</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("semgrep")
+def build_semgrep_plugin() -> SemgrepPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return SemgrepPlugin()

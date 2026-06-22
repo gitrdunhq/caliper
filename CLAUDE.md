@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the eedom scanner.
 
 ## What This Is
 
-Eagle Eyed Dom — fully deterministic dependency and code review for CI. 18 plugins, 33 custom semgrep rules, 12 code graph checks, 6 OPA policy rules, 600+ tests, zero LLM in the decision path.
+Eagle Eyed Dom — fully deterministic dependency and code review for CI. 19 scanner plugins (+ OPA policy plugin), 21 deterministic detectors, 61 custom semgrep rules, 12 code graph checks, 8 OPA policy rules, 600+ tests, zero LLM in the decision path.
 
 ## Commands
 
@@ -72,17 +72,23 @@ podman run --rm --platform linux/amd64 \
 Three-tier — imports flow downward only (cli -> core -> data):
 
 - `src/eedom/cli/` — thin CLI adapter. Parses args, delegates to core, formats output.
-- `src/eedom/core/` — all business logic. Pipeline, policy, plugin registry, renderer, SARIF, config.
+- `src/eedom/core/` — all business logic. Pipeline, policy, plugin registry, renderer, SARIF, config, enrichment seam.
 - `src/eedom/data/` — persistence and external calls. Scanners, DB, evidence, parquet, PyPI client.
-- `src/eedom/plugins/` — 18 scanner plugins with auto-discovery via `PluginRegistry`.
+- `src/eedom/plugins/` — 19 scanner plugins (+ OPA policy plugin) with auto-discovery via `PluginRegistry`.
+- `src/eedom/plugins/enrichers/` — code-graph + opt-in semgrep finding enrichers (ADR-006).
+- `src/eedom/detectors/` — 21 deterministic AST bug detectors (EED-001..021), exposed as a `DeterministicScanner`. See `docs/detectors.md`.
+- `src/eedom/composition/` — composition root: `bootstrap()` wires adapters/enrichers into an `ApplicationContext` (NullRepository fallback when no DB).
+- `src/eedom/webhook/` — Starlette ASGI webhook server (GitHub PR events, HMAC-SHA256, port 12800).
 - `src/eedom/agent/` — GATEKEEPER Copilot Agent (second presentation-tier entry point).
 - `src/eedom/templates/` — Jinja2 templates for PR comment rendering.
+
+**Detect-then-enrich (ADR-006)**: a post-detection, pre-policy pass decorates every finding's `metadata['enrichment']` with deterministic context (enclosing symbol, blast-radius callers, nearby semgrep matches). Sequential, fail-open, time-bounded (`enrichment_timeout`), verdict-independent. Registry: `ENRICHERS` in `core/registries.py`.
 
 ## Critical Design Rules
 
 **Fail-open**: No scanner failure blocks a build. Every external call has a timeout. Every failure returns a typed result.
 
-**Timeouts**: scanner=60s, combined=180s, OPA=10s, LLM=30s, pipeline=300s. All from config.
+**Timeouts**: scanner=60s, combined=180s, OPA=10s, LLM=30s, enrichment=30s, pipeline=300s. All from config.
 
 **OPA input uses `input.pkg` not `input.package`**: `package` is reserved in Rego v1.
 
@@ -114,9 +120,20 @@ What the script manages:
 
 **Rule:** If you add a new fixture directory, add it to `config/scan-exclusions.toml` and run the sync script. Do NOT manually edit the generated `osv-scanner.toml` files.
 
+## File Enumeration
+
+**One seam decides which files get scanned:** `core/file_source.py` (`FileSourcePort`, registry `FILE_SOURCES`). Two adapters back it:
+
+- `GitLsFilesSource` (`"git"`) — `git ls-files --cached --others --exclude-standard` (tracked + untracked-not-`.gitignore`d), with `-c safe.directory=<root>` so git engages on read-only CI mounts owned by another uid.
+- `WalkFileSource` (`"walk"`) — `os.walk` + `core/ignore.py`, the fail-open fallback for non-git targets.
+
+`select_file_source(root, prefer=...)` picks git when the root is a usable repo and falls back to walk; override with `EEDOM_FILE_SOURCE=auto|git|walk` (or `EedomSettings.file_source`). Both adapters apply the eedom exclusion layer (`core/ignore.py`) on top, so tracked-but-not-ours paths (fixtures) are skipped regardless of source.
+
+**Rule:** Consumers (CLI, scanner, plugins) enumerate via the resolved source — never call `rglob`/`os.walk`/`git` directly. `core/ignore.py` `DEFAULT_PATTERNS` and `file_source._ALWAYS_SKIP_DIRS` are the shared exclusion constants (`manifest_discovery` imports the latter).
+
 ## OPA Policy
 
-6 rules in `policies/policy.rego`. Critical/high vulns deny. Forbidden licenses deny. Package age < 30 days denies. Malicious packages deny. Medium vulns warn. High transitive dep count warns.
+8 rules in `policies/policy.rego`. Critical/high vulns deny. Forbidden licenses deny. Package age < 30 days denies. Malicious packages deny. Critical/high supply-chain version-bump signals deny. Medium vulns warn. High transitive dep count warns. Medium supply-chain signals warn.
 
 ## Dev Ports
 

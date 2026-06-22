@@ -161,26 +161,20 @@ class TestMakeNotInstalledResult:
 
 
 # ---------------------------------------------------------------------------
-# Scanner ABC
+# ScannerPort Protocol (Scanner is a backward-compat alias)
 # ---------------------------------------------------------------------------
 
 
-class TestScannerABC:
-    """Tests that Scanner is abstract and enforces the contract."""
+class TestScannerPort:
+    """Tests that ScannerPort is a runtime-checkable structural Protocol."""
 
-    def test_cannot_instantiate_base_class(self) -> None:
+    def test_cannot_instantiate_the_protocol(self) -> None:
+        # Protocols cannot be instantiated directly.
         with pytest.raises(TypeError):
-            Scanner()  # type: ignore[abstract]
+            Scanner()  # type: ignore[misc]
 
-    def test_subclass_must_implement_name_and_scan(self) -> None:
-        class IncompleteScanner(Scanner):
-            pass
-
-        with pytest.raises(TypeError):
-            IncompleteScanner()  # type: ignore[abstract]
-
-    def test_complete_subclass_can_be_instantiated(self) -> None:
-        class DummyScanner(Scanner):
+    def test_duck_typed_object_satisfies_the_protocol(self) -> None:
+        class DummyScanner:
             @property
             def name(self) -> str:
                 return "dummy"
@@ -190,3 +184,11 @@ class TestScannerABC:
 
         scanner = DummyScanner()
         assert scanner.name == "dummy"
+        # Structural conformance — no inheritance required.
+        assert isinstance(scanner, Scanner)
+
+    def test_object_missing_methods_does_not_satisfy_the_protocol(self) -> None:
+        class NotAScanner:
+            name = "incomplete"
+
+        assert not isinstance(NotAScanner(), Scanner)

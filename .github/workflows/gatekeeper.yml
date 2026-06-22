@@ -430,7 +430,11 @@ jobs:
           PID_SARIF=$!
           uv run eedom review --repo-path . --all $DIFF_FLAG --output .temp/review.md &
           PID_MD=$!
-          wait $PID_SARIF $PID_MD
+          # review.json carries the single source of truth (verdict + counts); the
+          # verdict step below reads it instead of re-deriving from SARIF.
+          uv run eedom review --repo-path . --all $DIFF_FLAG --format json --output .temp/review.json &
+          PID_JSON=$!
+          wait $PID_SARIF $PID_MD $PID_JSON
 
       - name: Upload review artifacts
         if: always()
@@ -440,6 +444,7 @@ jobs:
           path: |
             .temp/review.sarif
             .temp/review.md
+            .temp/review.json
           retention-days: 7
           if-no-files-found: ignore
 
@@ -522,70 +527,36 @@ jobs:
       - name: Compute verdict
         id: verdict
         run: |
-          python3 << 'VERDICT_SCRIPT'
-          import json, os, re
-
-          out_path = os.environ["GITHUB_OUTPUT"]
-          errors = 0
-          warnings = 0
-          crashed = 0
-          skipped = 0
-          total = 0
-
-          sarif_path = ".temp/review.sarif"
-          md_path = ".temp/review.md"
-
-          if os.path.isfile(sarif_path):
-              with open(sarif_path) as f:
-                  sarif = json.load(f)
-              runs = sarif.get("runs", [])
-              total = len(runs)
-              for r in runs:
-                  plugin_errored = False
-                  for res in r.get("results", []):
-                      if res.get("ruleId") == "eedom-plugin-error":
-                          crashed += 1
-                          plugin_errored = True
-                          break
-                  if plugin_errored:
-                      continue
-                  for res in r.get("results", []):
-                      if res.get("level") == "error":
-                          errors += 1
-                      elif res.get("level") == "warning":
-                          warnings += 1
-
-          if os.path.isfile(md_path):
-              with open(md_path) as mf:
-                  md = mf.read()
-              if crashed == 0:
-                  crashed = len(re.findall(r"BINARY_CRASHED", md))
-              skipped = len(re.findall(r"NOT_INSTALLED", md))
-              timed_out = len(re.findall(r"\[TIMEOUT\]", md))
-              warnings += timed_out
-
-          if crashed > 0:
-              verdict = "warnings"
-          elif errors > 0:
-              verdict = "blocked"
-          elif warnings > 0 or skipped > 0:
-              verdict = "warnings"
-          else:
-              verdict = "approved"
-
-          with open(out_path, "a") as out:
-              out.write(f"errors={errors}\n")
-              out.write(f"warnings={warnings}\n")
-              out.write(f"crashed={crashed}\n")
-              out.write(f"skipped={skipped}\n")
-              out.write(f"total_plugins={total}\n")
-              out.write(f"verdict={verdict}\n")
-          VERDICT_SCRIPT
+          # Single source of truth: read eedom's own verdict + counts from review.json
+          # (eedom.core.review_summary). No re-derivation from SARIF here — that second
+          # engine is exactly what made the header and the markdown badge disagree.
+          JSON=.temp/review.json
+          if [ -s "$JSON" ]; then
+            RAW=$(jq -r '.verdict // "incomplete"' "$JSON")
+            ERRORS=$(jq -r '.error_count // 0' "$JSON")
+            WARNINGS=$(jq -r '.warning_count // 0' "$JSON")
+            CRASHED=$(jq -r '.crashed_count // 0' "$JSON")
+            SKIPPED=$(jq -r '.skipped_count // 0' "$JSON")
+            TOTAL=$(jq -r '.total_plugins // 0' "$JSON")
+          else
+            RAW=incomplete; ERRORS=0; WARNINGS=0; CRASHED=0; SKIPPED=0; TOTAL=0
+          fi
+          # User-facing label/header says "approved" for the all-clear verdict.
+          VERDICT="$RAW"
+          [ "$RAW" = "clear" ] && VERDICT="approved"
+          {
+            echo "errors=$ERRORS"
+            echo "warnings=$WARNINGS"
+            echo "crashed=$CRASHED"
+            echo "skipped=$SKIPPED"
+            echo "total_plugins=$TOTAL"
+            echo "verdict=$VERDICT"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Set dom label
         if: github.event_name == 'pull_request' && steps.upstream.outputs.upstream_ok == 'true'
         run: |
-          for LABEL in "dom: approved" "dom: warnings" "dom: blocked"; do
+          for LABEL in "dom: approved" "dom: warnings" "dom: blocked" "dom: incomplete"; do
             gh issue edit "$PR_NUM" --remove-label "$LABEL" 2>/dev/null || true
           done
 

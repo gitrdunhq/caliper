@@ -11,10 +11,18 @@ from __future__ import annotations
 import contextlib
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import orjson
 import structlog
 
+from eedom.core.accessors import (
+    get_audit_log_appender,
+    get_decision_repository,
+    get_evidence_writer,
+    get_package_metadata,
+    get_scanners,
+)
 from eedom.core.config import EedomSettings
 from eedom.core.decision import assemble_decision
 from eedom.core.diff import DependencyDiffDetector
@@ -33,44 +41,69 @@ from eedom.core.pipeline_helpers import (  # noqa: F401
     resolve_git_sha,
     sbom_changes_to_requests,
 )
-from eedom.core.policy import OpaEvaluator
 from eedom.core.sbom_diff import diff_sboms
 from eedom.core.seal import create_seal, find_previous_seal_hash
+
+if TYPE_CHECKING:
+    from eedom.core.context import ApplicationContext
 
 logger = structlog.get_logger()
 
 
-def _data_imports():
-    """Lazy-import data-tier dependencies to avoid core→data layer violation."""
-    from eedom.data.db import DecisionRepository, NullRepository, RepositoryProtocol
-    from eedom.data.evidence import EvidenceStore
-    from eedom.data.parquet_writer import append_decisions
-    from eedom.data.pypi import PyPIClient
-    from eedom.data.scanners.osv import OsvScanner
-    from eedom.data.scanners.scancode import ScanCodeScanner
-    from eedom.data.scanners.syft import SyftScanner
-    from eedom.data.scanners.trivy import TrivyScanner
+def _policy_evaluation(
+    context: ApplicationContext, findings: list, package_metadata: dict
+) -> PolicyEvaluation:
+    """Evaluate findings through the injected policy engine port.
 
-    return {
-        "DecisionRepository": DecisionRepository,
-        "NullRepository": NullRepository,
-        "RepositoryProtocol": RepositoryProtocol,
-        "EvidenceStore": EvidenceStore,
-        "append_decisions": append_decisions,
-        "PyPIClient": PyPIClient,
-        "OsvScanner": OsvScanner,
-        "ScanCodeScanner": ScanCodeScanner,
-        "SyftScanner": SyftScanner,
-        "TrivyScanner": TrivyScanner,
-    }
+    Adapts the scan ``Finding`` list into the policy port's ``PolicyInput`` and
+    maps the returned ``PolicyDecision`` verdict onto a ``PolicyEvaluation``.
+    """
+    from eedom.core.plugin import PluginFinding
+    from eedom.core.policy_port import PolicyInput
+
+    plugin_findings = [
+        PluginFinding(
+            id=f.advisory_id or "",
+            severity=f.severity.value,
+            message=f.description,
+        )
+        for f in findings
+    ]
+    pd = context.policy_engine.evaluate(
+        PolicyInput(findings=plugin_findings, packages=[package_metadata], config={})
+    )
+    verdict_str = getattr(pd, "verdict", "needs_review")
+    try:
+        verdict = DecisionVerdict(verdict_str)
+    except (ValueError, AttributeError):
+        verdict = DecisionVerdict.needs_review
+    return PolicyEvaluation(
+        decision=verdict,
+        triggered_rules=getattr(pd, "triggered_rules", []),
+        policy_bundle_version="port-injected",
+    )
 
 
 class ReviewPipeline:
-    """End-to-end review pipeline — stateless per call."""
+    """End-to-end review pipeline — stateless per call.
 
-    def __init__(self, config: EedomSettings, context=None) -> None:
+    All data-tier collaborators (scanners, decision repository, evidence
+    writer, package-metadata client, audit-log appender, policy engine) are
+    received through the injected ``ApplicationContext`` and reached via the
+    ``eedom.core.accessors`` get_* functions — core constructs nothing.
+    """
+
+    def __init__(self, config: EedomSettings, context: ApplicationContext | None = None) -> None:
         self._config = config
         self._context = context
+
+    def _require_context(self) -> ApplicationContext:
+        if self._context is None:
+            raise ValueError(
+                "ReviewPipeline requires an ApplicationContext to evaluate changes; "
+                "build one via eedom.composition.bootstrap.bootstrap(settings)."
+            )
+        return self._context
 
     def evaluate(
         self,
@@ -119,53 +152,15 @@ class ReviewPipeline:
         if not requests:
             return []
 
-        d = _data_imports()
-        evidence_path = Path(config.evidence_path)
-
-        scanners = []
-        for name in config.enabled_scanners:
-            if name == "syft":
-                scanners.append(d["SyftScanner"](evidence_dir=evidence_path))
-            elif name == "osv-scanner":
-                scanners.append(d["OsvScanner"](exclude_paths=config.osv_exclude_paths))
-            elif name == "trivy":
-                scanners.append(d["TrivyScanner"]())
-            elif name == "scancode":
-                scanners.append(
-                    d["ScanCodeScanner"](
-                        evidence_dir=evidence_path,
-                        timeout=config.scancode_timeout,
-                        license_score=config.scancode_license_score,
-                    )
-                )
-
+        context = self._require_context()
         orchestrator = ScanOrchestrator(
-            scanners=scanners,
+            scanners=get_scanners(context),
             combined_timeout=config.combined_scanner_timeout,
         )
-
-        if self._context is None:
-            opa = OpaEvaluator(
-                policy_path=config.opa_policy_path,
-                timeout=config.opa_timeout,
-            )
-        else:
-            opa = None
-
-        evidence = d["EvidenceStore"](root_path=config.evidence_path)
-        pypi_client = d["PyPIClient"](timeout=config.pypi_timeout)
-
-        try:
-            db = d["DecisionRepository"](
-                dsn=config.db_dsn,
-                query_timeout=10,
-            )
-            if not db.connect():
-                logger.warning("db_unavailable", msg="Falling back to NullRepository")
-                db = d["NullRepository"]()
-        except Exception:
-            logger.warning("db_init_failed", msg="Falling back to NullRepository")
-            db = d["NullRepository"]()
+        evidence = get_evidence_writer(context)
+        pypi_client = get_package_metadata(context)
+        db = get_decision_repository(context)
+        append_decisions = get_audit_log_appender(context)
 
         decisions: list[ReviewDecision] = []
 
@@ -212,38 +207,7 @@ class ReviewPipeline:
                         "transitive_dep_count": transitive_dep_count,
                     }
 
-                    if self._context is not None:
-                        from eedom.core.plugin import PluginFinding
-                        from eedom.core.policy_port import PolicyInput
-
-                        plugin_findings = [
-                            PluginFinding(
-                                id=f.advisory_id or "",
-                                severity=f.severity.value,
-                                message=f.description,
-                            )
-                            for f in findings
-                        ]
-                        pd = self._context.policy_engine.evaluate(
-                            PolicyInput(
-                                findings=plugin_findings,
-                                packages=[package_metadata],
-                                config={},
-                            )
-                        )
-                        verdict_str = getattr(pd, "verdict", "needs_review")
-                        try:
-                            _v = DecisionVerdict(verdict_str)
-                        except (ValueError, AttributeError):
-                            _v = DecisionVerdict.needs_review
-                        policy_eval = PolicyEvaluation(
-                            decision=_v,
-                            triggered_rules=getattr(pd, "triggered_rules", []),
-                            policy_bundle_version="port-injected",
-                        )
-                    else:
-                        assert opa is not None
-                        policy_eval = opa.evaluate(findings, package_metadata)
+                    policy_eval = _policy_evaluation(context, findings, package_metadata)
                     db.save_policy_evaluation(req.request_id, policy_eval)
 
                     pipeline_duration = time.monotonic() - pipeline_start
@@ -290,7 +254,7 @@ class ReviewPipeline:
                     )
 
             # Append decisions to the parquet audit log (fail-open)
-            d["append_decisions"](Path(config.evidence_path), decisions, run_id)
+            append_decisions(Path(config.evidence_path), decisions, run_id)
 
             # Seal all evidence artifacts for this run (fail-open)
             try:
@@ -351,50 +315,15 @@ class ReviewPipeline:
         if not requests:
             return []
 
-        d = _data_imports()
-        evidence_path = Path(config.evidence_path)
-
-        scanners = []
-        for name in config.enabled_scanners:
-            if name == "syft":
-                scanners.append(d["SyftScanner"](evidence_dir=evidence_path))
-            elif name == "osv-scanner":
-                scanners.append(d["OsvScanner"](exclude_paths=config.osv_exclude_paths))
-            elif name == "trivy":
-                scanners.append(d["TrivyScanner"]())
-            elif name == "scancode":
-                scanners.append(
-                    d["ScanCodeScanner"](
-                        evidence_dir=evidence_path,
-                        timeout=config.scancode_timeout,
-                        license_score=config.scancode_license_score,
-                    )
-                )
-
+        context = self._require_context()
         orchestrator = ScanOrchestrator(
-            scanners=scanners,
+            scanners=get_scanners(context),
             combined_timeout=config.combined_scanner_timeout,
         )
-
-        opa = OpaEvaluator(
-            policy_path=config.opa_policy_path,
-            timeout=config.opa_timeout,
-        )
-
-        evidence = d["EvidenceStore"](root_path=config.evidence_path)
-        pypi_client = d["PyPIClient"](timeout=config.pypi_timeout)
-
-        try:
-            db = d["DecisionRepository"](
-                dsn=config.db_dsn,
-                query_timeout=10,
-            )
-            if not db.connect():
-                logger.warning("db_unavailable", msg="Falling back to NullRepository")
-                db = d["NullRepository"]()
-        except Exception:
-            logger.warning("db_init_failed", msg="Falling back to NullRepository")
-            db = d["NullRepository"]()
+        evidence = get_evidence_writer(context)
+        pypi_client = get_package_metadata(context)
+        db = get_decision_repository(context)
+        append_decisions = get_audit_log_appender(context)
 
         decisions: list[ReviewDecision] = []
 
@@ -442,7 +371,7 @@ class ReviewPipeline:
                         "transitive_dep_count": transitive_dep_count,
                     }
 
-                    policy_eval = opa.evaluate(findings, package_metadata)
+                    policy_eval = _policy_evaluation(context, findings, package_metadata)
                     db.save_policy_evaluation(req.request_id, policy_eval)
 
                     pipeline_duration = time.monotonic() - pipeline_start
@@ -489,7 +418,7 @@ class ReviewPipeline:
                     )
 
             # Mirror evaluate(): append decisions to parquet audit log (fail-open)
-            d["append_decisions"](Path(config.evidence_path), decisions, run_id)
+            append_decisions(Path(config.evidence_path), decisions, run_id)
 
             # Mirror evaluate(): seal all evidence artifacts for this run (fail-open)
             try:

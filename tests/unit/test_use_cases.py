@@ -137,7 +137,7 @@ class TestReviewResultDataclass:
 
 class TestReviewRepository:
     def test_review_repository_returns_review_result(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewOptions, ReviewResult, review_repository
 
         ctx = bootstrap_test()
@@ -146,7 +146,7 @@ class TestReviewRepository:
         assert isinstance(result, ReviewResult)
 
     def test_review_repository_empty_files_returns_clear_verdict(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewOptions, review_repository
 
         ctx = bootstrap_test()
@@ -155,7 +155,7 @@ class TestReviewRepository:
         assert result.verdict == "clear"
 
     def test_review_repository_empty_files_has_empty_results_list(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewOptions, review_repository
 
         ctx = bootstrap_test()
@@ -165,7 +165,7 @@ class TestReviewRepository:
         assert len(result.results) == 0
 
     def test_review_repository_empty_files_scores_are_floats(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewOptions, review_repository
 
         ctx = bootstrap_test()
@@ -175,7 +175,7 @@ class TestReviewRepository:
         assert isinstance(result.quality_score, float)
 
     def test_review_repository_accepts_scanner_filter_via_options(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewOptions, review_repository
 
         ctx = bootstrap_test()
@@ -185,7 +185,7 @@ class TestReviewRepository:
         assert result is not None
 
     def test_review_repository_accepts_disabled_set_via_options(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewOptions, review_repository
 
         ctx = bootstrap_test()
@@ -194,7 +194,7 @@ class TestReviewRepository:
         assert result is not None
 
     def test_review_repository_accepts_repo_path_as_path_object(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewOptions, review_repository
 
         ctx = bootstrap_test()
@@ -248,7 +248,7 @@ class TestScanScope:
 
 class TestReviewRepositoryRepoFiles:
     def test_review_repository_accepts_repo_files_kwarg(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewOptions, review_repository
 
         ctx = bootstrap_test()
@@ -259,7 +259,7 @@ class TestReviewRepositoryRepoFiles:
         assert result is not None
 
     def test_review_repository_repo_files_none_is_backward_compat(self) -> None:
-        from eedom.core.bootstrap import bootstrap_test
+        from eedom.composition.bootstrap import bootstrap_test
         from eedom.core.use_cases import ReviewOptions, review_repository
 
         ctx = bootstrap_test()

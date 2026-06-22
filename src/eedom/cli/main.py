@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -16,6 +17,36 @@ from eedom.core.models import OperatingMode
 from eedom.plugins import get_default_registry
 
 logger = structlog.get_logger()
+
+# Source-file suffixes the review/audit commands enumerate. Centralised so the
+# file source (git ls-files vs. walk) is the single place that decides *which*
+# files exist, and these decide which extensions we care about.
+_REVIEW_SUFFIXES: tuple[str, ...] = (
+    ".py",
+    ".ts",
+    ".js",
+    ".tf",
+    ".yaml",
+    ".yml",
+    ".json",
+    ".swift",
+)
+_AUDIT_SUFFIXES: tuple[str, ...] = tuple(s for s in _REVIEW_SUFFIXES if s != ".swift")
+
+
+def _collect_repo_files(
+    root: Path, suffixes: tuple[str, ...], *, prefer: str | None = None
+) -> list[str]:
+    """Enumerate scannable files under *root* via the resolved file source.
+
+    Replaces the ad-hoc ``rglob(ext)`` + ``should_ignore`` loops; the source
+    (git ls-files when *root* is a usable repo, else an ignore-aware walk)
+    applies eedom's exclusion rules uniformly.
+    """
+    from eedom.core.file_source import select_file_source
+
+    source = select_file_source(root, prefer=prefer)
+    return [str(p) for p in source.list_files(root, suffixes=suffixes)]
 
 
 def _write_output(path: str, content: str) -> None:
@@ -74,12 +105,34 @@ def _validate_gh_repo(ctx: click.Context, param: click.Parameter, value: str | N
     return value
 
 
+def _is_isolated_environment() -> bool:
+    """Return True when running inside a venv, conda env, or container.
+
+    Detection layers (#388 — avoid false negatives for uv-managed venvs):
+    - stdlib venv / uv venv / pipx / uv tool: ``sys.prefix != sys.base_prefix``
+    - venvs whose interpreter lost base-prefix detection (relocated or
+      uv-managed pythons): ``pyvenv.cfg`` marker beside ``sys.prefix``
+    - caller-activated venvs (``uv run`` / ``source activate`` set
+      ``VIRTUAL_ENV``): accepted only if it points at a real venv
+    - conda/mamba envs (full installs, prefix == base_prefix): ``CONDA_PREFIX``
+    - containers: ``/.dockerenv`` or ``/run/.containerenv``
+    """
+    if sys.prefix != sys.base_prefix:
+        return True
+    if (Path(sys.prefix) / "pyvenv.cfg").is_file():
+        return True
+    virtual_env = os.environ.get("VIRTUAL_ENV", "")
+    if virtual_env and (Path(virtual_env) / "pyvenv.cfg").is_file():
+        return True
+    if os.environ.get("CONDA_PREFIX"):
+        return True
+    return Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
+
+
 def _check_isolated_environment() -> None:
     """Abort if running outside a virtual environment or container."""
-    in_venv = sys.prefix != sys.base_prefix
-    in_container = Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
-    bypass = "EEDOM_ALLOW_GLOBAL" in __import__("os").environ
-    if not in_venv and not in_container and not bypass:
+    bypass = "EEDOM_ALLOW_GLOBAL" in os.environ
+    if not _is_isolated_environment() and not bypass:
         click.echo(
             "ERROR: eedom must run in an isolated environment.\n"
             "\n"
@@ -102,12 +155,13 @@ def cli() -> None:
 
 
 def _register_subcommands() -> None:
-    from eedom.cli.inspect_cmds import check_health, healthcheck, plugins
+    from eedom.cli.inspect_cmds import check_health, healthcheck, plugins, schema
     from eedom.cli.query_cmd import query
 
     cli.add_command(healthcheck)
     cli.add_command(check_health)
     cli.add_command(plugins)
+    cli.add_command(schema)
     cli.add_command(query)
 
 
@@ -175,7 +229,7 @@ def evaluate(
     try:
         import orjson
 
-        from eedom.core.bootstrap import bootstrap as _bootstrap
+        from eedom.composition.bootstrap import bootstrap as _bootstrap
         from eedom.core.pipeline import ReviewPipeline
 
         _context = _bootstrap(config)
@@ -296,7 +350,7 @@ def review(
     gh_repo: str | None,
 ) -> None:
     """Run Eagle Eyed Dom plugin review on a repo or diff."""
-    from eedom.core.bootstrap import bootstrap_review
+    from eedom.composition.bootstrap import bootstrap_review
     from eedom.core.plugin import PluginCategory
     from eedom.core.renderer import render_comment
     from eedom.core.repo_config import RepoConfig, load_repo_config
@@ -331,17 +385,7 @@ def review(
     enabled_names.discard("")
 
     def _all_repo_files() -> list[str]:
-        from eedom.core.ignore import load_ignore_patterns, should_ignore
-
-        ignore_patterns = load_ignore_patterns(repo)
-        files: list[str] = []
-        for ext in ("*.py", "*.ts", "*.js", "*.tf", "*.yaml", "*.yml", "*.json", "*.swift"):
-            files.extend(
-                str(p)
-                for p in repo.rglob(ext)
-                if not should_ignore(str(p.relative_to(repo)), ignore_patterns)
-            )
-        return files
+        return _collect_repo_files(repo, _REVIEW_SUFFIXES)
 
     def _diff_files() -> list[str]:
         from eedom.core.ignore import load_ignore_patterns, should_ignore
@@ -368,18 +412,8 @@ def review(
         if resolved_scope == ScanScope.DIFF:
             return _diff_files(), _all_repo_files()
         if resolved_scope == ScanScope.FOLDER:
-            from eedom.core.ignore import load_ignore_patterns, should_ignore
-
-            ignore_patterns = load_ignore_patterns(repo)
             folder = Path(package).resolve()  # type: ignore[arg-type]
-            files: list[str] = []
-            for ext in ("*.py", "*.ts", "*.js", "*.tf", "*.yaml", "*.yml", "*.json", "*.swift"):
-                files.extend(
-                    str(p)
-                    for p in folder.rglob(ext)
-                    if not should_ignore(str(p.relative_to(repo)), ignore_patterns)
-                )
-            return files, None
+            return _collect_repo_files(folder, _REVIEW_SUFFIXES), None
         if diff:
             return _diff_files(), None
         return _all_repo_files(), None
@@ -396,8 +430,16 @@ def review(
             enabled=enabled_names,
             scope=resolved_scope or ScanScope.REPO,
         )
-        review_result = review_repository(_ctx, files, repo, options, repo_files=repo_file_list)
+        # Scope the *blocking* decision to the change under review when a diff was
+        # supplied (the workflow passes --diff without --scope). A plain repo scan
+        # leaves changed_files=None so the gate stays repo-wide.
+        is_diff_scoped = diff is not None or resolved_scope == ScanScope.DIFF
+        changed_files = set(files) if is_diff_scoped else None
+        review_result = review_repository(
+            _ctx, files, repo, options, repo_files=repo_file_list, changed_files=changed_files
+        )
         results = review_result.results
+        summary = review_result.summary
 
         if output_format == "sarif" or pr is not None:
             import orjson
@@ -405,7 +447,10 @@ def review(
             from eedom.core.sarif import to_sarif
 
             sarif_doc = to_sarif(
-                results, repo_path=str(repo), max_findings_per_run=sarif_max_findings
+                results,
+                repo_path=str(repo),
+                max_findings_per_run=sarif_max_findings,
+                summary=summary,
             )
 
             if pr is not None:
@@ -448,7 +493,7 @@ def review(
         if output_format == "json":
             from eedom.core.json_report import render_json
 
-            json_text = render_json(results, repo=repo_name or str(repo))
+            json_text = render_json(results, repo=repo_name or str(repo), summary=summary)
             if output:
                 _write_output(output, json_text)
                 click.echo(f"JSON written to {output}")
@@ -463,6 +508,7 @@ def review(
             title=title,
             file_count=len(files),
             plugin_renderers=plugin_map,
+            verdict=summary.verdict.value if summary else None,
         )
         if output:
             _write_output(output, md)
@@ -504,9 +550,8 @@ def audit(
     """Run a holistic trust audit — concern by concern via LLM (Alley-Oop)."""
     import os as _os
 
-    from eedom.core.bootstrap import bootstrap_review
+    from eedom.composition.bootstrap import bootstrap_review
     from eedom.core.concern_review import render_audit_markdown, run_audit
-    from eedom.core.ignore import load_ignore_patterns, should_ignore
     from eedom.core.repo_config import RepoConfig, load_repo_config
     from eedom.core.use_cases import ReviewOptions, review_repository
 
@@ -520,14 +565,7 @@ def audit(
     if disable:
         disabled_names.update(d.strip() for d in disable.split(",") if d.strip())
 
-    ignore_patterns = load_ignore_patterns(repo)
-    files: list[str] = []
-    for ext in ("*.py", "*.ts", "*.js", "*.tf", "*.yaml", "*.yml", "*.json"):
-        files.extend(
-            str(p)
-            for p in repo.rglob(ext)
-            if not should_ignore(str(p.relative_to(repo)), ignore_patterns)
-        )
+    files = _collect_repo_files(repo, _AUDIT_SUFFIXES)
 
     names = scanners.split(",") if scanners else None
     options = ReviewOptions(scanners=names, disabled=disabled_names)
@@ -552,6 +590,140 @@ def audit(
         click.echo(f"Audit written to {output} ({report.concern_count} concerns)")
     else:
         click.echo(md)
+
+
+def _render_supply_chain_markdown(findings: list[dict], decision: str, triggered: list[str]) -> str:
+    """Concise markdown report for the supply-chain-diff step."""
+    icon = {"reject": "🚫", "needs_review": "⚠️", "approve_with_constraints": "⚠️"}.get(
+        decision, "✅"
+    )
+    lines = [
+        "## Supply-chain version-bump analysis",
+        "",
+        f"**Gate decision:** {icon} `{decision}`",
+        "",
+    ]
+    if not findings:
+        lines.append("_No dependency version changes detected in the diff._")
+        return "\n".join(lines)
+    sev_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+    for f in sorted(findings, key=lambda d: sev_order.get(d.get("severity", "info"), 9)):
+        sev = f.get("severity", "info").upper()
+        pkg = f"{f.get('package', '')}@{f.get('version', '')}"
+        lines.append(f"### {sev} — {f.get('id', '')} · `{pkg}`")
+        lines.append("")
+        lines.append(f.get("message", ""))
+        for ev in (f.get("evidence") or [])[:5]:
+            lines.append(f"- `{ev}`")
+        narrative = ((f.get("enrichment") or {}).get("threat_analysis") or {}).get("narrative")
+        if narrative:
+            lines.append("")
+            lines.append(f"> **Threat analysis (advisory):** {narrative}")
+        lines.append("")
+    if triggered:
+        lines.append("---")
+        lines.append("**Triggered policy rules:** " + ", ".join(triggered))
+    return "\n".join(lines)
+
+
+@cli.command(name="supply-chain-diff")
+@click.option("--repo-path", type=click.Path(), default=".", help="Repository root (for context).")
+@click.option("--diff", required=True, type=str, help="Path to diff file, or '-' for stdin.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["markdown", "json", "sarif"]),
+    default="markdown",
+    help="Output format.",
+)
+@click.option("--output", type=click.Path(), default=None, help="Write output to file.")
+@click.option(
+    "--operating-mode",
+    type=click.Choice(["monitor", "advise"]),
+    default="monitor",
+    help="advise: exit non-zero when the gate rejects.",
+)
+def supply_chain_diff(
+    repo_path: str,
+    diff: str,
+    output_format: str,
+    output: str | None,
+    operating_mode: str,
+) -> None:
+    """Threat-analyze dependency version bumps (separate, feature-flag-gated step).
+
+    Fetches the source of both versions of every upgraded dependency in the diff,
+    diffs them, scores deterministic supply-chain signals (which gate the build via
+    OPA), and — when the optional LLM enricher is enabled — attaches an advisory
+    data-driven narrative. NOT part of the normal scan; requires
+    EEDOM_SUPPLY_CHAIN_DIFF_ENABLED=1.
+    """
+    import orjson
+
+    try:
+        from eedom.core.config import EedomSettings
+
+        settings = EedomSettings()  # type: ignore[call-arg]
+    except Exception:
+        click.echo("supply-chain-diff skipped — configuration unavailable (fail-open).", err=True)
+        sys.exit(0)
+
+    if not settings.supply_chain_diff_enabled:
+        click.echo(
+            "supply-chain-diff is gated off. Enable it with "
+            "EEDOM_SUPPLY_CHAIN_DIFF_ENABLED=1 to run this step.",
+            err=True,
+        )
+        sys.exit(0)
+
+    from eedom.composition.bootstrap import run_supply_chain_scan
+    from eedom.core.plugin import PluginResult
+    from eedom.core.supply_chain_diff import evaluate_gate
+
+    diff_text = _read_diff(diff)
+    findings = run_supply_chain_scan(diff_text, settings)
+
+    # Optional advisory LLM narrative (opt-in; never affects the verdict).
+    if "supply_chain_threat" in settings.enabled_enrichers and settings.llm_enabled:
+        from eedom.core.enrich import enrich_findings
+        from eedom.core.enrichment import EnrichmentContext
+        from eedom.core.llm_client import LlmClient
+        from eedom.plugins.enrichers.supply_chain_threat import SupplyChainThreatEnricher
+
+        enricher = SupplyChainThreatEnricher(LlmClient(settings))
+        ctx = EnrichmentContext(repo_path=repo_path, enrichment_timeout=settings.enrichment_timeout)
+        findings = enrich_findings(findings, [enricher], ctx)
+
+    evaluation = evaluate_gate(findings, settings)
+    decision = evaluation.decision.value
+    result = PluginResult(
+        plugin_name="supply-chain-diff",
+        category="supply_chain",
+        findings=[f.to_dict() for f in findings],
+    )
+
+    if output_format == "json":
+        from eedom.core.json_report import render_json
+
+        text = render_json([result], repo=repo_path)
+    elif output_format == "sarif":
+        from eedom.core.sarif import to_sarif
+
+        text = orjson.dumps(
+            to_sarif([result], repo_path=repo_path), option=orjson.OPT_INDENT_2
+        ).decode()
+    else:
+        text = _render_supply_chain_markdown(result.findings, decision, evaluation.triggered_rules)
+
+    if output:
+        _write_output(output, text)
+        click.echo(f"Supply-chain analysis written to {output} ({decision})")
+    else:
+        click.echo(text)
+
+    if operating_mode == "advise" and decision in ("reject", "needs_review"):
+        sys.exit(1)
+    sys.exit(0)
 
 
 def _read_diff(diff_path: str) -> str:

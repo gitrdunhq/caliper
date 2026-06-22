@@ -10,10 +10,10 @@ import re
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
+from eedom.detectors._registry import register_detector
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 # Matches a heredoc marker with a fixed ALL_CAPS constant word (quoted or bare).
 # Examples: << 'EOF', << EOF, << 'MEMO_EOF', << DELIMITER
@@ -23,7 +23,7 @@ _HEREDOC_RE = re.compile(r"<<\s*'?\"?([A-Z][A-Z_0-9]+)\"?'?")
 _GITHUB_SINK_RE = re.compile(r"GITHUB_OUTPUT|GITHUB_ENV")
 
 
-@DetectorRegistry.register
+@register_detector
 class FixedOutputDelimiterDetector(BugDetector):
     """Detects fixed heredoc delimiters used to write to GITHUB_OUTPUT or GITHUB_ENV.
 

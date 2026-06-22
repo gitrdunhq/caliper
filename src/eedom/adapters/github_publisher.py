@@ -88,3 +88,16 @@ class NullPublisher:
 assert isinstance(
     GitHubPublisher(), PullRequestPublisherPort
 ), "GitHubPublisher must satisfy PullRequestPublisherPort"
+
+
+from eedom.core.registries import PUBLISHERS  # noqa: E402  (registration wiring)
+
+
+@PUBLISHERS.register("github")
+def build_github_publisher(*, token: str | None = None) -> GitHubPublisher:
+    return GitHubPublisher(token=token)
+
+
+@PUBLISHERS.register("null")
+def build_null_publisher() -> NullPublisher:
+    return NullPublisher()

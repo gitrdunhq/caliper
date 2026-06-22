@@ -1,20 +1,26 @@
-"""Scanner base class and subprocess utilities.
+"""Scanner port and subprocess utilities.
 # tested-by: tests/unit/test_scanner_base.py
 
-Provides the abstract Scanner contract and safe subprocess execution
-with explicit timeouts. All subprocess failures are captured as return
-values — nothing in this module raises on scanner errors.
+Provides the ``ScannerPort`` structural contract and safe subprocess
+execution with explicit timeouts. All subprocess failures are captured as
+return values — nothing in this module raises on scanner errors.
 """
 
 from __future__ import annotations
 
-import abc
 import subprocess
 from pathlib import Path
 
 import structlog
 
 from eedom.core.models import ScanResult
+
+# ScannerPort is owned by core (the port lives with the other hexagonal
+# contracts); re-exported here so adapters and the orchestrator keep importing
+# it from the scanners package. ``Scanner`` is the backward-compat alias.
+from eedom.core.ports import ScannerPort
+
+Scanner = ScannerPort
 
 logger = structlog.get_logger()
 
@@ -60,24 +66,3 @@ def _make_failed_result(scanner_name: str, message: str) -> ScanResult:
 def _make_not_installed_result(scanner_name: str) -> ScanResult:
     """Thin wrapper — delegates to ScanResult.not_installed()."""
     return ScanResult.not_installed(scanner_name)
-
-
-class Scanner(abc.ABC):
-    """Abstract base for all scanners.
-
-    Subclasses must implement the ``name`` property and the ``scan`` method.
-    The ``scan`` method must return a ``ScanResult`` and never raise.
-    """
-
-    @property
-    @abc.abstractmethod
-    def name(self) -> str:
-        """Human-readable scanner identifier (e.g. 'syft', 'trivy')."""
-
-    @abc.abstractmethod
-    def scan(self, target_path: Path) -> ScanResult:
-        """Execute the scan against *target_path* and return a result.
-
-        Implementations must catch all exceptions internally and represent
-        failures via ``ScanResult.status``.
-        """

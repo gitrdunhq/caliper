@@ -272,6 +272,140 @@ class TestCodeGraph:
         assert len(names) >= 8
 
 
+class TestFindingMessages:
+    """Issue #390 — every blast-radius finding carries a non-empty message."""
+
+    def _graph_with_findings(self):
+        g = CodeGraph()
+        g.index_file("scanner.py", SAMPLE_PYTHON)
+        # A second module importing scanner-ish things to trigger more checks.
+        g.index_file(
+            "test_calculator.py",
+            textwrap.dedent("""\
+                def add(a, b):
+                    return a + b
+
+                def test_addition():
+                    assert add(1, 2) == 3
+
+                def test_subtraction():
+                    assert add(5, -2) == 3
+            """),
+        )
+        g.conn.commit()
+        return g
+
+    def test_run_checks_findings_all_have_nonempty_message(self):
+        g = self._graph_with_findings()
+        findings = g.run_checks(["scanner.py", "test_calculator.py"])
+        assert findings, "fixture must trigger at least one finding"
+        for f in findings:
+            assert f.get("message", "").strip(), f"empty message in finding: {f}"
+
+    def test_custom_check_with_empty_description_still_has_message(self):
+        g = self._graph_with_findings()
+        g.register_check(
+            name="every_function",
+            query="SELECT s.name, s.file, s.line FROM symbols s"
+            " WHERE s.file IN ({changed_files}) AND s.kind = 'function'",
+        )  # description defaults to "" — message must not be empty
+        findings = g.run_checks(["scanner.py"])
+        custom = [f for f in findings if f["check"] == "every_function"]
+        assert custom, "custom check must produce findings"
+        for f in custom:
+            assert f.get("message", "").strip(), f"empty message in finding: {f}"
+
+    def test_plugin_findings_normalize_to_nonempty_messages(self, tmp_path, monkeypatch):
+        """End-to-end: PluginFinding.message is never empty for blast-radius."""
+        from eedom.core.registry import _normalize_findings
+
+        monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "test_calculator.py").write_text(
+            "def add(a, b):\n"
+            "    return a + b\n\n"
+            "def test_addition():\n"
+            "    assert add(1, 2) == 3\n"
+        )
+        result = BlastRadiusPlugin().run(["test_calculator.py"], repo)
+        assert result.error == ""
+        findings = _normalize_findings(result.findings)
+        assert findings, "fixture must trigger at least one finding (orphan test funcs)"
+        for f in findings:
+            assert f.message.strip(), f"empty message in finding: {f.to_dict()}"
+
+
+class TestGraphDbLocation:
+    """Issue #391 — the graph db must not pollute the reviewed repo by default."""
+
+    def _make_repo(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "mod.py").write_text("def hello():\n    return 1\n")
+        return repo
+
+    def test_default_db_not_written_into_target_repo(self, tmp_path, monkeypatch):
+        """Default graph db lives in the XDG cache dir, not in the reviewed repo."""
+        cache = tmp_path / "cache"
+        monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
+        monkeypatch.delenv("EEDOM_GRAPH_DB", raising=False)
+        repo = self._make_repo(tmp_path)
+
+        result = BlastRadiusPlugin().run(["mod.py"], repo)
+
+        assert result.error == ""
+        assert not (repo / ".eedom").exists(), "review must not dirty the target repo"
+        dbs = list((cache / "eedom").rglob("code_graph.sqlite"))
+        assert len(dbs) == 1, f"expected graph db under XDG cache, found: {dbs}"
+
+    def test_env_var_overrides_db_location(self, tmp_path, monkeypatch):
+        """EEDOM_GRAPH_DB points the graph db at an explicit path."""
+        custom = tmp_path / "custom" / "graph.sqlite"
+        monkeypatch.setenv("EEDOM_GRAPH_DB", str(custom))
+        repo = self._make_repo(tmp_path)
+
+        result = BlastRadiusPlugin().run(["mod.py"], repo)
+
+        assert result.error == ""
+        assert custom.exists()
+        assert not (repo / ".eedom").exists()
+
+    def test_config_graph_db_honored(self, tmp_path, monkeypatch):
+        """A repo config that explicitly asks for an in-repo path keeps working."""
+        monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+        monkeypatch.delenv("EEDOM_GRAPH_DB", raising=False)
+        repo = self._make_repo(tmp_path)
+        (repo / ".eagle-eyed-dom.yaml").write_text(
+            "thresholds:\n  blast-radius:\n    graph_db: .eedom/code_graph.sqlite\n"
+        )
+
+        result = BlastRadiusPlugin().run(["mod.py"], repo)
+
+        assert result.error == ""
+        assert (repo / ".eedom" / "code_graph.sqlite").exists()
+
+    def test_legacy_in_repo_db_is_reused(self, tmp_path, monkeypatch):
+        """An existing .eedom/code_graph.sqlite (pre-#391 layout) keeps being used."""
+        cache = tmp_path / "cache"
+        monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
+        monkeypatch.delenv("EEDOM_GRAPH_DB", raising=False)
+        repo = self._make_repo(tmp_path)
+        legacy = repo / ".eedom" / "code_graph.sqlite"
+        legacy.parent.mkdir()
+        g = CodeGraph(db_path=str(legacy))
+        g.conn.close()
+
+        result = BlastRadiusPlugin().run(["mod.py"], repo)
+
+        assert result.error == ""
+        # Legacy db got the symbols; no second db materialized in the cache.
+        g2 = CodeGraph(db_path=str(legacy))
+        assert g2.stats()["symbols"] > 0
+        g2.conn.close()
+        assert list((cache / "eedom").rglob("*.sqlite")) == []
+
+
 class TestBlastRadiusPluginReadOnly:
     def test_run_falls_back_to_temp_dir_on_read_only_fs(self, tmp_path):
         """blast-radius should not crash when repo_path is read-only."""

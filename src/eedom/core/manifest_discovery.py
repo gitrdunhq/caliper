@@ -13,11 +13,16 @@ Usage::
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import structlog
 from pydantic import BaseModel, ConfigDict
 
+from eedom.core.file_source import select_file_source
 from eedom.core.ignore import load_ignore_patterns, should_ignore
+
+if TYPE_CHECKING:
+    from eedom.core.ports import FileSourcePort
 
 logger = structlog.get_logger(__name__)
 
@@ -53,21 +58,6 @@ LOCKFILE_MAP: dict[str, str] = {
 _MANIFEST_TO_LOCKFILES: dict[str, list[str]] = {}
 for _lf, _mf in LOCKFILE_MAP.items():
     _MANIFEST_TO_LOCKFILES.setdefault(_mf, []).append(_lf)
-
-# Directories that are always skipped regardless of ignore patterns.
-_ALWAYS_SKIP: frozenset[str] = frozenset(
-    {
-        "node_modules",
-        ".git",
-        "vendor",
-        "__pycache__",
-        ".venv",
-        ".claude",
-        ".eedom",
-        ".dogfood",
-    }
-)
-
 
 # ---------------------------------------------------------------------------
 # Model
@@ -119,43 +109,48 @@ def _is_within_repo(path: Path, repo_path: Path) -> bool:
 def discover_packages(
     repo_path: Path,
     ignore_patterns: list[str] | None = None,
+    file_source: FileSourcePort | None = None,
 ) -> list[PackageUnit]:
-    """Walk *repo_path* and return one :class:`PackageUnit` per manifest found.
+    """Return one :class:`PackageUnit` per manifest found under *repo_path*.
+
+    Enumeration goes through the shared :class:`FileSourcePort` (git ls-files
+    when *repo_path* is a usable repo, else an ignore-aware walk) — the same
+    seam the CLI, scanner, and supply-chain plugin use — so manifest discovery
+    can no longer drift from the rest of eedom's file handling.
 
     Args:
         repo_path: Absolute path to the repository root.
-        ignore_patterns: Additional fnmatch-compatible patterns to skip.
-            These are merged with the defaults loaded from :func:`load_ignore_patterns`.
+        ignore_patterns: Additional fnmatch-compatible patterns to skip,
+            merged with the defaults from :func:`load_ignore_patterns`.
+        file_source: Override the resolved source (mainly for tests).
 
     Returns:
         List of :class:`PackageUnit` objects sorted by ``root`` path.
     """
     base_patterns = load_ignore_patterns(repo_path)
-    if ignore_patterns:
-        merged: list[str] = list(base_patterns) + list(ignore_patterns)
-    else:
-        merged = base_patterns
+    merged: list[str] = list(base_patterns) + list(ignore_patterns or [])
+
+    source = file_source or select_file_source(repo_path)
+    repo_resolved = repo_path.resolve()
+
+    # Group enumerated files by parent directory so each manifest can find a
+    # sibling lockfile. The source already drops escaping symlinks and the base
+    # ignore set; re-applying ``merged`` adds the caller's extra patterns.
+    by_dir: dict[Path, set[str]] = {}
+    for file_path in source.list_files(repo_path):
+        try:
+            rel = file_path.relative_to(repo_path).as_posix()
+        except ValueError:
+            rel = file_path.name
+        if should_ignore(rel, merged):
+            continue
+        by_dir.setdefault(file_path.parent, set()).add(file_path.name)
 
     units: list[PackageUnit] = []
 
-    for dirpath, dirnames, filenames in _walk(repo_path):
-        # Prune dirnames in-place so os.walk / our recursive walk skips them.
-        rel_dir = dirpath.relative_to(repo_path)
-
-        # Build the list of subdirs to keep (modify in-place so walk respects it).
-        kept: list[str] = []
-        for d in dirnames:
-            if d in _ALWAYS_SKIP:
-                continue
-            child_rel = str(rel_dir / d) if str(rel_dir) != "." else d
-            if should_ignore(child_rel + "/", merged):
-                continue
-            kept.append(d)
-        dirnames[:] = kept
-
-        sibling_set = set(filenames)
-
-        for filename in filenames:
+    for dirpath in sorted(by_dir):
+        sibling_set = by_dir[dirpath]
+        for filename in sorted(sibling_set):
             if filename not in MANIFEST_MAP:
                 continue
 
@@ -172,7 +167,7 @@ def discover_packages(
             manifest_path = dirpath / filename
 
             # Reject manifests that resolve outside repo_path (e.g. symlinks).
-            if not _is_within_repo(manifest_path, repo_path):
+            if not _is_within_repo(manifest_path, repo_resolved):
                 logger.warning(
                     "manifest_skipped_outside_repo",
                     manifest=str(manifest_path),
@@ -184,7 +179,7 @@ def discover_packages(
             for lf_name in _MANIFEST_TO_LOCKFILES.get(filename, []):
                 if lf_name in sibling_set:
                     candidate = dirpath / lf_name
-                    if _is_within_repo(candidate, repo_path):
+                    if _is_within_repo(candidate, repo_resolved):
                         lockfile_path = candidate
                     break
 
@@ -205,16 +200,3 @@ def discover_packages(
 
     units.sort(key=lambda u: str(u.root))
     return units
-
-
-# ---------------------------------------------------------------------------
-# Walk helper (wraps Path.walk for Python 3.12+)
-# ---------------------------------------------------------------------------
-
-
-def _walk(root: Path):  # type: ignore[return]
-    """Yield (dirpath, dirnames, filenames) tuples, modifiable in-place."""
-    import os
-
-    for dirpath_str, dirnames, filenames in os.walk(root):
-        yield Path(dirpath_str), dirnames, filenames

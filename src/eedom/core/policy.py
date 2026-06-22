@@ -33,6 +33,7 @@ _DEFAULT_RULES_ENABLED = {
     "package_age": True,
     "malicious_package": True,
     "transitive_count": True,
+    "supply_chain_diff": True,
 }
 
 _DEFAULT_CONFIG = {
@@ -123,18 +124,21 @@ class OpaEvaluator:
         self,
         findings: list[Finding],
         package_metadata: dict,
+        config: dict | None = None,
     ) -> PolicyEvaluation:
         """Evaluate findings against the OPA review policy.
 
         Args:
             findings: Scanner findings to evaluate.
             package_metadata: Package metadata dict.
+            config: Optional policy-config overrides (e.g. to enable/disable
+                specific ``rules_enabled`` for a focused, standalone evaluation).
 
         Returns:
             PolicyEvaluation with the decision, triggered rules, and constraints.
         """
         try:
-            return self._run_opa(findings, package_metadata)
+            return self._run_opa(findings, package_metadata, config)
         except subprocess.TimeoutExpired:
             log.warning("opa_evaluation_timed_out", timeout=self._timeout)
             return PolicyEvaluation(
@@ -164,9 +168,10 @@ class OpaEvaluator:
         self,
         findings: list[Finding],
         package_metadata: dict,
+        config: dict | None = None,
     ) -> PolicyEvaluation:
         """Execute OPA subprocess and parse the result."""
-        opa_input = build_opa_input(findings, package_metadata)
+        opa_input = build_opa_input(findings, package_metadata, config)
 
         with tempfile.NamedTemporaryFile(
             mode="w",

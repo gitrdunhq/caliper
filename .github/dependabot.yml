@@ -1,6 +1,9 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
+  # Use the "uv" ecosystem (not "pip"): uv updates pyproject.toml AND uv.lock
+  # atomically, so version bumps never leave the lockfile out of sync (the pip
+  # ecosystem edited pyproject.toml only, producing un-mergeable lockfile drift).
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -12,8 +15,24 @@ updates:
     cooldown:
       default-days: 14
     open-pull-requests-limit: 5
+    # Keep the intentionally-pinned vulnerable e2e scan fixtures out of Dependabot
+    # (see config/scan-exclusions.toml). exclude-paths is the documented mechanism,
+    # but the uv graph builder currently has a bug that can ignore it
+    # (dependabot/dependabot-core#15102), so we layer protection:
+    #   1. uv does not scan requirements.txt, so the fixture requirements.txt files
+    #      are out of scope, and the fixture pyproject.toml is not a uv project
+    #      (no uv.lock, not a workspace member), so uv should not manage it.
+    #   2. ignore the fixture-only packages that are NOT real eedom deps.
+    #   3. the authoritative backstop is tests/unit/test_dependabot_policy.py
+    #      (test_vuln_fixture_keeps_known_vulnerable_dependency_pins), which fails
+    #      any PR that bumps a fixture pin.
+    # jinja2 is a real eedom dep and is intentionally NOT ignored here.
     exclude-paths:
       - "tests/e2e/fixtures/**"
+    ignore:
+      - dependency-name: "requests"
+      - dependency-name: "flask"
+      - dependency-name: "cryptography"
     groups:
       python-runtime:
         patterns:

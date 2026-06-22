@@ -8,16 +8,16 @@ import ast
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
+from eedom.detectors._registry import register_detector
 from eedom.detectors.ast_utils import (
     parse_file_safe,
 )
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 
-@DetectorRegistry.register
+@register_detector
 class HealthCheckDBDetector(BugDetector):
     """Detects health check endpoints without database connectivity verification.
 
@@ -149,15 +149,11 @@ class HealthCheckDBDetector(BugDetector):
             for arg in decorator.args:
                 if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                     return arg.value
-                if isinstance(arg, ast.Str):  # Python < 3.8
-                    return arg.s
             # Check keyword args
             for kw in decorator.keywords:
                 if kw.arg in ("path", "rule"):
                     if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
                         return kw.value.value
-                    if isinstance(kw.value, ast.Str):  # Python < 3.8
-                        return kw.value.s
         return None
 
     def _has_db_verification(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
@@ -211,6 +207,4 @@ class HealthCheckDBDetector(BugDetector):
         """Extract string content from AST node."""
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return node.value
-        if isinstance(node, ast.Str):  # Python < 3.8
-            return node.s
         return None

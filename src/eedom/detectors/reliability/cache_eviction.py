@@ -10,13 +10,13 @@ import ast
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
+from eedom.detectors._registry import register_detector
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
-from eedom.detectors.registry import DetectorRegistry
 
 
-@DetectorRegistry.register
+@register_detector
 class CacheEvictionDetector(BugDetector):
     """Detects @cache or @lru_cache without maxsize/TTL.
 

@@ -26,7 +26,7 @@ Eedom has a surprisingly solid foundation for a tool at its maturity stage. Thes
 
 **Structured logging.** Consistent use of `structlog` throughout. No `print()` statements. Correlation via `request_id`. DSN credential masking in `src/eedom/data/db.py:_safe_dsn()`.
 
-**Plugin architecture.** 15 plugins with auto-discovery, category filtering, and dependency ordering. The `ScannerPlugin` ABC in `src/eedom/core/plugin.py` is a clean extension point.
+**Plugin architecture.** 19 scanner plugins (+ OPA policy plugin) with auto-discovery, category filtering, and dependency ordering. The `ScannerPlugin` ABC in `src/eedom/core/plugin.py` is a clean extension point.
 
 ### What Is Not Enterprise-Ready
 
@@ -74,7 +74,7 @@ The sections below detail each gap. The summary:
 
 **Current state:** Scanning is in-process via `ThreadPoolExecutor` in `src/eedom/core/orchestrator.py`. The `ScanOrchestrator` runs all scanners in the same process as the pipeline. The pipeline processes packages sequentially in a `for req in requests` loop in `src/eedom/core/pipeline.py:165`. The `scan_queue` table exists in `migrations/002_package_catalog.sql` but there is no worker that consumes it.
 
-**What breaks at 100 repos:** Scanner binary execution (syft, trivy, osv-scanner, gitleaks, semgrep) is CPU and I/O intensive. Running 15 plugins in-process for 100 concurrent PRs on a single runner will exhaust CPU, memory, and subprocess limits. The 300s pipeline timeout (`config.py:69`) means at most ~12 concurrent evaluations per runner before queueing.
+**What breaks at 100 repos:** Scanner binary execution (syft, trivy, osv-scanner, gitleaks, semgrep) is CPU and I/O intensive. Running 19 plugins in-process for 100 concurrent PRs on a single runner will exhaust CPU, memory, and subprocess limits. The 300s pipeline timeout (`config.py:69`) means at most ~12 concurrent evaluations per runner before queueing.
 
 **What breaks at 1000 repos:** The single PostgreSQL instance becomes a bottleneck for write throughput. Evidence storage on local disk runs out of space. The Parquet audit log (`src/eedom/data/parquet_writer.py`) does append-only writes to a single file, which becomes a contention point and eventually a multi-GB file that is slow to read.
 

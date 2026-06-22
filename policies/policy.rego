@@ -59,7 +59,36 @@ deny contains msg if {
 	])
 }
 
+# T-012: Malicious version-bump signal (deterministic source-diff analysis).
+# Critical/high supply-chain signals (new install hooks, obfuscation, risky
+# imports) gate the build. The signal is deterministic; any LLM narrative is
+# advisory metadata only and never reaches this rule.
+deny contains msg if {
+	input.config.rules_enabled.supply_chain_diff
+	some finding in input.findings
+	finding.category == "supply_chain"
+	finding.severity in {"critical", "high"}
+	msg := sprintf("Supply-chain risk %s in %s@%s", [
+		finding.advisory_id,
+		finding.package_name,
+		finding.version,
+	])
+}
+
 # --- warn rules (set of warning messages) ---
+
+# T-012: Lower-severity supply-chain signal (maintainer change, etc.) — advisory.
+warn contains msg if {
+	input.config.rules_enabled.supply_chain_diff
+	some finding in input.findings
+	finding.category == "supply_chain"
+	finding.severity == "medium"
+	msg := sprintf("Supply-chain note %s in %s@%s", [
+		finding.advisory_id,
+		finding.package_name,
+		finding.version,
+	])
+}
 
 # T-010: Medium severity vulnerability
 warn contains msg if {

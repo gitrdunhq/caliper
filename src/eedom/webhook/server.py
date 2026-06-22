@@ -41,7 +41,7 @@ from eedom.core.use_cases import ReviewOptions, review_repository
 from eedom.webhook.config import WebhookSettings
 
 if TYPE_CHECKING:
-    from eedom.core.bootstrap import ApplicationContext
+    from eedom.composition.bootstrap import ApplicationContext
 
 logger = structlog.get_logger()
 
@@ -240,7 +240,7 @@ def build_app(
 
 def _load_app() -> Starlette:
     """Load settings from env and return the production app instance."""
-    from eedom.core.bootstrap import bootstrap as _bootstrap
+    from eedom.composition.bootstrap import bootstrap as _bootstrap
     from eedom.core.config import EedomSettings
 
     settings = WebhookSettings()  # type: ignore[call-arg]

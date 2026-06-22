@@ -20,7 +20,8 @@ from eedom.core.models import (
     ScanResult,
     ScanResultStatus,
 )
-from eedom.data.scanners.base import Scanner, run_subprocess_with_timeout
+from eedom.data.scanners import SCANNERS
+from eedom.data.scanners.base import ScannerPort, run_subprocess_with_timeout
 
 logger = structlog.get_logger()
 
@@ -35,7 +36,7 @@ _SEVERITY_MAP: dict[str, FindingSeverity] = {
 }
 
 
-class OsvScanner(Scanner):
+class OsvScanner:
     """Detects known vulnerabilities using osv-scanner."""
 
     def __init__(
@@ -98,6 +99,21 @@ class OsvScanner(Scanner):
             duration_seconds=elapsed,
             message=f"{len(findings)} vulnerabilities found",
         )
+
+
+@SCANNERS.register("osv")
+def build_osv_scanner(
+    *,
+    sbom_path: Path | None = None,
+    exclude_paths: list[str] | None = None,
+) -> ScannerPort:
+    """Construct an OsvScanner.
+
+    The per-call 60s timeout stays inside ``OsvScanner.scan`` — the factory
+    does no I/O.  ``exclude_paths`` (sourced from ``config/scan-exclusions.toml``
+    via ``osv_exclude_paths``) is threaded straight through.
+    """
+    return OsvScanner(sbom_path=sbom_path, exclude_paths=exclude_paths)
 
 
 def _extract_findings(data: dict) -> list[Finding]:

@@ -6,9 +6,14 @@
 from __future__ import annotations
 
 import abc
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
+from typing import Protocol, runtime_checkable
+
+from pydantic import Field
+
+from eedom._base import Contract
 
 # Default templates directory — co-located with eedom.templates package.
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
@@ -47,8 +52,14 @@ _FINDING_KNOWN_KEYS = {
 }
 
 
-@dataclass
-class PluginFinding:
+class PluginFinding(Contract):
+    """A single normalized finding — a frozen, strict value object.
+
+    Consumers read fields by attribute and custom keys via ``metadata`` (use
+    ``finding_get`` for the transitional dict-or-model case). The presentation
+    layer renders ``to_dict()`` output, never the model directly.
+    """
+
     id: str
     severity: str
     message: str
@@ -60,7 +71,7 @@ class PluginFinding:
     version: str = ""
     fixed_version: str = ""
     rule_id: str = ""
-    metadata: dict = field(default_factory=dict)
+    metadata: dict = Field(default_factory=dict)
 
     def to_dict(self) -> dict:
         d = {
@@ -79,23 +90,35 @@ class PluginFinding:
         d.update(self.metadata)
         return d
 
-    # ------------------------------------------------------------------
-    # Dict-compatible access — backward compat for finding.get("key")
-    # callers that predate the typed PluginFinding contract.
-    # ------------------------------------------------------------------
 
-    def get(self, key: str, default=None):
-        if hasattr(self, key):
-            return getattr(self, key)
-        return self.metadata.get(key, default)
+def finding_get(finding, key: str, default=None):
+    """Read *key* from a ``PluginFinding`` or a raw ``dict`` finding.
 
-    def __getitem__(self, key: str):
-        if hasattr(self, key):
-            return getattr(self, key)
-        return self.metadata[key]
+    The single typed accessor that replaces the old dict-masquerade shims on
+    ``PluginFinding``. For a frozen ``PluginFinding`` it returns the matching
+    field, then falls back to ``metadata``; for a raw dict (semgrep/blast-radius
+    style findings that have not been normalized) it uses ``dict.get``.
+    """
+    if isinstance(finding, dict):
+        return finding.get(key, default)
+    if hasattr(finding, key):
+        return getattr(finding, key)
+    return finding.metadata.get(key, default)
 
-    def __contains__(self, key: str) -> bool:
-        return hasattr(self, key) or key in self.metadata
+
+def finding_as_dict(finding) -> dict:
+    """Return a plain dict for a finding (identity for dicts; to_dict otherwise)."""
+    return finding if isinstance(finding, dict) else finding.to_dict()
+
+
+def result_with_dict_findings(result: PluginResult) -> PluginResult:
+    """Return a copy of *result* with every finding serialized to a plain dict.
+
+    Plugin ``render`` methods (and the Jinja templates) operate on dicts; the
+    frozen typed ``PluginFinding`` is for the core paths. Call this at the top
+    of any ``render`` override so it works whether fed dicts or PluginFindings.
+    """
+    return replace(result, findings=[finding_as_dict(f) for f in result.findings])
 
 
 def normalize_finding(raw: dict) -> PluginFinding:
@@ -122,7 +145,7 @@ def normalize_finding(raw: dict) -> PluginFinding:
     )
 
 
-@dataclass
+@dataclass(frozen=True)
 class PluginResult:
     plugin_name: str
     findings: list[PluginFinding | dict] = field(default_factory=list)
@@ -132,6 +155,33 @@ class PluginResult:
     category: str = ""
     skip_reason: str = ""
     skip_remediation: str = ""
+
+
+@runtime_checkable
+class AnalyzerPort(Protocol):
+    """Structural contract for an analyzer plugin.
+
+    Restates the public ``ScannerPlugin`` surface so callers can depend on the
+    port rather than the concrete base class.  ``ScannerPlugin`` remains the
+    shared concrete base (it supplies the Jinja2 ``render`` machinery and the
+    ``depends_on``/``skip_reason`` defaults); every plugin instance satisfies
+    this Protocol structurally.
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def category(self) -> PluginCategory: ...
+
+    @property
+    def depends_on(self) -> list[str]: ...
+
+    def can_run(self, files: list[str], repo_path: Path) -> bool: ...
+
+    def run(self, files: list[str], repo_path: Path) -> PluginResult: ...
+
+    def render(self, result: PluginResult, template_dir: Path | None = None) -> str: ...
 
 
 class ScannerPlugin(abc.ABC):
@@ -179,7 +229,12 @@ class ScannerPlugin(abc.ABC):
         template is rendered via Jinja2 with the context produced by
         :meth:`_template_context`.  When no template file exists the call
         falls through to :meth:`_render_inline`.
+
+        Findings are serialized to plain dicts here so the Jinja templates and
+        the ``_template_context`` builders operate on dicts (the frozen typed
+        ``PluginFinding`` is for the core paths, not the presentation layer).
         """
+        result = result_with_dict_findings(result)
         tdir = template_dir if template_dir is not None else _TEMPLATES_DIR
         template_name = f"{self.name}.md.j2"
         tpath = tdir / template_name

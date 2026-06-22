@@ -150,22 +150,18 @@ class _FakePyPIClient:
         self.closed = True
 
 
-class _FakeOpaEvaluator:
-    instances: list[_FakeOpaEvaluator] = []
+class _FakePolicyEnginePort:
+    """Fake PolicyEnginePort — returns an 'approve' PolicyDecision via the port."""
 
-    def __init__(self, policy_path: str, timeout: int = 10) -> None:
-        self.policy_path = policy_path
-        self.timeout = timeout
-        _FakeOpaEvaluator.instances.append(self)
+    instances: list[_FakePolicyEnginePort] = []
 
-    def evaluate(self, findings: list[object], package_metadata: dict[str, object]):
-        from eedom.core.models import DecisionVerdict, PolicyEvaluation
+    def __init__(self) -> None:
+        _FakePolicyEnginePort.instances.append(self)
 
-        return PolicyEvaluation(
-            decision=DecisionVerdict.approve,
-            triggered_rules=[],
-            policy_bundle_version="fake",
-        )
+    def evaluate(self, policy_input: object):
+        from eedom.core.policy_port import PolicyDecision
+
+        return PolicyDecision(verdict="approve")
 
 
 class _FakeOrchestrator:
@@ -182,14 +178,21 @@ class _FakeOrchestrator:
 
 def _patch_pipeline_runtime(
     monkeypatch: pytest.MonkeyPatch,
+    config: object,
     append_calls: list[tuple[Path, list[object], str]] | None = None,
-    scanner_classes: dict[str, type] | None = None,
-) -> None:
+):
+    """Patch the orchestrator and return an all-fake ApplicationContext.
+
+    Post-inversion (#409) the pipeline pulls its data collaborators from the
+    injected context, so the harness builds a fake context the test passes to
+    ``ReviewPipeline(config, context=...)`` instead of monkeypatching internals.
+    """
     import eedom.core.pipeline as pipeline_mod
+    from eedom.composition.bootstrap import bootstrap_test
 
     _FakeDb.instances.clear()
     _FakePyPIClient.instances.clear()
-    _FakeOpaEvaluator.instances.clear()
+    _FakePolicyEnginePort.instances.clear()
     _FakeOrchestrator.instances.clear()
 
     def append_decisions(evidence_root: Path, decisions: list[object], run_id: str = "") -> Path:
@@ -197,32 +200,16 @@ def _patch_pipeline_runtime(
             append_calls.append((evidence_root, decisions, run_id))
         return evidence_root / "decisions.parquet"
 
-    scanners = scanner_classes or {}
-
-    class _DefaultScanner:
-        name = "fake-scanner"
-
-        def __init__(self, *args: object, **kwargs: object) -> None:
-            return None
-
-    monkeypatch.setattr(pipeline_mod, "OpaEvaluator", _FakeOpaEvaluator)
     monkeypatch.setattr(pipeline_mod, "ScanOrchestrator", _FakeOrchestrator)
-    monkeypatch.setattr(
-        pipeline_mod,
-        "_data_imports",
-        lambda: {
-            "DecisionRepository": _FakeDb,
-            "NullRepository": _FakeDb,
-            "RepositoryProtocol": object,
-            "EvidenceStore": _FakeEvidence,
-            "append_decisions": append_decisions,
-            "PyPIClient": _FakePyPIClient,
-            "OsvScanner": scanners.get("osv-scanner", _DefaultScanner),
-            "ScanCodeScanner": scanners.get("scancode", _DefaultScanner),
-            "SyftScanner": scanners.get("syft", _DefaultScanner),
-            "TrivyScanner": scanners.get("trivy", _DefaultScanner),
-        },
-    )
+
+    ctx = bootstrap_test()
+    ctx.policy_engine = _FakePolicyEnginePort()
+    ctx.scanners = []
+    ctx.evidence_writer = _FakeEvidence(str(config.evidence_path))
+    ctx.package_metadata = _FakePyPIClient()
+    ctx.decision_repository = _FakeDb()
+    ctx.audit_log_appender = append_decisions
+    return ctx
 
 
 def test_202_bootstrapped_opa_input_matches_bundled_policy_schema() -> None:
@@ -276,7 +263,7 @@ def test_202_bootstrapped_opa_input_matches_bundled_policy_schema() -> None:
 
 
 def test_204_production_bootstrap_does_not_wire_null_or_fake_adapters(tmp_path: Path) -> None:
-    from eedom.core.bootstrap import bootstrap
+    from eedom.composition.bootstrap import bootstrap
 
     ctx = bootstrap(_make_config(tmp_path))
     wired = {
@@ -347,11 +334,13 @@ def test_208_evidence_store_creates_parent_dirs_for_package_artifacts(tmp_path: 
     assert Path(result).read_bytes() == b'{"decision":"reject"}'
 
 
-def test_209_pipeline_passes_scanner_timeout_to_each_scanner(
+def test_209_composition_passes_scanner_timeout_to_each_scanner(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    from eedom.core.models import OperatingMode
-    from eedom.core.pipeline import ReviewPipeline
+    # Scanner construction moved to the composition tier (#409); build_scanners
+    # resolves enabled scanners from the SCANNERS registry. This detector asserts
+    # every scanner receives the configured timeout.
+    from eedom.composition.bootstrap import build_scanners
 
     scanner_calls: list[tuple[str, tuple[object, ...], dict[str, object]]] = []
 
@@ -363,29 +352,20 @@ def test_209_pipeline_passes_scanner_timeout_to_each_scanner(
 
         return RecordingScanner
 
-    _patch_pipeline_runtime(
-        monkeypatch,
-        scanner_classes={
-            "syft": scanner_class("syft"),
-            "osv-scanner": scanner_class("osv-scanner"),
-            "trivy": scanner_class("trivy"),
-            "scancode": scanner_class("scancode"),
-        },
-    )
+    # The registry factories resolve the scanner classes from their modules at
+    # call time, so patching the module attribute records the construction.
+    monkeypatch.setattr("eedom.data.scanners.syft.SyftScanner", scanner_class("syft"))
+    monkeypatch.setattr("eedom.data.scanners.osv.OsvScanner", scanner_class("osv-scanner"))
+    monkeypatch.setattr("eedom.data.scanners.trivy.TrivyScanner", scanner_class("trivy"))
+    monkeypatch.setattr("eedom.data.scanners.scancode.ScanCodeScanner", scanner_class("scancode"))
+
     config = _make_config(
         tmp_path,
         enabled_scanners=["syft", "osv-scanner", "trivy", "scancode"],
-        scanner_timeout=7,
+        scancode_timeout=7,
     )
 
-    ReviewPipeline(config).evaluate(
-        diff_text=_REQUIREMENTS_DIFF,
-        pr_url="https://github.com/org/repo/pull/1",
-        team="platform",
-        mode=OperatingMode.monitor,
-        repo_path=tmp_path,
-        commit_sha="abcdef123456",
-    )
+    build_scanners(config)
 
     assert {name for name, _args, _kwargs in scanner_calls} == {
         "syft",
@@ -400,7 +380,7 @@ def test_209_bootstrap_passes_opa_timeout_to_policy_adapter(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     import eedom.core.opa_adapter as opa_adapter_mod
-    from eedom.core.bootstrap import bootstrap
+    from eedom.composition.bootstrap import bootstrap
 
     seen: dict[str, object] = {}
 
@@ -486,7 +466,8 @@ def test_217_evaluate_sbom_appends_parquet_and_seals_evidence(
 
     append_calls: list[tuple[Path, list[object], str]] = []
     seal_calls: list[tuple[Path, str, str | None, str]] = []
-    _patch_pipeline_runtime(monkeypatch, append_calls=append_calls)
+    config = _make_config(tmp_path)
+    ctx = _patch_pipeline_runtime(monkeypatch, config, append_calls=append_calls)
     monkeypatch.setattr(pipeline_mod, "find_previous_seal_hash", lambda root, run_id: "prev")
     monkeypatch.setattr(
         pipeline_mod,
@@ -496,7 +477,7 @@ def test_217_evaluate_sbom_appends_parquet_and_seals_evidence(
         ),
     )
 
-    decisions = ReviewPipeline(_make_config(tmp_path)).evaluate_sbom(
+    decisions = ReviewPipeline(config, context=ctx).evaluate_sbom(
         before_sbom=_sbom(),
         after_sbom=_sbom(_component("leftpad", "1.0.0", "pkg:npm/leftpad@1.0.0")),
         pr_url="https://github.com/org/repo/pull/1",
@@ -516,7 +497,7 @@ def test_218_cli_evaluate_uses_sbom_path_for_non_python_dependency_diffs(
 ) -> None:
     from click.testing import CliRunner
 
-    import eedom.core.bootstrap as bootstrap_mod
+    import eedom.composition.bootstrap as bootstrap_mod
     import eedom.core.pipeline as pipeline_mod
     from eedom.cli.main import cli
 
@@ -577,9 +558,10 @@ def test_221_pipeline_closes_single_pypi_client_per_run(
     from eedom.core.models import OperatingMode
     from eedom.core.pipeline import ReviewPipeline
 
-    _patch_pipeline_runtime(monkeypatch)
+    config = _make_config(tmp_path)
+    ctx = _patch_pipeline_runtime(monkeypatch, config)
 
-    ReviewPipeline(_make_config(tmp_path)).evaluate(
+    ReviewPipeline(config, context=ctx).evaluate(
         diff_text=_REQUIREMENTS_DIFF,
         pr_url="https://github.com/org/repo/pull/1",
         team="platform",

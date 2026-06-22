@@ -166,3 +166,12 @@ def _compute_age_days(first_published_date: str | None) -> int | None:
         return (now - first).days
     except (ValueError, TypeError):
         return None
+
+
+from eedom.core.registries import PACKAGE_INDEXES  # noqa: E402  (registration wiring)
+
+
+@PACKAGE_INDEXES.register("pypi")
+def build_pypi_index(*, timeout: int = 10) -> PyPIClient:
+    """Construct the real PyPI package index client."""
+    return PyPIClient(timeout=timeout)

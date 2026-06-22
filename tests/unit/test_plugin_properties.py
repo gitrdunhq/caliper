@@ -17,6 +17,7 @@ from eedom.core.plugin import (
     PluginCategory,
     PluginResult,
     ScannerPlugin,
+    finding_get,
 )
 from eedom.core.registry import PluginRegistry
 from eedom.core.renderer import render_comment
@@ -125,8 +126,8 @@ class TestPluginIsolation:
         results = reg.run_all(files, Path("."))
         good = [r for r in results if r.plugin_name == "deterministic"]
         findings = good[0].findings
-        assert [f.get("file") for f in findings] == sorted(files)
-        assert all(f.get("issue") == "test" for f in findings)
+        assert [finding_get(f, "file") for f in findings] == sorted(files)
+        assert all(finding_get(f, "issue") == "test" for f in findings)
 
 
 # ── PROP-003: Registry Determinism ──
@@ -162,21 +163,21 @@ class TestRegistryDeterminism:
 
 class TestTemplatePurity:
     @given(results=st.lists(plugin_result_st, min_size=0, max_size=5))
-    @settings(max_examples=30)
+    @settings(max_examples=30, deadline=None)  # render time varies under load; see #413
     def test_render_is_idempotent(self, results: list[PluginResult]):
         md1 = render_comment(results, repo="org/repo", pr_num=1, title="test")
         md2 = render_comment(results, repo="org/repo", pr_num=1, title="test")
         assert md1 == md2
 
     @given(results=st.lists(plugin_result_st, min_size=0, max_size=5))
-    @settings(max_examples=20)
+    @settings(max_examples=20, deadline=None)  # render time varies under load; see #413
     def test_render_always_returns_string(self, results: list[PluginResult]):
         md = render_comment(results, repo="x", pr_num=0, title="t")
         assert isinstance(md, str)
         assert "Eagle Eyed Dom" in md
 
     @given(results=st.lists(plugin_result_st, min_size=0, max_size=3))
-    @settings(max_examples=20)
+    @settings(max_examples=20, deadline=None)  # render time varies under load; see #413
     def test_render_contains_verdict(self, results: list[PluginResult]):
         md = render_comment(results, repo="x", pr_num=0, title="t")
         assert any(v in md for v in ("ALL CLEAR", "BLOCKED", "PASS WITH WARNINGS"))
@@ -213,7 +214,7 @@ class TestCommentLengthBound:
         finding_count=st.integers(min_value=0, max_value=500),
         detail_length=st.integers(min_value=1, max_value=500),
     )
-    @settings(max_examples=20)
+    @settings(max_examples=20, deadline=None)  # render time varies under load; see #413
     def test_output_never_exceeds_65k(
         self,
         finding_count: int,

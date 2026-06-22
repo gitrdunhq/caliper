@@ -66,7 +66,7 @@ def settings(secret: str):
 
 @pytest.fixture
 def app(settings):
-    from eedom.core.bootstrap import bootstrap_test
+    from eedom.composition.bootstrap import bootstrap_test
     from eedom.webhook.server import build_app
 
     return build_app(settings, context=bootstrap_test())

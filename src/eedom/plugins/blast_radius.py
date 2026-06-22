@@ -13,7 +13,7 @@ from pathlib import Path
 import structlog
 
 from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from eedom.plugins._runners.graph_builder import CodeGraph
+from eedom.plugins._runners.graph_builder import CodeGraph, resolve_graph_db_path
 
 logger = structlog.get_logger(__name__)
 
@@ -37,40 +37,42 @@ class BlastRadiusPlugin(ScannerPlugin):
         return any(Path(f).suffix in _CODE_EXTS for f in files)
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
-        db_dir = repo_path / ".eedom"
-        try:
-            db_dir.mkdir(exist_ok=True)
-            test_file = db_dir / ".write_test"
-            test_file.touch()
-            test_file.unlink()
-        except OSError:
-            logger.warning(
-                "blast-radius: repo_path not writable, using temp dir",
-                repo_path=str(repo_path),
-            )
-            db_dir = Path(tempfile.mkdtemp(prefix="eedom-blast-radius-"))
-        db_path = str(db_dir / "code_graph.sqlite")
-
         from eedom.core.repo_config import load_repo_config
 
         config = load_repo_config(repo_path)
         br_thresholds = config.thresholds.get("blast-radius", {})
         fan_out_limit = br_thresholds.get("fan_out_limit", 8)
 
-        graph = CodeGraph(db_path=db_path, fan_out_limit=fan_out_limit)
+        # Issue #391: the graph db defaults to the user cache dir — reviewing
+        # a repo must not dirty it. Explicit overrides (EEDOM_GRAPH_DB env var
+        # or `thresholds.blast-radius.graph_db` in .eagle-eyed-dom.yaml) and
+        # pre-existing legacy in-repo dbs are honored by the resolver.
+        resolved_db = resolve_graph_db_path(repo_path, br_thresholds.get("graph_db"))
+        db_dir = resolved_db.parent
+        db_name = resolved_db.name
+        try:
+            db_dir.mkdir(parents=True, exist_ok=True)
+            test_file = db_dir / ".write_test"
+            test_file.touch()
+            test_file.unlink()
+        except OSError:
+            logger.warning(
+                "blast-radius: graph db dir not writable, using temp dir",
+                db_dir=str(db_dir),
+            )
+            db_dir = Path(tempfile.mkdtemp(prefix="eedom-blast-radius-"))
+        db_path = str(db_dir / db_name)
+
+        # Issue #387: CodeGraph normalizes repo-relative/absolute paths at its
+        # API boundary once repo_root is known — no manual conversion needed.
+        graph = CodeGraph(db_path=db_path, fan_out_limit=fan_out_limit, repo_root=repo_path)
 
         if graph.stats()["symbols"] == 0:
             graph.index_directory(repo_path)
         else:
-            graph.rebuild_incremental(
-                [str(repo_path / f) if not Path(f).is_absolute() else f for f in files]
-            )
+            graph.rebuild_incremental(files)
 
-        changed = [
-            str(Path(f).relative_to(repo_path)) if Path(f).is_absolute() else f
-            for f in files
-            if Path(f).suffix in _CODE_EXTS
-        ]
+        changed = [f for f in files if Path(f).suffix in _CODE_EXTS]
 
         findings = graph.run_checks(changed)
         stats = graph.stats()
@@ -157,3 +159,12 @@ class BlastRadiusPlugin(ScannerPlugin):
         )
         lines.append("\n</details>\n")
         return "\n".join(lines)
+
+
+from eedom.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
+
+
+@ANALYZERS.register("blast-radius")
+def build_blast_radius_plugin() -> BlastRadiusPlugin:
+    """Register this analyzer with the ANALYZERS registry."""
+    return BlastRadiusPlugin()

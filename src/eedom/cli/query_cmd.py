@@ -14,11 +14,14 @@ import click
     "--db",
     "db_path",
     type=click.Path(),
-    default=".eedom/graph.db",
-    show_default=True,
-    help="Path to the CodeGraph SQLite database.",
+    default=None,
+    help=(
+        "Path to the CodeGraph SQLite database. Defaults to the db "
+        "'eedom review' maintains for the current directory (user cache dir, "
+        "or a legacy ./.eedom/code_graph.sqlite if present)."
+    ),
 )
-def query(question: str, db_path: str) -> None:
+def query(question: str, db_path: str | None) -> None:
     """Query the code graph using natural language.
 
     Examples:
@@ -30,8 +33,13 @@ def query(question: str, db_path: str) -> None:
       eedom query "are there circular imports?"
     """
     from eedom.core.nl_query import TEMPLATES, query_code
+    from eedom.plugins._runners.graph_builder import resolve_graph_db_path
 
-    db = Path(db_path)
+    if db_path is None:
+        candidates = [resolve_graph_db_path(Path.cwd()), Path(".eedom/graph.db")]
+        db = next((c for c in candidates if c.exists()), candidates[0])
+    else:
+        db = Path(db_path)
     if not db.exists():
         click.echo(f"Database not found: {db}", err=True)
         click.echo(

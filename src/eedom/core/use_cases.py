@@ -14,8 +14,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from eedom.core.review_summary import ReviewSummary, summarize_review
+
 if TYPE_CHECKING:
-    from eedom.core.bootstrap import ApplicationContext
+    from eedom.core.context import ApplicationContext
 
 
 class ScanScope(StrEnum):
@@ -43,31 +45,46 @@ class ReviewResult:
     verdict: str
     security_score: float
     quality_score: float
+    summary: ReviewSummary | None = None
 
 
 def _derive_verdict(results: list) -> str:
-    """Derive a verdict string from a list of PluginResult objects.
+    """Repo-wide verdict string (thin shim over the canonical summarizer, SoT).
 
-    Priority: blocked > warnings > incomplete > clear.
+    Kept for back-compat; the canonical computation lives in
+    ``eedom.core.review_summary.summarize_review``.
     """
-    verdict = "clear"
-    for r in results:
-        if getattr(r, "error", None):
-            if verdict == "clear":
-                verdict = "incomplete"
-            continue
-        findings = getattr(r, "findings", [])
-        category = getattr(r, "category", "")
-        has_crit = any(
-            f.get("severity") in ("critical", "high") if hasattr(f, "get") else False
-            for f in findings
-        )
-        is_security = category in {"dependency", "supply_chain", "infra"}
-        if has_crit and is_security:
-            verdict = "blocked"
-        elif findings and verdict != "blocked":
-            verdict = "warnings"
-    return verdict
+    from eedom.core.review_summary import summarize_review
+
+    return summarize_review(results).verdict.value
+
+
+def _enrich_results(context: ApplicationContext, results: list, repo_path: Path) -> list:
+    """Run the detect-then-enrich pass over every plugin's findings (ADR-006).
+
+    A post-detection, verdict-independent pass: each finding is decorated with
+    deterministic context (enclosing symbol, code-graph blast radius) in its
+    ``metadata['enrichment']``. Fail-open and time-bounded — enrichment can never
+    change a verdict or drop a finding, so this runs *after* detection and before
+    scoring. A no-op when no enrichers are wired.
+    """
+    from eedom.core.accessors import get_enrichers
+    from eedom.core.enrich import enrich_findings
+    from eedom.core.enrichment import EnrichmentContext
+
+    enrichers = get_enrichers(context)
+    if not enrichers:
+        return results
+    ctx = EnrichmentContext(repo_path=str(repo_path))
+    enriched: list = []
+    for result in results:
+        findings = getattr(result, "findings", None)
+        if findings:
+            new = enrich_findings(list(findings), enrichers, ctx)
+            enriched.append(dataclasses.replace(result, findings=new))
+        else:
+            enriched.append(result)
+    return enriched
 
 
 def review_repository(
@@ -76,18 +93,19 @@ def review_repository(
     repo_path: Path,
     options: ReviewOptions,
     repo_files: list | None = None,
+    changed_files: set[str] | None = None,
 ) -> ReviewResult:
     """Run all matching plugins and return a structured ReviewResult.
 
-    Delegates execution to ``context.analyzer_registry.run_all()``.
-    Scores and verdict are derived from the aggregated plugin results.
+    Delegates execution to ``context.analyzer_registry.run_all()``. The verdict,
+    counts, and scores come from the single source of truth
+    (``review_summary.summarize_review``) so every output agrees.
 
     When *repo_files* is provided (diff mode), code/quality plugins receive
     *files* (diff-scoped) while dependency/infra/supply_chain plugins receive
-    *repo_files* (full repo).
+    *repo_files* (full repo). *changed_files* scopes the **blocking** decision to
+    the change under review (``None`` = full-repo gate); see ``summarize_review``.
     """
-    from eedom.core.renderer import calculate_quality_score, calculate_severity_score
-
     plugin_results = context.analyzer_registry.run_all(
         files,
         repo_path,
@@ -98,13 +116,14 @@ def review_repository(
         repo_files=repo_files,
     )
 
-    verdict = _derive_verdict(plugin_results)
-    security_score = calculate_severity_score(plugin_results)
-    quality_score = calculate_quality_score(plugin_results)
+    plugin_results = _enrich_results(context, plugin_results, repo_path)
+
+    summary = summarize_review(plugin_results, changed_files=changed_files)
 
     return ReviewResult(
         results=plugin_results,
-        verdict=verdict,
-        security_score=security_score,
-        quality_score=quality_score,
+        verdict=summary.verdict.value,
+        security_score=summary.security_score,
+        quality_score=summary.quality_score,
+        summary=summary,
     )

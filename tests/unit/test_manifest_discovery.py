@@ -352,6 +352,51 @@ class TestSkipDirectories:
 # ---------------------------------------------------------------------------
 
 
+class TestManifestDiscoveryFileSource:
+    """Discovery enumerates through the shared FileSourcePort."""
+
+    def test_uses_injected_file_source(self, tmp_path: Path) -> None:
+        manifest = tmp_path / "svc" / "package.json"
+        _write(manifest, "{}")
+
+        class _StubSource:
+            name = "stub"
+            seen: list[Path] = []
+
+            def is_available(self, root: Path) -> bool:
+                return True
+
+            def list_files(self, root: Path, *, suffixes=None) -> list[Path]:
+                type(self).seen.append(root)
+                return [manifest]
+
+        units = discover_packages(tmp_path, file_source=_StubSource())
+
+        assert _StubSource.seen == [tmp_path]
+        assert len(units) == 1
+        assert units[0].manifest == manifest
+
+    def test_lockfile_pairing_via_source(self, tmp_path: Path) -> None:
+        manifest = tmp_path / "package.json"
+        lock = tmp_path / "package-lock.json"
+        _write(manifest, "{}")
+        _write(lock, "{}")
+
+        class _StubSource:
+            name = "stub"
+
+            def is_available(self, root: Path) -> bool:
+                return True
+
+            def list_files(self, root: Path, *, suffixes=None) -> list[Path]:
+                return [manifest, lock]
+
+        units = discover_packages(tmp_path, file_source=_StubSource())
+
+        assert len(units) == 1
+        assert units[0].lockfile == lock
+
+
 class TestPackageUnitFrozen:
     def test_package_unit_is_frozen(self, tmp_path: Path) -> None:
         """PackageUnit is immutable — assigning to a field raises ValidationError."""
