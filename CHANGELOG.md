@@ -7,6 +7,40 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.26](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.25...eedom-v0.2.26) (2026-06-22)
+
+
+### Features
+
+* add gated, on-demand grounding provider and `ground` CLI command ([b39aa47](https://github.com/gitrdunhq/eedom/commit/b39aa47372366f55ff59e4f78554f8b230b8e077))
+* **supply-chain:** advisory LLM narrative enricher + gated CLI step ([5fe68b2](https://github.com/gitrdunhq/eedom/commit/5fe68b232f98641ae29ce68848aacf320c3b6bdf))
+* **supply-chain:** deterministic version-bump signals + OPA gate ([8af3410](https://github.com/gitrdunhq/eedom/commit/8af34109b5f1ce783a8f9c40b82391010a246ad8))
+* **supply-chain:** fetch + safely diff package source between versions ([6d91d33](https://github.com/gitrdunhq/eedom/commit/6d91d333330598f4d1c04feb9acf653ee2fe40e3))
+
+
+### Bug Fixes
+
+* add strict= to zip in config_merge (ruff B905, batch 4 follow-up) ([ebd51f6](https://github.com/gitrdunhq/eedom/commit/ebd51f68161b1b7bf4c98df5a342a37ead584581))
+* **ci:** set GH_REPO so release-please auto-merge step works without a checkout ([c892246](https://github.com/gitrdunhq/eedom/commit/c892246caf266f5553c8a8a5d99caafe332dbc26))
+* config-merge drops + missing commit_sha on sbom path (batch 6, [#432](https://github.com/gitrdunhq/eedom/issues/432)) ([0752216](https://github.com/gitrdunhq/eedom/commit/07522167f0a48916f88cdc4d4efbbf3b8de94cc8))
+* **config:** wrap single-value env override as one-element list ([0c6137c](https://github.com/gitrdunhq/eedom/commit/0c6137c408e828cf03c265c2e099caa31db9be85))
+* correctness bugs from adversarial review (batch 1, Opus-confirmed) ([182c0e1](https://github.com/gitrdunhq/eedom/commit/182c0e1841540f531e7994227f8583cf10e264ec))
+* **dependabot:** use uv ecosystem to end lockfile drift; harden fixture exclusion ([95f4e96](https://github.com/gitrdunhq/eedom/commit/95f4e96249af2172fc50d70e7b00e17cb31666b9))
+* detector crashes + false positives from review (batch 3, Opus-confirmed) ([5cbdf8a](https://github.com/gitrdunhq/eedom/commit/5cbdf8a326e77bb91bf1ca5270d9c0256dd50928))
+* detector false negatives/positives from review (batch 4, [#432](https://github.com/gitrdunhq/eedom/issues/432)) ([c164058](https://github.com/gitrdunhq/eedom/commit/c1640581bc7bd5e0802d40d93bff7f63bfda9de8))
+* **enrich:** actually enrich findings on the review path (bootstrap_review + line/start_line) ([d657f47](https://github.com/gitrdunhq/eedom/commit/d657f47da5d5ca178c28d48535428f59d997f9a8))
+* make db_dsn optional so webhook/ground don't crash at startup (P20-1, [#432](https://github.com/gitrdunhq/eedom/issues/432)) ([4a03285](https://github.com/gitrdunhq/eedom/commit/4a03285fca65b7123a108dc7b217567194b32f57))
+* monorepo lockfile loss + uncaught JSON parse (batch 2, Opus-confirmed) ([3e0b29c](https://github.com/gitrdunhq/eedom/commit/3e0b29cb0b122244a47a29886ddd7dec6dd20c49))
+* orphan scancode, install swiftformat, ship swiftlint to runtime ([547008b](https://github.com/gitrdunhq/eedom/commit/547008b30eb06c084b72fc5798b881e199fb712a))
+* **review:** single source of truth for the review verdict + counts ([3b70ae8](https://github.com/gitrdunhq/eedom/commit/3b70ae896c41b6ca43cba3fc116c0804cd15f0fb))
+* **supply-chain:** route CLI through composition (arch boundary) + enricher conformance ([9189dd8](https://github.com/gitrdunhq/eedom/commit/9189dd8ad6bee52f554471912b3b10efbd64d680))
+* webhook enumerates via FileSourcePort seam, not rglob (P20-2, [#432](https://github.com/gitrdunhq/eedom/issues/432)) ([e101594](https://github.com/gitrdunhq/eedom/commit/e101594fbc37127d767aaf18c20baaed29d9b10f))
+
+
+### Documentation
+
+* **supply-chain:** ADR-007 + CAPABILITIES/count guards for version-bump analysis ([fb632bd](https://github.com/gitrdunhq/eedom/commit/fb632bd3e6785570ee6d7b01779aa6582e5e5d38))
+
 ## [0.2.25](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.24...eedom-v0.2.25) (2026-06-21)
 
 

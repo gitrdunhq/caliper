@@ -1,6 +1,6 @@
 [project]
 name = "eedom"
-version = "0.2.25"
+version = "0.2.26"
 description = "Eagle Eyed Dom — fully deterministic dependency and code review for CI"
 requires-python = ">=3.12"
 readme = "README.md"
