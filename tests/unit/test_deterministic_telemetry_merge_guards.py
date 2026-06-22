@@ -23,12 +23,7 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
-import pytest
-
-pytestmark = pytest.mark.xfail(
-    reason="deterministic bug detector for #262 — preserve telemetry in merge, then green",
-    strict=False,
-)
+# xfail for #262 removed — telemetry merge fix is live (P05-1).
 
 _EEDOM_CFG = ".eagle-eyed-dom.yaml"
 
