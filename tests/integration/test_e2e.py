@@ -244,7 +244,7 @@ def _base_env(tmp_path: Path) -> dict[str, str]:
     return {
         "EEDOM_DB_DSN": "postgresql://test:test@localhost:12432/test",
         "EEDOM_EVIDENCE_PATH": str(tmp_path / "evidence"),
-        "EEDOM_ENABLED_SCANNERS": "syft,scancode",
+        "EEDOM_ENABLED_SCANNERS": "syft,osv-scanner",
         "EEDOM_OPA_POLICY_PATH": str(tmp_path / "policies"),
     }
 

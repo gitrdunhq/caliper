@@ -5,7 +5,7 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-06-21
+  LAST VERIFIED: 2026-06-22
   VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
   plugin (20 ScannerPlugin subclasses total); 21 detectors in src/eedom/detectors/;
   61 semgrep rule ids in policies/semgrep/.
@@ -54,7 +54,7 @@ wired separately — it consumes every other plugin's findings and runs last
 |--------|------|---------|
 | osv-scanner | `plugins/osv_scanner.py` | Known CVE/GHSA/OSV vulnerabilities. 22 manifest/lockfile formats. CVSS severity mapping. |
 | trivy | `plugins/trivy.py` | Vulnerability scanning via Trivy database (`trivy fs --scanners vuln`). |
-| scancode | `plugins/scancode.py` | License detection with SPDX expression extraction and confidence scoring. |
+| scancode | `plugins/scancode.py` | License detection (SPDX extraction + confidence). **Orphaned/disabled** — transitive dep lacks arm64 wheels; not installed in the image nor enabled by default. Plugin code retained for re-enable. |
 | syft | `plugins/syft.py` | CycloneDX SBOM generation. 18 ecosystems (npm, PyPI, Cargo, Go, Ruby, Composer, Dart, Elixir, etc). |
 
 ### supply_chain (3)

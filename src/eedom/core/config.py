@@ -13,7 +13,9 @@ from pydantic_settings.sources.providers.env import EnvSettingsSource
 
 from eedom.core.models import OperatingMode
 
-_SCANNERS_DEFAULT = ["syft", "osv-scanner", "trivy", "scancode"]
+# scancode intentionally orphaned (disabled) — its transitive dep lacks arm64
+# wheels and breaks cross-platform builds. Re-enable by adding "scancode" back.
+_SCANNERS_DEFAULT = ["syft", "osv-scanner", "trivy"]
 
 # On-by-default finding enrichers (ADR-006). Single source of truth shared by the
 # EedomSettings default and the settings-free build_default_enrichers() helper.

@@ -147,16 +147,8 @@ class TestScannerBinaries:
             f"stdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
-    def test_scancode_version(self, container_run):
-        """scancode --version exits 0, invoked via python -m scancode.
-
-        Same shebang constraint as semgrep — must use 'python -m scancode'.
-        """
-        result = container_run(["-m", "scancode", "--version"], entrypoint="python3")
-        assert result.returncode == 0, (
-            f"scancode (python -m scancode) not found or failed.\n"
-            f"stdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+    # scancode is orphaned/disabled — no longer installed in the image, so its
+    # version probe was removed. Re-add when scancode is re-enabled.
 
     def test_gitleaks_version(self, container_run):
         """gitleaks version exits 0 — secret detection scanner present."""

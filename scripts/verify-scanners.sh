@@ -4,7 +4,8 @@
 
 set -euo pipefail
 
-REQUIRED_TOOLS=(syft osv-scanner trivy scancode opa)
+# scancode removed — orphaned/disabled (no arm64 wheels). Re-add when re-enabled.
+REQUIRED_TOOLS=(syft osv-scanner trivy opa)
 
 missing=0
 total=${#REQUIRED_TOOLS[@]}
