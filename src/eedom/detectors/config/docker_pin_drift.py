@@ -15,7 +15,7 @@ from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
 
-_PIP_PIN_RE = re.compile(r"pip\s+install\b.*==")
+_PIP_PIN_RE = re.compile(r"\bpip\s+install\b.*==")  # \b anchors "pip" so "mypip install" doesn't match
 _LATEST_TAG_RE = re.compile(r":latest\b")
 
 

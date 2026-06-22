@@ -104,18 +104,21 @@ class SQLInjectionDetector(BugDetector):
 
         query_arg = call.args[0]
 
-        # Check for f-string (JoinedStr)
+        # Check for f-string (JoinedStr) WITH interpolation. A constant f-string
+        # (no FormattedValue, e.g. f"SELECT * FROM t") is just a literal — not dangerous.
         if isinstance(query_arg, ast.JoinedStr):
-            return True
+            if any(isinstance(v, ast.FormattedValue) for v in query_arg.values):
+                return True
 
         # Check for % formatting
         if isinstance(query_arg, ast.BinOp) and isinstance(query_arg.op, ast.Mod):
             return True
 
-        # Check for .format() call
+        # Check for .format() call WITH arguments. "...".format() with no args is a
+        # no-op and produces a constant string — not an injection vector.
         if isinstance(query_arg, ast.Call):
             if isinstance(query_arg.func, ast.Attribute):
-                if query_arg.func.attr == "format":
+                if query_arg.func.attr == "format" and (query_arg.args or query_arg.keywords):
                     return True
 
         return False
