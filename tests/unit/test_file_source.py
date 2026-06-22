@@ -1,12 +1,12 @@
 # tested-by: tests/unit/test_file_source.py
 """Tests for the file-source port + adapters (git ls-files vs. filesystem walk).
 
-A single ``FileSourcePort`` enumerates the files eedom should scan under a
-root. Two adapters back it: ``WalkFileSource`` (os.walk + eedom ignore rules)
+A single ``FileSourcePort`` enumerates the files caliper should scan under a
+root. Two adapters back it: ``WalkFileSource`` (os.walk + caliper ignore rules)
 and ``GitLsFilesSource`` (``git ls-files --cached --others --exclude-standard``,
 which respects ``.gitignore`` for free while still catching new working-tree
 files). ``select_file_source`` picks git when the root is a usable git repo and
-falls back to walk otherwise, with an ``EEDOM_FILE_SOURCE`` override.
+falls back to walk otherwise, with an ``CALIPER_FILE_SOURCE`` override.
 """
 
 from __future__ import annotations
@@ -14,13 +14,13 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from eedom.core.file_source import (
+from caliper.core.file_source import (
     GitLsFilesSource,
     WalkFileSource,
     select_file_source,
 )
-from eedom.core.ports import FileSourcePort
-from eedom.core.registries import FILE_SOURCES
+from caliper.core.ports import FileSourcePort
+from caliper.core.registries import FILE_SOURCES
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -87,8 +87,8 @@ class TestWalkFileSource:
         assert "real.py" in rels
         assert not any(r.startswith((".venv/", "node_modules/", "__pycache__/")) for r in rels)
 
-    def test_respects_eedomignore(self, tmp_path: Path):
-        _write(tmp_path / ".eedomignore", "secrets/\n")
+    def test_respects_caliperignore(self, tmp_path: Path):
+        _write(tmp_path / ".caliperignore", "secrets/\n")
         _write(tmp_path / "keep.py")
         _write(tmp_path / "secrets" / "leak.py")
         out = WalkFileSource().list_files(tmp_path)
@@ -151,11 +151,11 @@ class TestGitLsFilesSource:
         assert "build/out.py" not in rels
         assert "debug.log" not in rels
 
-    def test_applies_eedom_exclusions_on_top(self, tmp_path: Path):
-        # A tracked file that .gitignore allows but eedom must still skip
-        # (mirrors tests/e2e/fixtures — tracked but never eedom's own deps).
+    def test_applies_caliper_exclusions_on_top(self, tmp_path: Path):
+        # A tracked file that .gitignore allows but caliper must still skip
+        # (mirrors tests/e2e/fixtures — tracked but never caliper's own deps).
         _init_git_repo(tmp_path)
-        _write(tmp_path / ".eedomignore", "fixtures/\n")
+        _write(tmp_path / ".caliperignore", "fixtures/\n")
         _write(tmp_path / "scan_me.py")
         _write(tmp_path / "fixtures" / "pinned.py")
         _commit_all(tmp_path)
@@ -200,26 +200,26 @@ class TestGitLsFilesSource:
 
 class TestSelectFileSource:
     def test_auto_picks_git_in_repo(self, tmp_path: Path, monkeypatch):
-        monkeypatch.delenv("EEDOM_FILE_SOURCE", raising=False)
+        monkeypatch.delenv("CALIPER_FILE_SOURCE", raising=False)
         _init_git_repo(tmp_path)
         assert select_file_source(tmp_path).name == "git"
 
     def test_auto_falls_back_to_walk_outside_repo(self, tmp_path: Path, monkeypatch):
-        monkeypatch.delenv("EEDOM_FILE_SOURCE", raising=False)
+        monkeypatch.delenv("CALIPER_FILE_SOURCE", raising=False)
         assert select_file_source(tmp_path).name == "walk"
 
     def test_prefer_walk_forces_walk_in_repo(self, tmp_path: Path, monkeypatch):
-        monkeypatch.delenv("EEDOM_FILE_SOURCE", raising=False)
+        monkeypatch.delenv("CALIPER_FILE_SOURCE", raising=False)
         _init_git_repo(tmp_path)
         assert select_file_source(tmp_path, prefer="walk").name == "walk"
 
     def test_prefer_git_forces_git(self, tmp_path: Path, monkeypatch):
-        monkeypatch.delenv("EEDOM_FILE_SOURCE", raising=False)
+        monkeypatch.delenv("CALIPER_FILE_SOURCE", raising=False)
         _init_git_repo(tmp_path)
         assert select_file_source(tmp_path, prefer="git").name == "git"
 
     def test_env_override_walk(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("EEDOM_FILE_SOURCE", "walk")
+        monkeypatch.setenv("CALIPER_FILE_SOURCE", "walk")
         _init_git_repo(tmp_path)
         assert select_file_source(tmp_path).name == "walk"
 

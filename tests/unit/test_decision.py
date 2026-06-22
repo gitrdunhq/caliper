@@ -1,9 +1,9 @@
-"""Tests for eedom.core.decision — decision assembly."""
+"""Tests for caliper.core.decision — decision assembly."""
 
 from __future__ import annotations
 
-from eedom.core.decision import assemble_decision
-from eedom.core.models import (
+from caliper.core.decision import assemble_decision
+from caliper.core.models import (
     DecisionVerdict,
     Finding,
     FindingCategory,

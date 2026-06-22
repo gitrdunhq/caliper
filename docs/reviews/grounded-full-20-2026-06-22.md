@@ -1,7 +1,7 @@
 # Grounded vs Ungrounded Haiku Review — Full 20-Partition Adjudication
 
 **Date:** 2026-06-22  **Adjudicator:** Opus (delta-only; Haiku challenger was base verifier)
-**Target:** /home/user/eedom, 20 partitions  **Question:** is the 69->31 confirmed drop real recall loss or removed baseline noise?
+**Target:** /home/user/caliper, 20 partitions  **Question:** is the 69->31 confirmed drop real recall loss or removed baseline noise?
 
 ## TL;DR
 - Overlap: **both=14, grounded-only=17, ungrounded-only=55**.
@@ -46,7 +46,7 @@ Counts each arm's TRUE-confirmed = matched-both (corroborated by both arms) + th
 - **P15-2** graph_builder _walk_upstream .fetchone()["id"] unguarded -> TypeError crash when symbol missing/stale
 - **P16-4** osv _resolve_severity uses assignment not max() -> CVSS 5.0 downgrades a database_specific "high" to "medium"
 - **P16-5** gitleaks crash-detect requires exit!=0/1 AND missing report -> partial report on crash silently parsed as clean
-- **P20-1** webhook _load_app EedomSettings() with required db_dsn no default -> ValidationError crash before fail-open bootstrap
+- **P20-1** webhook _load_app CaliperSettings() with required db_dsn no default -> ValidationError crash before fail-open bootstrap
 
 ### GROUNDED_ONLY overproduce (5) — wrongly confirmed despite grounding
 `P02-2` no-op solver validator (style); `P09-1` cached-config duplication (style); `P11-3` BatchVisitor 'dead code' is actually single-dispatch correct; `P13-2` cache_ttl over-broad var-marking (tunable heuristic); `P14-4` enclosing_symbol misses .pyi/.pyw (graceful fail-open degradation).
@@ -54,7 +54,7 @@ Counts each arm's TRUE-confirmed = matched-both (corroborated by both arms) + th
 ### UNGROUNDED_ONLY real-suppressed-bugs (16) — TRUE recall cost of grounding
 - **P05-6** load_merged_config drops PluginConfig.semgrep sub-config on package merge -> extra_config_dirs/exclude_rules lost
 - **P10-1** subprocess_runner does not catch UnicodeDecodeError (text=True on binary) -> propagates, breaks fail-open
-- **P10-2** get_version() unguarded importlib.metadata.version("eedom") at import -> PackageNotFoundError crashes renderer import
+- **P10-2** get_version() unguarded importlib.metadata.version("caliper") at import -> PackageNotFoundError crashes renderer import
 - **P10-3** subprocess_runner catches only FileNotFoundError, not other OSError (PermissionError) -> propagates
 - **P11-2** DetectorFinding.to_finding() drops line_number/column (Finding model lacks them) -> SARIF/PR location lost
 - **P12-1** secret_str only visits ast.AnnAssign; bare api_key="secret" (ast.Assign) never flagged -> false negative
@@ -100,7 +100,7 @@ These were confirmed by the ungrounded arm but are NOT bugs (correct code, docum
 | P03 | policy/OPA | 4 | 2 | 3 | 3 | 0 | 0 |
 | P04 | seal/evidence/telemetry | 2 | 2 | 0 | 0 | 0 | 0 |
 | P05 | config/file-enumeration | 2 | 0 | 1 | 1 | 0 | 0 |
-| P06 | enrichment/llm | 1 | 1 | 1 | 0 | 1 | 0 |
+| P06 | scribe/llm | 1 | 1 | 1 | 0 | 1 | 0 |
 | P07 | output/render/sarif | 0 | 1 | 8 | 0 | 7 | 1 |
 | P08 | concern/review | 0 | 0 | 10 | 1 | 6 | 3 |
 | P09 | taskfit/actionability | 2 | 0 | 2 | 1 | 1 | 0 |
@@ -108,7 +108,7 @@ These were confirmed by the ungrounded arm but are NOT bugs (correct code, docum
 | P11 | detector framework | 2 | 0 | 6 | 3 | 3 | 0 |
 | P12 | detectors/security | 6 | 1 | 0 | 0 | 0 | 0 |
 | P13 | detectors/reliability | 5 | 0 | 4 | 3 | 1 | 0 |
-| P14 | detectors config/metrics/process/enrichers | 5 | 0 | 4 | 4 | 0 | 0 |
+| P14 | detectors config/metrics/process/scribes | 5 | 0 | 4 | 4 | 0 | 0 |
 | P15 | plugin infra/runners | 6 | 1 | 7 | 3 | 4 | 0 |
 | P16 | scanner plugins A | 6 | 1 | 6 | 6 | 0 | 0 |
 | P17 | scanner plugins B | 8 | 0 | 1 | 1 | 0 | 0 |

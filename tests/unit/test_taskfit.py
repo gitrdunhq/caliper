@@ -1,4 +1,4 @@
-"""Tests for eedom.core.taskfit -- LLM task-fit advisory."""
+"""Tests for caliper.core.taskfit -- LLM task-fit advisory."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ import httpx
 import pytest
 import respx
 
-from eedom.core.config import EedomSettings
-from eedom.core.taskfit import TaskFitAdvisor
+from caliper.core.config import CaliperSettings
+from caliper.core.taskfit import TaskFitAdvisor
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -25,22 +25,22 @@ def _make_config(
     llm_model: str | None = None,
     llm_api_key: str | None = None,
     llm_timeout: int = 30,
-) -> EedomSettings:
-    """Build an EedomSettings with controlled LLM fields."""
+) -> CaliperSettings:
+    """Build an CaliperSettings with controlled LLM fields."""
     env = {
-        "EEDOM_DB_DSN": "postgresql://test:test@localhost/test",
-        "EEDOM_LLM_ENABLED": str(llm_enabled).lower(),
-        "EEDOM_LLM_TIMEOUT": str(llm_timeout),
+        "CALIPER_DB_DSN": "postgresql://test:test@localhost/test",
+        "CALIPER_LLM_ENABLED": str(llm_enabled).lower(),
+        "CALIPER_LLM_TIMEOUT": str(llm_timeout),
     }
     if llm_endpoint:
-        env["EEDOM_LLM_ENDPOINT"] = llm_endpoint
+        env["CALIPER_LLM_ENDPOINT"] = llm_endpoint
     if llm_model:
-        env["EEDOM_LLM_MODEL"] = llm_model
+        env["CALIPER_LLM_MODEL"] = llm_model
     if llm_api_key:
-        env["EEDOM_LLM_API_KEY"] = llm_api_key
+        env["CALIPER_LLM_API_KEY"] = llm_api_key
 
     with patch.dict(os.environ, env, clear=True):
-        return EedomSettings()
+        return CaliperSettings()
 
 
 SAMPLE_METADATA = {"summary": "A fast HTTP client library"}

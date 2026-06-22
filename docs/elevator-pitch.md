@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="../assets/hero.svg" alt="Eagle Eyed Dom" width="900">
+  <img src="../assets/hero.svg" alt="Caliper" width="900">
   <br>
   <strong>Fully deterministic dependency review for CI.</strong><br>
   19 plugins. 6 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
@@ -21,7 +21,7 @@ Your senior engineers spend hours per week reviewing PRs for the same categories
 
 Meanwhile, the things that slip through — an unpinned dependency with a known CVE, a secret in a config file, a GPL-licensed transitive dep — are the ones that page you at 2am or show up in an audit.
 
-## What eedom does
+## What caliper does
 
 Drop it into your CI pipeline. It runs 19 scanners on every PR, evaluates findings against policy rules you control, and posts a clear verdict: **BLOCKED**, **WARNINGS**, or **ALL CLEAR** with a 0-100 health score.
 
@@ -47,7 +47,7 @@ Your engineers open the PR. The review is already there. They read the verdict, 
 
 ## Why it's not another noisy scanner
 
-Most scanning tools produce a wall of findings and leave the engineer to triage. Eedom is different:
+Most scanning tools produce a wall of findings and leave the engineer to triage. Caliper is different:
 
 1. **Policy decides, not the tool.** OPA rules define what blocks, what warns, and what passes. Your team writes the policy. The scanner enforces it. No ambiguous "medium confidence" — either it trips a rule or it doesn't.
 
@@ -62,30 +62,30 @@ Most scanning tools produce a wall of findings and leave the engineer to triage.
 **Option 1 — GitHub Action (5 minutes)**
 
 ```yaml
-- uses: org/eedom@main
+- uses: org/caliper@main
   with:
     operating-mode: advise    # comment on PRs, don't block builds
     team: platform
 ```
 
-Start in `advise` mode. It comments but doesn't block. Your team sees the findings for a sprint, tunes the policy (`.eagle-eyed-dom.yaml`), disables noisy plugins, adjusts thresholds. When confident: switch to `block`.
+Start in `advise` mode. It comments but doesn't block. Your team sees the findings for a sprint, tunes the policy (`.caliper.yaml`), disables noisy plugins, adjusts thresholds. When confident: switch to `block`.
 
 **Option 2 — Self-hosted container**
 
 ```bash
-podman run --rm -v $(pwd):/workspace eedom:latest \
+podman run --rm -v $(pwd):/workspace caliper:latest \
   review --repo-path /workspace --all
 ```
 
 **Option 3 — GitHub Copilot Extension**
 
-GATEKEEPER wraps the same pipeline as an interactive Copilot agent — ask it about a specific package, run a targeted scan, get findings in chat.
+Foreman wraps the same pipeline as an interactive Copilot agent — ask it about a specific package, run a targeted scan, get findings in chat.
 
 ## What your team controls
 
 Everything. No vendor lock-in on policy.
 
-- **`.eagle-eyed-dom.yaml`** — enable/disable any of the 19 plugins, set thresholds, configure per-repo
+- **`.caliper.yaml`** — enable/disable any of the 19 plugins, set thresholds, configure per-repo
 - **OPA rules** — 6 Rego rules, version-controlled, individually toggleable. Add your own.
 - **`--disable clamav,cspell`** — turn off plugins per-run from the CLI
 - **Monorepo support** — auto-discovers packages, runs per-package, respects per-directory config overrides
@@ -104,12 +104,12 @@ It doesn't replace your SAST/DAST. It covers dependencies, supply chain, code qu
 
 It doesn't phone home by default. Telemetry is opt-in (`telemetry: {enabled: true}` in config) and collects only operational signals — never source code, file paths, or package names.
 
-**Why telemetry exists:** Eedom dogfoods itself. Every scan is a data point about the tool's own reliability. When a plugin times out for 12% of users, when a parser chokes on a specific manifest format, when an error code fires that we've never seen before — telemetry surfaces it. A human triages the signal, files the bug, and an engineer fixes it. The tool gets better because it's watching itself fail in the real world, not in a test suite. Your opt-in telemetry makes the scanner more reliable for everyone — including you.
+**Why telemetry exists:** Caliper dogfoods itself. Every scan is a data point about the tool's own reliability. When a plugin times out for 12% of users, when a parser chokes on a specific manifest format, when an error code fires that we've never seen before — telemetry surfaces it. A human triages the signal, files the bug, and an engineer fixes it. The tool gets better because it's watching itself fail in the real world, not in a test suite. Your opt-in telemetry makes the scanner more reliable for everyone — including you.
 
 **You choose the feedback loop.** Telemetry has two modes, configurable per install:
 
-- **`community`** (default when enabled) — operational signals flow back to the eedom project. Bugs found across the community are triaged, fixed, and shipped in the next release. You benefit from every other team's edge cases.
-- **`self-heal`** — signals stay within your infrastructure. Your eedom instance detects its own failures, files internal issues, and your team fixes them. The community version doesn't see your data, and you don't get community fixes automatically. For teams with strict data residency requirements or air-gapped environments.
+- **`community`** (default when enabled) — operational signals flow back to the caliper project. Bugs found across the community are triaged, fixed, and shipped in the next release. You benefit from every other team's edge cases.
+- **`self-heal`** — signals stay within your infrastructure. Your caliper instance detects its own failures, files internal issues, and your team fixes them. The community version doesn't see your data, and you don't get community fixes automatically. For teams with strict data residency requirements or air-gapped environments.
 
 Both modes collect the same 9 signals. The only difference is where the data goes.
 
@@ -127,4 +127,4 @@ WHERE team = 'platform' AND decision = 'reject'
 
 ---
 
-Questions? Run `eedom review --repo-path . --all` against your own repo. If the findings aren't useful, don't adopt it. If they are — that's the pitch.
+Questions? Run `caliper review --repo-path . --all` against your own repo. If the findings aren't useful, don't adopt it. If they are — that's the pitch.

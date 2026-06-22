@@ -1,6 +1,6 @@
 ---
 title: "Silent Safety Rule Bypasses"
-component: src/eedom/data/scanners/osv.py, src/eedom/cli/main.py
+component: src/caliper/data/scanners/osv.py, src/caliper/cli/main.py
 tags: correctness, reliability, opa, policy-bypass, cvss, severity-mapping, silent-failure
 category: runtime-errors
 date: 2026-04-23

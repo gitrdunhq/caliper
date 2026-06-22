@@ -6,15 +6,15 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from eedom.core.models import (
+from caliper.core.models import (
     Finding,
     FindingCategory,
     FindingSeverity,
     ScanResult,
     ScanResultStatus,
 )
-from eedom.core.orchestrator import ScanOrchestrator
-from eedom.data.scanners.base import Scanner
+from caliper.core.orchestrator import ScanOrchestrator
+from caliper.data.scanners.base import Scanner
 
 # ---------------------------------------------------------------------------
 # Helpers

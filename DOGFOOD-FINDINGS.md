@@ -1,6 +1,6 @@
 # Dogfood Findings Log
 
-Tracked findings from running eedom against itself during the `next` branch architecture refactoring. Each finding produces a deterministic regression test.
+Tracked findings from running caliper against itself during the `next` branch architecture refactoring. Each finding produces a deterministic regression test.
 
 ## Run 1: Post-P0/P1/P2.1/P4.1 (2026-04-28)
 

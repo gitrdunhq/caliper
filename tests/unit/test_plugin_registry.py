@@ -8,12 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from eedom.core.plugin import (
+from caliper.core.plugin import (
     PluginCategory,
     PluginResult,
     ScannerPlugin,
 )
-from eedom.core.registry import PluginRegistry
+from caliper.core.registry import PluginRegistry
 
 # ── Concrete test plugin ──
 
@@ -457,7 +457,7 @@ class TestPackageUnitsRunAll:
 
     def test_two_package_units_calls_each_plugin_twice(self):
         """With 2 PackageUnits the plugin is invoked once per package."""
-        from eedom.core.manifest_discovery import PackageUnit
+        from caliper.core.manifest_discovery import PackageUnit
 
         reg = PluginRegistry()
         plugin = _FileScopedPlugin()
@@ -479,7 +479,7 @@ class TestPackageUnitsRunAll:
 
     def test_package_root_tagged_on_results(self):
         """Results returned when using package_units carry the correct package_root."""
-        from eedom.core.manifest_discovery import PackageUnit
+        from caliper.core.manifest_discovery import PackageUnit
 
         reg = PluginRegistry()
         reg.register(_FileScopedPlugin())
@@ -500,7 +500,7 @@ class TestPackageUnitsRunAll:
 
     def test_files_scoped_to_package_root(self):
         """Each plugin invocation only sees files under its package root."""
-        from eedom.core.manifest_discovery import PackageUnit
+        from caliper.core.manifest_discovery import PackageUnit
 
         reg = PluginRegistry()
         plugin = _FileScopedPlugin()
@@ -524,7 +524,7 @@ class TestPackageUnitsRunAll:
         After #158: no findings= injection.  Scoping is now verified via the
         files argument passed to each run() invocation.
         """
-        from eedom.core.manifest_discovery import PackageUnit
+        from caliper.core.manifest_discovery import PackageUnit
 
         reg = PluginRegistry()
         opa = _MockOpaPlugin()
@@ -557,7 +557,7 @@ class TestPackageUnitsRunAll:
 
     def test_single_package_unit_behaves_same_as_no_units(self):
         """A single PackageUnit at root produces 1 result, same as no units."""
-        from eedom.core.manifest_discovery import PackageUnit
+        from caliper.core.manifest_discovery import PackageUnit
 
         reg = PluginRegistry()
         plugin = _FileScopedPlugin()
@@ -773,7 +773,7 @@ class TestPluginDependencyGraph:
 
     def test_real_opa_plugin_declares_depends_on_wildcard(self):
         """OpaPlugin.depends_on == ['*'] — driven by property, not hard-coded name check."""
-        from eedom.plugins._opa import OpaPlugin
+        from caliper.plugins._opa import OpaPlugin
 
         assert OpaPlugin().depends_on == ["*"]
 

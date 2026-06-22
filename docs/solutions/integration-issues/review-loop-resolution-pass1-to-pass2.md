@@ -1,6 +1,6 @@
 ---
 title: "Review Loop Resolution — BLOCKED_CRITICAL to PASSED in One Fix Pass"
-component: src/eedom/cli/main.py, src/eedom/core/pipeline.py
+component: src/caliper/cli/main.py, src/caliper/core/pipeline.py
 tags: review-loop, compound, multi-agent, wiring, parallel-agents, fail-open, security, performance, architecture
 category: integration-issues
 date: 2026-04-23

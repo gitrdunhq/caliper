@@ -1,7 +1,7 @@
 """Conformance tests for the core get_* dependency accessors (#409).
 # tested-by: tests/unit/test_accessors.py
 
-RED phase — `eedom.core.accessors` and the new ApplicationContext pipeline
+RED phase — `caliper.core.accessors` and the new ApplicationContext pipeline
 fields do not exist yet. The accessors are the seam through which the review
 pipeline receives its data-tier collaborators from the injected context.
 """
@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.composition.bootstrap import bootstrap_test
-from eedom.core.accessors import (
+from caliper.composition.bootstrap import bootstrap_test
+from caliper.core.accessors import (
     get_audit_log_appender,
     get_decision_repository,
     get_evidence_writer,

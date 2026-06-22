@@ -159,16 +159,16 @@ jobs:
       - name: Run full e2e tests
         run: uv run pytest tests/e2e/ -v --tb=short
         env:
-          EEDOM_ALLOW_HOST_TESTS: "1"
-          EEDOM_E2E: "1"
+          CALIPER_ALLOW_HOST_TESTS: "1"
+          CALIPER_E2E: "1"
 
-      - name: Run full Dom review
+      - name: Run full Caliper review
         run: |
           mkdir -p .temp
-          uv run eedom review --repo-path . --all --format sarif --output .temp/release-review.sarif
-          uv run eedom review --repo-path . --all --output .temp/release-review.md
+          uv run caliper review --repo-path . --all --format sarif --output .temp/release-review.sarif
+          uv run caliper review --repo-path . --all --output .temp/release-review.md
 
-      - name: Enforce Dom release verdict
+      - name: Enforce Caliper release verdict
         run: |
           python3 << 'PY'
           import json
@@ -189,7 +189,7 @@ jobs:
               for run in sarif.get("runs", []):
                   plugin_errored = False
                   for result in run.get("results", []):
-                      if result.get("ruleId") == "eedom-plugin-error":
+                      if result.get("ruleId") == "caliper-plugin-error":
                           msg = result.get("message", {}).get("text", "")
                           if "[TIMEOUT]" in msg:
                               warnings += 1  # transient — don't block release
@@ -214,7 +214,7 @@ jobs:
               warnings += len(re.findall(r"\[TIMEOUT\]", markdown))
 
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-              summary.write("## Dom release verdict\n\n")
+              summary.write("## Caliper release verdict\n\n")
               summary.write(f"- **Errors:** {errors}\n")
               summary.write(f"- **Warnings:** {warnings}\n")
               summary.write(f"- **Skipped plugins:** {skipped}\n")
@@ -222,7 +222,7 @@ jobs:
 
           if errors > 0 or crashed > 0:
               raise SystemExit(
-                  f"Release candidate blocked by Dom review: {errors} errors, {crashed} crashed plugins"
+                  f"Release candidate blocked by Caliper review: {errors} errors, {crashed} crashed plugins"
               )
           PY
 
@@ -240,7 +240,7 @@ jobs:
             echo ""
             echo "## Validation"
             echo "- Full E2E passed"
-            echo "- Full Dom review passed"
+            echo "- Full Caliper review passed"
             echo "- Distribution build passed"
             echo ""
             if [ -n "$PREVIOUS_TAG" ]; then

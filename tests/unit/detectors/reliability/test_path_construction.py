@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.reliability.path_construction import PathConstructionDetector
+from caliper.detectors.reliability.path_construction import PathConstructionDetector
 
 
 class TestPathConstructionDetector:
-    """Tests for PathConstructionDetector (EED-008)."""
+    """Tests for PathConstructionDetector (CAL-008)."""
 
     @pytest.fixture
     def detector(self):
@@ -33,7 +33,7 @@ def read_file(filename):
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-008"
+        assert findings[0].detector_id == "CAL-008"
 
     def test_detects_fstring_for_path(self, detector):
         """Detects path built with f-string."""

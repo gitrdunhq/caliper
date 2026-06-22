@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
-# Eagle Eyed Dom — DHI hardened multi-stage production image
+# Caliper — DHI hardened multi-stage production image
 #
-# Build:  podman build --platform linux/amd64 --security-opt apparmor=unconfined -t eedom:amd64 .
-# Test:   EEDOM_IMAGE=eedom:latest uv run pytest tests/integration/test_dockerfile.py -v
+# Build:  podman build --platform linux/amd64 --security-opt apparmor=unconfined -t caliper:amd64 .
+# Test:   CALIPER_IMAGE=caliper:latest uv run pytest tests/integration/test_dockerfile.py -v
 
 # ── Version pins ─────────────────────────────────────────────────────────────
 ARG SYFT_VERSION=1.43.0
@@ -208,7 +208,7 @@ RUN printf '%s\n' \
 # astral-sh/uv revision:
 # 0e961dd9a2bb6f73493d9e8398b725ad2d3b3837
 COPY --from=ghcr.io/astral-sh/uv@sha256:3b7b60a81d3c57ef471703e5c83fd4aaa33abcd403596fb22ab07db85ae91347 /uv /usr/local/bin/uv
-WORKDIR /opt/eedom
+WORKDIR /opt/caliper
 
 COPY pyproject.toml uv.lock LICENSE README.md ./
 RUN --security=insecure --mount=type=cache,target=/root/.cache/uv \
@@ -224,7 +224,7 @@ RUN --security=insecure --mount=type=cache,target=/root/.cache/uv \
 # scancode is intentionally ORPHANED (disabled): its transitive dep (extractcode-7z)
 # lacks arm64 wheels and breaks cross-platform uv sync. To re-enable, add
 # "scancode-toolkit==${SCANCODE_VERSION}" to this install, restore the deferred-import
-# wrapper, and add "scancode" back to EEDOM_ENABLED_SCANNERS below.
+# wrapper, and add "scancode" back to CALIPER_ENABLED_SCANNERS below.
 RUN --security=insecure --mount=type=cache,target=/root/.cache/uv \
     uv pip install "lizard==${LIZARD_VERSION}" "mypy==${MYPY_VERSION}"
 
@@ -253,9 +253,9 @@ FROM python_base_${TARGETARCH}
 ARG CSPELL_VERSION
 ARG PMD_VERSION
 
-LABEL org.opencontainers.image.title="Eagle Eyed Dom" \
+LABEL org.opencontainers.image.title="Caliper" \
       org.opencontainers.image.description="DHI hardened multi-stage production scanner" \
-      org.opencontainers.image.source="https://github.com/gitrdunhq/eedom" \
+      org.opencontainers.image.source="https://github.com/gitrdunhq/caliper" \
       org.opencontainers.image.base.revision.amd64="3362634339580d3232e65a66dd5a36c47ae7ff14" \
       org.opencontainers.image.base.revision.arm64="9420c53ba876a39b83e2f08732920b62782c33d94cd04860a13c3eaf9dc1a5b0"
 
@@ -289,9 +289,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get autoremove -y
 
 # Non-root user — scanners must not run as root.
-RUN groupadd -r eedom && useradd -r -g eedom -m -d /home/eedom -s /bin/false eedom \
+RUN groupadd -r caliper && useradd -r -g caliper -m -d /home/caliper -s /bin/false caliper \
     && mkdir -p /var/lib/clamav /var/log/clamav \
-    && chown -R eedom:eedom /var/lib/clamav /var/log/clamav \
+    && chown -R caliper:caliper /var/lib/clamav /var/log/clamav \
     && chmod 0750 /var/lib/clamav /var/log/clamav
 
 # ── Staged artifacts from builder ────────────────────────────────────────────
@@ -308,38 +308,38 @@ COPY --from=builder /staging/jq/jq             /usr/bin/jq
 # Swift tools (swiftformat always; swiftlint on amd64) — dir COPY tolerates absence.
 COPY --from=builder /staging/swiftbin/         /usr/local/bin/
 
-# Venv with all Python deps + eedom itself — console_scripts are in .venv/bin/
-COPY --from=builder /opt/eedom/.venv /opt/eedom/.venv
-COPY --from=builder /opt/eedom/policies/ /opt/eedom/policies/
+# Venv with all Python deps + caliper itself — console_scripts are in .venv/bin/
+COPY --from=builder /opt/caliper/.venv /opt/caliper/.venv
+COPY --from=builder /opt/caliper/policies/ /opt/caliper/policies/
 
-RUN mkdir -p /opt/eedom/scripts
-COPY --from=builder /staging/scripts/checksums.txt /opt/eedom/scripts/checksums.txt
-COPY --from=builder /staging/scripts/release-revisions.txt /opt/eedom/scripts/release-revisions.txt
-COPY scripts/verify-checksums.sh /opt/eedom/scripts/verify-checksums.sh
-RUN chmod +x /opt/eedom/scripts/verify-checksums.sh
+RUN mkdir -p /opt/caliper/scripts
+COPY --from=builder /staging/scripts/checksums.txt /opt/caliper/scripts/checksums.txt
+COPY --from=builder /staging/scripts/release-revisions.txt /opt/caliper/scripts/release-revisions.txt
+COPY scripts/verify-checksums.sh /opt/caliper/scripts/verify-checksums.sh
+RUN chmod +x /opt/caliper/scripts/verify-checksums.sh
 
 # PMD wrapper — Java-based, not in the venv
 RUN printf '#!/bin/sh\nexec /opt/pmd/pmd-bin-%s/bin/pmd "$@"\n' "${PMD_VERSION}" > /usr/local/bin/pmd \
     && chmod +x /usr/local/bin/pmd
 
-# Entrypoint verifies binary integrity before running eedom
-RUN printf '#!/bin/sh\n/opt/eedom/scripts/verify-checksums.sh || exit 1\nexec eedom "$@"\n' > /usr/local/bin/entrypoint.sh \
+# Entrypoint verifies binary integrity before running caliper
+RUN printf '#!/bin/sh\n/opt/caliper/scripts/verify-checksums.sh || exit 1\nexec caliper "$@"\n' > /usr/local/bin/entrypoint.sh \
     && chmod +x /usr/local/bin/entrypoint.sh
 
-ENV PATH="/opt/eedom/.venv/bin:$PATH" \
-    VIRTUAL_ENV="/opt/eedom/.venv" \
-    TRIVY_CACHE_DIR=/home/eedom/.cache/trivy \
-    MYPY_CACHE_DIR=/home/eedom/.cache/mypy \
-    OPENGREP_USER_DATA_FOLDER=/home/eedom/.cache/opengrep \
-    XDG_CACHE_HOME=/home/eedom/.cache \
-    EEDOM_OPERATING_MODE=monitor \
-    EEDOM_OPA_POLICY_PATH=/opt/eedom/policies \
-    EEDOM_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,cspell,ls-lint,cdk-nag,cfn-nag
+ENV PATH="/opt/caliper/.venv/bin:$PATH" \
+    VIRTUAL_ENV="/opt/caliper/.venv" \
+    TRIVY_CACHE_DIR=/home/caliper/.cache/trivy \
+    MYPY_CACHE_DIR=/home/caliper/.cache/mypy \
+    OPENGREP_USER_DATA_FOLDER=/home/caliper/.cache/opengrep \
+    XDG_CACHE_HOME=/home/caliper/.cache \
+    CALIPER_OPERATING_MODE=monitor \
+    CALIPER_OPA_POLICY_PATH=/opt/caliper/policies \
+    CALIPER_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,cspell,ls-lint,cdk-nag,cfn-nag
 
-USER eedom
-WORKDIR /home/eedom
+USER caliper
+WORKDIR /home/caliper
 
 HEALTHCHECK --interval=5m --timeout=30s --retries=3 \
-  CMD eedom healthcheck || exit 1
+  CMD caliper healthcheck || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

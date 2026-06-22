@@ -1,7 +1,7 @@
 # tested-by: tests/unit/test_opa_adapter.py
 """Contract tests for OpaRegoAdapter implementing PolicyEnginePort.
 
-All tests import from eedom.core.opa_adapter which does not exist yet.
+All tests import from caliper.core.opa_adapter which does not exist yet.
 Every test here is expected to fail with ImportError (RED phase of TDD).
 """
 
@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import json
 
-from eedom.core.opa_adapter import OpaRegoAdapter  # noqa: F401 — does not exist yet (RED)
-from eedom.core.plugin import PluginFinding
-from eedom.core.policy_port import PolicyDecision, PolicyEnginePort, PolicyInput
-from eedom.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
+from caliper.core.opa_adapter import OpaRegoAdapter  # noqa: F401 — does not exist yet (RED)
+from caliper.core.plugin import PluginFinding
+from caliper.core.policy_port import PolicyDecision, PolicyEnginePort, PolicyInput
+from caliper.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
 
 # ---------------------------------------------------------------------------
 # Test helpers

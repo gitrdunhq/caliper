@@ -21,7 +21,7 @@ import structlog
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from eedom.core.solver import (
+from caliper.core.solver import (
     ModelSpec,
     ModelTier,
     SolverConfig,
@@ -34,7 +34,7 @@ from eedom.core.solver import (
 logger = structlog.get_logger()
 
 _GH_ENV = {k: v for k, v in os.environ.items() if k != "GITHUB_TOKEN"}
-_SOURCE_PATH_RE = re.compile(r"(?:src/eedom/[\w/]+\.py|policies/[\w/]+\.rego)")
+_SOURCE_PATH_RE = re.compile(r"(?:src/caliper/[\w/]+\.py|policies/[\w/]+\.rego)")
 _PARENT_BUG_RE = re.compile(r"Parent bug:\s*#(\d+)")
 
 
@@ -204,9 +204,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    api_key = os.environ.get("OPENROUTER_EEDOM", "")
+    api_key = os.environ.get("OPENROUTER_CALIPER", "")
     if not api_key and not args.dry_run:
-        logger.error("missing_api_key", var="OPENROUTER_EEDOM")
+        logger.error("missing_api_key", var="OPENROUTER_CALIPER")
         sys.exit(1)
 
     if args.issues:
@@ -240,7 +240,7 @@ def main() -> None:
         )
 
     if args.dry_run:
-        from eedom.core.solver import build_prompt
+        from caliper.core.solver import build_prompt
 
         out = Path(args.output_dir)
         out.mkdir(parents=True, exist_ok=True)

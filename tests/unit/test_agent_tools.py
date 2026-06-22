@@ -9,9 +9,9 @@ from unittest.mock import patch
 
 import pytest
 
-pytest.importorskip("agent_framework", reason="agent_framework not installed (eedom[copilot])")
+pytest.importorskip("agent_framework", reason="agent_framework not installed (caliper[copilot])")
 
-from eedom.core.models import (
+from caliper.core.models import (
     DecisionVerdict,
     OperatingMode,
     PolicyEvaluation,
@@ -64,11 +64,11 @@ def _make_decision(verdict: DecisionVerdict = DecisionVerdict.approve) -> Review
 
 class TestEvaluateChange:
     def test_returns_decisions_for_valid_diff(self):
-        from eedom.agent.tools import evaluate_change
+        from caliper.agent.tools import evaluate_change
 
         decision = _make_decision(DecisionVerdict.approve)
         with patch(
-            "eedom.agent.tools.run_pipeline",
+            "caliper.agent.tools.run_pipeline",
             return_value=([decision], [], {}),
         ):
             result = evaluate_change(
@@ -82,10 +82,10 @@ class TestEvaluateChange:
         assert result["decisions"][0]["package_name"] == "requests"
 
     def test_returns_empty_for_no_dependency_changes(self):
-        from eedom.agent.tools import evaluate_change
+        from caliper.agent.tools import evaluate_change
 
         with patch(
-            "eedom.agent.tools.run_pipeline",
+            "caliper.agent.tools.run_pipeline",
             return_value=([], [], {}),
         ):
             result = evaluate_change(
@@ -98,10 +98,10 @@ class TestEvaluateChange:
         assert result["decisions"] == []
 
     def test_handles_pipeline_timeout(self):
-        from eedom.agent.tools import evaluate_change
+        from caliper.agent.tools import evaluate_change
 
         with patch(
-            "eedom.agent.tools.run_pipeline",
+            "caliper.agent.tools.run_pipeline",
             side_effect=TimeoutError("pipeline timeout"),
         ):
             result = evaluate_change(
@@ -114,10 +114,10 @@ class TestEvaluateChange:
         assert result["error"] == "pipeline_timeout"
 
     def test_handles_unexpected_exception(self):
-        from eedom.agent.tools import evaluate_change
+        from caliper.agent.tools import evaluate_change
 
         with patch(
-            "eedom.agent.tools.run_pipeline",
+            "caliper.agent.tools.run_pipeline",
             side_effect=RuntimeError("unexpected"),
         ):
             result = evaluate_change(
@@ -132,7 +132,7 @@ class TestEvaluateChange:
 
 class TestManifestDetection:
     def test_detects_python_manifests(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             detect_manifest_changes as _detect_manifest_changes,
         )
 
@@ -142,7 +142,7 @@ class TestManifestDetection:
         assert "requirements.txt" in result["pypi"]
 
     def test_detects_npm_manifests(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             detect_manifest_changes as _detect_manifest_changes,
         )
 
@@ -155,7 +155,7 @@ class TestManifestDetection:
         assert len(result["npm"]) == 2
 
     def test_detects_cargo_manifests(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             detect_manifest_changes as _detect_manifest_changes,
         )
 
@@ -164,7 +164,7 @@ class TestManifestDetection:
         assert "cargo" in result
 
     def test_detects_go_manifests(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             detect_manifest_changes as _detect_manifest_changes,
         )
 
@@ -173,7 +173,7 @@ class TestManifestDetection:
         assert "golang" in result
 
     def test_detects_mixed_ecosystems(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             detect_manifest_changes as _detect_manifest_changes,
         )
 
@@ -188,7 +188,7 @@ class TestManifestDetection:
         assert "cargo" in result
 
     def test_ignores_non_manifest_files(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             detect_manifest_changes as _detect_manifest_changes,
         )
 
@@ -197,7 +197,7 @@ class TestManifestDetection:
         assert result == {}
 
     def test_detects_ruby_gemfile(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             detect_manifest_changes as _detect_manifest_changes,
         )
 
@@ -206,7 +206,7 @@ class TestManifestDetection:
         assert "gem" in result
 
     def test_detects_composer_json(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             detect_manifest_changes as _detect_manifest_changes,
         )
 
@@ -215,7 +215,7 @@ class TestManifestDetection:
         assert "composer" in result
 
     def test_detects_mix_exs(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             detect_manifest_changes as _detect_manifest_changes,
         )
 
@@ -226,11 +226,11 @@ class TestManifestDetection:
 
 class TestCheckPackage:
     def test_returns_policy_evaluation(self):
-        from eedom.agent.tools import check_package
+        from caliper.agent.tools import check_package
 
         decision = _make_decision(DecisionVerdict.approve)
         with patch(
-            "eedom.agent.tools.run_pipeline",
+            "caliper.agent.tools.run_pipeline",
             return_value=([decision], [], {}),
         ):
             result = check_package(
@@ -242,10 +242,10 @@ class TestCheckPackage:
         assert result["decision"] == "approve"
 
     def test_handles_missing_package(self):
-        from eedom.agent.tools import check_package
+        from caliper.agent.tools import check_package
 
         with patch(
-            "eedom.agent.tools.run_pipeline",
+            "caliper.agent.tools.run_pipeline",
             return_value=([], [], {}),
         ):
             result = check_package(
@@ -257,7 +257,7 @@ class TestCheckPackage:
         assert result["decision"] == "no_findings"
 
     def test_rejects_invalid_name(self):
-        from eedom.agent.tools import check_package
+        from caliper.agent.tools import check_package
 
         result = check_package(
             name="evil\ndiff --git",
@@ -271,16 +271,16 @@ class TestCheckPackage:
 class TestScanCode:
     @pytest.fixture(autouse=True)
     def _set_env(self, monkeypatch):
-        monkeypatch.setenv("GATEKEEPER_GITHUB_TOKEN", "ghp_test")
-        from eedom.agent.tool_helpers import get_agent_settings
+        monkeypatch.setenv("FOREMAN_GITHUB_TOKEN", "ghp_test")
+        from caliper.agent.tool_helpers import get_agent_settings
 
         get_agent_settings.cache_clear()
 
     def test_returns_categorized_findings(self):
         from unittest.mock import MagicMock
 
-        from eedom.agent.tools import scan_code
-        from eedom.core.plugin import PluginResult
+        from caliper.agent.tools import scan_code
+        from caliper.core.plugin import PluginResult
 
         mock_result = PluginResult(
             plugin_name="semgrep",
@@ -301,7 +301,7 @@ class TestScanCode:
         mock_registry.get.return_value = mock_plugin
 
         with patch(
-            "eedom.agent.tools.get_default_registry",
+            "caliper.agent.tools.get_default_registry",
             return_value=mock_registry,
         ):
             result = scan_code(
@@ -316,8 +316,8 @@ class TestScanCode:
     def test_returns_empty_for_clean_code(self):
         from unittest.mock import MagicMock
 
-        from eedom.agent.tools import scan_code
-        from eedom.core.plugin import PluginResult
+        from caliper.agent.tools import scan_code
+        from caliper.core.plugin import PluginResult
 
         mock_plugin = MagicMock()
         mock_plugin.run.return_value = PluginResult(plugin_name="semgrep", findings=[])
@@ -325,7 +325,7 @@ class TestScanCode:
         mock_registry.get.return_value = mock_plugin
 
         with patch(
-            "eedom.agent.tools.get_default_registry",
+            "caliper.agent.tools.get_default_registry",
             return_value=mock_registry,
         ):
             result = scan_code(
@@ -338,8 +338,8 @@ class TestScanCode:
     def test_handles_semgrep_timeout(self):
         from unittest.mock import MagicMock
 
-        from eedom.agent.tools import scan_code
-        from eedom.core.plugin import PluginResult
+        from caliper.agent.tools import scan_code
+        from caliper.core.plugin import PluginResult
 
         mock_plugin = MagicMock()
         mock_plugin.run.return_value = PluginResult(
@@ -350,7 +350,7 @@ class TestScanCode:
         mock_registry.get.return_value = mock_plugin
 
         with patch(
-            "eedom.agent.tools.get_default_registry",
+            "caliper.agent.tools.get_default_registry",
             return_value=mock_registry,
         ):
             result = scan_code(
@@ -363,8 +363,8 @@ class TestScanCode:
     def test_handles_semgrep_not_installed(self):
         from unittest.mock import MagicMock
 
-        from eedom.agent.tools import scan_code
-        from eedom.core.plugin import PluginResult
+        from caliper.agent.tools import scan_code
+        from caliper.core.plugin import PluginResult
 
         mock_plugin = MagicMock()
         mock_plugin.run.return_value = PluginResult(
@@ -375,7 +375,7 @@ class TestScanCode:
         mock_registry.get.return_value = mock_plugin
 
         with patch(
-            "eedom.agent.tools.get_default_registry",
+            "caliper.agent.tools.get_default_registry",
             return_value=mock_registry,
         ):
             result = scan_code(
@@ -385,15 +385,15 @@ class TestScanCode:
         assert result["status"] == "error"
         assert "not_installed" in result["error"]
 
-    def test_attaches_enrichment_when_source_available(self, tmp_path, monkeypatch):
-        """scan_code findings carry detect-then-enrich context (ADR-006)."""
+    def test_attaches_scribe_when_source_available(self, tmp_path, monkeypatch):
+        """scan_code findings carry detect-then-scribe context (ADR-006)."""
         from unittest.mock import MagicMock
 
-        from eedom.agent.tools import scan_code
-        from eedom.core.plugin import PluginResult
+        from caliper.agent.tools import scan_code
+        from caliper.core.plugin import PluginResult
 
         (tmp_path / "app.py").write_text("def handler():\n    eval(x)\n    return 1\n")
-        monkeypatch.setenv("EEDOM_GRAPH_DB", str(tmp_path / "graph.db"))
+        monkeypatch.setenv("CALIPER_GRAPH_DB", str(tmp_path / "graph.db"))
 
         mock_result = PluginResult(
             plugin_name="semgrep",
@@ -414,7 +414,7 @@ class TestScanCode:
         mock_registry.get.return_value = mock_plugin
 
         with patch(
-            "eedom.agent.tools.get_default_registry",
+            "caliper.agent.tools.get_default_registry",
             return_value=mock_registry,
         ):
             result = scan_code(
@@ -422,12 +422,12 @@ class TestScanCode:
                 repo_path=str(tmp_path),
             )
         assert result["status"] == "ok"
-        enrichment = result["findings"][0]["metadata"]["enrichment"]
-        assert enrichment["enclosing_symbol"] == "handler"
-        assert "enclosing_symbol" in enrichment["sources"]
+        scribe = result["findings"][0]["metadata"]["scribe"]
+        assert scribe["enclosing_symbol"] == "handler"
+        assert "enclosing_symbol" in scribe["sources"]
 
     def test_only_scans_changed_files(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             extract_changed_files as _extract_changed_files,
         )
 
@@ -447,7 +447,7 @@ class TestScanCode:
         assert files == ["src/app.py", "tests/test_app.py"]
 
     def test_skips_deleted_files(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             extract_changed_files as _extract_changed_files,
         )
 
@@ -462,7 +462,7 @@ class TestScanCode:
         assert files == []
 
     def test_skips_deleted_file_with_mode_change(self):
-        from eedom.agent.tool_helpers import (
+        from caliper.agent.tool_helpers import (
             extract_changed_files as _extract_changed_files,
         )
 
@@ -491,7 +491,7 @@ class TestPathSanitization:
 
     def test_extract_changed_files_rejects_shell_metacharacter_paths(self):
         """Paths with $(...) in the diff b/ header must not be returned."""
-        from eedom.agent.tool_helpers import extract_changed_files
+        from caliper.agent.tool_helpers import extract_changed_files
 
         malicious_diff = (
             "diff --git a/safe.txt b/$(rm -rf /)\n"
@@ -508,7 +508,7 @@ class TestPathSanitization:
 
     def test_validate_paths_rejects_shell_injection(self):
         """validate_paths must return empty list for all shell-injected paths."""
-        from eedom.agent.tool_helpers import validate_paths
+        from caliper.agent.tool_helpers import validate_paths
 
         malicious_paths = [
             "test.txt; rm -rf /",
@@ -533,7 +533,7 @@ class TestGenerateBaseSbom:
         """_generate_base_sbom must not call git checkout on the working tree."""
         from unittest.mock import MagicMock, patch
 
-        from eedom.agent.tool_helpers import _generate_base_sbom
+        from caliper.agent.tool_helpers import _generate_base_sbom
 
         def run_side_effect(*args, **kwargs):
             result = MagicMock()
@@ -546,9 +546,9 @@ class TestGenerateBaseSbom:
 
         with (
             patch(
-                "eedom.agent.tool_helpers.subprocess.run", side_effect=run_side_effect
+                "caliper.agent.tool_helpers.subprocess.run", side_effect=run_side_effect
             ) as mock_run,
-            patch("eedom.agent.tool_helpers.run_syft", return_value={"components": []}),
+            patch("caliper.agent.tool_helpers.run_syft", return_value={"components": []}),
         ):
             _generate_base_sbom("/fake/repo")
 
@@ -568,7 +568,7 @@ class TestGenerateBaseSbom:
         """The worktree must be removed via 'worktree remove' even if run_syft raises."""
         from unittest.mock import MagicMock, patch
 
-        from eedom.agent.tool_helpers import _generate_base_sbom
+        from caliper.agent.tool_helpers import _generate_base_sbom
 
         def run_side_effect(*args, **kwargs):
             result = MagicMock()
@@ -581,10 +581,10 @@ class TestGenerateBaseSbom:
 
         with (
             patch(
-                "eedom.agent.tool_helpers.subprocess.run", side_effect=run_side_effect
+                "caliper.agent.tool_helpers.subprocess.run", side_effect=run_side_effect
             ) as mock_run,
             patch(
-                "eedom.agent.tool_helpers.run_syft",
+                "caliper.agent.tool_helpers.run_syft",
                 side_effect=RuntimeError("syft failed"),
             ),
         ):
@@ -604,7 +604,7 @@ class TestRunSyftPathValidation:
 
     def test_run_syft_rejects_nonexistent_path(self):
         """run_syft should raise ValueError for a non-existent repo_path."""
-        from eedom.agent.tool_helpers import run_syft
+        from caliper.agent.tool_helpers import run_syft
 
         nonexistent_path = "/nonexistent/path/that/does/not/exist/12345"
         with pytest.raises(ValueError, match="repo_path does not exist"):
@@ -612,7 +612,7 @@ class TestRunSyftPathValidation:
 
     def test_run_syft_rejects_file_path(self, tmp_path):
         """run_syft should raise ValueError if repo_path is a file, not a directory."""
-        from eedom.agent.tool_helpers import run_syft
+        from caliper.agent.tool_helpers import run_syft
 
         file_path = tmp_path / "test_file.txt"
         file_path.write_text("test content")
@@ -624,7 +624,7 @@ class TestRunSyftPathValidation:
         """run_syft should accept a valid directory and proceed to subprocess."""
         from unittest.mock import MagicMock, patch
 
-        from eedom.agent.tool_helpers import run_syft
+        from caliper.agent.tool_helpers import run_syft
 
         repo_dir = tmp_path / "valid_repo"
         repo_dir.mkdir()
@@ -644,7 +644,7 @@ class TestRunSyftPathValidation:
         """run_syft should accept symlinks that point to directories."""
         from unittest.mock import MagicMock, patch
 
-        from eedom.agent.tool_helpers import run_syft
+        from caliper.agent.tool_helpers import run_syft
 
         real_dir = tmp_path / "real_repo"
         real_dir.mkdir()
@@ -666,7 +666,7 @@ class TestExtractChangedFilesEdgeCases:
 
     def test_renamed_file_is_extracted(self):
         """Renamed files should be included in the changed files list."""
-        from eedom.agent.tool_helpers import extract_changed_files
+        from caliper.agent.tool_helpers import extract_changed_files
 
         diff = (
             "diff --git a/old_name.py b/new_name.py\n"
@@ -679,7 +679,7 @@ class TestExtractChangedFilesEdgeCases:
 
     def test_binary_file_modification_is_extracted(self):
         """Binary files marked with 'Binary files ... differ' should be included."""
-        from eedom.agent.tool_helpers import extract_changed_files
+        from caliper.agent.tool_helpers import extract_changed_files
 
         diff = (
             "diff --git a/image.png b/image.png\nBinary files a/image.png and b/image.png differ\n"
@@ -689,7 +689,7 @@ class TestExtractChangedFilesEdgeCases:
 
     def test_deleted_binary_file_is_not_extracted(self):
         """Deleted binary files (Binary files ... /dev/null differ) must be excluded."""
-        from eedom.agent.tool_helpers import extract_changed_files
+        from caliper.agent.tool_helpers import extract_changed_files
 
         diff = (
             "diff --git a/deleted.bin b/deleted.bin\n"
@@ -701,7 +701,7 @@ class TestExtractChangedFilesEdgeCases:
 
     def test_binary_file_with_mode_change_is_extracted(self):
         """Binary files with mode changes (but not deleted) should be extracted."""
-        from eedom.agent.tool_helpers import extract_changed_files
+        from caliper.agent.tool_helpers import extract_changed_files
 
         diff = (
             "diff --git a/script.sh b/script.sh\n"
@@ -714,7 +714,7 @@ class TestExtractChangedFilesEdgeCases:
 
     def test_multiple_diffs_with_renames_and_binary(self):
         """Complex diff with rename, binary modification, and deleted file."""
-        from eedom.agent.tool_helpers import extract_changed_files
+        from caliper.agent.tool_helpers import extract_changed_files
 
         diff = (
             "diff --git a/old.py b/new.py\n"
@@ -743,8 +743,8 @@ class TestRegistryRouting:
     @pytest.fixture(autouse=True)
     def _set_env(self, monkeypatch):
         """Satisfy AgentSettings validation present before refactor."""
-        monkeypatch.setenv("GATEKEEPER_GITHUB_TOKEN", "ghp_test")
-        from eedom.agent.tool_helpers import get_agent_settings
+        monkeypatch.setenv("FOREMAN_GITHUB_TOKEN", "ghp_test")
+        from caliper.agent.tool_helpers import get_agent_settings
 
         get_agent_settings.cache_clear()
 
@@ -761,8 +761,8 @@ class TestRegistryRouting:
         """scan_code must call registry.get('semgrep').run() — not run_semgrep() directly."""
         from unittest.mock import MagicMock
 
-        from eedom.agent import tools
-        from eedom.core.plugin import PluginResult
+        from caliper.agent import tools
+        from caliper.core.plugin import PluginResult
 
         mock_result = PluginResult(
             plugin_name="semgrep",
@@ -783,7 +783,7 @@ class TestRegistryRouting:
         mock_registry.get.return_value = mock_plugin
 
         with patch(
-            "eedom.agent.tools.get_default_registry",
+            "caliper.agent.tools.get_default_registry",
             return_value=mock_registry,
             create=True,
         ):
@@ -799,8 +799,8 @@ class TestRegistryRouting:
         """scan_duplicates must call registry.get('cpd').run() — not run_cpd() directly."""
         from unittest.mock import MagicMock
 
-        from eedom.agent import tools
-        from eedom.core.plugin import PluginResult
+        from caliper.agent import tools
+        from caliper.core.plugin import PluginResult
 
         mock_result = PluginResult(
             plugin_name="cpd",
@@ -821,7 +821,7 @@ class TestRegistryRouting:
         mock_registry.get.return_value = mock_plugin
 
         with patch(
-            "eedom.agent.tools.get_default_registry",
+            "caliper.agent.tools.get_default_registry",
             return_value=mock_registry,
             create=True,
         ):
@@ -836,8 +836,8 @@ class TestRegistryRouting:
         """scan_k8s must call registry.get('kube-linter').run() — not run_kube_linter()."""
         from unittest.mock import MagicMock
 
-        from eedom.agent import tools
-        from eedom.core.plugin import PluginResult
+        from caliper.agent import tools
+        from caliper.core.plugin import PluginResult
 
         mock_result = PluginResult(
             plugin_name="kube-linter",
@@ -859,7 +859,7 @@ class TestRegistryRouting:
         mock_registry.get.return_value = mock_plugin
 
         with patch(
-            "eedom.agent.tools.get_default_registry",
+            "caliper.agent.tools.get_default_registry",
             return_value=mock_registry,
             create=True,
         ):
@@ -874,8 +874,8 @@ class TestRegistryRouting:
         """analyze_complexity must call registry.get('complexity').run() — not run_complexity()."""
         from unittest.mock import MagicMock
 
-        from eedom.agent import tools
-        from eedom.core.plugin import PluginResult
+        from caliper.agent import tools
+        from caliper.core.plugin import PluginResult
 
         mock_result = PluginResult(
             plugin_name="complexity",
@@ -901,7 +901,7 @@ class TestRegistryRouting:
         mock_registry.get.return_value = mock_plugin
 
         with patch(
-            "eedom.agent.tools.get_default_registry",
+            "caliper.agent.tools.get_default_registry",
             return_value=mock_registry,
             create=True,
         ):
@@ -917,8 +917,8 @@ class TestRegistryRouting:
         """When PluginResult.error is set, scan_code returns status='error'."""
         from unittest.mock import MagicMock
 
-        from eedom.agent import tools
-        from eedom.core.plugin import PluginResult
+        from caliper.agent import tools
+        from caliper.core.plugin import PluginResult
 
         mock_plugin = MagicMock()
         mock_plugin.run.return_value = PluginResult(
@@ -929,7 +929,7 @@ class TestRegistryRouting:
         mock_registry.get.return_value = mock_plugin
 
         with patch(
-            "eedom.agent.tools.get_default_registry",
+            "caliper.agent.tools.get_default_registry",
             return_value=mock_registry,
             create=True,
         ):
@@ -952,7 +952,7 @@ class TestBuildDepSummaryPathTraversal:
         """
         import json as _json
 
-        from eedom.agent.tools import _build_dep_summary
+        from caliper.agent.tools import _build_dep_summary
 
         # Sensitive dir has a package.json with a sentinel dep.
         sensitive = tmp_path / "sensitive"
@@ -984,7 +984,7 @@ class TestBuildDepSummaryPathTraversal:
         Before fix: '/etc/passwd' appears as-is in shared[].name.
         After fix: the value is sanitized (leading slash stripped).
         """
-        from eedom.agent.tools import _build_dep_summary
+        from caliper.agent.tools import _build_dep_summary
 
         repo = tmp_path / "repo"
         repo.mkdir()

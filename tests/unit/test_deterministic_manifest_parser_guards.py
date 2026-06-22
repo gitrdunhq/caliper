@@ -25,8 +25,8 @@ pytestmark = pytest.mark.xfail(
     strict=False,
 )
 
-from eedom.core.diff import _DEPENDENCY_FILES
-from eedom.core.pipeline_helpers import parse_changes
+from caliper.core.diff import _DEPENDENCY_FILES
+from caliper.core.pipeline_helpers import parse_changes
 
 
 class TestManifestDetectionMatchesParserCoverage:

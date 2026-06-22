@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Scanner files where subprocess stderr must be captured and logged on failure (issue #204)
 _SUBPROCESS_SCANNER_FILES: tuple[Path, ...] = (

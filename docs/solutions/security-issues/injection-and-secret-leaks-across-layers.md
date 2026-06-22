@@ -1,6 +1,6 @@
 ---
 title: "Injection and Secret Leaks Across Three Layers"
-component: jenkins/vars/dependencyReview.groovy, src/eedom/data/db.py, src/eedom/core/taskfit.py
+component: jenkins/vars/dependencyReview.groovy, src/caliper/data/db.py, src/caliper/core/taskfit.py
 tags: security, injection, shell-injection, credential-leak, prompt-injection, jenkins, secrets, owasp
 category: security-issues
 date: 2026-04-23
@@ -32,7 +32,7 @@ Each agent implemented its layer correctly from a functional standpoint but appl
 
 ```groovy
 // Before — shell injection via single-quote breakout
-def cliCmd = "${pythonCmd} -m eedom.cli.main evaluate " +
+def cliCmd = "${pythonCmd} -m caliper.cli.main evaluate " +
     "--repo-path '${env.WORKSPACE}' " +
     "--team '${team}' " +        // USER-CONTROLLED
     "--operating-mode '${operatingMode}'"
@@ -50,7 +50,7 @@ withEnv([
     "AC_PR_URL=${prUrl}",
 ]) {
     sh '''
-        ${pythonCmd} -m eedom.cli.main evaluate \
+        ${pythonCmd} -m caliper.cli.main evaluate \
             --repo-path "$AC_REPO_PATH" \
             --team "$AC_TEAM" \
             --operating-mode "$AC_MODE" \

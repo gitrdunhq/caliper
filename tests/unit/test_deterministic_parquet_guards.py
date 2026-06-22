@@ -106,7 +106,7 @@ def test_256_parquet_append_does_not_read_whole_file(
     This test detects the bug by mocking pq.read_table and asserting
     it is NOT called during append operations.
     """
-    import eedom.data.parquet_writer as parquet_writer
+    import caliper.data.parquet_writer as parquet_writer
 
     class FakeTable:
         def __init__(self, num_rows: int) -> None:
@@ -202,7 +202,7 @@ def test_256_parquet_append_uses_efficient_write_path(
     (existing_size + new_size) instead of just new_size. This test measures
     the write amplification factor.
     """
-    import eedom.data.parquet_writer as parquet_writer
+    import caliper.data.parquet_writer as parquet_writer
 
     # Track write sizes
     write_sizes: list[int] = []

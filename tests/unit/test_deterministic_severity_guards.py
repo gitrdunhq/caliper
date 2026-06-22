@@ -128,7 +128,7 @@ def test_no_hardcoded_cvss_thresholds_in_osv_scanner() -> None:
     rather than hardcoded to allow customization for different policies.
     """
     repo_root = Path(__file__).parent.parent.parent
-    scanner_file = repo_root / "src" / "eedom" / "data" / "scanners" / "osv.py"
+    scanner_file = repo_root / "src" / "caliper" / "data" / "scanners" / "osv.py"
 
     if not scanner_file.exists():
         pytest.skip(f"Scanner file not found: {scanner_file}")
@@ -159,7 +159,7 @@ def test_no_hardcoded_cvss_thresholds_in_osv_plugin() -> None:
     rather than hardcoded to allow customization for different policies.
     """
     repo_root = Path(__file__).parent.parent.parent
-    plugin_file = repo_root / "src" / "eedom" / "plugins" / "osv_scanner.py"
+    plugin_file = repo_root / "src" / "caliper" / "plugins" / "osv_scanner.py"
 
     if not plugin_file.exists():
         pytest.skip(f"Plugin file not found: {plugin_file}")
@@ -195,8 +195,8 @@ def test_cvss_thresholds_are_configurable() -> None:
 
     # Define scanner and plugin files to check
     files_to_check = [
-        repo_root / "src" / "eedom" / "data" / "scanners" / "osv.py",
-        repo_root / "src" / "eedom" / "plugins" / "osv_scanner.py",
+        repo_root / "src" / "caliper" / "data" / "scanners" / "osv.py",
+        repo_root / "src" / "caliper" / "plugins" / "osv_scanner.py",
     ]
 
     all_findings: list[tuple[Path, int, int, str, str]] = []

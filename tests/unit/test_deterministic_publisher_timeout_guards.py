@@ -23,8 +23,8 @@ from __future__ import annotations
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[2]
-_PUBLISHER_SRC = _REPO / "src" / "eedom" / "adapters" / "github_publisher.py"
-_SNAPSHOT_SRC = _REPO / "src" / "eedom" / "adapters" / "repo_snapshot.py"
+_PUBLISHER_SRC = _REPO / "src" / "caliper" / "adapters" / "github_publisher.py"
+_SNAPSHOT_SRC = _REPO / "src" / "caliper" / "adapters" / "repo_snapshot.py"
 
 
 def _read(path: Path) -> str:
@@ -38,7 +38,7 @@ def test_260_github_publisher_subprocess_has_timeout() -> None:
     """GitHubPublisher._run() must pass timeout= to subprocess.run().
 
     Without a timeout, a gh CLI call that hangs (network issue, broken pipe,
-    GitHub API timeout) would block the eedom pipeline indefinitely.
+    GitHub API timeout) would block the caliper pipeline indefinitely.
     The regression guard ensures timeout= is not accidentally removed.
     """
     src = _read(_PUBLISHER_SRC)
@@ -53,7 +53,7 @@ def test_260_repo_snapshot_checkout_has_timeout() -> None:
     """GitWorktreeSnapshot.checkout_ref() must pass timeout= to subprocess.run().
 
     Cloning or adding a worktree for a large repository can be slow.  Without a
-    timeout, a hung git operation would stall the eedom pipeline with no recovery.
+    timeout, a hung git operation would stall the caliper pipeline with no recovery.
     """
     src = _read(_SNAPSHOT_SRC)
     assert "timeout=60" in src, (

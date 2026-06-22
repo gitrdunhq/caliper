@@ -20,19 +20,19 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from eedom.core.models import ScanResult, ScanResultStatus
-from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from eedom.core.registry import PluginRegistry
+from caliper.core.models import ScanResult, ScanResultStatus
+from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
+from caliper.core.registry import PluginRegistry
 
 _ROOT = Path(__file__).resolve().parents[2]
 _TESTS = _ROOT / "tests"
 
 _OPTIONAL_EXTRA_SURFACES = (
-    "src/eedom/agent/main.py",
-    "src/eedom/agent/tools.py",
-    "src/eedom/webhook/config.py",
-    "src/eedom/webhook/server.py",
-    "src/eedom/data/parquet_writer.py",
+    "src/caliper/agent/main.py",
+    "src/caliper/agent/tools.py",
+    "src/caliper/webhook/config.py",
+    "src/caliper/webhook/server.py",
+    "src/caliper/data/parquet_writer.py",
 )
 
 _PROPERTY_BOUNDARIES = {
@@ -123,8 +123,8 @@ def _hypothesis_function_sources() -> list[tuple[str, str]]:
 
 def test_combined_scanner_timeout_does_not_wait_for_unfinished_futures(monkeypatch) -> None:
     """#207: combined timeout must bound wall-clock runtime, not just result collection."""
-    import eedom.core.orchestrator as orchestrator_mod
-    from eedom.core.orchestrator import ScanOrchestrator
+    import caliper.core.orchestrator as orchestrator_mod
+    from caliper.core.orchestrator import ScanOrchestrator
 
     class _FakeFuture:
         def __init__(self, name: str, result: ScanResult | None = None) -> None:

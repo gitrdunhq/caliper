@@ -2,7 +2,7 @@
 # tested-by: tests/unit/detectors/test_framework.py
 
 RED phase tests for Task 1.2: Base Framework Classes.
-These tests import from eedom.detectors which doesn't exist yet.
+These tests import from caliper.detectors which doesn't exist yet.
 """
 
 from __future__ import annotations
@@ -12,12 +12,12 @@ from pathlib import Path
 
 import pytest
 
-from eedom.core.models import FindingCategory, FindingSeverity
-from eedom.detectors.categories import DetectorCategory
-from eedom.detectors.findings import DetectorFinding
+from caliper.core.models import FindingCategory, FindingSeverity
+from caliper.detectors.categories import DetectorCategory
+from caliper.detectors.findings import DetectorFinding
 
 # These imports will fail with ImportError during RED phase - expected!
-from eedom.detectors.framework import BugDetector
+from caliper.detectors.framework import BugDetector
 
 # =============================================================================
 # BugDetector Base Class Tests
@@ -60,7 +60,7 @@ class TestBugDetectorAbstract:
         class IncompleteDetector(BugDetector):
             @property
             def detector_id(self) -> str:
-                return "EED-TEST"
+                return "CAL-TEST"
 
             @property
             def category(self) -> DetectorCategory:
@@ -82,7 +82,7 @@ class TestBugDetectorAbstract:
         class IncompleteDetector(BugDetector):
             @property
             def detector_id(self) -> str:
-                return "EED-TEST"
+                return "CAL-TEST"
 
             @property
             def name(self) -> str:
@@ -104,7 +104,7 @@ class TestBugDetectorAbstract:
         class IncompleteDetector(BugDetector):
             @property
             def detector_id(self) -> str:
-                return "EED-TEST"
+                return "CAL-TEST"
 
             @property
             def name(self) -> str:
@@ -126,7 +126,7 @@ class TestBugDetectorAbstract:
         class IncompleteDetector(BugDetector):
             @property
             def detector_id(self) -> str:
-                return "EED-TEST"
+                return "CAL-TEST"
 
             @property
             def name(self) -> str:
@@ -154,7 +154,7 @@ class TestBugDetectorContract:
         class ValidTestDetector(BugDetector):
             @property
             def detector_id(self) -> str:
-                return "EED-TEST"
+                return "CAL-TEST"
 
             @property
             def name(self) -> str:
@@ -181,7 +181,7 @@ class TestBugDetectorContract:
     def test_detector_id_returns_string(self, valid_detector):
         """detector_id returns a non-empty string."""
         assert isinstance(valid_detector.detector_id, str)
-        assert valid_detector.detector_id == "EED-TEST"
+        assert valid_detector.detector_id == "CAL-TEST"
 
     def test_name_returns_string(self, valid_detector):
         """name returns a non-empty string."""
@@ -242,7 +242,7 @@ class TestBugDetectorTargetFiles:
         class YamlDetector(BugDetector):
             @property
             def detector_id(self) -> str:
-                return "EED-YAML"
+                return "CAL-YAML"
 
             @property
             def name(self) -> str:
@@ -286,7 +286,7 @@ class TestIsApplicablePathPatternRegressions:
         class DirPatternDetector(BugDetector):
             @property
             def detector_id(self) -> str:
-                return "EED-TEST-DIR"
+                return "CAL-TEST-DIR"
 
             @property
             def name(self) -> str:
@@ -391,7 +391,7 @@ class TestDetectorFinding:
     def test_minimal_finding_creation(self):
         """Can create a finding with minimal required fields."""
         finding = DetectorFinding(
-            detector_id="EED-001",
+            detector_id="CAL-001",
             detector_name="Test Detector",
             category=DetectorCategory.security,
             severity=FindingSeverity.high,
@@ -399,13 +399,13 @@ class TestDetectorFinding:
             line_number=42,
             message="Test finding",
         )
-        assert finding.detector_id == "EED-001"
+        assert finding.detector_id == "CAL-001"
         assert finding.line_number == 42
 
     def test_finding_with_optional_fields(self):
         """Can create a finding with all optional fields."""
         finding = DetectorFinding(
-            detector_id="EED-001",
+            detector_id="CAL-001",
             detector_name="Test Detector",
             category=DetectorCategory.security,
             severity=FindingSeverity.high,
@@ -428,7 +428,7 @@ class TestDetectorFinding:
         """line_number must be >= 1."""
         with pytest.raises(ValueError):
             DetectorFinding(
-                detector_id="EED-001",
+                detector_id="CAL-001",
                 detector_name="Test",
                 category=DetectorCategory.security,
                 severity=FindingSeverity.high,
@@ -441,7 +441,7 @@ class TestDetectorFinding:
         """confidence must be in range [0.0, 1.0]."""
         with pytest.raises(ValueError):
             DetectorFinding(
-                detector_id="EED-001",
+                detector_id="CAL-001",
                 detector_name="Test",
                 category=DetectorCategory.security,
                 severity=FindingSeverity.high,
@@ -452,9 +452,9 @@ class TestDetectorFinding:
             )
 
     def test_detector_id_pattern_validation(self):
-        """detector_id should match EED-XXX pattern."""
+        """detector_id should match CAL-XXX pattern."""
         finding = DetectorFinding(
-            detector_id="EED-001",
+            detector_id="CAL-001",
             detector_name="Test",
             category=DetectorCategory.security,
             severity=FindingSeverity.high,
@@ -462,12 +462,12 @@ class TestDetectorFinding:
             line_number=1,
             message="Test",
         )
-        assert finding.detector_id == "EED-001"
+        assert finding.detector_id == "CAL-001"
 
     def test_default_confidence_is_1(self):
         """Default confidence is 1.0."""
         finding = DetectorFinding(
-            detector_id="EED-001",
+            detector_id="CAL-001",
             detector_name="Test",
             category=DetectorCategory.security,
             severity=FindingSeverity.high,
@@ -485,7 +485,7 @@ class TestDetectorFindingConversion:
     def detector_finding(self):
         """Create a sample DetectorFinding."""
         return DetectorFinding(
-            detector_id="EED-001",
+            detector_id="CAL-001",
             detector_name="JWT Missing Audience",
             category=DetectorCategory.security,
             severity=FindingSeverity.high,
@@ -498,7 +498,7 @@ class TestDetectorFindingConversion:
 
     def test_to_finding_returns_finding(self, detector_finding):
         """to_finding() returns a Finding instance."""
-        from eedom.core.models import Finding
+        from caliper.core.models import Finding
 
         finding = detector_finding.to_finding()
         assert isinstance(finding, Finding)
@@ -516,7 +516,7 @@ class TestDetectorFindingConversion:
     def test_to_finding_uses_detector_id_as_source_tool(self, detector_finding):
         """detector_id becomes source_tool."""
         finding = detector_finding.to_finding()
-        assert finding.source_tool == "EED-001"
+        assert finding.source_tool == "CAL-001"
 
     def test_to_finding_uses_message_as_description(self, detector_finding):
         """message becomes description."""
@@ -535,20 +535,20 @@ class TestDetectorFindingConversion:
 
 
 # =============================================================================
-# Suppression Tests (VAL-H2: noqa EED-XXX comment support)
+# Suppression Tests (VAL-H2: noqa CAL-XXX comment support)
 # =============================================================================
 
 
 class TestBugDetectorSuppression:
-    """Tests for # noqa: EED-XXX suppression support."""
+    """Tests for # noqa: CAL-XXX suppression support."""
 
     def test_is_suppressed_detects_noqa_comment(self):
-        """BugDetector can detect # noqa: EED-XXX comments."""
+        """BugDetector can detect # noqa: CAL-XXX comments."""
 
         class TestDetector(BugDetector):
             @property
             def detector_id(self) -> str:
-                return "EED-TEST"
+                return "CAL-TEST"
 
             @property
             def name(self) -> str:
@@ -570,11 +570,11 @@ class TestBugDetectorSuppression:
         # Create file with noqa comment
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("# Line 1\n")
-            f.write("jwt.encode({})  # noqa: EED-TEST\n")
+            f.write("jwt.encode({})  # noqa: CAL-TEST\n")
             f.flush()
 
             # Check suppression
-            is_suppressed = detector.is_suppressed(Path(f.name), 2, "EED-TEST")
+            is_suppressed = detector.is_suppressed(Path(f.name), 2, "CAL-TEST")
             assert is_suppressed is True
 
     def test_is_suppressed_returns_false_without_noqa(self):
@@ -583,7 +583,7 @@ class TestBugDetectorSuppression:
         class TestDetector(BugDetector):
             @property
             def detector_id(self) -> str:
-                return "EED-TEST"
+                return "CAL-TEST"
 
             @property
             def name(self) -> str:
@@ -607,7 +607,7 @@ class TestBugDetectorSuppression:
             f.write("jwt.encode({})\n")
             f.flush()
 
-            is_suppressed = detector.is_suppressed(Path(f.name), 1, "EED-TEST")
+            is_suppressed = detector.is_suppressed(Path(f.name), 1, "CAL-TEST")
             assert is_suppressed is False
 
     def test_is_suppressed_specific_detector_id(self):
@@ -616,7 +616,7 @@ class TestBugDetectorSuppression:
         class TestDetector(BugDetector):
             @property
             def detector_id(self) -> str:
-                return "EED-001"
+                return "CAL-001"
 
             @property
             def name(self) -> str:
@@ -636,10 +636,10 @@ class TestBugDetectorSuppression:
         detector = TestDetector()
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write("jwt.encode({})  # noqa: EED-002\n")  # Different detector
+            f.write("jwt.encode({})  # noqa: CAL-002\n")  # Different detector
             f.flush()
 
-            is_suppressed = detector.is_suppressed(Path(f.name), 1, "EED-001")
+            is_suppressed = detector.is_suppressed(Path(f.name), 1, "CAL-001")
             assert is_suppressed is False  # Different detector ID
 
 

@@ -1,4 +1,4 @@
-"""Tests for TrivyPlugin (src/eedom/plugins/trivy.py).
+"""Tests for TrivyPlugin (src/caliper/plugins/trivy.py).
 # tested-by: tests/unit/test_trivy_plugin.py
 """
 
@@ -8,8 +8,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from eedom.core.tool_runner import ToolResult
-from eedom.plugins.trivy import TrivyPlugin
+from caliper.core.tool_runner import ToolResult
+from caliper.plugins.trivy import TrivyPlugin
 
 _TRIVY_OUTPUT = json.dumps(
     {
@@ -72,7 +72,7 @@ _TRIVY_OUTPUT_MISSING_FIXED = json.dumps(
 class TestTrivyPluginFixedVersion:
     """TrivyPlugin findings must include fixed_version from FixedVersion field."""
 
-    @patch("eedom.core.subprocess_runner.subprocess.run")
+    @patch("caliper.core.subprocess_runner.subprocess.run")
     def test_finding_includes_fixed_version_field(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout=_TRIVY_OUTPUT, stderr="", returncode=0)
         plugin = TrivyPlugin()
@@ -81,7 +81,7 @@ class TestTrivyPluginFixedVersion:
 
         assert all("fixed_version" in f for f in result.findings)
 
-    @patch("eedom.core.subprocess_runner.subprocess.run")
+    @patch("caliper.core.subprocess_runner.subprocess.run")
     def test_fixed_version_populated_when_present(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout=_TRIVY_OUTPUT, stderr="", returncode=0)
         plugin = TrivyPlugin()
@@ -91,7 +91,7 @@ class TestTrivyPluginFixedVersion:
         finding = next(f for f in result.findings if f["id"] == "CVE-2023-32681")
         assert finding["fixed_version"] == "2.31.0"
 
-    @patch("eedom.core.subprocess_runner.subprocess.run")
+    @patch("caliper.core.subprocess_runner.subprocess.run")
     def test_fixed_version_empty_string_when_no_fix_available(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout=_TRIVY_OUTPUT, stderr="", returncode=0)
         plugin = TrivyPlugin()
@@ -101,7 +101,7 @@ class TestTrivyPluginFixedVersion:
         finding = next(f for f in result.findings if f["id"] == "CVE-2024-00001")
         assert finding["fixed_version"] == ""
 
-    @patch("eedom.core.subprocess_runner.subprocess.run")
+    @patch("caliper.core.subprocess_runner.subprocess.run")
     def test_fixed_version_empty_string_when_key_absent_in_trivy_output(
         self, mock_run: MagicMock
     ) -> None:
@@ -118,10 +118,10 @@ class TestTrivyPluginFixedVersion:
 
 
 class TestTrivySkipDirs:
-    """Trivy must pass --skip-dirs for .eedomignore patterns."""
+    """Trivy must pass --skip-dirs for .caliperignore patterns."""
 
-    def test_eedomignore_dirs_become_skip_dirs(self):
-        import eedom.plugins.trivy as trivy_mod
+    def test_caliperignore_dirs_become_skip_dirs(self):
+        import caliper.plugins.trivy as trivy_mod
 
         mock_ignore = MagicMock(return_value=[".git/", "tests/e2e/fixtures/", "node_modules/"])
         with patch.object(trivy_mod, "load_ignore_patterns", mock_ignore):
@@ -137,7 +137,7 @@ class TestTrivySkipDirs:
         assert ".git" in skip_vals
 
     def test_glob_patterns_excluded_from_skip_dirs(self):
-        import eedom.plugins.trivy as trivy_mod
+        import caliper.plugins.trivy as trivy_mod
 
         mock_ignore = MagicMock(return_value=["*.egg-info/", "tests/e2e/fixtures/"])
         with patch.object(trivy_mod, "load_ignore_patterns", mock_ignore):

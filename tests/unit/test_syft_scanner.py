@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from eedom.core.models import ScanResultStatus
-from eedom.data.scanners.syft import SyftScanner
+from caliper.core.models import ScanResultStatus
+from caliper.data.scanners.syft import SyftScanner
 
 # ---------------------------------------------------------------------------
 # Fixtures: sample CycloneDX JSON output
@@ -52,7 +52,7 @@ EMPTY_CYCLONEDX = json.dumps(
 class TestSyftScannerSuccess:
     """Tests for successful Syft scans."""
 
-    @patch("eedom.data.scanners.syft.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.syft.run_subprocess_with_timeout")
     def test_parses_component_count(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, CYCLONEDX_OUTPUT, "")
         scanner = SyftScanner(evidence_dir=Path("/tmp/evidence"))
@@ -64,7 +64,7 @@ class TestSyftScannerSuccess:
         assert result.findings == []
         assert "3" in (result.message or "")
 
-    @patch("eedom.data.scanners.syft.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.syft.run_subprocess_with_timeout")
     def test_zero_components(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, EMPTY_CYCLONEDX, "")
         scanner = SyftScanner(evidence_dir=Path("/tmp/evidence"))
@@ -74,7 +74,7 @@ class TestSyftScannerSuccess:
         assert result.status == ScanResultStatus.success
         assert "0" in (result.message or "")
 
-    @patch("eedom.data.scanners.syft.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.syft.run_subprocess_with_timeout")
     def test_invokes_correct_command(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, CYCLONEDX_OUTPUT, "")
         scanner = SyftScanner(evidence_dir=Path("/tmp/evidence"))
@@ -87,7 +87,7 @@ class TestSyftScannerSuccess:
         assert "cyclonedx-json" in cmd
 
     @patch("builtins.open", create=True)
-    @patch("eedom.data.scanners.syft.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.syft.run_subprocess_with_timeout")
     def test_writes_evidence_file(self, mock_run: MagicMock, mock_open: MagicMock) -> None:
         mock_run.return_value = (0, CYCLONEDX_OUTPUT, "")
         evidence_dir = Path("/tmp/evidence")
@@ -101,7 +101,7 @@ class TestSyftScannerSuccess:
 class TestSyftScannerFailure:
     """Tests for Syft failure modes."""
 
-    @patch("eedom.data.scanners.syft.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.syft.run_subprocess_with_timeout")
     def test_timeout_returns_timeout_result(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (None, "", "timeout exceeded")
         scanner = SyftScanner(evidence_dir=Path("/tmp/evidence"))
@@ -111,7 +111,7 @@ class TestSyftScannerFailure:
         assert result.status == ScanResultStatus.timeout
         assert result.tool_name == "syft"
 
-    @patch("eedom.data.scanners.syft.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.syft.run_subprocess_with_timeout")
     def test_not_installed_returns_failed(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (None, "", "No such file or directory")
         scanner = SyftScanner(evidence_dir=Path("/tmp/evidence"))
@@ -120,7 +120,7 @@ class TestSyftScannerFailure:
 
         assert result.status == ScanResultStatus.failed
 
-    @patch("eedom.data.scanners.syft.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.syft.run_subprocess_with_timeout")
     def test_nonzero_exit_returns_failed(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (1, "", "syft error: bad input")
         scanner = SyftScanner(evidence_dir=Path("/tmp/evidence"))
@@ -130,7 +130,7 @@ class TestSyftScannerFailure:
         assert result.status == ScanResultStatus.failed
         assert "syft error" in (result.message or "").lower() or result.message is not None
 
-    @patch("eedom.data.scanners.syft.run_subprocess_with_timeout")
+    @patch("caliper.data.scanners.syft.run_subprocess_with_timeout")
     def test_invalid_json_returns_failed(self, mock_run: MagicMock) -> None:
         mock_run.return_value = (0, "not json at all", "")
         scanner = SyftScanner(evidence_dir=Path("/tmp/evidence"))

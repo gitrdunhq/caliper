@@ -10,14 +10,14 @@ from pathlib import Path
 
 import pytest
 
-from eedom.core.plugin import PluginResult, ScannerPlugin
-from eedom.plugins.blast_radius import BlastRadiusPlugin
-from eedom.plugins.complexity import ComplexityPlugin
-from eedom.plugins.kube_linter import KubeLinterPlugin
-from eedom.plugins.semgrep import SemgrepPlugin
-from eedom.plugins.supply_chain import SupplyChainPlugin
+from caliper.core.plugin import PluginResult, ScannerPlugin
+from caliper.plugins.blast_radius import BlastRadiusPlugin
+from caliper.plugins.complexity import ComplexityPlugin
+from caliper.plugins.kube_linter import KubeLinterPlugin
+from caliper.plugins.semgrep import SemgrepPlugin
+from caliper.plugins.supply_chain import SupplyChainPlugin
 
-_TEMPLATES_DIR = Path(__file__).parent.parent.parent / "src" / "eedom" / "templates"
+_TEMPLATES_DIR = Path(__file__).parent.parent.parent / "src" / "caliper" / "templates"
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ class TestBaseRenderLoadsTemplate:
 
             @property
             def category(self):
-                from eedom.core.plugin import PluginCategory
+                from caliper.core.plugin import PluginCategory
 
                 return PluginCategory.code
 
@@ -245,7 +245,7 @@ class TestBaseRenderLoadsTemplate:
 
             @property
             def category(self):
-                from eedom.core.plugin import PluginCategory
+                from caliper.core.plugin import PluginCategory
 
                 return PluginCategory.code
 
@@ -277,7 +277,7 @@ class TestBaseRenderLoadsTemplate:
 
             @property
             def category(self):
-                from eedom.core.plugin import PluginCategory
+                from caliper.core.plugin import PluginCategory
 
                 return PluginCategory.code
 
@@ -612,37 +612,37 @@ class TestTemplatesPackageUtils:
     """Tests for the templates package utility functions.
 
     Written RED-first: these fail until get_templates_dir() and list_templates()
-    are added to src/eedom/templates/__init__.py.
+    are added to src/caliper/templates/__init__.py.
     """
 
     def test_get_templates_dir_returns_existing_path(self):
-        from eedom.templates import get_templates_dir
+        from caliper.templates import get_templates_dir
 
         d = get_templates_dir()
         assert d.exists(), "templates dir must exist on disk"
         assert d.is_dir(), "templates dir must be a directory"
 
     def test_get_templates_dir_points_to_correct_location(self):
-        from eedom.templates import get_templates_dir
+        from caliper.templates import get_templates_dir
 
         d = get_templates_dir()
         assert (d / "comment.md.j2").exists(), "comment.md.j2 must be inside templates dir"
 
     def test_list_templates_returns_list(self):
-        from eedom.templates import list_templates
+        from caliper.templates import list_templates
 
         templates = list_templates()
         assert isinstance(templates, list), "list_templates() must return a list"
 
     def test_list_templates_finds_jinja2_files(self):
-        from eedom.templates import list_templates
+        from caliper.templates import list_templates
 
         templates = list_templates()
         assert len(templates) > 0, "templates dir must contain at least one .j2 file"
         assert "comment.md.j2" in templates, "comment.md.j2 must be discoverable"
 
     def test_list_templates_is_sorted(self):
-        from eedom.templates import list_templates
+        from caliper.templates import list_templates
 
         templates = list_templates()
         assert templates == sorted(templates), "list_templates() output must be sorted"

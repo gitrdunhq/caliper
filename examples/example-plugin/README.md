@@ -39,19 +39,19 @@ examples/example-plugin/
 ### Step 1 — Copy the plugin file
 
 ```bash
-cp examples/example-plugin/todo_checker.py src/eedom/plugins/
+cp examples/example-plugin/todo_checker.py src/caliper/plugins/
 ```
 
 ### Step 2 — Copy the template
 
 ```bash
-cp examples/example-plugin/todo-checker.md.j2 src/eedom/templates/
+cp examples/example-plugin/todo-checker.md.j2 src/caliper/templates/
 ```
 
 ### Step 3 — Verify it appears in the registry
 
 ```bash
-uv run eedom plugins
+uv run caliper plugins
 ```
 
 You should see `todo-checker` listed under the `quality` category.
@@ -59,7 +59,7 @@ You should see `todo-checker` listed under the `quality` category.
 ### Step 4 — Run it against this repo
 
 ```bash
-uv run eedom review --repo-path . --all
+uv run caliper review --repo-path . --all
 ```
 
 The plugin will scan all tracked files. Any `TODO`, `FIXME`, or `HACK`
@@ -109,7 +109,7 @@ PR comment. If there are no findings and no error, the template renders nothing
 
 ### Auto-discovery
 
-Once `todo_checker.py` is placed in `src/eedom/plugins/`, eedom finds it
+Once `todo_checker.py` is placed in `src/caliper/plugins/`, caliper finds it
 automatically. No registration call, no config change, no import to add.
 
 ---
@@ -121,6 +121,6 @@ automatically. No registration call, no config change, no import to add.
 3. Copy `todo-checker.md.j2`, rename it to `your-scanner.md.j2`, and update
    the template to match your finding shape.
 4. Write tests following the patterns in `test_todo_checker.py`.
-5. Drop the files in `src/eedom/plugins/` and `src/eedom/templates/`.
+5. Drop the files in `src/caliper/plugins/` and `src/caliper/templates/`.
 
 See `docs/plugin-sdk.md` for the complete reference.

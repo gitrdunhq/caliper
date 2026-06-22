@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files that may contain CORS configuration (webhook server, middleware)
 _CORS_RELEVANT_FILES: tuple[Path, ...] = (

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/hero.svg" alt="Eagle Eyed Dom" width="900">
+  <img src="assets/hero.svg" alt="Caliper" width="900">
   <br>
   <strong>Fully deterministic dependency review for CI.</strong><br>
   19 plugins. 21 detectors. 6 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
@@ -25,11 +25,11 @@ Those checks aren't hard. They're tedious. And they're the reason your senior en
 
 Both outcomes cost real money. One costs velocity. The other costs incidents.
 
-**Eagle Eyed Dom doesn't replace human review. It removes the mechanical half so humans can do the half that requires judgment.** Eighteen plugins run the checks that don't need a brain. OPA policy makes the accept/reject decision deterministically. The reviewer opens a PR and the dependency, vulnerability, license, complexity, and secret checks are already done — with evidence, an audit trail, and a clear verdict. They can skip straight to "does this design make sense?"
+**Caliper doesn't replace human review. It removes the mechanical half so humans can do the half that requires judgment.** Eighteen plugins run the checks that don't need a brain. OPA policy makes the accept/reject decision deterministically. The reviewer opens a PR and the dependency, vulnerability, license, complexity, and secret checks are already done — with evidence, an audit trail, and a clear verdict. They can skip straight to "does this design make sense?"
 
 ---
 
-When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — eedom detects the changed packages, runs 19 plugins in parallel (plus 21 deterministic AST detectors and 61 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-enrich), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
+When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 19 plugins in parallel (plus 21 deterministic AST detectors and 61 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
 
 Every scanning tool is deterministic. The decision is deterministic. Nothing blocks the build unless OPA says so.
 
@@ -37,8 +37,8 @@ Every scanning tool is deterministic. The decision is deterministic. Nothing blo
 
 | Entry Point | Interface | Use Case |
 |-------------|-----------|----------|
-| **CLI** | `eedom evaluate` / `eedom review` | CI pipelines, local dev |
-| **GATEKEEPER** | `python -m eedom.agent.main` | GitHub Copilot Agent for reactive PR review |
+| **CLI** | `caliper evaluate` / `caliper review` | CI pipelines, local dev |
+| **Foreman** | `python -m caliper.agent.main` | GitHub Copilot Agent for reactive PR review |
 
 ---
 
@@ -104,7 +104,7 @@ All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper t
 
 ### Plus 21 deterministic detectors
 
-On changed source, eedom also runs **21 AST bug detectors** (`EED-001`…`EED-021`) — SQL injection, missing JWT audience claim, secrets typed as plain `str`, subprocess without timeout, unbounded caches, non-atomic writes, and more. Deterministic, fail-safe, suppressible with `# noqa: EED-NNN`. See [`docs/detectors.md`](docs/detectors.md).
+On changed source, caliper also runs **21 AST bug detectors** (`CAL-001`…`CAL-021`) — SQL injection, missing JWT audience claim, secrets typed as plain `str`, subprocess without timeout, unbounded caches, non-atomic writes, and more. Deterministic, fail-safe, suppressible with `# noqa: CAL-NNN`. See [`docs/detectors.md`](docs/detectors.md).
 
 **Scanner disagreement:** When OSV-Scanner and Trivy report the same CVE, the normalizer deduplicates on `(advisory_id, category, package_name, version)`. Highest severity wins.
 
@@ -120,23 +120,23 @@ On changed source, eedom also runs **21 AST bug detectors** (`EED-001`…`EED-02
 uv sync --group dev
 
 # Review all files in the current repo
-uv run eedom review --repo-path . --all
+uv run caliper review --repo-path . --all
 
 # Review only code analysis plugins
-uv run eedom review --repo-path . --category code
+uv run caliper review --repo-path . --category code
 
 # List available plugins
-uv run eedom plugins
+uv run caliper plugins
 
 # Post findings as inline PR review comments
-uv run eedom review --repo-path . --all --pr 42
+uv run caliper review --repo-path . --all --pr 42
 ```
 
 ### Full pipeline evaluation (native)
 
 ```bash
-uv run python -m eedom.cli.main check-health
-uv run python -m eedom.cli.main evaluate \
+uv run python -m caliper.cli.main check-health
+uv run python -m caliper.cli.main evaluate \
   --repo-path . --diff changes.diff \
   --pr-url "https://github.com/org/repo/pull/1" \
   --team myteam --operating-mode advise
@@ -145,27 +145,27 @@ uv run python -m eedom.cli.main evaluate \
 ### Run via container
 
 ```bash
-podman build -t eagle-eyed-dom:latest .
+podman build -t caliper:latest .
 
 git diff origin/main...HEAD > changes.diff
 
-podman run --rm -v "$(pwd):/workspace:ro" eagle-eyed-dom:latest \
-  uv run python -m eedom.cli.main evaluate \
+podman run --rm -v "$(pwd):/workspace:ro" caliper:latest \
+  uv run python -m caliper.cli.main evaluate \
     --repo-path /workspace --diff /workspace/changes.diff \
     --pr-url "https://github.com/org/repo/pull/1" \
     --team myteam --operating-mode monitor
 ```
 
-### GATEKEEPER (GitHub Copilot Agent)
+### Foreman (GitHub Copilot Agent)
 
 ```bash
-export GATEKEEPER_GITHUB_TOKEN="ghp_..."
-export GATEKEEPER_PR_NUMBER=123
-export GATEKEEPER_DIFF_PATH=./changes.diff
-export GATEKEEPER_REPO_OWNER=myorg
-export GATEKEEPER_REPO_NAME=myrepo
+export FOREMAN_GITHUB_TOKEN="ghp_..."
+export FOREMAN_PR_NUMBER=123
+export FOREMAN_DIFF_PATH=./changes.diff
+export FOREMAN_REPO_OWNER=myorg
+export FOREMAN_REPO_NAME=myrepo
 
-uv run python -m eedom.agent.main
+uv run python -m caliper.agent.main
 ```
 
 ---
@@ -182,10 +182,10 @@ uv run python -m eedom.agent.main
 
 ## GitHub Action
 
-Install `.github/workflows/gatekeeper.yml` — triggers on PRs that change dependency manifests or source files across 10 ecosystems.
+Install `.github/workflows/foreman.yml` — triggers on PRs that change dependency manifests or source files across 10 ecosystems.
 
 ```yaml
-name: Eagle Eyed Dom
+name: Caliper
 on:
   pull_request:
     paths:
@@ -206,26 +206,26 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 10
     container:
-      image: eagle-eyed-dom:latest
+      image: caliper:latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - run: git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} > .temp/pr.diff
-      - run: uv run python -m eedom.agent.main
+      - run: uv run python -m caliper.agent.main
         env:
-          GATEKEEPER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GATEKEEPER_ENFORCEMENT_MODE: warn
-          GATEKEEPER_DIFF_PATH: .temp/pr.diff
-          GATEKEEPER_PR_NUMBER: ${{ github.event.pull_request.number }}
-          GATEKEEPER_REPO_OWNER: ${{ github.repository_owner }}
-          GATEKEEPER_REPO_NAME: ${{ github.event.repository.name }}
+          FOREMAN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FOREMAN_ENFORCEMENT_MODE: warn
+          FOREMAN_DIFF_PATH: .temp/pr.diff
+          FOREMAN_PR_NUMBER: ${{ github.event.pull_request.number }}
+          FOREMAN_REPO_OWNER: ${{ github.repository_owner }}
+          FOREMAN_REPO_NAME: ${{ github.event.repository.name }}
 ```
 
 Or use the composite action (`action.yml`):
 
 ```yaml
-- uses: org/eagle-eyed-dom@main
+- uses: org/caliper@main
   with:
     operating-mode: advise
     team: platform
@@ -264,13 +264,13 @@ opa test policies/   # 16 tests covering every rule and toggle
 ## Architecture
 
 ```
-src/eedom/
+src/caliper/
 ├── cli/                    # Presentation: Click CLI (150 lines)
-├── agent/                  # Presentation: Eagle Eyed Dom Copilot Agent
+├── agent/                  # Presentation: Caliper Copilot Agent
 │   ├── main.py             #   Agent orchestrator + enforcement
 │   ├── tools.py            #   6 @tool functions for the LLM
 │   ├── tool_helpers.py     #   Subprocess runners (Semgrep, CPD, kube-linter, lizard)
-│   ├── config.py           #   GATEKEEPER_* env vars
+│   ├── config.py           #   FOREMAN_* env vars
 │   └── prompt.py           #   System prompt with 8-dimension rubric
 ├── core/                   # Logic: all business rules
 │   ├── pipeline.py         #   Main orchestrator — evaluate() and evaluate_sbom()
@@ -278,20 +278,20 @@ src/eedom/
 │   ├── registry.py         #   PluginRegistry — auto-discovery + filtering
 │   ├── renderer.py         #   Jinja2 comment renderer + severity rollup
 │   ├── sarif.py            #   SARIF v2.1.0 output converter
-│   ├── repo_config.py      #   .eagle-eyed-dom.yaml loader
+│   ├── repo_config.py      #   .caliper.yaml loader
 │   ├── models.py           #   All Pydantic models and StrEnums
 │   ├── policy.py           #   OPA subprocess wrapper
 │   ├── diff.py             #   Text diff parser (requirements.txt, pyproject.toml)
 │   ├── sbom_diff.py        #   CycloneDX SBOM differ (18 ecosystems via purl)
 │   ├── normalizer.py       #   Finding deduplication (highest severity wins)
-│   ├── enrich.py           #   Detect-then-enrich pass (ENRICHERS, fail-open) — ADR-006
+│   ├── scribe.py           #   Detect-then-scribe pass (SCRIBES, fail-open) — ADR-006
 │   ├── actionability.py    #   Actionable vs blocked finding classification
 │   ├── orchestrator.py     #   Parallel scanner runner (ThreadPoolExecutor)
 │   ├── decision.py         #   Pure assembler — OPA verdict → ReviewDecision
 │   ├── memo.py             #   Markdown PR comment generator
 │   ├── seal.py             #   SHA-256 evidence chain
 │   └── taskfit*.py         #   Optional LLM advisory (disabled by default)
-├── plugins/                # 19 scanner plugins + OPA policy plugin + enrichers
+├── plugins/                # 19 scanner plugins + OPA policy plugin + scribes
 │   ├── blast_radius.py     #   AST→SQLite code graph + SQL checks
 │   ├── semgrep.py          #   AST pattern matching
 │   ├── clamav.py           #   Malware/virus scanning
@@ -299,9 +299,9 @@ src/eedom/
 │   ├── mypy.py             #   Cross-file Python type checking
 │   ├── cdk_nag.py          #   CDK CloudFormation security scanning
 │   ├── cfn_nag.py          #   CloudFormation template scanning
-│   ├── enrichers/          #   Detect-then-enrich: code-graph + opt-in semgrep (ADR-006)
+│   ├── scribes/          #   Detect-then-scribe: code-graph + opt-in semgrep (ADR-006)
 │   └── ...                 #   + 13 more (one file per plugin, incl. _opa.py)
-├── detectors/              # 21 deterministic AST bug detectors (EED-001..021)
+├── detectors/              # 21 deterministic AST bug detectors (CAL-001..021)
 │   ├── security/           #   8 detectors (SQL injection, JWT audience, SecretStr, ...)
 │   ├── reliability/        #   subprocess timeout, unbounded cache, atomic write, ...
 │   ├── scanner.py          #   DeterministicScanner (ScannerPort) — runs them in the pipeline
@@ -356,12 +356,12 @@ WHERE vuln_critical > 0 AND team = 'platform';
 
 Every container image pushed to GHCR includes a SLSA Level 3 provenance attestation — cryptographic proof of what code was built, on what runner, with what workflow.
 
-**Eedom proves the code was reviewed. SLSA proves the image was built from that reviewed code.** Together: full chain of custody from PR to production.
+**Caliper proves the code was reviewed. SLSA proves the image was built from that reviewed code.** Together: full chain of custody from PR to production.
 
-Verify any eedom image:
+Verify any caliper image:
 
 ```bash
-gh attestation verify oci://ghcr.io/gitrdunhq/eedom:latest --owner gitrdunhq
+gh attestation verify oci://ghcr.io/gitrdunhq/caliper:latest --owner gitrdunhq
 ```
 
 The attestation includes: source commit SHA, workflow file, runner environment, and build timestamp. Tamper with any of these and verification fails.
@@ -386,45 +386,45 @@ Nothing blocks the build unless OPA says so. Every external call has a timeout. 
 
 ## Configuration
 
-### CLI (`EEDOM_*` prefix)
+### CLI (`CALIPER_*` prefix)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `EEDOM_OPERATING_MODE` | `monitor` | `monitor` or `advise` |
-| `EEDOM_DB_DSN` | — | PostgreSQL DSN (optional — NullRepository fallback) |
-| `EEDOM_EVIDENCE_PATH` | `./evidence` | Evidence + Parquet root |
-| `EEDOM_ENABLED_SCANNERS` | `syft,osv-scanner,trivy,scancode` | Active scanners |
-| `EEDOM_SCANNER_TIMEOUT` | `60` | Per-scanner timeout (s) |
-| `EEDOM_COMBINED_SCANNER_TIMEOUT` | `180` | Combined scanner timeout (s) |
-| `EEDOM_OPA_TIMEOUT` | `10` | OPA timeout (s) |
-| `EEDOM_PIPELINE_TIMEOUT` | `300` | Per-package timeout (s) |
-| `EEDOM_LLM_ENABLED` | `false` | Enable optional LLM task-fit advisory |
+| `CALIPER_OPERATING_MODE` | `monitor` | `monitor` or `advise` |
+| `CALIPER_DB_DSN` | — | PostgreSQL DSN (optional — NullRepository fallback) |
+| `CALIPER_EVIDENCE_PATH` | `./evidence` | Evidence + Parquet root |
+| `CALIPER_ENABLED_SCANNERS` | `syft,osv-scanner,trivy,scancode` | Active scanners |
+| `CALIPER_SCANNER_TIMEOUT` | `60` | Per-scanner timeout (s) |
+| `CALIPER_COMBINED_SCANNER_TIMEOUT` | `180` | Combined scanner timeout (s) |
+| `CALIPER_OPA_TIMEOUT` | `10` | OPA timeout (s) |
+| `CALIPER_PIPELINE_TIMEOUT` | `300` | Per-package timeout (s) |
+| `CALIPER_LLM_ENABLED` | `false` | Enable optional LLM task-fit advisory |
 
-### GATEKEEPER (`GATEKEEPER_*` prefix)
+### Foreman (`FOREMAN_*` prefix)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GATEKEEPER_GITHUB_TOKEN` | **(required)** | GitHub token for PR comments |
-| `GATEKEEPER_PR_NUMBER` | **(required)** | PR number to review |
-| `GATEKEEPER_DIFF_PATH` | — | Path to diff file |
-| `GATEKEEPER_REPO_OWNER` | — | Repository owner |
-| `GATEKEEPER_REPO_NAME` | — | Repository name |
-| `GATEKEEPER_ENFORCEMENT_MODE` | `warn` | `block` / `warn` / `log` |
-| `GATEKEEPER_LLM_MODEL` | `gpt-4.1` | Copilot agent model |
-| `GATEKEEPER_ENABLED_SCANNERS` | `syft,osv-scanner,trivy,scancode` | Pipeline scanners |
-| `GATEKEEPER_SEMGREP_TIMEOUT` | `120` | Semgrep timeout (s) |
-| `GATEKEEPER_PIPELINE_TIMEOUT` | `300` | Pipeline timeout (s) |
-| `GATEKEEPER_POLICY_VERSION` | `1.0.0` | Shown in PR comments |
-| `GATEKEEPER_MAX_COMMENT_LENGTH` | `3900` | Max PR comment chars |
+| `FOREMAN_GITHUB_TOKEN` | **(required)** | GitHub token for PR comments |
+| `FOREMAN_PR_NUMBER` | **(required)** | PR number to review |
+| `FOREMAN_DIFF_PATH` | — | Path to diff file |
+| `FOREMAN_REPO_OWNER` | — | Repository owner |
+| `FOREMAN_REPO_NAME` | — | Repository name |
+| `FOREMAN_ENFORCEMENT_MODE` | `warn` | `block` / `warn` / `log` |
+| `FOREMAN_LLM_MODEL` | `gpt-4.1` | Copilot agent model |
+| `FOREMAN_ENABLED_SCANNERS` | `syft,osv-scanner,trivy,scancode` | Pipeline scanners |
+| `FOREMAN_SEMGREP_TIMEOUT` | `120` | Semgrep timeout (s) |
+| `FOREMAN_PIPELINE_TIMEOUT` | `300` | Pipeline timeout (s) |
+| `FOREMAN_POLICY_VERSION` | `1.0.0` | Shown in PR comments |
+| `FOREMAN_MAX_COMMENT_LENGTH` | `3900` | Max PR comment chars |
 
 ---
 
 ## Repo-Level Configuration
 
-Drop `.eagle-eyed-dom.yaml` at the root of any repo to enable/disable plugins and override thresholds:
+Drop `.caliper.yaml` at the root of any repo to enable/disable plugins and override thresholds:
 
 ```yaml
-# .eagle-eyed-dom.yaml
+# .caliper.yaml
 plugins:
   disable:
     - clamav         # disable heavy AV scan in local dev
@@ -451,13 +451,13 @@ Override config at the command line for one-off runs:
 
 ```bash
 # Disable specific plugins for this run
-uv run eedom review --repo-path . --all --disable clamav,cspell
+uv run caliper review --repo-path . --all --disable clamav,cspell
 
 # Enable a plugin that is disabled in config
-uv run eedom review --repo-path . --all --enable gitleaks
+uv run caliper review --repo-path . --all --enable gitleaks
 
 # Combine flags
-uv run eedom evaluate --repo-path . --diff changes.diff \
+uv run caliper evaluate --repo-path . --diff changes.diff \
   --disable clamav --enable gitleaks \
   --pr-url "https://github.com/org/repo/pull/1" \
   --team myteam --operating-mode advise
@@ -470,14 +470,14 @@ uv run eedom evaluate --repo-path . --diff changes.diff \
 Export findings to SARIF for the GitHub Security tab:
 
 ```bash
-uv run eedom review --repo-path . --all --format sarif --output results.sarif
+uv run caliper review --repo-path . --all --format sarif --output results.sarif
 ```
 
 Upload in GitHub Actions:
 
 ```yaml
-- name: Run Eagle Eyed Dom
-  run: uv run eedom review --repo-path . --all --format sarif --output results.sarif
+- name: Run Caliper
+  run: uv run caliper review --repo-path . --all --format sarif --output results.sarif
 
 - name: Upload SARIF
   uses: github/codeql-action/upload-sarif@v3
@@ -495,13 +495,13 @@ Post findings as inline GitHub PR review comments — on the exact lines, not on
 
 ```bash
 # Post inline review comments on PR #42
-uv run eedom review --repo-path . --all --pr 42
+uv run caliper review --repo-path . --all --pr 42
 
 # Specify repo explicitly (auto-detected from git remote by default)
-uv run eedom review --repo-path . --all --pr 42 --repo org/repo
+uv run caliper review --repo-path . --all --pr 42 --repo org/repo
 ```
 
-When `--pr` is passed, eedom maps SARIF findings to the PR diff and posts a proper GitHub review:
+When `--pr` is passed, caliper maps SARIF findings to the PR diff and posts a proper GitHub review:
 
 - Findings on changed files become **inline comments** on the right lines
 - Findings outside the diff go in a **collapsed table** in the review summary
@@ -519,10 +519,10 @@ Re-run plugins automatically on file save during local development:
 
 ```bash
 # Watch all plugins
-uv run eedom review --repo-path . --all --watch
+uv run caliper review --repo-path . --all --watch
 
 # Watch code analysis only (faster feedback loop)
-uv run eedom review --repo-path . --category code --watch
+uv run caliper review --repo-path . --category code --watch
 ```
 
 Watch mode debounces file-system events (500 ms default). Press `Ctrl+C` to stop.
@@ -531,18 +531,18 @@ Watch mode debounces file-system events (500 ms default). Press `Ctrl+C` to stop
 
 ## Monorepo Support
 
-Eagle Eyed Dom auto-discovers packages across a monorepo and runs all 19 plugins per-package.
+Caliper auto-discovers packages across a monorepo and runs all 19 plugins per-package.
 
 ### Package discovery
 
-Walks the repo recursively and finds all manifest files — `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `requirements.txt`, `Gemfile`, `pom.xml`, `build.gradle`. Each manifest is paired with its lockfile when present. Directories matching `.eedomignore` patterns and standard ignore dirs (`node_modules`, `.git`, `vendor`, `__pycache__`) are skipped.
+Walks the repo recursively and finds all manifest files — `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `requirements.txt`, `Gemfile`, `pom.xml`, `build.gradle`. Each manifest is paired with its lockfile when present. Directories matching `.caliperignore` patterns and standard ignore dirs (`node_modules`, `.git`, `vendor`, `__pycache__`) are skipped.
 
 ```bash
 # Scan all packages (auto-discovered)
-uv run eedom review --repo-path . --all
+uv run caliper review --repo-path . --all
 
 # Scan a single package
-uv run eedom review --repo-path . --package apps/web --all
+uv run caliper review --repo-path . --package apps/web --all
 ```
 
 ### Per-package output
@@ -559,7 +559,7 @@ Findings are grouped by package in the PR comment. Each package gets its own sec
 
 ### Per-package config overrides
 
-Drop `.eagle-eyed-dom.yaml` inside any package directory to override the root config for that package. Child overrides parent — `apps/web/.eagle-eyed-dom.yaml` overrides `/.eagle-eyed-dom.yaml` for all files under `apps/web/`.
+Drop `.caliper.yaml` inside any package directory to override the root config for that package. Child overrides parent — `apps/web/.caliper.yaml` overrides `/.caliper.yaml` for all files under `apps/web/`.
 
 ---
 
@@ -569,13 +569,13 @@ Query the CodeGraph SQLite database in plain English. Backed by 12 built-in quer
 
 ```bash
 # Ask a natural language question
-eedom query "which functions have the highest fan-out?"
+caliper query "which functions have the highest fan-out?"
 
 # List all available query templates
-eedom query --list
+caliper query --list
 ```
 
-Fuzzy matching maps your question to the closest template by keyword overlap. Unrecognized questions fall back to `eedom query --list` with the full template menu.
+Fuzzy matching maps your question to the closest template by keyword overlap. Unrecognized questions fall back to `caliper query --list` with the full template menu.
 
 ### Built-in query templates
 
@@ -617,7 +617,7 @@ uv run python scripts/gauntlet.py
 ---
 
 <div align="center">
-  <img src="assets/avatar.png" alt="Eagle Eyed Dom" width="96">
+  <img src="assets/avatar.png" alt="Caliper" width="96">
   <br>
-  <sub>Eagle Eyed Dom &middot; Dependency Review Agent &middot; v0.2.4</sub>
+  <sub>Caliper &middot; Dependency Review Agent &middot; v0.2.4</sub>
 </div>

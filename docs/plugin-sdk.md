@@ -1,6 +1,6 @@
 # Plugin SDK Reference
 
-Eagle Eyed Dom's plugin system lets you add new scanners, linters, and analyzers
+Caliper's plugin system lets you add new scanners, linters, and analyzers
 without touching the core pipeline. Every plugin is a Python class that implements
 the `ScannerPlugin` ABC. Drop the file in the right directory and it is discovered
 automatically on the next run.
@@ -10,13 +10,13 @@ automatically on the next run.
 ## Quick Start
 
 A minimal plugin that requires no external binary — paste this, drop it in
-`src/eedom/plugins/`, and it will appear in `eedom plugins` on the next run.
+`src/caliper/plugins/`, and it will appear in `caliper plugins` on the next run.
 
 ```python
 from __future__ import annotations
 
 from pathlib import Path
-from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
+from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
 
 
 class HelloPlugin(ScannerPlugin):
@@ -37,7 +37,7 @@ class HelloPlugin(ScannerPlugin):
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
         py_files = [f for f in files if f.endswith(".py")]
-        findings = [{"file": f, "message": "hello from eedom", "severity": "info"} for f in py_files]
+        findings = [{"file": f, "message": "hello from caliper", "severity": "info"} for f in py_files]
         return PluginResult(
             plugin_name=self.name,
             findings=findings,
@@ -52,7 +52,7 @@ That is the complete contract. The sections below explain every piece.
 ## ScannerPlugin ABC Contract
 
 ```python
-# src/eedom/core/plugin.py
+# src/caliper/core/plugin.py
 class ScannerPlugin(abc.ABC):
 ```
 
@@ -75,7 +75,7 @@ registration silently overwrites the first.
 
 ### `description: str` (abstract property)
 
-One sentence. Shown in `eedom plugins` listings and in log output.
+One sentence. Shown in `caliper plugins` listings and in log output.
 
 ```python
 @property
@@ -209,7 +209,7 @@ that let the template render a useful header without iterating findings.
 consistently.
 
 ```python
-from eedom.core.errors import ErrorCode, error_msg
+from caliper.core.errors import ErrorCode, error_msg
 ```
 
 ### ErrorCode values
@@ -282,7 +282,7 @@ def run(self, files: list[str], repo_path: Path) -> PluginResult:
 
 ## Auto-Discovery
 
-`discover_plugins(plugin_dir)` in `src/eedom/core/registry.py` scans a directory
+`discover_plugins(plugin_dir)` in `src/caliper/core/registry.py` scans a directory
 for concrete `ScannerPlugin` subclasses and returns one instantiated instance per
 class found.
 
@@ -297,7 +297,7 @@ Rules:
 ### Where to place plugins
 
 ```
-src/eedom/plugins/
+src/caliper/plugins/
     my_scanner.py        # discovered — becomes "my-scanner" (via name property)
     _helpers.py          # skipped — underscore prefix
     _runners/            # skipped — directory, not *.py at this level
@@ -324,7 +324,7 @@ When `plugin.render(result)` is called (e.g., when building a PR comment):
 2. If found, the template is rendered with the context from `_template_context(result)`.
 3. If not found, `_render_inline(result)` is called as a fallback.
 
-The default template directory is `src/eedom/templates/`.
+The default template directory is `src/caliper/templates/`.
 
 ### Default template context
 
@@ -342,7 +342,7 @@ The default template directory is `src/eedom/templates/`.
 
 ### Writing a template
 
-Create `src/eedom/templates/{plugin-name}.md.j2`:
+Create `src/caliper/templates/{plugin-name}.md.j2`:
 
 ```jinja2
 {% if error %}
@@ -406,11 +406,11 @@ def _render_inline(self, result: PluginResult) -> str:
 ## Subprocess Helpers
 
 For plugins that call external binaries, use `run_subprocess_with_timeout` from
-`eedom.data.scanners.base`. It wraps `subprocess.run` and returns a consistent
+`caliper.data.scanners.base`. It wraps `subprocess.run` and returns a consistent
 tuple — it never raises.
 
 ```python
-from eedom.data.scanners.base import run_subprocess_with_timeout
+from caliper.data.scanners.base import run_subprocess_with_timeout
 
 returncode, stdout, stderr = run_subprocess_with_timeout(
     cmd=["mytool", "--json", str(repo_path)],
@@ -540,8 +540,8 @@ uv run pytest examples/example-plugin/test_todo_checker.py -v
 To install the plugin and see it run against this repo:
 
 ```bash
-cp examples/example-plugin/todo_checker.py src/eedom/plugins/
-cp examples/example-plugin/todo-checker.md.j2 src/eedom/templates/
-uv run eedom plugins                        # verify it appears
-uv run eedom review --repo-path . --all     # see it in action
+cp examples/example-plugin/todo_checker.py src/caliper/plugins/
+cp examples/example-plugin/todo-checker.md.j2 src/caliper/templates/
+uv run caliper plugins                        # verify it appears
+uv run caliper review --repo-path . --all     # see it in action
 ```

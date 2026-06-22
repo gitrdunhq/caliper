@@ -1,4 +1,4 @@
-"""Tests for eedom.data.evidence — evidence storage service."""
+"""Tests for caliper.data.evidence — evidence storage service."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ class TestEvidenceStore:
 
     def test_store_creates_directory_structure(self, tmp_path: Path) -> None:
         """store() should create <root>/<request_id>/ directory."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -31,7 +31,7 @@ class TestEvidenceStore:
 
     def test_store_writes_correct_content(self, tmp_path: Path) -> None:
         """store() should write the exact content to the artifact file."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -43,7 +43,7 @@ class TestEvidenceStore:
 
     def test_store_handles_string_content(self, tmp_path: Path) -> None:
         """store() should handle str content, not just bytes."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -55,7 +55,7 @@ class TestEvidenceStore:
 
     def test_store_atomic_write_uses_temp_then_rename(self, tmp_path: Path) -> None:
         """store() should write to a temp file then rename (atomic write)."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -69,7 +69,7 @@ class TestEvidenceStore:
 
     def test_store_file_copies_correctly(self, tmp_path: Path) -> None:
         """store_file() should copy the source file to the evidence directory."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -86,7 +86,7 @@ class TestEvidenceStore:
 
     def test_store_file_atomic_write(self, tmp_path: Path) -> None:
         """store_file() should use temp + rename for atomic writes."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -100,7 +100,7 @@ class TestEvidenceStore:
 
     def test_get_path_returns_expected_path(self, tmp_path: Path) -> None:
         """get_path() should return the expected path without checking existence."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -112,7 +112,7 @@ class TestEvidenceStore:
 
     def test_get_path_does_not_require_existence(self, tmp_path: Path) -> None:
         """get_path() should return a path even if the file does not exist."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -125,7 +125,7 @@ class TestEvidenceStore:
 
     def test_list_artifacts_returns_stored_files(self, tmp_path: Path) -> None:
         """list_artifacts() should return filenames of stored artifacts."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -140,7 +140,7 @@ class TestEvidenceStore:
 
     def test_list_artifacts_empty_for_unknown_request(self, tmp_path: Path) -> None:
         """list_artifacts() should return empty list for nonexistent request."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
 
@@ -152,7 +152,7 @@ class TestEvidenceStore:
         """On storage failure, store() should log error and return empty string."""
         if os.getuid() == 0:
             pytest.skip("root bypasses chmod — cannot test permission failure")
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         # Use a path that will fail (read-only directory)
         read_only_dir = tmp_path / "readonly"
@@ -173,7 +173,7 @@ class TestEvidenceStore:
         """On storage failure, store_file() should log error and return empty string."""
         if os.getuid() == 0:
             pytest.skip("root bypasses chmod — cannot test permission failure")
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         read_only_dir = tmp_path / "readonly2"
         read_only_dir.mkdir()
@@ -194,7 +194,7 @@ class TestEvidenceStore:
 
     def test_directory_auto_creation(self, tmp_path: Path) -> None:
         """store() should create nested directories as needed."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         deep_root = tmp_path / "a" / "b" / "c"
         store = EvidenceStore(root_path=str(deep_root))
@@ -209,7 +209,7 @@ class TestEvidenceStore:
 
     def test_dotdot_artifact_name_is_rejected(self, tmp_path: Path) -> None:
         """F-022: store() must block artifact names that escape the dest_dir."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -219,7 +219,7 @@ class TestEvidenceStore:
 
     def test_single_dotdot_is_rejected(self, tmp_path: Path) -> None:
         """F-022: A single '../sibling' escape is also blocked."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -229,7 +229,7 @@ class TestEvidenceStore:
 
     def test_traversal_does_not_write_outside_dest_dir(self, tmp_path: Path) -> None:
         """F-022: A blocked traversal attempt must not create any file outside dest_dir."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -241,7 +241,7 @@ class TestEvidenceStore:
 
     def test_normal_artifact_name_is_still_accepted(self, tmp_path: Path) -> None:
         """F-022: A legitimate filename must not be blocked by the traversal check."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = _random_request_id()
@@ -268,7 +268,7 @@ class TestEvidenceSymlinkTraversal:
 
     def test_symlink_key_dir_does_not_write_outside_root(self, tmp_path: Path) -> None:
         """store(): a symlink key-dir pointing outside root must be blocked."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         evidence_root = tmp_path / "evidence"
         evidence_root.mkdir()
@@ -289,7 +289,7 @@ class TestEvidenceSymlinkTraversal:
 
     def test_store_file_symlink_key_dir_does_not_write_outside_root(self, tmp_path: Path) -> None:
         """store_file(): a symlink key-dir pointing outside root must be blocked."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         evidence_root = tmp_path / "evidence"
         evidence_root.mkdir()

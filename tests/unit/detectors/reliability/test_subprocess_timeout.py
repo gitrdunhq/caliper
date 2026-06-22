@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.reliability.subprocess_timeout import SubprocessTimeoutDetector
+from caliper.detectors.reliability.subprocess_timeout import SubprocessTimeoutDetector
 
 
 class TestSubprocessTimeoutDetector:
-    """Tests for SubprocessTimeoutDetector (EED-012)."""
+    """Tests for SubprocessTimeoutDetector (CAL-012)."""
 
     @pytest.fixture
     def detector(self):
@@ -35,7 +35,7 @@ def run_command(cmd):
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-012"
+        assert findings[0].detector_id == "CAL-012"
 
     def test_detects_subprocess_call_without_timeout(self, detector):
         """Detects subprocess.call() without timeout."""

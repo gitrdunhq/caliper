@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with the eedom scanner.
+This file provides guidance to Claude Code when working with the caliper scanner.
 
 ## What This Is
 
-Eagle Eyed Dom — fully deterministic dependency and code review for CI. 19 scanner plugins (+ OPA policy plugin), 21 deterministic detectors, 61 custom semgrep rules, 12 code graph checks, 8 OPA policy rules, 600+ tests, zero LLM in the decision path.
+Caliper — fully deterministic dependency and code review for CI. 19 scanner plugins (+ OPA policy plugin), 21 deterministic detectors, 61 custom semgrep rules, 12 code graph checks, 8 OPA policy rules, 600+ tests, zero LLM in the decision path.
 
 ## Commands
 
@@ -15,12 +15,12 @@ make test-host                         # Run tests on host (escape hatch)
 uv run ruff check src/ tests/          # Lint
 uv run black src/ tests/               # Format
 make quality-check                     # Format + lint
-make dogfood                           # Self-scan with eedom review
+make dogfood                           # Self-scan with caliper review
 make preflight                         # Format + lint + test + dogfood
 opa test policies/                     # OPA Rego policy tests
 ```
 
-**Tests MUST run in a container.** `make test` handles this automatically. Never use `EEDOM_ALLOW_HOST_TESTS=1`.
+**Tests MUST run in a container.** `make test` handles this automatically. Never use `CALIPER_ALLOW_HOST_TESTS=1`.
 
 ## Container Builds
 
@@ -41,29 +41,29 @@ bash scripts/build-push.sh         # build + push to GHCR (SHA tag only, latest 
 - Docker also needs a buildx builder with `--allow-insecure-entitlement` — the scripts create it automatically
 - Getting this wrong wastes tokens every time
 
-**Running eedom from the container:**
+**Running caliper from the container:**
 ```bash
-dom                          # scan current directory (alias in .zshrc)
-dom ../openoats              # scan another repo
-dom ../openoats sarif        # SARIF output format
+cal                          # scan current directory (alias in .zshrc)
+cal ../openoats              # scan another repo
+cal ../openoats sarif        # SARIF output format
 
 # Or manually:
 podman run --rm --platform linux/amd64 \
   -v /path/to/repo:/workspace:ro \
   -v /path/to/repo/.temp:/workspace/.temp \
-  eedom:latest review --repo-path /workspace --all
+  caliper:latest review --repo-path /workspace --all
 ```
 
 **Key paths inside container:**
 
 | Path | Purpose |
 |------|---------|
-| `/opt/eedom/.venv/bin/python` | Python with all deps |
+| `/opt/caliper/.venv/bin/python` | Python with all deps |
 | `/opt/test-venv/bin/python` | Test image Python (use for pytest) |
 | `/workspace/` | Repo mount point |
 | `/usr/local/bin/entrypoint.sh` | Verifies binary checksums before running |
 
-**Rebuilding after code changes:** Always use `bash scripts/build.sh`. The old `podman build -t eedom:latest .` command will fail on Mac.
+**Rebuilding after code changes:** Always use `bash scripts/build.sh`. The old `podman build -t caliper:latest .` command will fail on Mac.
 
 **x86 build host (sambou@192.168.0.210):** For Docker builds, GHCR pushes, and CI runner. Has the buildx builder pre-configured.
 
@@ -71,24 +71,24 @@ podman run --rm --platform linux/amd64 \
 
 Three-tier — imports flow downward only (cli -> core -> data):
 
-- `src/eedom/cli/` — thin CLI adapter. Parses args, delegates to core, formats output.
-- `src/eedom/core/` — all business logic. Pipeline, policy, plugin registry, renderer, SARIF, config, enrichment seam.
-- `src/eedom/data/` — persistence and external calls. Scanners, DB, evidence, parquet, PyPI client.
-- `src/eedom/plugins/` — 19 scanner plugins (+ OPA policy plugin) with auto-discovery via `PluginRegistry`.
-- `src/eedom/plugins/enrichers/` — code-graph + opt-in semgrep finding enrichers (ADR-006).
-- `src/eedom/detectors/` — 21 deterministic AST bug detectors (EED-001..021), exposed as a `DeterministicScanner`. See `docs/detectors.md`.
-- `src/eedom/composition/` — composition root: `bootstrap()` wires adapters/enrichers into an `ApplicationContext` (NullRepository fallback when no DB).
-- `src/eedom/webhook/` — Starlette ASGI webhook server (GitHub PR events, HMAC-SHA256, port 12800).
-- `src/eedom/agent/` — GATEKEEPER Copilot Agent (second presentation-tier entry point).
-- `src/eedom/templates/` — Jinja2 templates for PR comment rendering.
+- `src/caliper/cli/` — thin CLI adapter. Parses args, delegates to core, formats output.
+- `src/caliper/core/` — all business logic. Pipeline, policy, plugin registry, renderer, SARIF, config, scribe seam.
+- `src/caliper/data/` — persistence and external calls. Scanners, DB, evidence, parquet, PyPI client.
+- `src/caliper/plugins/` — 19 scanner plugins (+ OPA policy plugin) with auto-discovery via `PluginRegistry`.
+- `src/caliper/plugins/scribes/` — code-graph + opt-in semgrep finding scribes (ADR-006).
+- `src/caliper/detectors/` — 21 deterministic AST bug detectors (CAL-001..021), exposed as a `DeterministicScanner`. See `docs/detectors.md`.
+- `src/caliper/composition/` — composition root: `bootstrap()` wires adapters/scribes into an `ApplicationContext` (NullRepository fallback when no DB).
+- `src/caliper/webhook/` — Starlette ASGI webhook server (GitHub PR events, HMAC-SHA256, port 12800).
+- `src/caliper/agent/` — Foreman Copilot Agent (second presentation-tier entry point).
+- `src/caliper/templates/` — Jinja2 templates for PR comment rendering.
 
-**Detect-then-enrich (ADR-006)**: a post-detection, pre-policy pass decorates every finding's `metadata['enrichment']` with deterministic context (enclosing symbol, blast-radius callers, nearby semgrep matches). Sequential, fail-open, time-bounded (`enrichment_timeout`), verdict-independent. Registry: `ENRICHERS` in `core/registries.py`.
+**Detect-then-scribe (ADR-006)**: a post-detection, pre-policy pass decorates every finding's `metadata['scribe']` with deterministic context (enclosing symbol, blast-radius callers, nearby semgrep matches). Sequential, fail-open, time-bounded (`scribe_timeout`), verdict-independent. Registry: `SCRIBES` in `core/registries.py`.
 
 ## Critical Design Rules
 
 **Fail-open**: No scanner failure blocks a build. Every external call has a timeout. Every failure returns a typed result.
 
-**Timeouts**: scanner=60s, combined=180s, OPA=10s, LLM=30s, enrichment=30s, pipeline=300s. All from config.
+**Timeouts**: scanner=60s, combined=180s, OPA=10s, LLM=30s, scribe=30s, pipeline=300s. All from config.
 
 **OPA input uses `input.pkg` not `input.package`**: `package` is reserved in Rego v1.
 
@@ -102,7 +102,7 @@ Three-tier — imports flow downward only (cli -> core -> data):
 
 ## Scanner Exclusions — Fixture Dirs
 
-`tests/e2e/fixtures/` contains intentionally pinned old dependencies used as scan-target inputs for e2e tests. These are **not** eedom's own deps — never update them via Dependabot or fix their CVEs.
+`tests/e2e/fixtures/` contains intentionally pinned old dependencies used as scan-target inputs for e2e tests. These are **not** caliper's own deps — never update them via Dependabot or fix their CVEs.
 
 **Centralized exclusion source of truth:** `config/scan-exclusions.toml`
 
@@ -116,7 +116,7 @@ What the script manages:
 - `tests/e2e/fixtures/*/osv-scanner.toml` — `[[PackageOverrides]] ignore = true` for standalone CLI runs
 - Validates `dependabot.yml` `exclude-paths` covers all fixture roots
 
-**Runtime exclusion:** `OsvScanner` passes `--experimental-exclude=<path>` per entry in `EedomSettings.osv_exclude_paths` (default: `["tests/e2e/fixtures"]`). Override via `EEDOM_OSV_EXCLUDE_PATHS` env var.
+**Runtime exclusion:** `OsvScanner` passes `--experimental-exclude=<path>` per entry in `CaliperSettings.osv_exclude_paths` (default: `["tests/e2e/fixtures"]`). Override via `CALIPER_OSV_EXCLUDE_PATHS` env var.
 
 **Rule:** If you add a new fixture directory, add it to `config/scan-exclusions.toml` and run the sync script. Do NOT manually edit the generated `osv-scanner.toml` files.
 
@@ -127,7 +127,7 @@ What the script manages:
 - `GitLsFilesSource` (`"git"`) — `git ls-files --cached --others --exclude-standard` (tracked + untracked-not-`.gitignore`d), with `-c safe.directory=<root>` so git engages on read-only CI mounts owned by another uid.
 - `WalkFileSource` (`"walk"`) — `os.walk` + `core/ignore.py`, the fail-open fallback for non-git targets.
 
-`select_file_source(root, prefer=...)` picks git when the root is a usable repo and falls back to walk; override with `EEDOM_FILE_SOURCE=auto|git|walk` (or `EedomSettings.file_source`). Both adapters apply the eedom exclusion layer (`core/ignore.py`) on top, so tracked-but-not-ours paths (fixtures) are skipped regardless of source.
+`select_file_source(root, prefer=...)` picks git when the root is a usable repo and falls back to walk; override with `CALIPER_FILE_SOURCE=auto|git|walk` (or `CaliperSettings.file_source`). Both adapters apply the caliper exclusion layer (`core/ignore.py`) on top, so tracked-but-not-ours paths (fixtures) are skipped regardless of source.
 
 **Rule:** Consumers (CLI, scanner, plugins) enumerate via the resolved source — never call `rglob`/`os.walk`/`git` directly. `core/ignore.py` `DEFAULT_PATTERNS` and `file_source._ALWAYS_SKIP_DIRS` are the shared exclusion constants (`manifest_discovery` imports the latter).
 
@@ -144,7 +144,7 @@ Port range 12000-13000 only. Never use common ports.
 
 Every source file has a `# tested-by: tests/unit/test_X.py` comment. TDD red-green is mandatory. Hypothesis property-based tests cover boundary invariants.
 
-**Tests run in containers only.** Use `make test`. Never use `EEDOM_ALLOW_HOST_TESTS=1` — host environment can't guarantee parity with CI or other contributors.
+**Tests run in containers only.** Use `make test`. Never use `CALIPER_ALLOW_HOST_TESTS=1` — host environment can't guarantee parity with CI or other contributors.
 
 ### Split TDD Across Agents (Context Poisoning Prevention)
 
@@ -211,11 +211,11 @@ Do NOT use `feat:` for config tweaks, CI fixes, or internal refactors. If it doe
 - Typed Pydantic models at every boundary
 - `# tested-by:` annotation on every source file
 
-## GATEKEEPER Copilot Agent
+## Foreman Copilot Agent
 
 The `agent/` module is a presentation-tier entry point parallel to `cli/`. It wraps the same pipeline as a GitHub Copilot Extension for reactive PR review.
 
-- Entry point: `python -m eedom.agent.main`
-- Config: `GATEKEEPER_*` env vars
+- Entry point: `python -m caliper.agent.main`
+- Config: `FOREMAN_*` env vars
 - Tools: `evaluate_change`, `check_package`, `scan_code`
 - ADRs: `docs/adr/001-004`

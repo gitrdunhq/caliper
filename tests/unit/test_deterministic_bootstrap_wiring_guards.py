@@ -24,7 +24,7 @@ pytestmark = pytest.mark.xfail(
     strict=False,
 )
 
-from eedom.composition.bootstrap import _make_audit_sink, _make_publisher, bootstrap
+from caliper.composition.bootstrap import _make_audit_sink, _make_publisher, bootstrap
 
 
 class TestBootstrapDoesNotWireFakeAdapters:
@@ -43,7 +43,7 @@ class TestBootstrapDoesNotWireFakeAdapters:
             "bootstrap() references _FakePackageIndex — a placeholder adapter "
             "that returns empty/stub package metadata. All package-policy "
             "checks silently evaluate against fake data in production. "
-            "Fix: wire a real package index from EedomSettings. See issue #204."
+            "Fix: wire a real package index from CaliperSettings. See issue #204."
         )
 
     def test_make_audit_sink_is_not_unconditionally_null(self) -> None:

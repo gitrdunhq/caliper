@@ -22,7 +22,7 @@ import pytest
 
 def _get_catalog_source_info():
     """Get source info for catalog.py to parse AST."""
-    from eedom.data import catalog
+    from caliper.data import catalog
 
     source_path = Path(inspect.getfile(catalog))
     source = source_path.read_text()

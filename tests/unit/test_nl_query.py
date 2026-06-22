@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from eedom.core.nl_query import (
+from caliper.core.nl_query import (
     TEMPLATES,
     QueryTemplate,
     _extract_param,
@@ -21,7 +21,7 @@ from eedom.core.nl_query import (
     _score,
     query_code,
 )
-from eedom.plugins._runners.graph_builder import CodeGraph
+from caliper.plugins._runners.graph_builder import CodeGraph
 
 # ---------------------------------------------------------------------------
 # Minimal SQLite schema for SQL validity tests (mirrors graph_builder.py)

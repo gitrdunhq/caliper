@@ -6,7 +6,7 @@ These plugins gate merges. Any finding at **Critical** or **High** blocks the PR
 
 ## gitleaks
 
-Scans diffs and history for secrets and credentials using 800+ built-in patterns; supports custom rules via `.eedom/gitleaks.toml` for org-specific PII patterns.
+Scans diffs and history for secrets and credentials using 800+ built-in patterns; supports custom rules via `.caliper/gitleaks.toml` for org-specific PII patterns.
 
 | Severity | Condition |
 |----------|-----------|
@@ -153,4 +153,4 @@ Blocks for the same reason as cfn-nag: CDK violations represent infrastructure-a
 
 ## See also
 
-- [Deterministic detectors](../detectors.md) — 21 AST-based bug-pattern rules (EED-001..EED-021) that run alongside the plugins.
+- [Deterministic detectors](../detectors.md) — 21 AST-based bug-pattern rules (CAL-001..CAL-021) that run alongside the plugins.

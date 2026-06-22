@@ -138,7 +138,7 @@ def test_218_health_checks_must_verify_db_connectivity() -> None:
     it's actually in a degraded state.
 
     Target files to analyze:
-    - src/eedom/cli/inspect_cmds.py (check_health command)
+    - src/caliper/cli/inspect_cmds.py (check_health command)
     - Any webhook or API endpoints with health checks
     - Any module-level health check functions
 
@@ -148,10 +148,10 @@ def test_218_health_checks_must_verify_db_connectivity() -> None:
     - Missing DB checks should fail the detector with clear guidance
 
     Fix: Add database connectivity check using DecisionRepository or
-    equivalent pattern from eedom.data.db module.
+    equivalent pattern from caliper.data.db module.
     """
     repo_root = Path(__file__).parent.parent.parent
-    src_dir = repo_root / "src" / "eedom"
+    src_dir = repo_root / "src" / "caliper"
 
     if not src_dir.exists():
         pytest.skip(f"Source directory not found: {src_dir}")
@@ -171,7 +171,7 @@ def test_218_health_checks_must_verify_db_connectivity() -> None:
 
     # Also check specific known health check functions via inspection
     try:
-        from eedom.cli import inspect_cmds
+        from caliper.cli import inspect_cmds
 
         result = _get_function_source(inspect_cmds.check_health)
         if result:
@@ -199,9 +199,9 @@ def test_218_health_checks_must_verify_db_connectivity() -> None:
             "Bug #184: Health checks must verify database connectivity.\n"
             "Impact: Monitoring systems may report 'healthy' when DB is down.\n\n"
             "Fix: Add DecisionRepository.connect() or equivalent DB check:\n"
-            "  from eedom.data.db import DecisionRepository\n"
-            "  from eedom.core.config import EedomSettings\n"
-            "  config = EedomSettings()\n"
+            "  from caliper.data.db import DecisionRepository\n"
+            "  from caliper.core.config import CaliperSettings\n"
+            "  config = CaliperSettings()\n"
             "  db = DecisionRepository(dsn=config.db_dsn)\n"
             "  if db.connect():\n"
             "      print('Database OK')\n"
@@ -219,7 +219,7 @@ def test_218_cli_check_health_verifies_db() -> None:
     This test directly inspects the check_health function source code
     to ensure it contains the database connectivity verification pattern.
     """
-    from eedom.cli import inspect_cmds
+    from caliper.cli import inspect_cmds
 
     result = _get_function_source(inspect_cmds.check_health)
     if result is None:

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files that handle secrets and should have rotation automation
 _SECRET_HANDLING_FILES: tuple[Path, ...] = (
@@ -157,10 +157,10 @@ def test_198_secrets_rotation_lacks_automated_trigger() -> None:
     blast radius from leaked credentials.
 
     Violations:
-        - src/eedom/core/config.py - llm_api_key: SecretStr with no rotation
-        - src/eedom/agent/config.py - github_token: SecretStr with no rotation
-        - src/eedom/webhook/config.py - secret: str with no rotation
-        - src/eedom/webhook/config.py - github_token: SecretStr with no rotation
+        - src/caliper/core/config.py - llm_api_key: SecretStr with no rotation
+        - src/caliper/agent/config.py - github_token: SecretStr with no rotation
+        - src/caliper/webhook/config.py - secret: str with no rotation
+        - src/caliper/webhook/config.py - github_token: SecretStr with no rotation
         - No CI workflow for automated rotation detected
 
     Acceptance criteria for fix:

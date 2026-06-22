@@ -13,11 +13,11 @@ import json
 
 import orjson
 
-from eedom.core.json_report import render_json
-from eedom.core.plugin import PluginResult
-from eedom.core.renderer import render_comment
-from eedom.core.review_summary import summarize_review
-from eedom.core.sarif import to_sarif
+from caliper.core.json_report import render_json
+from caliper.core.plugin import PluginResult
+from caliper.core.renderer import render_comment
+from caliper.core.review_summary import summarize_review
+from caliper.core.sarif import to_sarif
 
 _BADGE = {
     "blocked": "BLOCKED",
@@ -61,7 +61,7 @@ def test_markdown_json_sarif_agree(scenario):
 
     assert _BADGE[verdict] in md
     assert json_doc["verdict"] == verdict
-    assert sarif_doc["properties"]["eedom_verdict"] == verdict
+    assert sarif_doc["properties"]["caliper_verdict"] == verdict
 
 
 def test_counts_agree_json_sarif():

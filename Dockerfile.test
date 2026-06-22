@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
-# Test image — installs eedom from source with dev deps.
+# Test image — installs caliper from source with dev deps.
 # Unlike the runtime Dockerfile, this always reflects the current checkout.
 #
 # Build:  make test-amd64
-# Run:    podman run --rm --platform linux/amd64 --security-opt apparmor=unconfined eedom-test:amd64 python3 -m pytest tests/ -v
+# Run:    podman run --rm --platform linux/amd64 --security-opt apparmor=unconfined caliper-test:amd64 python3 -m pytest tests/ -v
 
 # docker-library/python revision:
 # 3362634339580d3232e65a66dd5a36c47ae7ff14
@@ -35,13 +35,13 @@ RUN --security=insecure uv sync --frozen --group dev
 # Extra deps for integration tests (mypy for type-check plugin, pyarrow for parquet pipeline)
 RUN --security=insecure uv pip install mypy==1.15.0 pyarrow==24.0.0
 
-RUN groupadd -r eedom \
-    && useradd -r -g eedom -m -d /home/eedom -s /bin/sh eedom \
-    && chown -R eedom:eedom /workspace /home/eedom /opt/test-venv
+RUN groupadd -r caliper \
+    && useradd -r -g caliper -m -d /home/caliper -s /bin/sh caliper \
+    && chown -R caliper:caliper /workspace /home/caliper /opt/test-venv
 
-ENV EEDOM_ALLOW_GLOBAL=1 \
-    XDG_CACHE_HOME=/home/eedom/.cache
+ENV CALIPER_ALLOW_GLOBAL=1 \
+    XDG_CACHE_HOME=/home/caliper/.cache
 
-USER eedom
+USER caliper
 
 ENTRYPOINT ["uv", "run"]

@@ -36,7 +36,7 @@ def test_ruff_lint_preferences_stay_conservative() -> None:
     assert set(selected) == {"E", "F", "W", "I", "N", "UP", "B", "SIM"}
 
     pfi = _as_mapping(lint.get("per-file-ignores"))
-    allowed_patterns = {"tests/**", "src/eedom/detectors/**/*.py"}
+    allowed_patterns = {"tests/**", "src/caliper/detectors/**/*.py"}
     assert (
         set(pfi.keys()) <= allowed_patterns
     ), f"per-file-ignores should only scope to {allowed_patterns}"

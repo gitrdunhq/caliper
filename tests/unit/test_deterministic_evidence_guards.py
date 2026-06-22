@@ -18,7 +18,7 @@ import ast
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 _SEAL_FILE = _SRC / "core" / "seal.py"
 _EVIDENCE_FILE = _SRC / "data" / "evidence.py"
 
@@ -161,7 +161,7 @@ def test_189_evidence_compression_uses_encryption() -> None:
     AES256 encryption instead.
 
     Violations:
-        - src/eedom/data/evidence.py uses zipfile.ZipFile without pwd parameter
+        - src/caliper/data/evidence.py uses zipfile.ZipFile without pwd parameter
 
     Acceptance criteria for fix:
         - All ZipFile calls include encryption (pwd parameter)

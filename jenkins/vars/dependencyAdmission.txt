@@ -42,9 +42,9 @@ ENVIRONMENT VARIABLES USED
 PREREQUISITES
 
     - uv (or a configured pythonCmd) must be available on the Jenkins agent.
-    - The eedom package must be installed in the Python environment.
+    - The caliper package must be installed in the Python environment.
     - gh CLI must be available on the Jenkins agent for PR comment posting.
     - gh must be authenticated (GITHUB_TOKEN or gh auth login).
     - Scanner binaries (syft, osv-scanner, trivy, scancode, opa) should be
       pre-installed on the Jenkins agent or its container image.
-      Run `uv run python -m eedom.cli.main check-health` to verify.
+      Run `uv run python -m caliper.cli.main check-health` to verify.

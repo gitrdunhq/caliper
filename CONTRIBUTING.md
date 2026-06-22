@@ -22,7 +22,7 @@ opa test policies/            # OPA policy unit tests
 First-run sanity check:
 
 ```bash
-uv run python -c "from eedom.core.pipeline import ReviewPipeline; print('ok')"
+uv run python -c "from caliper.core.pipeline import ReviewPipeline; print('ok')"
 ```
 
 ## Project Structure
@@ -30,7 +30,7 @@ uv run python -c "from eedom.core.pipeline import ReviewPipeline; print('ok')"
 Three-tier layout — presentation → logic → data. No skipping tiers.
 
 ```
-src/eedom/
+src/caliper/
   cli/          # Presentation: CLI entry points, Jenkins interface
                 # Thin adapters only — no business logic here
   core/         # Logic: pipeline, orchestration, policy, decisions, config
@@ -91,7 +91,7 @@ uv run pytest tests/integration/ -v   # requires Docker + scanner binaries
 
 ## Adding a Scanner
 
-1. Create `src/eedom/data/scanners/<name>.py`
+1. Create `src/caliper/data/scanners/<name>.py`
 2. Subclass `BaseScanner` from `scanners/base.py`
 3. Set `_TIMEOUT: int` as a class constant (seconds)
 4. Implement `scan(self, target: Path) -> ScanResult` — use `ScanResult.ok()` / `ScanResult.failed()` factory methods

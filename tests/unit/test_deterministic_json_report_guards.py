@@ -24,8 +24,8 @@ def test_257_json_reports_do_not_embed_full_sbom_payloads() -> None:
     information. The JSON report should only contain summary statistics,
     not the full SBOM payload.
     """
-    from eedom.core.json_report import render_json
-    from eedom.core.plugin import PluginResult
+    from caliper.core.json_report import render_json
+    from caliper.core.plugin import PluginResult
 
     # Simulate a plugin result with SBOM data embedded in summary
     # This mirrors what SyftPlugin currently does (line 83 in syft.py)
@@ -80,8 +80,8 @@ def test_257_all_plugin_summaries_exclude_large_nested_structures() -> None:
     This is a broader check to prevent any plugin from embedding large
     data structures in summaries that would bloat JSON reports.
     """
-    from eedom.core.json_report import render_json
-    from eedom.core.plugin import PluginResult
+    from caliper.core.json_report import render_json
+    from caliper.core.plugin import PluginResult
 
     # Test with multiple plugins that might have various data structures
     results = [

@@ -8,8 +8,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from eedom.core.plugin import PluginCategory
-from eedom.plugins.scancode import ScanCodePlugin
+from caliper.core.plugin import PluginCategory
+from caliper.plugins.scancode import ScanCodePlugin
 
 SCAN_OUTPUT = json.dumps(
     {
@@ -52,7 +52,7 @@ class TestScanCodePluginMeta:
 class TestScanCodePluginEmptyFiles:
     def test_empty_files_returns_empty_without_subprocess(self):
         """When no changed files are provided, skip subprocess entirely."""
-        with patch("eedom.plugins.scancode.subprocess.run") as mock_run:
+        with patch("caliper.plugins.scancode.subprocess.run") as mock_run:
             result = ScanCodePlugin().run([], Path("/repo"))
         mock_run.assert_not_called()
         assert result.findings == []
@@ -60,14 +60,14 @@ class TestScanCodePluginEmptyFiles:
 
     def test_all_files_outside_repo_returns_empty(self):
         """Files that can't be made relative to repo_path are skipped; if none remain, return empty."""
-        with patch("eedom.plugins.scancode.subprocess.run") as mock_run:
+        with patch("caliper.plugins.scancode.subprocess.run") as mock_run:
             result = ScanCodePlugin().run(["/other/repo/file.py"], Path("/repo"))
         mock_run.assert_not_called()
         assert result.findings == []
 
 
 class TestScanCodePluginCommand:
-    @patch("eedom.plugins.scancode.subprocess.run")
+    @patch("caliper.plugins.scancode.subprocess.run")
     def test_include_args_built_from_files(self, mock_run: MagicMock):
         """--include is added for each changed file relative to repo_path."""
         mock_run.return_value.returncode = 0
@@ -84,7 +84,7 @@ class TestScanCodePluginCommand:
         assert "src/app.py" in cmd
         assert "lib/utils.py" in cmd
 
-    @patch("eedom.plugins.scancode.subprocess.run")
+    @patch("caliper.plugins.scancode.subprocess.run")
     def test_strip_root_in_command(self, mock_run: MagicMock):
         """--strip-root must be present so --include patterns match resource paths."""
         mock_run.return_value.returncode = 0
@@ -96,7 +96,7 @@ class TestScanCodePluginCommand:
         cmd = mock_run.call_args[0][0]
         assert "--strip-root" in cmd
 
-    @patch("eedom.plugins.scancode.subprocess.run")
+    @patch("caliper.plugins.scancode.subprocess.run")
     def test_only_findings_in_command(self, mock_run: MagicMock):
         """--only-findings drops files with no hits from JSON output."""
         mock_run.return_value.returncode = 0
@@ -108,7 +108,7 @@ class TestScanCodePluginCommand:
         cmd = mock_run.call_args[0][0]
         assert "--only-findings" in cmd
 
-    @patch("eedom.plugins.scancode.subprocess.run")
+    @patch("caliper.plugins.scancode.subprocess.run")
     def test_repo_path_is_positional_arg(self, mock_run: MagicMock):
         """repo_path is the final positional argument to scancode."""
         mock_run.return_value.returncode = 0
@@ -120,7 +120,7 @@ class TestScanCodePluginCommand:
         cmd = mock_run.call_args[0][0]
         assert cmd[-1] == "/repo"
 
-    @patch("eedom.plugins.scancode.subprocess.run")
+    @patch("caliper.plugins.scancode.subprocess.run")
     def test_files_outside_repo_skipped(self, mock_run: MagicMock):
         """Files not under repo_path are silently skipped; valid files still scanned."""
         mock_run.return_value.returncode = 0
@@ -138,7 +138,7 @@ class TestScanCodePluginCommand:
 
 
 class TestScanCodePluginResults:
-    @patch("eedom.plugins.scancode.subprocess.run")
+    @patch("caliper.plugins.scancode.subprocess.run")
     def test_license_findings_extracted(self, mock_run: MagicMock):
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = SCAN_OUTPUT
@@ -151,7 +151,7 @@ class TestScanCodePluginResults:
         assert result.findings[0]["license"] == "MIT"
         assert result.findings[0]["confidence"] == 95.0
 
-    @patch("eedom.plugins.scancode.subprocess.run")
+    @patch("caliper.plugins.scancode.subprocess.run")
     def test_not_installed_returns_error(self, mock_run: MagicMock):
         mock_run.side_effect = FileNotFoundError
 
@@ -160,7 +160,7 @@ class TestScanCodePluginResults:
         assert result.error != ""
         assert result.findings == []
 
-    @patch("eedom.plugins.scancode.subprocess.run")
+    @patch("caliper.plugins.scancode.subprocess.run")
     def test_timeout_returns_error(self, mock_run: MagicMock):
         import subprocess
 
@@ -193,7 +193,7 @@ SCAN_OUTPUT_WITH_COPYRIGHT = json.dumps(
 class TestScanCodePluginCopyright:
     """Tests for copyright detection in the plugin (closes #335)."""
 
-    @patch("eedom.plugins.scancode.subprocess.run")
+    @patch("caliper.plugins.scancode.subprocess.run")
     def test_copyright_flag_in_cmd(self, mock_run: MagicMock):
         """--copyright is always included in the scancode command."""
         mock_run.return_value.returncode = 0
@@ -205,7 +205,7 @@ class TestScanCodePluginCopyright:
         cmd = mock_run.call_args[0][0]
         assert "--copyright" in cmd
 
-    @patch("eedom.plugins.scancode.subprocess.run")
+    @patch("caliper.plugins.scancode.subprocess.run")
     def test_copyright_entries_produce_copyright_findings(self, mock_run: MagicMock):
         """Copyright entries in JSON output produce findings with category 'copyright'."""
         mock_run.return_value.returncode = 0

@@ -52,7 +52,7 @@ GitHub repository configuration rather than in this source tree.
 - Version comments make SHA-only diffs auditable by humans.
 - The workflow policy check can run on untrusted PRs because it has read-only
   permissions and only executes repository tests.
-- The existing Gatekeeper workflow still mixes `pull_request`, self-hosted
+- The existing Foreman workflow still mixes `pull_request`, self-hosted
   runners, and write scopes. Fixing that requires a workflow split and should be
   handled as a separate CI hardening task rather than hidden inside this policy
   PR.

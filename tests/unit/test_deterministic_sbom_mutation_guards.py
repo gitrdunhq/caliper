@@ -36,7 +36,7 @@ class TestSbomBaseGenerationUsesWorktree:
         Regression: if 'git checkout <sha>' reappears in _generate_base_sbom
         or equivalent without a worktree guard, this test fails.
         """
-        content = _read("src/eedom/agent/tool_helpers.py")
+        content = _read("src/caliper/agent/tool_helpers.py")
         assert "worktree" in content, (
             "tool_helpers.py does not use 'git worktree'. "
             "SBOM base generation must create an isolated worktree rather than "
@@ -52,7 +52,7 @@ class TestSbomBaseGenerationUsesWorktree:
         If this pattern re-appears alongside a worktree approach it is also a bug —
         a stale fallback that mutates the live checkout.
         """
-        content = _read("src/eedom/agent/tool_helpers.py")
+        content = _read("src/caliper/agent/tool_helpers.py")
 
         # Detect the buggy pattern: subprocess call with "checkout" and the live repo path
         # (worktree add is fine; bare "git checkout" on the live path is not)

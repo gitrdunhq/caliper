@@ -26,33 +26,33 @@ class TestSafeDsn:
     """_safe_dsn masks the password component of a DSN string."""
 
     def test_masks_password(self) -> None:
-        from eedom.data.db import _safe_dsn
+        from caliper.data.db import _safe_dsn
 
         result = _safe_dsn("postgresql://user:supersecret@host:5432/db")
         assert "supersecret" not in result
         assert result == "postgresql://user:***@host:5432/db"
 
     def test_preserves_username(self) -> None:
-        from eedom.data.db import _safe_dsn
+        from caliper.data.db import _safe_dsn
 
         result = _safe_dsn("postgresql://myuser:pw@host/db")
         assert "myuser" in result
 
     def test_handles_dsn_without_password(self) -> None:
         """DSN with no password component is returned unchanged."""
-        from eedom.data.db import _safe_dsn
+        from caliper.data.db import _safe_dsn
 
         dsn = "postgresql://host:5432/db"
         assert _safe_dsn(dsn) == dsn
 
     def test_handles_empty_string(self) -> None:
-        from eedom.data.db import _safe_dsn
+        from caliper.data.db import _safe_dsn
 
         assert _safe_dsn("") == ""
 
     def test_connect_log_does_not_contain_raw_password(self) -> None:
         """database_connected log event must not expose the DSN password."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://user:topsecret@host/db")
 
@@ -69,7 +69,7 @@ class TestSafeDsn:
         import unittest.mock as mock
 
         with (
-            patch("eedom.data.db.ConnectionPool") as mock_cp,
+            patch("caliper.data.db.ConnectionPool") as mock_cp,
             mock.patch.object(type(mock_cp.return_value), "__enter__", return_value=mock_cp),
         ):
             mock_conn = mock.MagicMock()
@@ -95,7 +95,7 @@ class TestPathTraversal:
     """EvidenceStore.store() must reject artifact names that escape the dest_dir."""
 
     def test_dotdot_path_is_blocked(self, tmp_path: Path) -> None:
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = "test-sec-abc123"
@@ -104,7 +104,7 @@ class TestPathTraversal:
         assert result == ""
 
     def test_absolute_path_component_is_blocked(self, tmp_path: Path) -> None:
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = "test-sec-abc123"
@@ -114,7 +114,7 @@ class TestPathTraversal:
         assert result == ""
 
     def test_normal_artifact_name_is_allowed(self, tmp_path: Path) -> None:
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = "test-sec-abc123"
@@ -125,7 +125,7 @@ class TestPathTraversal:
 
     def test_nested_normal_name_is_allowed(self, tmp_path: Path) -> None:
         """Simple filenames with dots are fine (e.g. sbom.cyclonedx.json)."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = "test-sec-abc123"
@@ -135,7 +135,7 @@ class TestPathTraversal:
 
     def test_traversal_attempt_does_not_write_file(self, tmp_path: Path) -> None:
         """A blocked traversal attempt must not create any file outside dest_dir."""
-        from eedom.data.evidence import EvidenceStore
+        from caliper.data.evidence import EvidenceStore
 
         store = EvidenceStore(root_path=str(tmp_path))
         rid = "test-sec-abc123"
@@ -157,16 +157,16 @@ def _make_llm_config(
     llm_endpoint: str = "https://llm.example.com/v1",
     llm_model: str = "gpt-4o",
 ) -> object:
-    from eedom.core.config import EedomSettings
+    from caliper.core.config import CaliperSettings
 
     env = {
-        "EEDOM_DB_DSN": "postgresql://test:test@localhost/test",
-        "EEDOM_LLM_ENABLED": str(llm_enabled).lower(),
-        "EEDOM_LLM_ENDPOINT": llm_endpoint,
-        "EEDOM_LLM_MODEL": llm_model,
+        "CALIPER_DB_DSN": "postgresql://test:test@localhost/test",
+        "CALIPER_LLM_ENABLED": str(llm_enabled).lower(),
+        "CALIPER_LLM_ENDPOINT": llm_endpoint,
+        "CALIPER_LLM_MODEL": llm_model,
     }
     with patch.dict(os.environ, env, clear=True):
-        return EedomSettings()
+        return CaliperSettings()
 
 
 class TestLLMPromptInjection:
@@ -174,7 +174,7 @@ class TestLLMPromptInjection:
 
     @respx.mock
     def test_prompt_uses_system_and_user_roles(self) -> None:
-        from eedom.core.taskfit import TaskFitAdvisor
+        from caliper.core.taskfit import TaskFitAdvisor
 
         config = _make_llm_config()
         advisor = TaskFitAdvisor(config)
@@ -204,7 +204,7 @@ class TestLLMPromptInjection:
 
     @respx.mock
     def test_user_message_content_is_json(self) -> None:
-        from eedom.core.taskfit import TaskFitAdvisor
+        from caliper.core.taskfit import TaskFitAdvisor
 
         config = _make_llm_config()
         advisor = TaskFitAdvisor(config)
@@ -234,7 +234,7 @@ class TestLLMPromptInjection:
 
     @respx.mock
     def test_pypi_summary_truncated_to_200_chars(self) -> None:
-        from eedom.core.taskfit import TaskFitAdvisor
+        from caliper.core.taskfit import TaskFitAdvisor
 
         config = _make_llm_config()
         advisor = TaskFitAdvisor(config)
@@ -261,7 +261,7 @@ class TestLLMPromptInjection:
 
     @respx.mock
     def test_html_stripped_from_summary(self) -> None:
-        from eedom.core.taskfit import TaskFitAdvisor
+        from caliper.core.taskfit import TaskFitAdvisor
 
         config = _make_llm_config()
         advisor = TaskFitAdvisor(config)
@@ -289,7 +289,7 @@ class TestLLMPromptInjection:
     @respx.mock
     def test_instruction_not_in_user_message(self) -> None:
         """System instructions must not be repeated in the user message."""
-        from eedom.core.taskfit import TaskFitAdvisor
+        from caliper.core.taskfit import TaskFitAdvisor
 
         config = _make_llm_config()
         advisor = TaskFitAdvisor(config)

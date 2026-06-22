@@ -8,8 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
-from eedom.core.models import ScanResultStatus
-from eedom.data.scanners.base import (
+from caliper.core.models import ScanResultStatus
+from caliper.data.scanners.base import (
     Scanner,
     _make_failed_result,
     _make_not_installed_result,
@@ -25,7 +25,7 @@ from eedom.data.scanners.base import (
 class TestRunSubprocessWithTimeout:
     """Tests for the subprocess wrapper utility."""
 
-    @patch("eedom.data.scanners.base.subprocess.run")
+    @patch("caliper.data.scanners.base.subprocess.run")
     def test_successful_run_returns_stdout(self, mock_run: patch) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["echo", "hello"],
@@ -47,7 +47,7 @@ class TestRunSubprocessWithTimeout:
             cwd=None,
         )
 
-    @patch("eedom.data.scanners.base.subprocess.run")
+    @patch("caliper.data.scanners.base.subprocess.run")
     def test_timeout_returns_none_returncode_and_message(self, mock_run: patch) -> None:
         mock_run.side_effect = subprocess.TimeoutExpired(cmd=["slow"], timeout=5)
 
@@ -57,7 +57,7 @@ class TestRunSubprocessWithTimeout:
         assert stdout == ""
         assert stderr == "timeout exceeded"
 
-    @patch("eedom.data.scanners.base.subprocess.run")
+    @patch("caliper.data.scanners.base.subprocess.run")
     def test_nonzero_exit_returns_stderr(self, mock_run: patch) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["fail"],
@@ -72,7 +72,7 @@ class TestRunSubprocessWithTimeout:
         assert stdout == ""
         assert stderr == "something went wrong"
 
-    @patch("eedom.data.scanners.base.subprocess.run")
+    @patch("caliper.data.scanners.base.subprocess.run")
     def test_cwd_passed_to_subprocess(self, mock_run: patch) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["ls"], returncode=0, stdout="file.txt\n", stderr=""
@@ -89,7 +89,7 @@ class TestRunSubprocessWithTimeout:
             cwd=cwd,
         )
 
-    @patch("eedom.data.scanners.base.subprocess.run")
+    @patch("caliper.data.scanners.base.subprocess.run")
     def test_oserror_returns_failure(self, mock_run: patch) -> None:
         mock_run.side_effect = OSError("No such file or directory")
 

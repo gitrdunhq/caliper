@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files that must have kill switches for their feature flags
 _FEATURE_FLAG_FILES: tuple[Path, ...] = (
@@ -43,7 +43,7 @@ _KILL_SWITCH_PATTERNS: tuple[str, ...] = (
     "kill_switch",
     "emergency_disable",
     "circuit_breaker",
-    "EEDOM_DISABLE_",
+    "CALIPER_DISABLE_",
     "_DISABLE_",
 )
 
@@ -192,7 +192,7 @@ def test_168_feature_flags_have_kill_switches() -> None:
 
     Acceptance criteria for fix:
         - Each feature flag has a corresponding kill_switch or emergency_disable field
-        - OR features check for EEDOM_DISABLE_* environment variables
+        - OR features check for CALIPER_DISABLE_* environment variables
         - OR features have circuit breaker pattern implementation
     """
     violations: list[str] = []
@@ -231,6 +231,6 @@ def test_168_feature_flags_have_kill_switches() -> None:
     assert violations == [], (
         "Feature flags must have emergency kill switches:\n"
         "- Add kill_switch field paired with enabled field\n"
-        "- OR check EEDOM_DISABLE_* environment variables\n"
+        "- OR check CALIPER_DISABLE_* environment variables\n"
         "- OR implement circuit breaker pattern\n\n" + "\n".join(violations)
     )

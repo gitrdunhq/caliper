@@ -3,7 +3,7 @@
 Tests the full pipeline from diff input through decision output, with all
 external dependencies mocked at system boundaries:
 
-- ScanOrchestrator (class) — patched at ``eedom.core.pipeline``
+- ScanOrchestrator (class) — patched at ``caliper.core.pipeline``
   because pipeline.py imports it at module level (not lazily)
 - OpaEvaluator.evaluate — OPA subprocess tier
 - DependencyDiffDetector.parse_requirements_diff — controls which packages
@@ -26,9 +26,9 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from eedom.cli.main import cli
-from eedom.core.diff import DependencyDiffDetector
-from eedom.core.models import (
+from caliper.cli.main import cli
+from caliper.core.diff import DependencyDiffDetector
+from caliper.core.models import (
     DecisionVerdict,
     Finding,
     FindingCategory,
@@ -204,7 +204,7 @@ def _warn_policy() -> PolicyEvaluation:
 
 
 def _reject_policy_decision():
-    from eedom.core.policy_port import PolicyDecision
+    from caliper.core.policy_port import PolicyDecision
 
     return PolicyDecision(
         verdict="reject",
@@ -214,13 +214,13 @@ def _reject_policy_decision():
 
 
 def _approve_policy_decision():
-    from eedom.core.policy_port import PolicyDecision
+    from caliper.core.policy_port import PolicyDecision
 
     return PolicyDecision(verdict="approve")
 
 
 def _warn_policy_decision():
-    from eedom.core.policy_port import PolicyDecision
+    from caliper.core.policy_port import PolicyDecision
 
     return PolicyDecision(
         verdict="approve_with_constraints",
@@ -242,10 +242,10 @@ def _write_diff(tmp_path: Path, diff_text: str, name: str = "test.diff") -> Path
 
 def _base_env(tmp_path: Path) -> dict[str, str]:
     return {
-        "EEDOM_DB_DSN": "postgresql://test:test@localhost:12432/test",
-        "EEDOM_EVIDENCE_PATH": str(tmp_path / "evidence"),
-        "EEDOM_ENABLED_SCANNERS": "syft,osv-scanner",
-        "EEDOM_OPA_POLICY_PATH": str(tmp_path / "policies"),
+        "CALIPER_DB_DSN": "postgresql://test:test@localhost:12432/test",
+        "CALIPER_EVIDENCE_PATH": str(tmp_path / "evidence"),
+        "CALIPER_ENABLED_SCANNERS": "syft,osv-scanner",
+        "CALIPER_OPA_POLICY_PATH": str(tmp_path / "policies"),
     }
 
 
@@ -306,11 +306,11 @@ class TestFullPipelineRejectOnCriticalVuln:
 
         with (
             patch(
-                "eedom.core.pipeline.ScanOrchestrator",
+                "caliper.core.pipeline.ScanOrchestrator",
                 mock_orchestrator_cls,
             ),
             patch(
-                "eedom.core.opa_adapter.OpaRegoAdapter.evaluate",
+                "caliper.core.opa_adapter.OpaRegoAdapter.evaluate",
                 return_value=_reject_policy_decision(),
             ),
             patch.object(
@@ -319,7 +319,7 @@ class TestFullPipelineRejectOnCriticalVuln:
                 return_value=FAKE_ADDED_CHANGES,
             ),
             patch(
-                "eedom.data.db.DecisionRepository.connect",
+                "caliper.data.db.DecisionRepository.connect",
                 return_value=False,
             ),
         ):
@@ -359,11 +359,11 @@ class TestFullPipelineApproveCleanPackage:
 
         with (
             patch(
-                "eedom.core.pipeline.ScanOrchestrator",
+                "caliper.core.pipeline.ScanOrchestrator",
                 mock_orchestrator_cls,
             ),
             patch(
-                "eedom.core.opa_adapter.OpaRegoAdapter.evaluate",
+                "caliper.core.opa_adapter.OpaRegoAdapter.evaluate",
                 return_value=_approve_policy_decision(),
             ),
             patch.object(
@@ -372,7 +372,7 @@ class TestFullPipelineApproveCleanPackage:
                 return_value=FAKE_ADDED_CHANGES,
             ),
             patch(
-                "eedom.data.db.DecisionRepository.connect",
+                "caliper.data.db.DecisionRepository.connect",
                 return_value=False,
             ),
         ):
@@ -410,11 +410,11 @@ class TestFullPipelineScannerTimeoutContinues:
 
         with (
             patch(
-                "eedom.core.pipeline.ScanOrchestrator",
+                "caliper.core.pipeline.ScanOrchestrator",
                 mock_orchestrator_cls,
             ),
             patch(
-                "eedom.core.opa_adapter.OpaRegoAdapter.evaluate",
+                "caliper.core.opa_adapter.OpaRegoAdapter.evaluate",
                 return_value=_warn_policy_decision(),
             ),
             patch.object(
@@ -423,7 +423,7 @@ class TestFullPipelineScannerTimeoutContinues:
                 return_value=FAKE_ADDED_CHANGES,
             ),
             patch(
-                "eedom.data.db.DecisionRepository.connect",
+                "caliper.data.db.DecisionRepository.connect",
                 return_value=False,
             ),
         ):
@@ -454,7 +454,7 @@ class TestFullPipelineNoDependencyChanges:
 
         # No scanner or OPA mocks needed — pipeline short-circuits before those
         with patch(
-            "eedom.data.db.DecisionRepository.connect",
+            "caliper.data.db.DecisionRepository.connect",
             return_value=False,
         ):
             result = _invoke_evaluate(runner, diff_file, tmp_path)
@@ -486,11 +486,11 @@ class TestEvidenceFilesWritten:
 
         with (
             patch(
-                "eedom.core.pipeline.ScanOrchestrator",
+                "caliper.core.pipeline.ScanOrchestrator",
                 mock_orchestrator_cls,
             ),
             patch(
-                "eedom.core.opa_adapter.OpaRegoAdapter.evaluate",
+                "caliper.core.opa_adapter.OpaRegoAdapter.evaluate",
                 return_value=_approve_policy_decision(),
             ),
             patch.object(
@@ -499,7 +499,7 @@ class TestEvidenceFilesWritten:
                 return_value=FAKE_ADDED_CHANGES,
             ),
             patch(
-                "eedom.data.db.DecisionRepository.connect",
+                "caliper.data.db.DecisionRepository.connect",
                 return_value=False,
             ),
         ):

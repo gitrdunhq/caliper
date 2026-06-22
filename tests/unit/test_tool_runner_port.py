@@ -2,7 +2,7 @@
 # tested-by: tests/unit/test_tool_runner_port.py
 
 These are RED tests — they define the contract before the implementation exists.
-All imports come from eedom.core.tool_runner which does not yet exist.
+All imports come from caliper.core.tool_runner which does not yet exist.
 
 Task: #162 — Define ToolInvocation, ToolResult, and ToolRunnerPort
 """
@@ -14,7 +14,7 @@ class TestToolInvocationConstruction:
     """ToolInvocation dataclass can be constructed with the required fields."""
 
     def test_construct_with_required_fields(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation
+        from caliper.core.tool_runner import ToolInvocation
 
         inv = ToolInvocation(cmd=["trivy", "fs", "."], cwd="/repo", timeout=60)
 
@@ -23,14 +23,14 @@ class TestToolInvocationConstruction:
         assert inv.timeout == 60
 
     def test_env_defaults_to_none(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation
+        from caliper.core.tool_runner import ToolInvocation
 
         inv = ToolInvocation(cmd=["opa", "eval"], cwd="/tmp/repo", timeout=10)
 
         assert inv.env is None
 
     def test_env_can_be_set(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation
+        from caliper.core.tool_runner import ToolInvocation
 
         env = {"HOME": "/root", "PATH": "/usr/bin"}
         inv = ToolInvocation(
@@ -40,7 +40,7 @@ class TestToolInvocationConstruction:
         assert inv.env == {"HOME": "/root", "PATH": "/usr/bin"}
 
     def test_cmd_is_list_of_strings(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation
+        from caliper.core.tool_runner import ToolInvocation
 
         inv = ToolInvocation(cmd=["binary", "--flag", "value"], cwd="/workspace", timeout=45)
 
@@ -48,7 +48,7 @@ class TestToolInvocationConstruction:
         assert all(isinstance(part, str) for part in inv.cmd)
 
     def test_timeout_is_int(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation
+        from caliper.core.tool_runner import ToolInvocation
 
         inv = ToolInvocation(cmd=["scanner"], cwd="/repo", timeout=120)
 
@@ -56,21 +56,21 @@ class TestToolInvocationConstruction:
         assert inv.timeout == 120
 
     def test_cwd_is_string(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation
+        from caliper.core.tool_runner import ToolInvocation
 
         inv = ToolInvocation(cmd=["scanner"], cwd="/some/path", timeout=60)
 
         assert isinstance(inv.cwd, str)
 
     def test_single_element_cmd(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation
+        from caliper.core.tool_runner import ToolInvocation
 
         inv = ToolInvocation(cmd=["scanner"], cwd="/repo", timeout=60)
 
         assert inv.cmd == ["scanner"]
 
     def test_empty_env_dict_is_distinct_from_none(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation
+        from caliper.core.tool_runner import ToolInvocation
 
         inv = ToolInvocation(cmd=["scanner"], cwd="/repo", timeout=60, env={})
 
@@ -82,7 +82,7 @@ class TestToolResultConstruction:
     """ToolResult dataclass captures all outcome states from a tool invocation."""
 
     def test_construct_success_result(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(exit_code=0, stdout="output", stderr="")
 
@@ -91,28 +91,28 @@ class TestToolResultConstruction:
         assert result.stderr == ""
 
     def test_timed_out_defaults_to_false(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(exit_code=0, stdout="", stderr="")
 
         assert result.timed_out is False
 
     def test_duration_ms_defaults_to_zero(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(exit_code=0, stdout="", stderr="")
 
         assert result.duration_ms == 0
 
     def test_not_installed_defaults_to_false(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(exit_code=0, stdout="", stderr="")
 
         assert result.not_installed is False
 
     def test_nonzero_exit_code_is_preserved(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(exit_code=1, stdout="", stderr="some error")
 
@@ -120,7 +120,7 @@ class TestToolResultConstruction:
         assert result.stderr == "some error"
 
     def test_timed_out_result_has_meaningful_state(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(exit_code=-1, stdout="", stderr="", timed_out=True)
 
@@ -129,7 +129,7 @@ class TestToolResultConstruction:
         assert result.exit_code != 0
 
     def test_timed_out_result_preserves_partial_stdout(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(exit_code=-1, stdout="partial output", stderr="", timed_out=True)
 
@@ -137,7 +137,7 @@ class TestToolResultConstruction:
         assert result.timed_out is True
 
     def test_not_installed_result_has_meaningful_state(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(exit_code=-1, stdout="", stderr="", not_installed=True)
 
@@ -146,7 +146,7 @@ class TestToolResultConstruction:
         assert result.exit_code != 0
 
     def test_not_installed_and_timed_out_are_mutually_independent(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         # Both flags can be set — the runner decides their semantics
         result = ToolResult(exit_code=-1, stdout="", stderr="", not_installed=True, timed_out=False)
@@ -155,7 +155,7 @@ class TestToolResultConstruction:
         assert result.timed_out is False
 
     def test_duration_ms_is_int(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(exit_code=0, stdout="ok", stderr="", duration_ms=342)
 
@@ -163,14 +163,14 @@ class TestToolResultConstruction:
         assert result.duration_ms == 342
 
     def test_stderr_is_preserved(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(exit_code=2, stdout="", stderr="fatal: binary crashed")
 
         assert result.stderr == "fatal: binary crashed"
 
     def test_all_fields_set_explicitly(self) -> None:
-        from eedom.core.tool_runner import ToolResult
+        from caliper.core.tool_runner import ToolResult
 
         result = ToolResult(
             exit_code=0,
@@ -195,7 +195,7 @@ class TestToolRunnerPortProtocol:
     def test_tool_runner_port_is_a_protocol(self) -> None:
         import typing
 
-        from eedom.core.tool_runner import ToolRunnerPort
+        from caliper.core.tool_runner import ToolRunnerPort
 
         # Protocol classes have __protocol_attrs__ or are instances of typing.Protocol
         assert hasattr(ToolRunnerPort, "__protocol_attrs__") or (
@@ -204,7 +204,7 @@ class TestToolRunnerPortProtocol:
         )
 
     def test_tool_runner_port_is_runtime_checkable(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
+        from caliper.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
 
         class FakeRunner:
             def run(self, invocation: ToolInvocation) -> ToolResult:
@@ -213,7 +213,7 @@ class TestToolRunnerPortProtocol:
         assert isinstance(FakeRunner(), ToolRunnerPort)
 
     def test_object_without_run_does_not_satisfy_protocol(self) -> None:
-        from eedom.core.tool_runner import ToolRunnerPort
+        from caliper.core.tool_runner import ToolRunnerPort
 
         class NotARunner:
             def execute(self) -> None:
@@ -222,7 +222,7 @@ class TestToolRunnerPortProtocol:
         assert not isinstance(NotARunner(), ToolRunnerPort)
 
     def test_run_method_is_in_protocol_interface(self) -> None:
-        from eedom.core.tool_runner import ToolRunnerPort
+        from caliper.core.tool_runner import ToolRunnerPort
 
         assert hasattr(ToolRunnerPort, "run")
 
@@ -231,7 +231,7 @@ class TestFakeToolRunner:
     """A fake ToolRunner can fulfill the ToolRunnerPort Protocol."""
 
     def test_fake_runner_returns_success_result(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
+        from caliper.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
 
         class FakeRunner:
             def run(self, invocation: ToolInvocation) -> ToolResult:
@@ -247,7 +247,7 @@ class TestFakeToolRunner:
         assert result.stdout == "ok"
 
     def test_fake_runner_returns_timed_out_result(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
+        from caliper.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
 
         class TimeoutRunner:
             def run(self, invocation: ToolInvocation) -> ToolResult:
@@ -263,7 +263,7 @@ class TestFakeToolRunner:
         assert result.exit_code == -1
 
     def test_fake_runner_returns_not_installed_result(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
+        from caliper.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
 
         class MissingBinaryRunner:
             def run(self, invocation: ToolInvocation) -> ToolResult:
@@ -280,7 +280,7 @@ class TestFakeToolRunner:
         assert result.not_installed is True
 
     def test_fake_runner_receives_invocation_fields(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
+        from caliper.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
 
         received: list[ToolInvocation] = []
 
@@ -307,7 +307,7 @@ class TestFakeToolRunner:
         assert received[0].env == {"OPA_LOG_LEVEL": "error"}
 
     def test_fake_runner_can_record_duration(self) -> None:
-        from eedom.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
+        from caliper.core.tool_runner import ToolInvocation, ToolResult, ToolRunnerPort
 
         class TimedRunner:
             def run(self, invocation: ToolInvocation) -> ToolResult:

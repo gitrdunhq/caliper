@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "generated": "2026-06-22",
   "experiment": "grounded vs ungrounded Haiku reviewer, same partitions/challenger",
-  "method": "same Haiku reviewer+plain-Haiku-challenger; reviewer change only = grounding bundle (eedom ground, codegraph) + don't-flag ledger + self-refutation. Partitions selected for being FP-heavy in baseline (selection bias).",
+  "method": "same Haiku reviewer+plain-Haiku-challenger; reviewer change only = grounding bundle (caliper ground, codegraph) + don't-flag ledger + self-refutation. Partitions selected for being FP-heavy in baseline (selection bias).",
   "partitions": {
     "P03": {"label": "policy/OPA",  "ungrounded": {"raw": 6, "confirmed": 4, "false_positive": 0, "uncertain": 2}, "grounded": {"raw": 3, "confirmed": 3, "false_positive": 0, "uncertain": 0}},
     "P16": {"label": "scanners",    "ungrounded": {"raw": 9, "confirmed": 6, "false_positive": 2, "uncertain": 1}, "grounded": {"raw": 6, "confirmed": 6, "false_positive": 0, "uncertain": 0}},

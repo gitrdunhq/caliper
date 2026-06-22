@@ -1,4 +1,4 @@
-# Eagle Eyed Dom — Copilot Context
+# Caliper — Copilot Context
 
 This repo is a deterministic dependency and code review tool for CI. 16 scanner plugins, 900+ tests, zero LLM in the decision path.
 
@@ -14,9 +14,9 @@ Three-tier (cli → core → data). Imports flow downward only. Plugins auto-dis
 - TDD red-green mandatory — test must fail before implementation
 - Tests run in containers only (`make test`)
 
-## What eedom already covers — do not duplicate
+## What caliper already covers — do not duplicate
 
-The GATEKEEPER Review CI job runs 16 deterministic plugins. Its findings appear as inline PR comments. Do not restate them.
+The Foreman Review CI job runs 16 deterministic plugins. Its findings appear as inline PR comments. Do not restate them.
 
 | Plugin | Catches |
 |--------|---------|

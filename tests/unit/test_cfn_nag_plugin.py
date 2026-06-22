@@ -8,8 +8,8 @@ import json
 import subprocess
 from unittest.mock import patch
 
-from eedom.core.plugin import PluginCategory
-from eedom.plugins.cfn_nag import CfnNagPlugin
+from caliper.core.plugin import PluginCategory
+from caliper.plugins.cfn_nag import CfnNagPlugin
 
 # Realistic cfn-nag JSON output with one FAIL and one WARN
 CFN_NAG_OUTPUT = json.dumps(
@@ -115,7 +115,7 @@ class TestCfnNagPluginCanRun:
 
 
 class TestCfnNagPluginRun:
-    @patch("eedom.plugins._runners.cfn_nag_runner.subprocess.run")
+    @patch("caliper.plugins._runners.cfn_nag_runner.subprocess.run")
     def test_findings_parsed_correctly(self, mock_run, tmp_path):
         template = tmp_path / "template.yaml"
         template.write_text("AWSTemplateFormatVersion: '2010-09-09'\nResources: {}\n")
@@ -129,7 +129,7 @@ class TestCfnNagPluginRun:
         assert result.error == ""
         assert len(result.findings) == 2
 
-    @patch("eedom.plugins._runners.cfn_nag_runner.subprocess.run")
+    @patch("caliper.plugins._runners.cfn_nag_runner.subprocess.run")
     def test_fail_type_maps_to_critical_severity(self, mock_run, tmp_path):
         template = tmp_path / "template.yaml"
         template.write_text("AWSTemplateFormatVersion: '2010-09-09'\nResources: {}\n")
@@ -144,7 +144,7 @@ class TestCfnNagPluginRun:
         assert len(fail_findings) == 1
         assert fail_findings[0]["severity"] == "critical"
 
-    @patch("eedom.plugins._runners.cfn_nag_runner.subprocess.run")
+    @patch("caliper.plugins._runners.cfn_nag_runner.subprocess.run")
     def test_warn_type_maps_to_warning_severity(self, mock_run, tmp_path):
         template = tmp_path / "template.yaml"
         template.write_text("AWSTemplateFormatVersion: '2010-09-09'\nResources: {}\n")
@@ -159,7 +159,7 @@ class TestCfnNagPluginRun:
         assert len(warn_findings) == 1
         assert warn_findings[0]["severity"] == "warning"
 
-    @patch("eedom.plugins._runners.cfn_nag_runner.subprocess.run")
+    @patch("caliper.plugins._runners.cfn_nag_runner.subprocess.run")
     def test_finding_has_message_and_file(self, mock_run, tmp_path):
         template = tmp_path / "template.yaml"
         template.write_text("AWSTemplateFormatVersion: '2010-09-09'\nResources: {}\n")
@@ -175,7 +175,7 @@ class TestCfnNagPluginRun:
         assert "file" in f0
         assert f0["message"] != ""
 
-    @patch("eedom.plugins._runners.cfn_nag_runner.subprocess.run")
+    @patch("caliper.plugins._runners.cfn_nag_runner.subprocess.run")
     def test_clean_scan_no_findings(self, mock_run, tmp_path):
         template = tmp_path / "template.yaml"
         template.write_text("AWSTemplateFormatVersion: '2010-09-09'\nResources: {}\n")
@@ -190,7 +190,7 @@ class TestCfnNagPluginRun:
         assert len(result.findings) == 0
 
     @patch(
-        "eedom.plugins._runners.cfn_nag_runner.subprocess.run",
+        "caliper.plugins._runners.cfn_nag_runner.subprocess.run",
         side_effect=FileNotFoundError,
     )
     def test_not_installed_error(self, _mock, tmp_path):
@@ -203,7 +203,7 @@ class TestCfnNagPluginRun:
         assert "NOT_INSTALLED" in result.error
 
     @patch(
-        "eedom.plugins._runners.cfn_nag_runner.subprocess.run",
+        "caliper.plugins._runners.cfn_nag_runner.subprocess.run",
         side_effect=subprocess.TimeoutExpired(cmd="cfn_nag_scan", timeout=60),
     )
     def test_timeout_error(self, _mock, tmp_path):
@@ -215,7 +215,7 @@ class TestCfnNagPluginRun:
 
         assert "TIMEOUT" in result.error
 
-    @patch("eedom.plugins._runners.cfn_nag_runner.subprocess.run")
+    @patch("caliper.plugins._runners.cfn_nag_runner.subprocess.run")
     def test_summary_contains_totals(self, mock_run, tmp_path):
         template = tmp_path / "template.yaml"
         template.write_text("AWSTemplateFormatVersion: '2010-09-09'\nResources: {}\n")
@@ -229,7 +229,7 @@ class TestCfnNagPluginRun:
         assert "total" in result.summary
         assert result.summary["total"] == 2
 
-    @patch("eedom.plugins._runners.cfn_nag_runner.subprocess.run")
+    @patch("caliper.plugins._runners.cfn_nag_runner.subprocess.run")
     def test_crashed_with_empty_stdout_returns_error(self, mock_run, tmp_path):
         """Non-zero exit + empty stdout must report an error, not a clean scan."""
         template = tmp_path / "template.yaml"
@@ -245,7 +245,7 @@ class TestCfnNagPluginRun:
         assert "BINARY_CRASHED" in result.error
         assert result.findings == []
 
-    @patch("eedom.plugins._runners.cfn_nag_runner.subprocess.run")
+    @patch("caliper.plugins._runners.cfn_nag_runner.subprocess.run")
     def test_crashed_with_invalid_json_returns_error(self, mock_run, tmp_path):
         """Non-zero exit + non-JSON stdout must report an error, not a clean scan."""
         template = tmp_path / "template.yaml"
@@ -261,7 +261,7 @@ class TestCfnNagPluginRun:
         assert "BINARY_CRASHED" in result.error
         assert result.findings == []
 
-    @patch("eedom.plugins._runners.cfn_nag_runner.subprocess.run")
+    @patch("caliper.plugins._runners.cfn_nag_runner.subprocess.run")
     def test_exit_zero_malformed_json_returns_error(self, mock_run, tmp_path):
         """Exit 0 + malformed JSON stdout must NOT produce empty findings."""
         template = tmp_path / "template.yaml"
@@ -276,7 +276,7 @@ class TestCfnNagPluginRun:
 
         assert result.error, "Malformed JSON on exit-0 must report error, not silently return clean"
 
-    @patch("eedom.plugins._runners.cfn_nag_runner.subprocess.run")
+    @patch("caliper.plugins._runners.cfn_nag_runner.subprocess.run")
     def test_exit_zero_empty_stdout_returns_error(self, mock_run, tmp_path):
         """Exit 0 + empty stdout must NOT produce empty findings."""
         template = tmp_path / "template.yaml"

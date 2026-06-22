@@ -5,7 +5,7 @@ These tests document the REQUIRED behaviour after the migration and fail against
 the CURRENT implementation which still shells out via subprocess.run().
 
 Three things that must be true after the fix:
-  1. eedom.webhook.server imports review_repository from eedom.core.use_cases
+  1. caliper.webhook.server imports review_repository from caliper.core.use_cases
   2. build_app() accepts a context: ApplicationContext parameter
   3. The webhook handler calls review_repository(), not subprocess.run()
 """
@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-pytest.importorskip("starlette", reason="starlette not installed (eedom[copilot])")
+pytest.importorskip("starlette", reason="starlette not installed (caliper[copilot])")
 
 
 # ---------------------------------------------------------------------------
@@ -62,7 +62,7 @@ def secret() -> str:
 
 @pytest.fixture
 def settings(secret: str):
-    from eedom.webhook.config import WebhookSettings
+    from caliper.webhook.config import WebhookSettings
 
     return WebhookSettings(
         secret=secret,
@@ -74,7 +74,7 @@ def settings(secret: str):
 @pytest.fixture
 def test_context():
     """ApplicationContext wired with all-fake implementations."""
-    from eedom.composition.bootstrap import bootstrap_test
+    from caliper.composition.bootstrap import bootstrap_test
 
     return bootstrap_test()
 
@@ -86,16 +86,16 @@ def test_context():
 
 class TestServerImportsUseCase:
     def test_server_module_imports_review_repository(self):
-        """server.py must import review_repository from eedom.core.use_cases.
+        """server.py must import review_repository from caliper.core.use_cases.
 
         FAILS NOW: server.py only imports subprocess and httpx — it does not
         import review_repository at all.
         """
-        import eedom.webhook.server as server_mod
+        import caliper.webhook.server as server_mod
 
         assert hasattr(server_mod, "review_repository"), (
-            "eedom.webhook.server must import review_repository from "
-            "eedom.core.use_cases so the handler can call it directly "
+            "caliper.webhook.server must import review_repository from "
+            "caliper.core.use_cases so the handler can call it directly "
             "instead of shelling out via subprocess."
         )
 
@@ -104,12 +104,12 @@ class TestServerImportsUseCase:
 
         FAILS NOW: the attribute does not exist on the module.
         """
-        import eedom.webhook.server as server_mod
-        from eedom.core.use_cases import review_repository as canonical
+        import caliper.webhook.server as server_mod
+        from caliper.core.use_cases import review_repository as canonical
 
         assert server_mod.review_repository is canonical, (
-            "eedom.webhook.server.review_repository must be the same object as "
-            "eedom.core.use_cases.review_repository — not a wrapper or stub."
+            "caliper.webhook.server.review_repository must be the same object as "
+            "caliper.core.use_cases.review_repository — not a wrapper or stub."
         )
 
 
@@ -125,8 +125,8 @@ class TestBuildAppAcceptsContext:
         FAILS NOW: build_app(settings: WebhookSettings) has no 'context' param.
         The call below raises TypeError.
         """
-        from eedom.composition.bootstrap import bootstrap_test
-        from eedom.webhook.server import build_app
+        from caliper.composition.bootstrap import bootstrap_test
+        from caliper.webhook.server import build_app
 
         ctx = bootstrap_test()
         # This must NOT raise TypeError once the fix is applied.
@@ -138,7 +138,7 @@ class TestBuildAppAcceptsContext:
 
         FAILS NOW: inspect.signature reveals no 'context' parameter.
         """
-        from eedom.webhook.server import build_app
+        from caliper.webhook.server import build_app
 
         sig = inspect.signature(build_app)
         assert "context" in sig.parameters, (
@@ -160,8 +160,8 @@ class TestWebhookDelegatesToUseCase:
         After the fix, review_repository() is used and subprocess.run() is
         never invoked from the webhook handler.
         """
-        from eedom.composition.bootstrap import bootstrap_test
-        from eedom.webhook.server import build_app
+        from caliper.composition.bootstrap import bootstrap_test
+        from caliper.webhook.server import build_app
 
         ctx = bootstrap_test()
         # build_app will TypeError here in the RED phase — that makes the test
@@ -172,8 +172,8 @@ class TestWebhookDelegatesToUseCase:
         sig = _sign(body, secret)
 
         with (
-            patch("eedom.webhook.server.subprocess") as mock_subprocess,
-            patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock),
+            patch("caliper.webhook.server.subprocess") as mock_subprocess,
+            patch("caliper.webhook.server._post_pr_comment", new_callable=AsyncMock),
         ):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
@@ -199,7 +199,7 @@ class TestWebhookDelegatesToUseCase:
         it at the server module level will raise AttributeError.
         After the fix this asserts review_repository was called exactly once.
         """
-        from eedom.webhook.server import build_app
+        from caliper.webhook.server import build_app
 
         app = build_app(settings, context=test_context)
 
@@ -208,7 +208,7 @@ class TestWebhookDelegatesToUseCase:
 
         with (
             patch(
-                "eedom.webhook.server.review_repository",
+                "caliper.webhook.server.review_repository",
                 return_value=MagicMock(
                     results=[],
                     verdict="clear",
@@ -216,7 +216,7 @@ class TestWebhookDelegatesToUseCase:
                     quality_score=10.0,
                 ),
             ) as mock_review,
-            patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock),
+            patch("caliper.webhook.server._post_pr_comment", new_callable=AsyncMock),
         ):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
@@ -245,7 +245,7 @@ class TestWebhookDelegatesToUseCase:
         the immediate RED signal.  Once the context param lands, subprocess.run
         must also not be called.
         """
-        from eedom.webhook.server import build_app
+        from caliper.webhook.server import build_app
 
         # After the fix: build_app wires test_context so no subprocess needed.
         app = build_app(settings, context=test_context)
@@ -265,8 +265,8 @@ class TestWebhookDelegatesToUseCase:
             )
 
         with (
-            patch("eedom.webhook.server.review_repository", side_effect=_fake_review_repository),
-            patch("eedom.webhook.server._post_pr_comment", new_callable=AsyncMock),
+            patch("caliper.webhook.server.review_repository", side_effect=_fake_review_repository),
+            patch("caliper.webhook.server._post_pr_comment", new_callable=AsyncMock),
         ):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),

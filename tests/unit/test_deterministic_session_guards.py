@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Token-bearing field name patterns (case-insensitive)
 _TOKEN_FIELD_RE = r"token|session|auth|credential|api[_-]?key|access[_-]?token|refresh[_-]?token"

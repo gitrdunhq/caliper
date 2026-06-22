@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from eedom.core.repo_config import (
+from caliper.core.repo_config import (
     RepoConfig,
     SemgrepConfig,
     load_merged_config,
@@ -18,7 +18,7 @@ from eedom.core.repo_config import (
 
 
 def _write_config(directory: Path, content: dict) -> None:
-    cfg = directory / ".eagle-eyed-dom.yaml"
+    cfg = directory / ".caliper.yaml"
     cfg.write_text(yaml.dump(content))
 
 
@@ -44,7 +44,7 @@ class TestLoadMergedConfig:
         assert result.plugins.disabled == ["cspell"]
 
     def test_no_package_config_file_falls_back_to_root(self, tmp_path: Path) -> None:
-        """When the package directory has no .eagle-eyed-dom.yaml, returns root config."""
+        """When the package directory has no .caliper.yaml, returns root config."""
         _write_config(tmp_path, {"plugins": {"disabled": ["semgrep"]}})
         pkg_dir = tmp_path / "packages" / "web"
         pkg_dir.mkdir(parents=True)

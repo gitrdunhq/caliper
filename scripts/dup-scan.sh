@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # dup-scan.sh — blended deterministic duplication / dead-code dogfood harness.
 #
-# Runs the consolidation toolchain over eedom's own source and writes a report
+# Runs the consolidation toolchain over caliper's own source and writes a report
 # per tool under .temp/dup-scan/. Every tool is best-effort: a missing binary is
 # reported and skipped, never fatal — so the harness is a repeatable signal, not
-# a gate. Pairs with the detect-then-enrich CPD plugin (ADR-006): CPD is the
+# a gate. Pairs with the detect-then-scribe CPD plugin (ADR-006): CPD is the
 # in-product, language-agnostic clone detector; this is the broader dev-time sweep.
 #
 # Tools (install hints printed when absent):
@@ -16,11 +16,11 @@
 #
 # Usage:
 #   bash scripts/dup-scan.sh                 # scan src/ (default)
-#   bash scripts/dup-scan.sh src/eedom/core  # scan a subtree
+#   bash scripts/dup-scan.sh src/caliper/core  # scan a subtree
 #   MIN_TOKENS=80 bash scripts/dup-scan.sh   # tune CPD/jscpd sensitivity
 set -uo pipefail
 
-TARGET="${1:-src/eedom}"
+TARGET="${1:-src/caliper}"
 MIN_TOKENS="${MIN_TOKENS:-50}"
 OUT_DIR="${OUT_DIR:-.temp/dup-scan}"
 mkdir -p "${OUT_DIR}"
@@ -30,7 +30,7 @@ echo "==> dup-scan: target=${TARGET} min_tokens=${MIN_TOKENS} out=${OUT_DIR}"
 have() { command -v "$1" >/dev/null 2>&1; }
 section() { printf '\n----- %s -----\n' "$1"; }
 
-# 1. PMD CPD — the same engine eedom's cpd plugin uses; N-way token clones.
+# 1. PMD CPD — the same engine caliper's cpd plugin uses; N-way token clones.
 section "PMD CPD (token clones)"
 if have pmd; then
     pmd cpd --minimum-tokens "${MIN_TOKENS}" --dir "${TARGET}" --language python \
@@ -76,11 +76,11 @@ if have uv; then
     uv run --with grimp python - "$TARGET" <<'PY' 2>/dev/null | tee "${OUT_DIR}/grimp.txt" || true
 import sys, grimp
 try:
-    graph = grimp.build_graph("eedom")
+    graph = grimp.build_graph("caliper")
     mods = sorted(graph.modules)
     print(f"modules: {len(mods)}")
     # Count importers of each top-level tier to spot consolidation opportunities.
-    tiers = ("eedom.core", "eedom.plugins", "eedom.detectors", "eedom.data", "eedom.adapters")
+    tiers = ("caliper.core", "caliper.plugins", "caliper.detectors", "caliper.data", "caliper.adapters")
     for t in tiers:
         members = [m for m in mods if m == t or m.startswith(t + ".")]
         importers = set()

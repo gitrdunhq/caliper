@@ -100,7 +100,7 @@
       "type": "string"
     }
   },
-  "description": "Top-level document emitted by ``eedom review --format json``.",
+  "description": "Top-level document emitted by ``caliper review --format json``.",
   "properties": {
     "schema_version": {
       "default": "1.0",

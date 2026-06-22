@@ -1,26 +1,26 @@
-# Eagle Eyed Dom
+# Caliper
 
-Eagle Eyed Dom (eedom) is a fully deterministic dependency and code review engine for CI — it does the mechanical half of every PR review so engineers can focus on the half that requires judgment.
+Caliper (caliper) is a fully deterministic dependency and code review engine for CI — it does the mechanical half of every PR review so engineers can focus on the half that requires judgment.
 
-Every PR that touches a dependency manifest or source file triggers the same tedious checklist: known CVEs, license compatibility, package age, leaked secrets, copy-paste duplication, cyclomatic complexity — eedom runs all of it in under ten minutes, without a human.
+Every PR that touches a dependency manifest or source file triggers the same tedious checklist: known CVEs, license compatibility, package age, leaked secrets, copy-paste duplication, cyclomatic complexity — caliper runs all of it in under ten minutes, without a human.
 
 The pipeline detects changed packages across 18 ecosystems, fans out across 19 specialist plugins in parallel (Syft, OSV-Scanner, Trivy, ScanCode, Semgrep, Gitleaks, ClamAV, and more), deduplicates overlapping findings by advisory ID with highest-severity-wins logic, then hands the normalized result set to an OPA policy engine that makes the accept/reject decision in pure Rego — no prompts, no probability, no "it depends on the model's mood today."
 
-What makes eedom different is the constraint it refuses to break: **zero LLM in the decision path.** The build passes or fails on deterministic rules that any engineer can read, audit, and debate — not on a language model's interpretation of those rules.
+What makes caliper different is the constraint it refuses to break: **zero LLM in the decision path.** The build passes or fails on deterministic rules that any engineer can read, audit, and debate — not on a language model's interpretation of those rules.
 
 It's also **fail-open by design**: every scanner runs in its own timeout envelope, every failure returns a typed `ScanResult` and the pipeline continues, so a missing binary or a PyPI timeout never silently blocks a deploy.
 
-Two entry points drive the same pipeline — a CLI for CI and a GitHub Copilot Agent (GATEKEEPER) for reactive PR review — and every run writes tamper-evident evidence sealed with a SHA-256 hash chain and appended to a Parquet audit lake queryable with DuckDB.
+Two entry points drive the same pipeline — a CLI for CI and a GitHub Copilot Agent (Foreman) for reactive PR review — and every run writes tamper-evident evidence sealed with a SHA-256 hash chain and appended to a Parquet audit lake queryable with DuckDB.
 
 ---
 
-## How eedom Compares
+## How caliper Compares
 
 Data sourced from vendor sites on 2026-04-27.
 
 ### Feature Matrix
 
-| Feature | eedom | Snyk | Sonatype | Checkmarx | Trivy | OWASP DC |
+| Feature | caliper | Snyk | Sonatype | Checkmarx | Trivy | OWASP DC |
 |---------|-------|------|----------|-----------|-------|----------|
 | Vulnerability scanning | **GA** | GA | GA | GA | GA | GA |
 | License scanning | **GA** | Paid | GA | GA | GA | -- |
@@ -45,7 +45,7 @@ Data sourced from vendor sites on 2026-04-27.
 
 | Tool | GA features (of 18) | Coverage |
 |------|---------------------|----------|
-| **eedom** | **17** | **94%** |
+| **caliper** | **17** | **94%** |
 | Snyk | 9 | 50% |
 | Checkmarx | 9 | 50% |
 | Trivy | 8 | 44% |
@@ -54,7 +54,7 @@ Data sourced from vendor sites on 2026-04-27.
 
 ### What It Costs
 
-| | eedom | Snyk | Sonatype | Checkmarx | Trivy | OWASP DC |
+| | caliper | Snyk | Sonatype | Checkmarx | Trivy | OWASP DC |
 |---|---|---|---|---|---|---|
 | **Free tier** | Full | 200 tests/mo | None | None | Full | Full |
 | **Entry** | $0 | $25/dev/mo | $57.50/user/mo | Sales call | $0 | $0 |
@@ -66,11 +66,11 @@ Sources: [snyk.io/plans](https://snyk.io/plans/), [sonatype.com/products/pricing
 
 ## Extensibility: Write Rules, Not Tickets
 
-eedom is designed to be extended by the teams that use it. When you see a recurring anti-pattern in code review, you encode it as a rule — and dom catches it on every PR from that point forward.
+caliper is designed to be extended by the teams that use it. When you see a recurring anti-pattern in code review, you encode it as a rule — and dom catches it on every PR from that point forward.
 
 ### Custom Semgrep Rules (61 and growing)
 
-Drop a YAML file in `policies/semgrep/` and eedom picks it up automatically. Real examples from the repo:
+Drop a YAML file in `policies/semgrep/` and caliper picks it up automatically. Real examples from the repo:
 
 ```yaml
 # Catch subprocess calls without timeouts
@@ -142,7 +142,7 @@ graph.register_check(
 
 ### Deterministic Bug Detectors (21 and growing)
 
-Beyond semgrep, eedom ships **21 deterministic AST bug detectors** (`EED-001`…`EED-021`) in `src/eedom/detectors/` — SQL injection via string formatting, JWT tokens with no audience claim, secrets typed as plain `str` instead of `SecretStr`, subprocess calls without a timeout, unbounded caches, non-atomic file writes, and more. They fire with no LLM, never crash a scan (fail-safe), and are suppressible per-line with `# noqa: EED-NNN`. Full reference: [`docs/detectors.md`](docs/detectors.md).
+Beyond semgrep, caliper ships **21 deterministic AST bug detectors** (`CAL-001`…`CAL-021`) in `src/caliper/detectors/` — SQL injection via string formatting, JWT tokens with no audience claim, secrets typed as plain `str` instead of `SecretStr`, subprocess calls without a timeout, unbounded caches, non-atomic file writes, and more. They fire with no LLM, never crash a scan (fail-safe), and are suppressible per-line with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](docs/detectors.md).
 
 ### OPA Policy Rules (6 rules, pure Rego)
 
@@ -164,7 +164,7 @@ deny[msg] {
 
 ### Per-Repo Configuration
 
-Drop `.eagle-eyed-dom.yaml` at the repo root:
+Drop `.caliper.yaml` at the repo root:
 
 ```yaml
 plugins:
@@ -179,7 +179,7 @@ thresholds:
 
 ---
 
-## What Only eedom Does
+## What Only caliper Does
 
 No other tool — free or paid — offers these capabilities:
 
@@ -195,7 +195,7 @@ No other tool — free or paid — offers these capabilities:
 
 ## Who It's For
 
-- **Solo developers shipping with AI** — LLMs write code fast but they don't check their own work. eedom is the deterministic backstop that catches what Copilot, Cursor, and Claude miss: vulnerable deps, leaked secrets, complexity creep, copy-paste duplication, broken architecture constraints. You shouldn't have to hold the entire security and quality checklist in your head while you're also reviewing AI-generated code — that's cognitive burden you can delete
+- **Solo developers shipping with AI** — LLMs write code fast but they don't check their own work. caliper is the deterministic backstop that catches what Copilot, Cursor, and Claude miss: vulnerable deps, leaked secrets, complexity creep, copy-paste duplication, broken architecture constraints. You shouldn't have to hold the entire security and quality checklist in your head while you're also reviewing AI-generated code — that's cognitive burden you can delete
 - **Platform engineering teams** building internal developer platforms who need a CI gate with a defensible audit trail
 - **Security teams** tired of paying $69K-$126K/year for tools whose decisions they can't audit
 - **Compliance-driven organizations** (SOC2, FedRAMP, SLSA) that need chain-of-custody from PR to production image

@@ -11,9 +11,9 @@ from __future__ import annotations
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from eedom.core.diff import _parse_requirements
-from eedom.core.memo import _MAX_MEMO_LENGTH, generate_memo
-from eedom.core.models import (
+from caliper.core.diff import _parse_requirements
+from caliper.core.memo import _MAX_MEMO_LENGTH, generate_memo
+from caliper.core.models import (
     DecisionVerdict,
     Finding,
     FindingCategory,
@@ -26,9 +26,9 @@ from eedom.core.models import (
     ScanResult,
     ScanResultStatus,
 )
-from eedom.core.normalizer import _SEVERITY_RANK, normalize_findings
-from eedom.data.alternatives import categorize_package
-from eedom.data.scanners.osv import _cvss_score_to_severity
+from caliper.core.normalizer import _SEVERITY_RANK, normalize_findings
+from caliper.data.alternatives import categorize_package
+from caliper.data.scanners.osv import _cvss_score_to_severity
 
 # ---------------------------------------------------------------------------
 # Reusable strategies — refactored using @st.composite for clarity

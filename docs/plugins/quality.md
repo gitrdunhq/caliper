@@ -22,12 +22,12 @@ Even advisory, this tells a reviewer whether a one-line change touches 2 callers
 
 Reviewing a repo never writes into the repo itself. The code graph SQLite db is resolved in this order:
 
-1. `EEDOM_GRAPH_DB` environment variable — explicit override.
-2. `thresholds.blast-radius.graph_db` in `.eagle-eyed-dom.yaml` — relative paths resolve against the repo root.
-3. A pre-existing legacy `<repo>/.eedom/code_graph.sqlite` keeps being used.
-4. Default: `$XDG_CACHE_HOME/eedom/graphs/<repo-hash>/code_graph.sqlite` (`~/.cache` when `XDG_CACHE_HOME` is unset).
+1. `CALIPER_GRAPH_DB` environment variable — explicit override.
+2. `thresholds.blast-radius.graph_db` in `.caliper.yaml` — relative paths resolve against the repo root.
+3. A pre-existing legacy `<repo>/.caliper/code_graph.sqlite` keeps being used.
+4. Default: `$XDG_CACHE_HOME/caliper/graphs/<repo-hash>/code_graph.sqlite` (`~/.cache` when `XDG_CACHE_HOME` is unset).
 
-`eedom query` reads the same resolved location by default; pass `--db` to point elsewhere.
+`caliper query` reads the same resolved location by default; pass `--db` to point elsewhere.
 
 ### Path conventions (library API)
 
@@ -137,4 +137,4 @@ Advisory — purely informational. Formatting consistency improves readability a
 
 ## See also
 
-- [Deterministic detectors](../detectors.md) — 21 AST-based bug-pattern rules (EED-001..EED-021) that run alongside the plugins.
+- [Deterministic detectors](../detectors.md) — 21 AST-based bug-pattern rules (CAL-001..CAL-021) that run alongside the plugins.

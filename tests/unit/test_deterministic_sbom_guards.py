@@ -14,7 +14,7 @@ import pytest
 
 
 def _make_config(tmp_path: Path, **overrides: object):
-    from eedom.core.config import EedomSettings
+    from caliper.core.config import CaliperSettings
 
     defaults: dict[str, object] = {
         "db_dsn": "postgresql://test:test@localhost/test",
@@ -28,7 +28,7 @@ def _make_config(tmp_path: Path, **overrides: object):
         "pypi_timeout": 23,
     }
     defaults.update(overrides)
-    return EedomSettings(**defaults)
+    return CaliperSettings(**defaults)
 
 
 def _component(name: str, version: str, purl: str) -> dict[str, str]:
@@ -92,7 +92,7 @@ class _FakeOpaEvaluator:
         pass
 
     def evaluate(self, findings: list[object], package_metadata: dict[str, object]):
-        from eedom.core.models import DecisionVerdict, PolicyEvaluation
+        from caliper.core.models import DecisionVerdict, PolicyEvaluation
 
         return PolicyEvaluation(
             decision=DecisionVerdict.approve,
@@ -114,7 +114,7 @@ def _patch_pipeline_runtime(
     append_calls: list[tuple[Path, list[object], str]] | None = None,
     seal_calls: list[tuple[Path, str, str | None]] | None = None,
 ) -> None:
-    import eedom.core.pipeline as pipeline_mod
+    import caliper.core.pipeline as pipeline_mod
 
     def append_decisions(evidence_root: Path, decisions: list[object], run_id: str = "") -> Path:
         if append_calls is not None:
@@ -165,8 +165,8 @@ def test_251_evaluate_sbom_missing_parquet_append_and_evidence_sealing(
 
     This test detects the missing audit trail guards in evaluate_sbom().
     """
-    from eedom.core.models import OperatingMode
-    from eedom.core.pipeline import ReviewPipeline
+    from caliper.core.models import OperatingMode
+    from caliper.core.pipeline import ReviewPipeline
 
     append_calls: list[tuple[Path, list[object], str]] = []
     seal_calls: list[tuple[Path, str, str | None]] = []

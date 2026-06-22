@@ -28,7 +28,7 @@ index 000..111 100644
 
 
 def _make_config(tmp_path: Path, **overrides: object):
-    from eedom.core.config import EedomSettings
+    from caliper.core.config import CaliperSettings
 
     defaults: dict[str, object] = {
         "db_dsn": "postgresql://test:test@localhost/test",
@@ -42,7 +42,7 @@ def _make_config(tmp_path: Path, **overrides: object):
         "pypi_timeout": 23,
     }
     defaults.update(overrides)
-    return EedomSettings(**defaults)
+    return CaliperSettings(**defaults)
 
 
 def _component(name: str, version: str, purl: str) -> dict[str, str]:
@@ -54,7 +54,7 @@ def _sbom(*components: dict[str, str]) -> dict[str, object]:
 
 
 def _make_review_decision(verdict=None):
-    from eedom.core.models import (
+    from caliper.core.models import (
         DecisionVerdict,
         OperatingMode,
         PolicyEvaluation,
@@ -159,7 +159,7 @@ class _FakePolicyEnginePort:
         _FakePolicyEnginePort.instances.append(self)
 
     def evaluate(self, policy_input: object):
-        from eedom.core.policy_port import PolicyDecision
+        from caliper.core.policy_port import PolicyDecision
 
         return PolicyDecision(verdict="approve")
 
@@ -187,8 +187,8 @@ def _patch_pipeline_runtime(
     injected context, so the harness builds a fake context the test passes to
     ``ReviewPipeline(config, context=...)`` instead of monkeypatching internals.
     """
-    import eedom.core.pipeline as pipeline_mod
-    from eedom.composition.bootstrap import bootstrap_test
+    import caliper.core.pipeline as pipeline_mod
+    from caliper.composition.bootstrap import bootstrap_test
 
     _FakeDb.instances.clear()
     _FakePyPIClient.instances.clear()
@@ -214,10 +214,10 @@ def _patch_pipeline_runtime(
 
 def test_202_bootstrapped_opa_input_matches_bundled_policy_schema() -> None:
     """Critical findings must reach OPA with the schema that policy.rego can deny."""
-    from eedom.core.opa_adapter import OpaRegoAdapter
-    from eedom.core.plugin import PluginFinding
-    from eedom.core.policy_port import PolicyInput
-    from eedom.core.tool_runner import ToolInvocation, ToolResult
+    from caliper.core.opa_adapter import OpaRegoAdapter
+    from caliper.core.plugin import PluginFinding
+    from caliper.core.policy_port import PolicyInput
+    from caliper.core.tool_runner import ToolInvocation, ToolResult
 
     class CapturingRunner:
         def __init__(self) -> None:
@@ -263,7 +263,7 @@ def test_202_bootstrapped_opa_input_matches_bundled_policy_schema() -> None:
 
 
 def test_204_production_bootstrap_does_not_wire_null_or_fake_adapters(tmp_path: Path) -> None:
-    from eedom.composition.bootstrap import bootstrap
+    from caliper.composition.bootstrap import bootstrap
 
     ctx = bootstrap(_make_config(tmp_path))
     wired = {
@@ -283,10 +283,10 @@ def test_204_production_bootstrap_does_not_wire_null_or_fake_adapters(tmp_path: 
 
 
 def test_205_block_mode_accepts_typed_review_decisions_not_llm_response_shape() -> None:
-    from eedom.agent.main import GatekeeperAgent
-    from eedom.core.models import DecisionVerdict
+    from caliper.agent.main import ForemanAgent
+    from caliper.core.models import DecisionVerdict
 
-    agent = GatekeeperAgent(config=object())
+    agent = ForemanAgent(config=object())
     response = SimpleNamespace(value={"decisions": [_make_review_decision(DecisionVerdict.reject)]})
 
     agent._extract_reject_from_tool_results(response)
@@ -297,7 +297,7 @@ def test_205_block_mode_accepts_typed_review_decisions_not_llm_response_shape() 
 def test_206_base_sbom_generation_does_not_checkout_active_repo(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    from eedom.agent import tool_helpers
+    from caliper.agent import tool_helpers
 
     commands: list[list[str]] = []
 
@@ -324,7 +324,7 @@ def test_206_base_sbom_generation_does_not_checkout_active_repo(
 
 
 def test_208_evidence_store_creates_parent_dirs_for_package_artifacts(tmp_path: Path) -> None:
-    from eedom.data.evidence import EvidenceStore
+    from caliper.data.evidence import EvidenceStore
 
     store = EvidenceStore(root_path=str(tmp_path))
 
@@ -340,7 +340,7 @@ def test_209_composition_passes_scanner_timeout_to_each_scanner(
     # Scanner construction moved to the composition tier (#409); build_scanners
     # resolves enabled scanners from the SCANNERS registry. This detector asserts
     # every scanner receives the configured timeout.
-    from eedom.composition.bootstrap import build_scanners
+    from caliper.composition.bootstrap import build_scanners
 
     scanner_calls: list[tuple[str, tuple[object, ...], dict[str, object]]] = []
 
@@ -354,10 +354,10 @@ def test_209_composition_passes_scanner_timeout_to_each_scanner(
 
     # The registry factories resolve the scanner classes from their modules at
     # call time, so patching the module attribute records the construction.
-    monkeypatch.setattr("eedom.data.scanners.syft.SyftScanner", scanner_class("syft"))
-    monkeypatch.setattr("eedom.data.scanners.osv.OsvScanner", scanner_class("osv-scanner"))
-    monkeypatch.setattr("eedom.data.scanners.trivy.TrivyScanner", scanner_class("trivy"))
-    monkeypatch.setattr("eedom.data.scanners.scancode.ScanCodeScanner", scanner_class("scancode"))
+    monkeypatch.setattr("caliper.data.scanners.syft.SyftScanner", scanner_class("syft"))
+    monkeypatch.setattr("caliper.data.scanners.osv.OsvScanner", scanner_class("osv-scanner"))
+    monkeypatch.setattr("caliper.data.scanners.trivy.TrivyScanner", scanner_class("trivy"))
+    monkeypatch.setattr("caliper.data.scanners.scancode.ScanCodeScanner", scanner_class("scancode"))
 
     config = _make_config(
         tmp_path,
@@ -379,8 +379,8 @@ def test_209_composition_passes_scanner_timeout_to_each_scanner(
 def test_209_bootstrap_passes_opa_timeout_to_policy_adapter(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    import eedom.core.opa_adapter as opa_adapter_mod
-    from eedom.composition.bootstrap import bootstrap
+    import caliper.core.opa_adapter as opa_adapter_mod
+    from caliper.composition.bootstrap import bootstrap
 
     seen: dict[str, object] = {}
 
@@ -414,8 +414,8 @@ def test_209_bootstrap_passes_opa_timeout_to_policy_adapter(
 def test_210_detected_dependency_manifests_have_parser_coverage(
     filename: str, after_line: str
 ) -> None:
-    from eedom.core.diff import DependencyDiffDetector
-    from eedom.core.pipeline_helpers import parse_changes
+    from caliper.core.diff import DependencyDiffDetector
+    from caliper.core.pipeline_helpers import parse_changes
 
     diff = (
         f"diff --git a/{filename} b/{filename}\n"
@@ -435,7 +435,7 @@ def test_210_detected_dependency_manifests_have_parser_coverage(
 
 
 def test_211_plugin_errors_are_degraded_not_blocking_pr_review_changes() -> None:
-    from eedom.core.pr_review import sarif_to_review
+    from caliper.core.pr_review import sarif_to_review
 
     sarif = {
         "runs": [
@@ -443,7 +443,7 @@ def test_211_plugin_errors_are_degraded_not_blocking_pr_review_changes() -> None
                 "tool": {"driver": {"name": "trivy"}},
                 "results": [
                     {
-                        "ruleId": "eedom-plugin-error",
+                        "ruleId": "caliper-plugin-error",
                         "level": "error",
                         "message": {"text": "trivy timed out after 60s"},
                     }
@@ -460,9 +460,9 @@ def test_211_plugin_errors_are_degraded_not_blocking_pr_review_changes() -> None
 def test_217_evaluate_sbom_appends_parquet_and_seals_evidence(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    import eedom.core.pipeline as pipeline_mod
-    from eedom.core.models import OperatingMode
-    from eedom.core.pipeline import ReviewPipeline
+    import caliper.core.pipeline as pipeline_mod
+    from caliper.core.models import OperatingMode
+    from caliper.core.pipeline import ReviewPipeline
 
     append_calls: list[tuple[Path, list[object], str]] = []
     seal_calls: list[tuple[Path, str, str | None, str]] = []
@@ -497,9 +497,9 @@ def test_218_cli_evaluate_uses_sbom_path_for_non_python_dependency_diffs(
 ) -> None:
     from click.testing import CliRunner
 
-    import eedom.composition.bootstrap as bootstrap_mod
-    import eedom.core.pipeline as pipeline_mod
-    from eedom.cli.main import cli
+    import caliper.composition.bootstrap as bootstrap_mod
+    import caliper.core.pipeline as pipeline_mod
+    from caliper.cli.main import cli
 
     calls: list[str] = []
 
@@ -543,8 +543,8 @@ def test_218_cli_evaluate_uses_sbom_path_for_non_python_dependency_diffs(
             "monitor",
         ],
         env={
-            "EEDOM_ALLOW_GLOBAL": "1",
-            "EEDOM_DB_DSN": "postgresql://test:test@localhost/test",
+            "CALIPER_ALLOW_GLOBAL": "1",
+            "CALIPER_DB_DSN": "postgresql://test:test@localhost/test",
         },
     )
 
@@ -555,8 +555,8 @@ def test_218_cli_evaluate_uses_sbom_path_for_non_python_dependency_diffs(
 def test_221_pipeline_closes_single_pypi_client_per_run(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    from eedom.core.models import OperatingMode
-    from eedom.core.pipeline import ReviewPipeline
+    from caliper.core.models import OperatingMode
+    from caliper.core.pipeline import ReviewPipeline
 
     config = _make_config(tmp_path)
     ctx = _patch_pipeline_runtime(monkeypatch, config)
@@ -577,7 +577,7 @@ def test_221_pipeline_closes_single_pypi_client_per_run(
 def test_222_parquet_append_does_not_read_and_rewrite_existing_log(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    import eedom.data.parquet_writer as parquet_writer
+    import caliper.data.parquet_writer as parquet_writer
 
     class FakeTable:
         def __init__(self, num_rows: int) -> None:
@@ -632,8 +632,8 @@ def test_222_parquet_append_does_not_read_and_rewrite_existing_log(
 
 
 def test_223_json_report_omits_full_sbom_payloads() -> None:
-    from eedom.core.json_report import render_json
-    from eedom.core.plugin import PluginResult
+    from caliper.core.json_report import render_json
+    from caliper.core.plugin import PluginResult
 
     sensitive_component = "internal-sensitive-component"
     output = render_json(
@@ -656,9 +656,9 @@ def test_223_json_report_omits_full_sbom_payloads() -> None:
 
 
 def test_228_package_config_merge_preserves_root_telemetry(tmp_path: Path) -> None:
-    from eedom.core.repo_config import load_merged_config
+    from caliper.core.repo_config import load_merged_config
 
-    (tmp_path / ".eagle-eyed-dom.yaml").write_text(
+    (tmp_path / ".caliper.yaml").write_text(
         "telemetry:\n"
         "  enabled: true\n"
         "  endpoint: https://telemetry.example.test/v1/events\n"
@@ -668,7 +668,7 @@ def test_228_package_config_merge_preserves_root_telemetry(tmp_path: Path) -> No
     )
     package_root = tmp_path / "packages" / "api"
     package_root.mkdir(parents=True)
-    (package_root / ".eagle-eyed-dom.yaml").write_text(
+    (package_root / ".caliper.yaml").write_text(
         "thresholds:\n" "  semgrep:\n" "    max_findings: 0\n"
     )
 
@@ -679,7 +679,7 @@ def test_228_package_config_merge_preserves_root_telemetry(tmp_path: Path) -> No
 
 
 def test_230_seal_verification_fails_on_unexpected_added_files(tmp_path: Path) -> None:
-    from eedom.core.seal import create_seal, verify_seal
+    from caliper.core.seal import create_seal, verify_seal
 
     evidence_dir = tmp_path / "abcdef123456" / "202604281200"
     evidence_dir.mkdir(parents=True)
@@ -695,7 +695,7 @@ def test_230_seal_verification_fails_on_unexpected_added_files(tmp_path: Path) -
 def test_232_file_evidence_store_rejects_traversal_without_writing_outside(
     tmp_path: Path,
 ) -> None:
-    from eedom.adapters.persistence import FileEvidenceStore
+    from caliper.adapters.persistence import FileEvidenceStore
 
     base_dir = tmp_path / "evidence"
     store = FileEvidenceStore(base_dir=base_dir)
@@ -711,14 +711,14 @@ def test_232_file_evidence_store_rejects_traversal_without_writing_outside(
 
 
 def test_234_normalizer_keeps_unadvised_findings_from_distinct_sources() -> None:
-    from eedom.core.models import (
+    from caliper.core.models import (
         Finding,
         FindingCategory,
         FindingSeverity,
         ScanResult,
         ScanResultStatus,
     )
-    from eedom.core.normalizer import normalize_findings
+    from caliper.core.normalizer import normalize_findings
 
     first = Finding(
         severity=FindingSeverity.medium,

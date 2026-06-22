@@ -14,14 +14,14 @@ from pathlib import Path
 
 import pytest
 
-from eedom.core.models import (
+from caliper.core.models import (
     Finding,
     FindingCategory,
     FindingSeverity,
     ScanResult,
     ScanResultStatus,
 )
-from eedom.core.normalizer import normalize_findings
+from caliper.core.normalizer import normalize_findings
 
 # =============================================================================
 # Issue #209: Normalizer dedup key ignores severity causing higher-severity loss
@@ -30,7 +30,7 @@ from eedom.core.normalizer import normalize_findings
 
 def _get_normalizer_source_info():
     """Get source info for normalizer.py to parse AST."""
-    from eedom.core import normalizer
+    from caliper.core import normalizer
 
     source_path = Path(inspect.getfile(normalizer))
     source = source_path.read_text()

@@ -1,7 +1,7 @@
 # tested-by: tests/unit/test_drift_guards.py
 """Drift guard tests for schema / inventory doc-gen (#188, #189).
 
-All tests in this file are intentionally RED — eedom.core.doc_gen does not
+All tests in this file are intentionally RED — caliper.core.doc_gen does not
 exist yet.  They define the contract that the implementation must satisfy.
 """
 
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 def test_generate_config_schema_returns_dict():
     """generate_config_schema() must exist and return a dict."""
-    from eedom.core.doc_gen import generate_config_schema  # noqa: PLC0415
+    from caliper.core.doc_gen import generate_config_schema  # noqa: PLC0415
 
     schema = generate_config_schema()
     assert isinstance(schema, dict), "Expected a dict, got {type(schema).__name__}"
@@ -22,8 +22,8 @@ def test_generate_config_schema_returns_dict():
 
 def test_generate_config_schema_matches_repo_config_json_schema():
     """Schema produced by generate_config_schema() must match RepoConfig.model_json_schema()."""
-    from eedom.core.doc_gen import generate_config_schema  # noqa: PLC0415
-    from eedom.core.repo_config import RepoConfig
+    from caliper.core.doc_gen import generate_config_schema  # noqa: PLC0415
+    from caliper.core.repo_config import RepoConfig
 
     result = generate_config_schema()
     expected = RepoConfig.model_json_schema()
@@ -38,8 +38,8 @@ def test_generate_config_schema_matches_repo_config_json_schema():
 
 def test_generate_config_schema_contains_all_repo_config_fields():
     """JSON schema must expose every top-level field declared on RepoConfig."""
-    from eedom.core.doc_gen import generate_config_schema  # noqa: PLC0415
-    from eedom.core.repo_config import RepoConfig
+    from caliper.core.doc_gen import generate_config_schema  # noqa: PLC0415
+    from caliper.core.repo_config import RepoConfig
 
     schema = generate_config_schema()
     # Pydantic v2 JSON schema puts properties under "properties"
@@ -60,8 +60,8 @@ def test_generate_config_schema_contains_all_repo_config_fields():
 
 def test_generate_plugin_inventory_returns_list_of_strings():
     """generate_plugin_inventory() must exist and return a non-empty list of str."""
-    from eedom.core.doc_gen import generate_plugin_inventory  # noqa: PLC0415
-    from eedom.plugins import get_default_registry
+    from caliper.core.doc_gen import generate_plugin_inventory  # noqa: PLC0415
+    from caliper.plugins import get_default_registry
 
     inventory = generate_plugin_inventory(get_default_registry())
     assert isinstance(inventory, list), f"Expected list, got {type(inventory).__name__}"
@@ -72,8 +72,8 @@ def test_generate_plugin_inventory_returns_list_of_strings():
 
 def test_generate_plugin_inventory_matches_default_registry():
     """Inventory names must exactly match those discovered by get_default_registry()."""
-    from eedom.core.doc_gen import generate_plugin_inventory  # noqa: PLC0415
-    from eedom.plugins import get_default_registry
+    from caliper.core.doc_gen import generate_plugin_inventory  # noqa: PLC0415
+    from caliper.plugins import get_default_registry
 
     registry = get_default_registry()
     inventory = set(generate_plugin_inventory(registry))
@@ -95,8 +95,8 @@ _CAPABILITIES_PLUGIN_COUNT = 19
 
 def test_plugin_inventory_count_matches_capabilities_md():
     """Inventory length must equal the canonical count declared in docs/CAPABILITIES.md."""
-    from eedom.core.doc_gen import generate_plugin_inventory  # noqa: PLC0415
-    from eedom.plugins import get_default_registry
+    from caliper.core.doc_gen import generate_plugin_inventory  # noqa: PLC0415
+    from caliper.plugins import get_default_registry
 
     inventory = generate_plugin_inventory(get_default_registry())
     assert len(inventory) == _CAPABILITIES_PLUGIN_COUNT, (

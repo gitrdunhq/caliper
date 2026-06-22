@@ -1,9 +1,9 @@
-"""Tests for eedom.core.memo — decision memo generation."""
+"""Tests for caliper.core.memo — decision memo generation."""
 
 from __future__ import annotations
 
-from eedom.core.memo import generate_memo
-from eedom.core.models import (
+from caliper.core.memo import generate_memo
+from caliper.core.models import (
     DecisionVerdict,
     Finding,
     FindingCategory,
@@ -240,7 +240,7 @@ class TestMemoTruncation:
 
     def test_short_memo_not_truncated(self) -> None:
         """Memos under the limit are returned unchanged."""
-        from eedom.core.memo import _MAX_MEMO_LENGTH
+        from caliper.core.memo import _MAX_MEMO_LENGTH
 
         dec = _decision(verdict="approve")
         memo = generate_memo(dec)
@@ -250,7 +250,7 @@ class TestMemoTruncation:
 
     def test_truncation_stays_within_max_length(self) -> None:
         """Truncated memo must not exceed _MAX_MEMO_LENGTH."""
-        from eedom.core.memo import _MAX_MEMO_LENGTH
+        from caliper.core.memo import _MAX_MEMO_LENGTH
 
         # Many long rules to force truncation
         long_rules = ["Rule: " + ("x" * 80) for _ in range(60)]

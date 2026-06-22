@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Policy-related files that handle rule conditions
 _POLICY_RULE_FILES: tuple[Path, ...] = (

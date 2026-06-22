@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Patterns that indicate tracing-related code
 _TRACING_FUNCTION_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -366,7 +366,7 @@ def test_165_tracing_module_must_exist_with_context_support() -> None:
 
     if not tracing_module.exists():
         pytest.fail(
-            "tracing.py module does not exist at src/eedom/core/tracing.py. "
+            "tracing.py module does not exist at src/caliper/core/tracing.py. "
             "Distributed tracing requires a centralized tracing module with "
             "context propagation support."
         )

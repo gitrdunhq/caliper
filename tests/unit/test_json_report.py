@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 
-from eedom.core.plugin import PluginResult
+from caliper.core.plugin import PluginResult
 
 
 def _make_result(
@@ -30,7 +30,7 @@ def _make_result(
 
 class TestJsonReport:
     def test_output_is_valid_json(self) -> None:
-        from eedom.core.json_report import render_json
+        from caliper.core.json_report import render_json
 
         results = [_make_result()]
         output = render_json(results)
@@ -38,20 +38,20 @@ class TestJsonReport:
         assert isinstance(parsed, dict)
 
     def test_has_schema_version(self) -> None:
-        from eedom.core.json_report import render_json
+        from caliper.core.json_report import render_json
 
         output = json.loads(render_json([_make_result()]))
         assert "schema_version" in output
         assert output["schema_version"] == "1.0"
 
     def test_has_verdict(self) -> None:
-        from eedom.core.json_report import render_json
+        from caliper.core.json_report import render_json
 
         output = json.loads(render_json([_make_result()]))
         assert "verdict" in output
 
     def test_includes_all_plugins(self) -> None:
-        from eedom.core.json_report import render_json
+        from caliper.core.json_report import render_json
 
         results = [
             _make_result("trivy"),
@@ -65,7 +65,7 @@ class TestJsonReport:
         assert "semgrep" in names
 
     def test_includes_skip_reasons(self) -> None:
-        from eedom.core.json_report import render_json
+        from caliper.core.json_report import render_json
 
         results = [
             _make_result(
@@ -81,7 +81,7 @@ class TestJsonReport:
         assert plugin["status"] == "skipped"
 
     def test_includes_error(self) -> None:
-        from eedom.core.json_report import render_json
+        from caliper.core.json_report import render_json
 
         results = [_make_result("clamav", error="TIMEOUT after 60s")]
         output = json.loads(render_json(results))
@@ -90,7 +90,7 @@ class TestJsonReport:
         assert plugin["error"] == "TIMEOUT after 60s"
 
     def test_includes_findings(self) -> None:
-        from eedom.core.json_report import render_json
+        from caliper.core.json_report import render_json
 
         findings = [{"id": "CVE-2025-1234", "severity": "critical"}]
         results = [_make_result("trivy", findings=findings)]
@@ -101,7 +101,7 @@ class TestJsonReport:
         assert plugin["findings"][0]["id"] == "CVE-2025-1234"
 
     def test_has_totals(self) -> None:
-        from eedom.core.json_report import render_json
+        from caliper.core.json_report import render_json
 
         findings = [{"id": "CVE-1"}, {"id": "CVE-2"}]
         results = [
@@ -113,7 +113,7 @@ class TestJsonReport:
         assert output["total_plugins"] == 2
 
     def test_has_scores(self) -> None:
-        from eedom.core.json_report import render_json
+        from caliper.core.json_report import render_json
 
         output = json.loads(render_json([_make_result()]))
         assert "security_score" in output

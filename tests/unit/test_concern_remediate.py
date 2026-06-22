@@ -1,4 +1,4 @@
-"""Tests for eedom.core.concern_remediate — Haiku-powered finding remediation."""
+"""Tests for caliper.core.concern_remediate — Haiku-powered finding remediation."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def test_sql_injection_in_run_checks(self, tmp_path):
 ```
 
 --- FIX ---
-file: src/eedom/plugins/_runners/graph_builder.py
+file: src/caliper/plugins/_runners/graph_builder.py
 line: 144
 
 ```python
@@ -37,7 +37,7 @@ class TestRemediator:
     @respx.mock
     def test_remediate_single_finding(self, tmp_path: Path) -> None:
         """Haiku returns a test + fix for one finding."""
-        from eedom.core.concern_remediate import Remediator
+        from caliper.core.concern_remediate import Remediator
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(200, json=_anthropic_response(SAMPLE_HAIKU_PATCH))
@@ -49,7 +49,7 @@ class TestRemediator:
                 "severity": "CRITICAL",
                 "concern": "plugins",
                 "title": "SQL Injection via file paths in run_checks()",
-                "file": "src/eedom/plugins/_runners/graph_builder.py",
+                "file": "src/caliper/plugins/_runners/graph_builder.py",
                 "line": 144,
                 "fix_suggestion": "Use parameterized queries instead of string interpolation",
             },
@@ -66,7 +66,7 @@ class TestRemediator:
         """Timeout returns empty, does not raise."""
         import httpx as _httpx
 
-        from eedom.core.concern_remediate import Remediator
+        from caliper.core.concern_remediate import Remediator
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             side_effect=_httpx.TimeoutException("timed out")
@@ -85,29 +85,29 @@ class TestRunRemediation:
     @respx.mock
     def test_canary_then_parallel(self, tmp_path: Path) -> None:
         """Canary finding runs first; rest fan out in parallel."""
-        from eedom.core.concern_remediate import RemediationReport, run_remediation
+        from caliper.core.concern_remediate import RemediationReport, run_remediation
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(200, json=_anthropic_response(SAMPLE_HAIKU_PATCH))
         )
 
-        (tmp_path / "src" / "eedom" / "plugins").mkdir(parents=True)
-        (tmp_path / "src" / "eedom" / "plugins" / "a.py").write_text("a = 1\n")
-        (tmp_path / "src" / "eedom" / "data").mkdir(parents=True)
-        (tmp_path / "src" / "eedom" / "data" / "b.py").write_text("b = 2\n")
+        (tmp_path / "src" / "caliper" / "plugins").mkdir(parents=True)
+        (tmp_path / "src" / "caliper" / "plugins" / "a.py").write_text("a = 1\n")
+        (tmp_path / "src" / "caliper" / "data").mkdir(parents=True)
+        (tmp_path / "src" / "caliper" / "data" / "b.py").write_text("b = 2\n")
 
         findings = [
             {
                 "severity": "CRITICAL",
                 "title": "SQL injection",
-                "file": "src/eedom/plugins/a.py",
+                "file": "src/caliper/plugins/a.py",
                 "line": 1,
                 "fix_suggestion": "parameterize",
             },
             {
                 "severity": "HIGH",
                 "title": "Path traversal",
-                "file": "src/eedom/data/b.py",
+                "file": "src/caliper/data/b.py",
                 "line": 1,
                 "fix_suggestion": "resolve paths",
             },
@@ -127,18 +127,18 @@ class TestRunRemediation:
     @respx.mock
     def test_canary_failure_aborts(self, tmp_path: Path) -> None:
         """If canary fails, remaining findings are skipped."""
-        from eedom.core.concern_remediate import run_remediation
+        from caliper.core.concern_remediate import run_remediation
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(500, json={"error": "down"})
         )
 
-        (tmp_path / "src" / "eedom" / "core").mkdir(parents=True)
-        (tmp_path / "src" / "eedom" / "core" / "a.py").write_text("a = 1\n")
+        (tmp_path / "src" / "caliper" / "core").mkdir(parents=True)
+        (tmp_path / "src" / "caliper" / "core" / "a.py").write_text("a = 1\n")
 
         findings = [
-            {"severity": "CRITICAL", "title": "Finding 1", "file": "src/eedom/core/a.py"},
-            {"severity": "HIGH", "title": "Finding 2", "file": "src/eedom/core/a.py"},
+            {"severity": "CRITICAL", "title": "Finding 1", "file": "src/caliper/core/a.py"},
+            {"severity": "HIGH", "title": "Finding 2", "file": "src/caliper/core/a.py"},
         ]
 
         report = run_remediation(findings=findings, repo_path=tmp_path, api_key="sk-test")

@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.detectors.reliability.nullable_dedup_key import NullableDedupKeyDetector
+from caliper.detectors.reliability.nullable_dedup_key import NullableDedupKeyDetector
 
 
 class TestNullableDedupKeyDetector:
-    """Tests for NullableDedupKeyDetector (EED-019)."""
+    """Tests for NullableDedupKeyDetector (CAL-019)."""
 
     @pytest.fixture
     def detector(self):
@@ -25,7 +25,7 @@ class TestNullableDedupKeyDetector:
         findings = detector.detect(target)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-019"
+        assert findings[0].detector_id == "CAL-019"
 
     def test_clean_with_or_empty_string_guard(self, detector, tmp_path):
         """No finding when advisory_id is guarded with 'or \"\"'."""

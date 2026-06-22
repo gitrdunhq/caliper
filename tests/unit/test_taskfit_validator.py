@@ -1,11 +1,11 @@
-"""Tests for eedom.core.taskfit_validator — strict 8-dimension gate."""
+"""Tests for caliper.core.taskfit_validator — strict 8-dimension gate."""
 
 from __future__ import annotations
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from eedom.core.taskfit_validator import (
+from caliper.core.taskfit_validator import (
     DimensionScore,
     Recommendation,
     ValidationResult,

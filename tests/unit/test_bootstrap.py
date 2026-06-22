@@ -1,7 +1,7 @@
 """Contract tests for the bootstrap composition root.
 # tested-by: tests/unit/test_bootstrap.py
 
-RED phase for issue #160 — all tests import from eedom.composition.bootstrap which
+RED phase for issue #160 — all tests import from caliper.composition.bootstrap which
 does not exist yet. Every test is expected to fail with ImportError until the
 production code is added.
 
@@ -22,15 +22,15 @@ import dataclasses
 
 class TestApplicationContextDataclass:
     def test_application_context_can_be_imported(self) -> None:
-        from eedom.composition.bootstrap import ApplicationContext  # noqa: F401
+        from caliper.composition.bootstrap import ApplicationContext  # noqa: F401
 
     def test_application_context_is_a_dataclass(self) -> None:
-        from eedom.composition.bootstrap import ApplicationContext
+        from caliper.composition.bootstrap import ApplicationContext
 
         assert dataclasses.is_dataclass(ApplicationContext)
 
     def test_application_context_has_analyzer_registry_field(self) -> None:
-        from eedom.composition.bootstrap import ApplicationContext
+        from caliper.composition.bootstrap import ApplicationContext
 
         fields = {f.name for f in dataclasses.fields(ApplicationContext)}
         assert (
@@ -38,37 +38,37 @@ class TestApplicationContextDataclass:
         ), "ApplicationContext must have an 'analyzer_registry' field"
 
     def test_application_context_has_policy_engine_field(self) -> None:
-        from eedom.composition.bootstrap import ApplicationContext
+        from caliper.composition.bootstrap import ApplicationContext
 
         fields = {f.name for f in dataclasses.fields(ApplicationContext)}
         assert "policy_engine" in fields, "ApplicationContext must have a 'policy_engine' field"
 
     def test_application_context_has_tool_runner_field(self) -> None:
-        from eedom.composition.bootstrap import ApplicationContext
+        from caliper.composition.bootstrap import ApplicationContext
 
         fields = {f.name for f in dataclasses.fields(ApplicationContext)}
         assert "tool_runner" in fields, "ApplicationContext must have a 'tool_runner' field"
 
     def test_application_context_has_decision_store_field(self) -> None:
-        from eedom.composition.bootstrap import ApplicationContext
+        from caliper.composition.bootstrap import ApplicationContext
 
         fields = {f.name for f in dataclasses.fields(ApplicationContext)}
         assert "decision_store" in fields, "ApplicationContext must have a 'decision_store' field"
 
     def test_application_context_has_evidence_store_field(self) -> None:
-        from eedom.composition.bootstrap import ApplicationContext
+        from caliper.composition.bootstrap import ApplicationContext
 
         fields = {f.name for f in dataclasses.fields(ApplicationContext)}
         assert "evidence_store" in fields, "ApplicationContext must have an 'evidence_store' field"
 
     def test_application_context_has_package_index_field(self) -> None:
-        from eedom.composition.bootstrap import ApplicationContext
+        from caliper.composition.bootstrap import ApplicationContext
 
         fields = {f.name for f in dataclasses.fields(ApplicationContext)}
         assert "package_index" in fields, "ApplicationContext must have a 'package_index' field"
 
     def test_application_context_has_the_eight_core_ports(self) -> None:
-        from eedom.composition.bootstrap import ApplicationContext
+        from caliper.composition.bootstrap import ApplicationContext
 
         field_names = {f.name for f in dataclasses.fields(ApplicationContext)}
         core_ports = {
@@ -85,7 +85,7 @@ class TestApplicationContextDataclass:
 
     def test_application_context_has_pipeline_collaborator_fields(self) -> None:
         # Phase 5 (#409): the pipeline's data collaborators are injected here.
-        from eedom.composition.bootstrap import ApplicationContext
+        from caliper.composition.bootstrap import ApplicationContext
 
         field_names = {f.name for f in dataclasses.fields(ApplicationContext)}
         collaborators = {
@@ -105,46 +105,46 @@ class TestApplicationContextDataclass:
 
 class TestBootstrapTestFunction:
     def test_bootstrap_test_can_be_imported(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test  # noqa: F401
+        from caliper.composition.bootstrap import bootstrap_test  # noqa: F401
 
     def test_bootstrap_test_returns_application_context(self) -> None:
-        from eedom.composition.bootstrap import ApplicationContext, bootstrap_test
+        from caliper.composition.bootstrap import ApplicationContext, bootstrap_test
 
         ctx = bootstrap_test()
         assert isinstance(ctx, ApplicationContext)
 
     def test_bootstrap_test_analyzer_registry_is_not_none(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
+        from caliper.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         assert ctx.analyzer_registry is not None
 
     def test_bootstrap_test_policy_engine_is_not_none(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
+        from caliper.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         assert ctx.policy_engine is not None
 
     def test_bootstrap_test_tool_runner_is_not_none(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
+        from caliper.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         assert ctx.tool_runner is not None
 
     def test_bootstrap_test_decision_store_is_not_none(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
+        from caliper.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         assert ctx.decision_store is not None
 
     def test_bootstrap_test_evidence_store_is_not_none(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
+        from caliper.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         assert ctx.evidence_store is not None
 
     def test_bootstrap_test_package_index_is_not_none(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
+        from caliper.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         assert ctx.package_index is not None
@@ -157,8 +157,8 @@ class TestBootstrapTestFunction:
 
 class TestBootstrapTestPortSatisfaction:
     def test_analyzer_registry_satisfies_port(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
-        from eedom.core.ports import AnalyzerRegistryPort
+        from caliper.composition.bootstrap import bootstrap_test
+        from caliper.core.ports import AnalyzerRegistryPort
 
         ctx = bootstrap_test()
         assert isinstance(
@@ -166,8 +166,8 @@ class TestBootstrapTestPortSatisfaction:
         ), "bootstrap_test().analyzer_registry must satisfy AnalyzerRegistryPort"
 
     def test_policy_engine_satisfies_port(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
-        from eedom.core.policy_port import PolicyEnginePort
+        from caliper.composition.bootstrap import bootstrap_test
+        from caliper.core.policy_port import PolicyEnginePort
 
         ctx = bootstrap_test()
         assert isinstance(
@@ -175,8 +175,8 @@ class TestBootstrapTestPortSatisfaction:
         ), "bootstrap_test().policy_engine must satisfy PolicyEnginePort"
 
     def test_tool_runner_satisfies_port(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
-        from eedom.core.tool_runner import ToolRunnerPort
+        from caliper.composition.bootstrap import bootstrap_test
+        from caliper.core.tool_runner import ToolRunnerPort
 
         ctx = bootstrap_test()
         assert isinstance(
@@ -184,8 +184,8 @@ class TestBootstrapTestPortSatisfaction:
         ), "bootstrap_test().tool_runner must satisfy ToolRunnerPort"
 
     def test_decision_store_satisfies_port(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
-        from eedom.core.ports import DecisionStorePort
+        from caliper.composition.bootstrap import bootstrap_test
+        from caliper.core.ports import DecisionStorePort
 
         ctx = bootstrap_test()
         assert isinstance(
@@ -193,8 +193,8 @@ class TestBootstrapTestPortSatisfaction:
         ), "bootstrap_test().decision_store must satisfy DecisionStorePort"
 
     def test_evidence_store_satisfies_port(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
-        from eedom.core.ports import EvidenceStorePort
+        from caliper.composition.bootstrap import bootstrap_test
+        from caliper.core.ports import EvidenceStorePort
 
         ctx = bootstrap_test()
         assert isinstance(
@@ -202,8 +202,8 @@ class TestBootstrapTestPortSatisfaction:
         ), "bootstrap_test().evidence_store must satisfy EvidenceStorePort"
 
     def test_package_index_satisfies_port(self) -> None:
-        from eedom.composition.bootstrap import bootstrap_test
-        from eedom.core.ports import PackageIndexPort
+        from caliper.composition.bootstrap import bootstrap_test
+        from caliper.core.ports import PackageIndexPort
 
         ctx = bootstrap_test()
         assert isinstance(
@@ -221,7 +221,7 @@ class TestBootstrapTestNoInfrastructure:
         """Fake registry must not reach out to real scanners."""
         from pathlib import Path
 
-        from eedom.composition.bootstrap import bootstrap_test
+        from caliper.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         result = ctx.analyzer_registry.run_all(files=[], repo_path=Path("/tmp/fake"))
@@ -229,14 +229,14 @@ class TestBootstrapTestNoInfrastructure:
 
     def test_bootstrap_test_decision_store_save_decision_does_not_raise(self) -> None:
         """Fake store must not reach out to a real DB."""
-        from eedom.composition.bootstrap import bootstrap_test
+        from caliper.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         ctx.decision_store.save_decision({"verdict": "approve", "id": "test-001"})
 
     def test_bootstrap_test_evidence_store_write_artifact_returns_str(self) -> None:
         """Fake evidence store must not hit the filesystem."""
-        from eedom.composition.bootstrap import bootstrap_test
+        from caliper.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         ref = ctx.evidence_store.write_artifact("test/sbom.xml", b"<sbom/>")
@@ -244,7 +244,7 @@ class TestBootstrapTestNoInfrastructure:
 
     def test_bootstrap_test_package_index_get_package_info_returns_dict(self) -> None:
         """Fake index must not make real network calls."""
-        from eedom.composition.bootstrap import bootstrap_test
+        from caliper.composition.bootstrap import bootstrap_test
 
         ctx = bootstrap_test()
         info = ctx.package_index.get_package_info("requests", "pypi")
@@ -252,8 +252,8 @@ class TestBootstrapTestNoInfrastructure:
 
     def test_bootstrap_test_tool_runner_run_returns_tool_result(self) -> None:
         """Fake tool runner must not execute real subprocesses."""
-        from eedom.composition.bootstrap import bootstrap_test
-        from eedom.core.tool_runner import ToolInvocation, ToolResult
+        from caliper.composition.bootstrap import bootstrap_test
+        from caliper.core.tool_runner import ToolInvocation, ToolResult
 
         ctx = bootstrap_test()
         invocation = ToolInvocation(cmd=["echo", "hi"], cwd="/tmp", timeout=5)
@@ -262,8 +262,8 @@ class TestBootstrapTestNoInfrastructure:
 
     def test_bootstrap_test_policy_engine_evaluate_returns_policy_decision(self) -> None:
         """Fake policy engine must not invoke OPA."""
-        from eedom.composition.bootstrap import bootstrap_test
-        from eedom.core.policy_port import PolicyDecision, PolicyInput
+        from caliper.composition.bootstrap import bootstrap_test
+        from caliper.core.policy_port import PolicyDecision, PolicyInput
 
         ctx = bootstrap_test()
         policy_input = PolicyInput(findings=[], packages=[], config={})
@@ -278,13 +278,13 @@ class TestBootstrapTestNoInfrastructure:
 
 class TestBootstrapFunction:
     def test_bootstrap_can_be_imported(self) -> None:
-        from eedom.composition.bootstrap import bootstrap  # noqa: F401
+        from caliper.composition.bootstrap import bootstrap  # noqa: F401
 
-    def test_bootstrap_accepts_eedom_settings(self) -> None:
-        """bootstrap() must accept an EedomSettings instance (signature check only)."""
+    def test_bootstrap_accepts_caliper_settings(self) -> None:
+        """bootstrap() must accept an CaliperSettings instance (signature check only)."""
         import inspect
 
-        from eedom.composition.bootstrap import bootstrap
+        from caliper.composition.bootstrap import bootstrap
 
         sig = inspect.signature(bootstrap)
         assert "settings" in sig.parameters, "bootstrap() must accept a 'settings' parameter"
@@ -293,7 +293,7 @@ class TestBootstrapFunction:
         """bootstrap() return annotation must be ApplicationContext."""
         import inspect
 
-        from eedom.composition.bootstrap import ApplicationContext, bootstrap
+        from caliper.composition.bootstrap import ApplicationContext, bootstrap
 
         sig = inspect.signature(bootstrap)
         annotation = sig.return_annotation
@@ -314,8 +314,8 @@ class TestMakeDecisionStore:
         """When db_dsn is empty/None, _make_decision_store must return NullDecisionStore."""
         from unittest.mock import MagicMock
 
-        from eedom.adapters.persistence import NullDecisionStore
-        from eedom.composition.bootstrap import _make_decision_store
+        from caliper.adapters.persistence import NullDecisionStore
+        from caliper.composition.bootstrap import _make_decision_store
 
         settings = MagicMock()
         settings.db_dsn = None
@@ -326,13 +326,13 @@ class TestMakeDecisionStore:
         """When db_dsn is set and connection succeeds, must NOT return NullDecisionStore."""
         from unittest.mock import MagicMock, patch
 
-        from eedom.adapters.persistence import NullDecisionStore
-        from eedom.composition.bootstrap import _make_decision_store
+        from caliper.adapters.persistence import NullDecisionStore
+        from caliper.composition.bootstrap import _make_decision_store
 
         settings = MagicMock()
-        settings.db_dsn = "postgresql://user:pass@localhost:5432/eedom"
+        settings.db_dsn = "postgresql://user:pass@localhost:5432/caliper"
 
-        with patch("eedom.data.db.DecisionRepository.connect", return_value=True):
+        with patch("caliper.data.db.DecisionRepository.connect", return_value=True):
             result = _make_decision_store(settings)
 
         assert not isinstance(result, NullDecisionStore), (
@@ -344,13 +344,13 @@ class TestMakeDecisionStore:
         """When db_dsn is set and connection succeeds, must return a DecisionRepository."""
         from unittest.mock import MagicMock, patch
 
-        from eedom.composition.bootstrap import _make_decision_store
-        from eedom.data.db import DecisionRepository
+        from caliper.composition.bootstrap import _make_decision_store
+        from caliper.data.db import DecisionRepository
 
         settings = MagicMock()
-        settings.db_dsn = "postgresql://user:pass@localhost:5432/eedom"
+        settings.db_dsn = "postgresql://user:pass@localhost:5432/caliper"
 
-        with patch("eedom.data.db.DecisionRepository.connect", return_value=True):
+        with patch("caliper.data.db.DecisionRepository.connect", return_value=True):
             result = _make_decision_store(settings)
 
         assert isinstance(result, DecisionRepository)
@@ -359,13 +359,13 @@ class TestMakeDecisionStore:
         """When db_dsn is set but connection fails, must fall back to NullDecisionStore."""
         from unittest.mock import MagicMock, patch
 
-        from eedom.adapters.persistence import NullDecisionStore
-        from eedom.composition.bootstrap import _make_decision_store
+        from caliper.adapters.persistence import NullDecisionStore
+        from caliper.composition.bootstrap import _make_decision_store
 
         settings = MagicMock()
-        settings.db_dsn = "postgresql://user:pass@badhost:5432/eedom"
+        settings.db_dsn = "postgresql://user:pass@badhost:5432/caliper"
 
-        with patch("eedom.data.db.DecisionRepository.connect", return_value=False):
+        with patch("caliper.data.db.DecisionRepository.connect", return_value=False):
             result = _make_decision_store(settings)
 
         assert isinstance(
@@ -376,13 +376,13 @@ class TestMakeDecisionStore:
         """When DecisionRepository raises during construction, must fall back to NullDecisionStore."""
         from unittest.mock import MagicMock, patch
 
-        from eedom.adapters.persistence import NullDecisionStore
-        from eedom.composition.bootstrap import _make_decision_store
+        from caliper.adapters.persistence import NullDecisionStore
+        from caliper.composition.bootstrap import _make_decision_store
 
         settings = MagicMock()
-        settings.db_dsn = "postgresql://user:pass@localhost:5432/eedom"
+        settings.db_dsn = "postgresql://user:pass@localhost:5432/caliper"
 
-        with patch("eedom.data.db.DecisionRepository.connect", side_effect=RuntimeError("boom")):
+        with patch("caliper.data.db.DecisionRepository.connect", side_effect=RuntimeError("boom")):
             result = _make_decision_store(settings)
 
         assert isinstance(
@@ -393,8 +393,8 @@ class TestMakeDecisionStore:
 class TestBuildDecisionRepositoryRegressions:
     """Regression tests for P20-1 fix: db_dsn optional / NullRepository fallback (#432).
 
-    Before the fix, EedomSettings required db_dsn and the composition root
-    would crash at startup when EEDOM_DB_DSN was not set (a ValidationError
+    Before the fix, CaliperSettings required db_dsn and the composition root
+    would crash at startup when CALIPER_DB_DSN was not set (a ValidationError
     from Pydantic, or an immediate connection failure).  The fix makes db_dsn
     Optional[str] = None and adds an early-return in build_decision_repository
     that skips the DB connection attempt and returns a NullRepository.
@@ -408,8 +408,8 @@ class TestBuildDecisionRepositoryRegressions:
         """
         from unittest.mock import MagicMock
 
-        from eedom.composition.bootstrap import build_decision_repository
-        from eedom.data.db import NullRepository
+        from caliper.composition.bootstrap import build_decision_repository
+        from caliper.data.db import NullRepository
 
         settings = MagicMock()
         settings.db_dsn = None
@@ -428,8 +428,8 @@ class TestBuildDecisionRepositoryRegressions:
         """
         from unittest.mock import MagicMock
 
-        from eedom.composition.bootstrap import build_decision_repository
-        from eedom.data.db import NullRepository
+        from caliper.composition.bootstrap import build_decision_repository
+        from caliper.data.db import NullRepository
 
         settings = MagicMock()
         settings.db_dsn = ""
@@ -448,13 +448,13 @@ class TestBuildDecisionRepositoryRegressions:
         """
         from unittest.mock import MagicMock, patch
 
-        from eedom.composition.bootstrap import build_decision_repository
-        from eedom.data.db import NullRepository
+        from caliper.composition.bootstrap import build_decision_repository
+        from caliper.data.db import NullRepository
 
         settings = MagicMock()
-        settings.db_dsn = "postgresql://user:pass@localhost:5432/eedom"
+        settings.db_dsn = "postgresql://user:pass@localhost:5432/caliper"
 
-        with patch("eedom.data.db.DecisionRepository.connect", return_value=False):
+        with patch("caliper.data.db.DecisionRepository.connect", return_value=False):
             # connect() returns False → falls back to NullRepository, but the
             # code path that calls connect() must have been reached.
             result = build_decision_repository(settings)

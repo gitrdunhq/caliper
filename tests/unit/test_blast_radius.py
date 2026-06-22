@@ -8,8 +8,8 @@ import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
-from eedom.plugins._runners.graph_builder import CodeGraph
-from eedom.plugins.blast_radius import BlastRadiusPlugin
+from caliper.plugins._runners.graph_builder import CodeGraph
+from caliper.plugins.blast_radius import BlastRadiusPlugin
 
 SAMPLE_PYTHON = textwrap.dedent("""\
     import os
@@ -317,7 +317,7 @@ class TestFindingMessages:
 
     def test_plugin_findings_normalize_to_nonempty_messages(self, tmp_path, monkeypatch):
         """End-to-end: PluginFinding.message is never empty for blast-radius."""
-        from eedom.core.registry import _normalize_findings
+        from caliper.core.registry import _normalize_findings
 
         monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
         repo = tmp_path / "repo"
@@ -349,49 +349,49 @@ class TestGraphDbLocation:
         """Default graph db lives in the XDG cache dir, not in the reviewed repo."""
         cache = tmp_path / "cache"
         monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
-        monkeypatch.delenv("EEDOM_GRAPH_DB", raising=False)
+        monkeypatch.delenv("CALIPER_GRAPH_DB", raising=False)
         repo = self._make_repo(tmp_path)
 
         result = BlastRadiusPlugin().run(["mod.py"], repo)
 
         assert result.error == ""
-        assert not (repo / ".eedom").exists(), "review must not dirty the target repo"
-        dbs = list((cache / "eedom").rglob("code_graph.sqlite"))
+        assert not (repo / ".caliper").exists(), "review must not dirty the target repo"
+        dbs = list((cache / "caliper").rglob("code_graph.sqlite"))
         assert len(dbs) == 1, f"expected graph db under XDG cache, found: {dbs}"
 
     def test_env_var_overrides_db_location(self, tmp_path, monkeypatch):
-        """EEDOM_GRAPH_DB points the graph db at an explicit path."""
+        """CALIPER_GRAPH_DB points the graph db at an explicit path."""
         custom = tmp_path / "custom" / "graph.sqlite"
-        monkeypatch.setenv("EEDOM_GRAPH_DB", str(custom))
+        monkeypatch.setenv("CALIPER_GRAPH_DB", str(custom))
         repo = self._make_repo(tmp_path)
 
         result = BlastRadiusPlugin().run(["mod.py"], repo)
 
         assert result.error == ""
         assert custom.exists()
-        assert not (repo / ".eedom").exists()
+        assert not (repo / ".caliper").exists()
 
     def test_config_graph_db_honored(self, tmp_path, monkeypatch):
         """A repo config that explicitly asks for an in-repo path keeps working."""
         monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-        monkeypatch.delenv("EEDOM_GRAPH_DB", raising=False)
+        monkeypatch.delenv("CALIPER_GRAPH_DB", raising=False)
         repo = self._make_repo(tmp_path)
-        (repo / ".eagle-eyed-dom.yaml").write_text(
-            "thresholds:\n  blast-radius:\n    graph_db: .eedom/code_graph.sqlite\n"
+        (repo / ".caliper.yaml").write_text(
+            "thresholds:\n  blast-radius:\n    graph_db: .caliper/code_graph.sqlite\n"
         )
 
         result = BlastRadiusPlugin().run(["mod.py"], repo)
 
         assert result.error == ""
-        assert (repo / ".eedom" / "code_graph.sqlite").exists()
+        assert (repo / ".caliper" / "code_graph.sqlite").exists()
 
     def test_legacy_in_repo_db_is_reused(self, tmp_path, monkeypatch):
-        """An existing .eedom/code_graph.sqlite (pre-#391 layout) keeps being used."""
+        """An existing .caliper/code_graph.sqlite (pre-#391 layout) keeps being used."""
         cache = tmp_path / "cache"
         monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
-        monkeypatch.delenv("EEDOM_GRAPH_DB", raising=False)
+        monkeypatch.delenv("CALIPER_GRAPH_DB", raising=False)
         repo = self._make_repo(tmp_path)
-        legacy = repo / ".eedom" / "code_graph.sqlite"
+        legacy = repo / ".caliper" / "code_graph.sqlite"
         legacy.parent.mkdir()
         g = CodeGraph(db_path=str(legacy))
         g.conn.close()
@@ -403,7 +403,7 @@ class TestGraphDbLocation:
         g2 = CodeGraph(db_path=str(legacy))
         assert g2.stats()["symbols"] > 0
         g2.conn.close()
-        assert list((cache / "eedom").rglob("*.sqlite")) == []
+        assert list((cache / "caliper").rglob("*.sqlite")) == []
 
 
 class TestBlastRadiusPluginReadOnly:

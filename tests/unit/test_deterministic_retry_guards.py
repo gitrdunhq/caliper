@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files where GitHub API calls must have retry handling for 429 rate limits (issue #232)
 _GITHUB_API_RETRY_FILES: tuple[Path, ...] = (_SRC / "adapters" / "github_publisher.py",)

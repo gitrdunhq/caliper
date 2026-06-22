@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.security.secret_str import SecretStrDetector
+from caliper.detectors.security.secret_str import SecretStrDetector
 
 
 class TestSecretStrDetector:
-    """Tests for SecretStrDetector (EED-004)."""
+    """Tests for SecretStrDetector (CAL-004)."""
 
     @pytest.fixture
     def detector(self):
@@ -30,7 +30,7 @@ class TestSecretStrDetector:
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-004"
+        assert findings[0].detector_id == "CAL-004"
         assert "api_key" in findings[0].message
         assert "SecretStr" in findings[0].message
 
@@ -70,7 +70,7 @@ class TestSecretStrDetector:
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-004"
+        assert findings[0].detector_id == "CAL-004"
 
     def test_ignores_non_secret_names(self, detector):
         """No finding for non-secret field names."""
@@ -127,7 +127,7 @@ class TestSecretStrRegressions:
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1, "bare api_key = '...' must be flagged as a hardcoded secret"
-        assert findings[0].detector_id == "EED-004"
+        assert findings[0].detector_id == "CAL-004"
         assert "api_key" in findings[0].message
 
     def test_bare_assign_password_literal_flagged(self, detector):

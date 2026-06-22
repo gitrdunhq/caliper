@@ -1,5 +1,5 @@
 #!/bin/bash
-# Eagle Eyed Dom — Smart Commit Script
+# Caliper — Smart Commit Script
 # Single entry point for all git mutations. Never use manual git commands.
 # Handles: staging, conventional commit message, push with -u
 #

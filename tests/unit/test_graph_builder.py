@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from eedom.plugins._runners.graph_builder import CodeGraph
+from caliper.plugins._runners.graph_builder import CodeGraph
 
 SAMPLE_A = textwrap.dedent("""\
     def alpha():
@@ -484,7 +484,7 @@ class TestMalformedChecksYaml:
         yaml_path = tmp_path / "checks.yaml"
         yaml_path.write_text(yaml_content)
 
-        with patch("eedom.plugins._runners.graph_builder._CHECKS_YAML", yaml_path):
+        with patch("caliper.plugins._runners.graph_builder._CHECKS_YAML", yaml_path):
             graph = CodeGraph()  # must not raise
 
         count = graph.conn.execute("SELECT COUNT(*) as c FROM checks").fetchone()["c"]
@@ -507,7 +507,7 @@ class TestMalformedChecksYaml:
         yaml_path = tmp_path / "checks.yaml"
         yaml_path.write_text(yaml_content)
 
-        with patch("eedom.plugins._runners.graph_builder._CHECKS_YAML", yaml_path):
+        with patch("caliper.plugins._runners.graph_builder._CHECKS_YAML", yaml_path):
             graph = CodeGraph()
 
         count = graph.conn.execute("SELECT COUNT(*) as c FROM checks").fetchone()["c"]
@@ -517,7 +517,7 @@ class TestMalformedChecksYaml:
 class TestBlastRadiusPersistence:
     def test_blast_radius_plugin_uses_persistent_db(self, tmp_path, monkeypatch):
         """BlastRadiusPlugin reads db_path from config and passes it to CodeGraph."""
-        from eedom.plugins.blast_radius import BlastRadiusPlugin
+        from caliper.plugins.blast_radius import BlastRadiusPlugin
 
         monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
         plugin = BlastRadiusPlugin()

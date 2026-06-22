@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# Run eedom review against itself, log results, fail on HIGH/CRITICAL
+# Run caliper review against itself, log results, fail on HIGH/CRITICAL
 set -euo pipefail
 
 REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
-REPORT_DIR="${REPORT_DIR:-${REPO_ROOT}/.eedom/reports}"
+REPORT_DIR="${REPORT_DIR:-${REPO_ROOT}/.caliper/reports}"
 REPORT_FILE="${REPORT_DIR}/dogfood-report-${TIMESTAMP}.md"
 SARIF_FILE="${REPORT_DIR}/dogfood-${TIMESTAMP}.sarif"
 
 mkdir -p "${REPORT_DIR}"
 
-echo "=== Eagle Eyed Dom Dogfood Run: ${TIMESTAMP} ==="
+echo "=== Caliper Dogfood Run: ${TIMESTAMP} ==="
 echo ""
 
 # Run review in markdown mode for the human-readable report
-uv run eedom review --repo-path "${REPO_ROOT}" --all --output "${REPORT_FILE}" 2>&1 || true
+uv run caliper review --repo-path "${REPO_ROOT}" --all --output "${REPORT_FILE}" 2>&1 || true
 
 # Run review in SARIF mode for machine-readable severity counting
-uv run eedom review --repo-path "${REPO_ROOT}" --all --format sarif --output "${SARIF_FILE}" 2>&1 || true
+uv run caliper review --repo-path "${REPO_ROOT}" --all --format sarif --output "${SARIF_FILE}" 2>&1 || true
 
 # Count error-level findings (critical + high) from SARIF
 if [ -f "${SARIF_FILE}" ]; then

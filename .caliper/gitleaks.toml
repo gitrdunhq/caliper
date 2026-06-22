@@ -1,0 +1,35 @@
+title = "gitrdun custom gitleaks rules"
+
+[allowlist]
+paths = [
+  '''\.claude/''',
+  '''\.git/''',
+  '''\.venv/''',
+  '''venv/''',
+  '''node_modules/''',
+  '''Dockerfile''',
+  '''tests/''',
+  '''\.temp/''',
+  '''src/caliper/core/telemetry\.py''',
+]
+
+[[rules]]
+id = "absolute-home-path"
+description = "Absolute home directory path detected — replace with placeholder"
+regex = '''/Users/[a-zA-Z][a-zA-Z0-9._-]+/'''
+tags = ["pii", "path"]
+keywords = ["/Users/"]
+
+[[rules]]
+id = "absolute-home-path-linux"
+description = "Absolute Linux home directory path detected — replace with placeholder"
+regex = '''/home/[a-zA-Z][a-zA-Z0-9._-]+/'''
+tags = ["pii", "path"]
+keywords = ["/home/"]
+
+[[rules]]
+id = "corporate-email"
+description = "Corporate email address in committed file — use personal or generic email"
+regex = '''[a-zA-Z0-9._%+-]+@rackspace\.com'''
+tags = ["pii", "email"]
+keywords = ["@rackspace.com"]

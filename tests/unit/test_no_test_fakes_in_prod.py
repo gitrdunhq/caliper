@@ -18,7 +18,7 @@ import ast
 import re
 from pathlib import Path
 
-_SRC = Path(__file__).parent.parent.parent / "src" / "eedom"
+_SRC = Path(__file__).parent.parent.parent / "src" / "caliper"
 
 _FAKE_PATTERNS = [
     r"\bbootstrap_test\b",
@@ -53,7 +53,7 @@ def _scan_file(path: Path) -> list[str]:
 
 
 def test_no_fake_classes_in_production_code() -> None:
-    """No _Fake*, Fake*, Mock*, Dummy* classes in src/eedom/ (except bootstrap.py)."""
+    """No _Fake*, Fake*, Mock*, Dummy* classes in src/caliper/ (except bootstrap.py)."""
     violations = []
     for py_file in _SRC.rglob("*.py"):
         if py_file.name in _ALLOWED_FILES:
@@ -74,7 +74,7 @@ def test_no_fake_classes_in_production_code() -> None:
 
 
 def test_no_bootstrap_test_calls_in_production_code() -> None:
-    """No calls to bootstrap_test() in src/eedom/ except bootstrap.py itself."""
+    """No calls to bootstrap_test() in src/caliper/ except bootstrap.py itself."""
     violations = []
     for py_file in _SRC.rglob("*.py"):
         if py_file.name in _ALLOWED_FILES:

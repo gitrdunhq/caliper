@@ -1,7 +1,7 @@
 """Deterministic guards for timeout propagation — Issue #243 / Parent #209.
 
 Bug: Scanner classes and OpaRegoAdapter use hardcoded timeout constants instead
-of accepting configurable values from EedomSettings. Operators cannot tune tool
+of accepting configurable values from CaliperSettings. Operators cannot tune tool
 budgets for large repos or constrained CI environments despite scanner_timeout
 and opa_timeout being declared in config.
 
@@ -24,9 +24,9 @@ pytestmark = pytest.mark.xfail(
     strict=False,
 )
 
-from eedom.core.opa_adapter import OpaRegoAdapter
-from eedom.data.scanners.syft import SyftScanner
-from eedom.data.scanners.trivy import TrivyScanner
+from caliper.core.opa_adapter import OpaRegoAdapter
+from caliper.data.scanners.syft import SyftScanner
+from caliper.data.scanners.trivy import TrivyScanner
 
 
 class TestOpaAdapterTimeoutIsConfigurable:
@@ -45,7 +45,7 @@ class TestOpaAdapterTimeoutIsConfigurable:
             f"OpaRegoAdapter.__init__ has no 'timeout' parameter. "
             f"Parameters found: {list(sig.parameters)}. "
             "config.py exposes opa_timeout but the adapter ignores it. "
-            "Fix: add timeout to __init__ and wire it from EedomSettings. "
+            "Fix: add timeout to __init__ and wire it from CaliperSettings. "
             "See issue #209."
         )
 
@@ -64,7 +64,7 @@ class TestScannerTimeoutsAreConfigurable:
         assert "timeout" in sig.parameters, (
             f"SyftScanner.__init__ has no 'timeout' parameter. "
             f"Parameters found: {list(sig.parameters)}. "
-            "Hardcoded _TIMEOUT=60 cannot be tuned from EedomSettings. "
+            "Hardcoded _TIMEOUT=60 cannot be tuned from CaliperSettings. "
             "Fix: add timeout to __init__ and wire it from scanner_timeout config. "
             "See issue #209."
         )

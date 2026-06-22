@@ -1,15 +1,15 @@
-"""Tests for eedom.core.normalizer — finding normalization and dedup."""
+"""Tests for caliper.core.normalizer — finding normalization and dedup."""
 
 from __future__ import annotations
 
-from eedom.core.models import (
+from caliper.core.models import (
     Finding,
     FindingCategory,
     FindingSeverity,
     ScanResult,
     ScanResultStatus,
 )
-from eedom.core.normalizer import normalize_findings
+from caliper.core.normalizer import normalize_findings
 
 # ---------------------------------------------------------------------------
 # Helpers

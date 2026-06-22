@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.reliability.circuit_breaker import CircuitBreakerDetector
+from caliper.detectors.reliability.circuit_breaker import CircuitBreakerDetector
 
 
 class TestCircuitBreakerDetector:
-    """Tests for CircuitBreakerDetector (EED-007)."""
+    """Tests for CircuitBreakerDetector (CAL-007)."""
 
     @pytest.fixture
     def detector(self):
@@ -37,7 +37,7 @@ def call_api():
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-007"
+        assert findings[0].detector_id == "CAL-007"
 
     def test_detects_manual_breaker_without_half_open(self, detector):
         """Detects manually implemented breaker without half-open."""

@@ -1,7 +1,7 @@
 # tested-by: tests/unit/test_deterministic_architecture_guards.py
 """Enforced tier-boundary guard (#404 Phase 6, closes #231).
 
-A single AST walk over every ``src/eedom`` module checks that imports only
+A single AST walk over every ``src/caliper`` module checks that imports only
 cross tier boundaries in the allowed direction. This is the mechanically
 enforced invariant that locks in the ports-&-adapters refactor — it is **not**
 ``xfail``: a new upward/skip-tier import fails CI.
@@ -15,8 +15,8 @@ Tier map (mirrors datum-ax ``tests/test_architecture.py``):
 * ``data`` / ``adapters`` / ``plugins`` / ``detectors`` — may import core
   (where the ports/contracts live), the shared kernel, and themselves. Never
   presentation, never a sibling outer tier.
-* kernel (``eedom._base`` / ``eedom.registry``) — importable everywhere,
-  depends on nothing in ``eedom``.
+* kernel (``caliper._base`` / ``caliper.registry``) — importable everywhere,
+  depends on nothing in ``caliper``.
 
 The test is import-free (pure AST), so it is container-safe.
 """
@@ -27,9 +27,9 @@ import ast
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
-# Top-level directory under src/eedom -> tier name.
+# Top-level directory under src/caliper -> tier name.
 _TIER_BY_DIR = {
     "cli": "presentation",
     "agent": "presentation",
@@ -46,7 +46,7 @@ _TIER_BY_DIR = {
 _SKIP_DIRS = {"templates"}
 
 # Root-level modules form the shared kernel (importable everywhere); derived from
-# src/eedom/*.py so a future kernel module is picked up automatically.
+# src/caliper/*.py so a future kernel module is picked up automatically.
 _KERNEL_MODULES = {p.stem for p in _SRC.glob("*.py") if p.stem != "__init__"}
 
 _ANY = {"presentation", "core", "data", "adapters", "plugins", "detectors", "kernel"}
@@ -70,7 +70,7 @@ def _python_files() -> list[Path]:
 def _source_tier(path: Path) -> str | None:
     """Tier of a source file, or None when it should be skipped."""
     rel = path.relative_to(_SRC).parts
-    if len(rel) == 1:  # src/eedom/<file>.py
+    if len(rel) == 1:  # src/caliper/<file>.py
         # The package-root __init__ is the public-API facade (may re-export from
         # any tier); _base/registry are the strict shared kernel.
         return "presentation" if rel[0] == "__init__.py" else "kernel"
@@ -81,14 +81,14 @@ def _source_tier(path: Path) -> str | None:
 
 
 def _target_tier(module: str) -> str:
-    """Tier an imported ``eedom.*`` module belongs to.
+    """Tier an imported ``caliper.*`` module belongs to.
 
     Unmapped packages resolve to ``"unknown"`` (in no tier's allow-set) so a
     typo'd or future top-level package fails the boundary check instead of
     silently passing as kernel.
     """
     parts = module.split(".")
-    if len(parts) < 2:  # bare ``eedom``
+    if len(parts) < 2:  # bare ``caliper``
         return "kernel"
     second = parts[1]
     if second in _TIER_BY_DIR:
@@ -98,23 +98,23 @@ def _target_tier(module: str) -> str:
     return "unknown"
 
 
-def _imported_eedom_modules(tree: ast.Module) -> list[tuple[str, int]]:
-    """Every ``eedom.*`` module imported anywhere in the file (incl. lazy)."""
+def _imported_caliper_modules(tree: ast.Module) -> list[tuple[str, int]]:
+    """Every ``caliper.*`` module imported anywhere in the file (incl. lazy)."""
     out: list[tuple[str, int]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name.startswith("eedom"):
+                if alias.name.startswith("caliper"):
                     out.append((alias.name, node.lineno))
         elif isinstance(node, ast.ImportFrom):
             # Relative imports stay within the same package/tier — skip them.
-            if node.level == 0 and node.module and node.module.startswith("eedom"):
+            if node.level == 0 and node.module and node.module.startswith("caliper"):
                 out.append((node.module, node.lineno))
     return out
 
 
 def test_no_unknown_top_level_packages() -> None:
-    """Guard the tier map itself: every src/eedom dir is mapped or explicitly skipped."""
+    """Guard the tier map itself: every src/caliper dir is mapped or explicitly skipped."""
     dirs = {p.name for p in _SRC.iterdir() if p.is_dir() and p.name != "__pycache__"}
     known = set(_TIER_BY_DIR) | _SKIP_DIRS
     unmapped = dirs - known
@@ -125,13 +125,13 @@ def test_no_unknown_top_level_packages() -> None:
 
 
 def test_unmapped_target_is_a_violation_not_kernel() -> None:
-    """An import of an unmapped eedom package fails the check (not silently kernel)."""
-    assert _target_tier("eedom.bogus.thing") == "unknown"
+    """An import of an unmapped caliper package fails the check (not silently kernel)."""
+    assert _target_tier("caliper.bogus.thing") == "unknown"
     assert "unknown" not in _ALLOWED["core"]
     # Real tiers + the shared kernel still resolve correctly.
-    assert _target_tier("eedom.data.scanners") == "data"
-    assert _target_tier("eedom.registry") == "kernel"
-    assert _target_tier("eedom._base") == "kernel"
+    assert _target_tier("caliper.data.scanners") == "data"
+    assert _target_tier("caliper.registry") == "kernel"
+    assert _target_tier("caliper._base") == "kernel"
 
 
 def test_tier_boundaries_are_not_crossed() -> None:
@@ -144,7 +144,7 @@ def test_tier_boundaries_are_not_crossed() -> None:
             continue
         allowed = _ALLOWED[src_tier]
         tree = ast.parse(path.read_text(), filename=str(path))
-        for module, lineno in _imported_eedom_modules(tree):
+        for module, lineno in _imported_caliper_modules(tree):
             tgt_tier = _target_tier(module)
             if tgt_tier not in allowed:
                 rel = path.relative_to(_REPO).as_posix()

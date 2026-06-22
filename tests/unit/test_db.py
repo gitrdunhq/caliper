@@ -1,11 +1,11 @@
-"""Tests for eedom.data.db — decision record repository."""
+"""Tests for caliper.data.db — decision record repository."""
 
 from __future__ import annotations
 
 import uuid
 from unittest.mock import MagicMock, patch
 
-from eedom.core.models import (
+from caliper.core.models import (
     BypassRecord,
     DecisionVerdict,
     OperatingMode,
@@ -74,7 +74,7 @@ class TestDecisionRepository:
 
     def test_save_request_executes_insert_with_correct_params(self) -> None:
         """save_request should execute INSERT with the request fields."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
 
@@ -105,7 +105,7 @@ class TestDecisionRepository:
 
     def test_save_request_no_pool_does_not_raise(self) -> None:
         """save_request with no pool should log warning and return silently."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
         # _pool is None by default
@@ -115,7 +115,7 @@ class TestDecisionRepository:
 
     def test_save_request_db_error_logs_and_does_not_raise(self) -> None:
         """Database errors during save_request should be logged, never raised."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
         mock_pool = MagicMock()
@@ -128,11 +128,11 @@ class TestDecisionRepository:
 
     def test_connect_failure_returns_false(self) -> None:
         """connect() should return False when the database is unreachable."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://bad-host:5432/nope")
 
-        with patch("eedom.data.db.ConnectionPool", side_effect=Exception("refused")):
+        with patch("caliper.data.db.ConnectionPool", side_effect=Exception("refused")):
             result = repo.connect()
 
         assert result is False
@@ -140,7 +140,7 @@ class TestDecisionRepository:
 
     def test_connect_success_returns_true(self) -> None:
         """connect() should return True when connection succeeds."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
 
@@ -149,7 +149,7 @@ class TestDecisionRepository:
         mock_pool.connection.return_value.__enter__ = MagicMock(return_value=mock_conn)
         mock_pool.connection.return_value.__exit__ = MagicMock(return_value=False)
 
-        with patch("eedom.data.db.ConnectionPool", return_value=mock_pool):
+        with patch("caliper.data.db.ConnectionPool", return_value=mock_pool):
             result = repo.connect()
 
         assert result is True
@@ -157,7 +157,7 @@ class TestDecisionRepository:
 
     def test_get_decision_by_request_id_returns_none_when_not_found(self) -> None:
         """get_decision_by_request_id returns None when no row matches."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
 
@@ -178,7 +178,7 @@ class TestDecisionRepository:
 
     def test_get_decision_db_error_returns_none(self) -> None:
         """get_decision_by_request_id returns None on database error."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
         mock_pool = MagicMock()
@@ -190,7 +190,7 @@ class TestDecisionRepository:
 
     def test_save_scan_results_db_error_does_not_raise(self) -> None:
         """save_scan_results should absorb database errors."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
         mock_pool = MagicMock()
@@ -201,7 +201,7 @@ class TestDecisionRepository:
 
     def test_save_policy_evaluation_db_error_does_not_raise(self) -> None:
         """save_policy_evaluation should absorb database errors."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
         mock_pool = MagicMock()
@@ -212,7 +212,7 @@ class TestDecisionRepository:
 
     def test_save_decision_db_error_does_not_raise(self) -> None:
         """save_decision should absorb database errors."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
         mock_pool = MagicMock()
@@ -225,7 +225,7 @@ class TestDecisionRepository:
 
     def test_save_bypass_db_error_does_not_raise(self) -> None:
         """save_bypass should absorb database errors."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
         mock_pool = MagicMock()
@@ -236,7 +236,7 @@ class TestDecisionRepository:
 
     def test_close_with_pool(self) -> None:
         """close() should close the pool and set it to None."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
         mock_pool = MagicMock()
@@ -249,14 +249,14 @@ class TestDecisionRepository:
 
     def test_close_without_pool(self) -> None:
         """close() without a pool should be a no-op."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test")
         repo.close()  # Must not raise
 
     def test_query_timeout_is_configurable(self) -> None:
         """The query timeout should be set from the constructor parameter."""
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://fake:5432/test", query_timeout=30)
 
@@ -267,7 +267,7 @@ class TestDecisionRepository:
         """F-009: database_connected log event must not contain the raw password."""
         import structlog
 
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://admin:mysecretpw@host:5432/db")
 
@@ -279,7 +279,7 @@ class TestDecisionRepository:
 
         structlog.configure(processors=[_capture])
 
-        with patch("eedom.data.db.ConnectionPool") as mock_pool:
+        with patch("caliper.data.db.ConnectionPool") as mock_pool:
             mock_conn = MagicMock()
             mock_pool.return_value.connection.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -294,7 +294,7 @@ class TestDecisionRepository:
         """F-009: database_connection_failed log event must not contain the raw password."""
         import structlog
 
-        from eedom.data.db import DecisionRepository
+        from caliper.data.db import DecisionRepository
 
         repo = DecisionRepository(dsn="postgresql://admin:topsecret@host:5432/db")
 
@@ -306,7 +306,7 @@ class TestDecisionRepository:
 
         structlog.configure(processors=[_capture])
 
-        with patch("eedom.data.db.ConnectionPool", side_effect=Exception("refused")):
+        with patch("caliper.data.db.ConnectionPool", side_effect=Exception("refused")):
             repo.connect()
 
         for evt in captured:
@@ -317,50 +317,50 @@ class TestNullRepository:
     """Tests for the NullRepository no-op implementation."""
 
     def test_connect_returns_true(self) -> None:
-        from eedom.data.db import NullRepository
+        from caliper.data.db import NullRepository
 
         repo = NullRepository()
         assert repo.connect() is True
 
     def test_close_is_noop(self) -> None:
-        from eedom.data.db import NullRepository
+        from caliper.data.db import NullRepository
 
         repo = NullRepository()
         repo.close()  # Must not raise
 
     def test_save_request_is_noop(self) -> None:
-        from eedom.data.db import NullRepository
+        from caliper.data.db import NullRepository
 
         repo = NullRepository()
         repo.save_request(_make_request())
 
     def test_save_scan_results_is_noop(self) -> None:
-        from eedom.data.db import NullRepository
+        from caliper.data.db import NullRepository
 
         repo = NullRepository()
         repo.save_scan_results(uuid.uuid4(), [_make_scan_result()])
 
     def test_save_policy_evaluation_is_noop(self) -> None:
-        from eedom.data.db import NullRepository
+        from caliper.data.db import NullRepository
 
         repo = NullRepository()
         repo.save_policy_evaluation(uuid.uuid4(), _make_policy_evaluation())
 
     def test_save_decision_is_noop(self) -> None:
-        from eedom.data.db import NullRepository
+        from caliper.data.db import NullRepository
 
         repo = NullRepository()
         request = _make_request()
         repo.save_decision(request.request_id, _make_decision(request))
 
     def test_get_decision_returns_none(self) -> None:
-        from eedom.data.db import NullRepository
+        from caliper.data.db import NullRepository
 
         repo = NullRepository()
         assert repo.get_decision_by_request_id(uuid.uuid4()) is None
 
     def test_save_bypass_is_noop(self) -> None:
-        from eedom.data.db import NullRepository
+        from caliper.data.db import NullRepository
 
         repo = NullRepository()
         repo.save_bypass(_make_bypass(uuid.uuid4()))

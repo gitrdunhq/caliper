@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files where file uploads should validate MIME type against extension (issue #178)
 # These are entry points that handle user-provided file uploads

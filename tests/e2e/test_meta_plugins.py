@@ -15,7 +15,7 @@ import pytest
 
 from tests.e2e.conftest import E2E_ENABLED, breakpoint_dump, run_review
 
-pytestmark = pytest.mark.skipif(not E2E_ENABLED, reason="E2E tests require EEDOM_E2E=1")
+pytestmark = pytest.mark.skipif(not E2E_ENABLED, reason="E2E tests require CALIPER_E2E=1")
 
 
 class TestSupplyChain:

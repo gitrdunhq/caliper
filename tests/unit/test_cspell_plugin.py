@@ -7,8 +7,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from eedom.core.plugin import PluginCategory, PluginResult
-from eedom.plugins.cspell import CspellPlugin
+from caliper.core.plugin import PluginCategory, PluginResult
+from caliper.plugins.cspell import CspellPlugin
 
 
 class TestCspellPluginBasics:
@@ -26,7 +26,7 @@ class TestCspellPluginBasics:
         assert p.can_run([], Path(".")) is False
 
     @patch(
-        "eedom.plugins.cspell.subprocess.run",
+        "caliper.plugins.cspell.subprocess.run",
         side_effect=FileNotFoundError,
     )
     def test_binary_not_found_returns_error(self, _mock):
@@ -34,7 +34,7 @@ class TestCspellPluginBasics:
         result = p.run(["app.py"], Path("."))
         assert "not installed" in result.error
 
-    @patch("eedom.plugins.cspell.subprocess.run")
+    @patch("caliper.plugins.cspell.subprocess.run")
     def test_clean_output_no_findings(self, mock_run):
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = ""
@@ -44,7 +44,7 @@ class TestCspellPluginBasics:
         assert result.error == ""
         assert result.findings == []
 
-    @patch("eedom.plugins.cspell.subprocess.run")
+    @patch("caliper.plugins.cspell.subprocess.run")
     def test_misspelling_produces_finding(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = (
@@ -71,7 +71,7 @@ class TestCspellPluginBasics:
 class TestCspellStderrSuppression:
     """--no-progress and --no-summary keep stderr quiet so stdout JSON stays parseable."""
 
-    @patch("eedom.plugins.cspell.subprocess.run")
+    @patch("caliper.plugins.cspell.subprocess.run")
     def test_command_includes_no_progress(self, mock_run):
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = ""
@@ -81,7 +81,7 @@ class TestCspellStderrSuppression:
         cmd = mock_run.call_args[0][0]
         assert "--no-progress" in cmd
 
-    @patch("eedom.plugins.cspell.subprocess.run")
+    @patch("caliper.plugins.cspell.subprocess.run")
     def test_command_includes_no_summary(self, mock_run):
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = ""
@@ -91,7 +91,7 @@ class TestCspellStderrSuppression:
         cmd = mock_run.call_args[0][0]
         assert "--no-summary" in cmd
 
-    @patch("eedom.plugins.cspell.subprocess.run")
+    @patch("caliper.plugins.cspell.subprocess.run")
     def test_command_uses_json_reporter(self, mock_run):
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = ""
@@ -103,7 +103,7 @@ class TestCspellStderrSuppression:
         idx = cmd.index("--reporter")
         assert cmd[idx + 1] == "@cspell/cspell-json-reporter"
 
-    @patch("eedom.plugins.cspell.subprocess.run")
+    @patch("caliper.plugins.cspell.subprocess.run")
     def test_runs_from_repo_path_cwd(self, mock_run):
         """cspell must run from repo_path so relative file paths resolve."""
         mock_run.return_value.returncode = 0
@@ -114,7 +114,7 @@ class TestCspellStderrSuppression:
         kwargs = mock_run.call_args[1]
         assert kwargs.get("cwd") == Path("/workspace")
 
-    @patch("eedom.plugins.cspell.subprocess.run")
+    @patch("caliper.plugins.cspell.subprocess.run")
     def test_file_paths_made_relative_to_repo(self, mock_run):
         """Absolute file paths must be converted to relative for cspell."""
         mock_run.return_value.returncode = 0
@@ -127,7 +127,7 @@ class TestCspellStderrSuppression:
         assert "lib/util.py" in cmd
         assert "/workspace/src/app.py" not in cmd
 
-    @patch("eedom.plugins.cspell.subprocess.run")
+    @patch("caliper.plugins.cspell.subprocess.run")
     def test_command_includes_gitignore_flag(self, mock_run):
         """--gitignore must be passed so cspell skips node_modules and other ignored paths."""
         mock_run.return_value.returncode = 0

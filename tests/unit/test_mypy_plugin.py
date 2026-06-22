@@ -8,8 +8,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from eedom.core.plugin import PluginCategory
-from eedom.plugins.mypy import MypyPlugin
+from caliper.core.plugin import PluginCategory
+from caliper.plugins.mypy import MypyPlugin
 
 MYPY_OUTPUT = """\
 src/app.py:5: error: Argument 1 to "parse_tasks" has incompatible type "Path"; expected "str"  [arg-type]
@@ -62,9 +62,9 @@ class TestMypyPlugin:
         p = MypyPlugin()
         assert p.can_run(["src/app.ts", "README.md"], Path(".")) is False
 
-    @patch("eedom.plugins.mypy.subprocess.run")
+    @patch("caliper.plugins.mypy.subprocess.run")
     @patch(
-        "eedom.plugins.mypy.shutil.which",
+        "caliper.plugins.mypy.shutil.which",
         side_effect=lambda t: "/usr/bin/mypy" if t == "mypy" else None,
     )
     def test_mypy_parses_errors(self, _which, mock_run):
@@ -82,9 +82,9 @@ class TestMypyPlugin:
         assert result.findings[0]["severity"] == "high"
         assert "parse_tasks" in result.findings[0]["message"]
 
-    @patch("eedom.plugins.mypy.subprocess.run")
+    @patch("caliper.plugins.mypy.subprocess.run")
     @patch(
-        "eedom.plugins.mypy.shutil.which",
+        "caliper.plugins.mypy.shutil.which",
         side_effect=lambda t: "/usr/bin/mypy" if t == "mypy" else None,
     )
     def test_mypy_parses_column_number_format(self, _which, mock_run):
@@ -101,8 +101,8 @@ class TestMypyPlugin:
         assert result.findings[0]["rule"] == "arg-type"
         assert result.findings[1]["line"] == 12
 
-    @patch("eedom.plugins.mypy.subprocess.run")
-    @patch("eedom.plugins.mypy.shutil.which", return_value="/usr/bin/pyright")
+    @patch("caliper.plugins.mypy.subprocess.run")
+    @patch("caliper.plugins.mypy.shutil.which", return_value="/usr/bin/pyright")
     def test_pyright_parses_json(self, _which, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = PYRIGHT_OUTPUT
@@ -117,9 +117,9 @@ class TestMypyPlugin:
         assert result.findings[0]["rule"] == "reportArgumentType"
         assert result.findings[1]["severity"] == "medium"
 
-    @patch("eedom.plugins.mypy.subprocess.run")
+    @patch("caliper.plugins.mypy.subprocess.run")
     @patch(
-        "eedom.plugins.mypy.shutil.which",
+        "caliper.plugins.mypy.shutil.which",
         side_effect=lambda t: "/usr/bin/mypy" if t == "mypy" else None,
     )
     def test_clean_scan(self, _which, mock_run):
@@ -133,16 +133,16 @@ class TestMypyPlugin:
         assert result.error == ""
         assert len(result.findings) == 0
 
-    @patch("eedom.plugins.mypy.shutil.which", return_value=None)
+    @patch("caliper.plugins.mypy.shutil.which", return_value=None)
     def test_not_installed(self, _which):
         p = MypyPlugin()
         result = p.run(["src/app.py"], Path("/workspace"))
 
         assert "NOT_INSTALLED" in result.error
 
-    @patch("eedom.plugins.mypy.subprocess.run")
+    @patch("caliper.plugins.mypy.subprocess.run")
     @patch(
-        "eedom.plugins.mypy.shutil.which",
+        "caliper.plugins.mypy.shutil.which",
         side_effect=lambda t: "/usr/bin/mypy" if t == "mypy" else None,
     )
     def test_timeout(self, _which, mock_run):
@@ -155,9 +155,9 @@ class TestMypyPlugin:
 
         assert "TIMEOUT" in result.error
 
-    @patch("eedom.plugins.mypy.subprocess.run")
+    @patch("caliper.plugins.mypy.subprocess.run")
     @patch(
-        "eedom.plugins.mypy.shutil.which",
+        "caliper.plugins.mypy.shutil.which",
         side_effect=lambda t: "/usr/bin/mypy" if t == "mypy" else None,
     )
     def test_notes_excluded_from_findings(self, _which, mock_run):

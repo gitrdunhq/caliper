@@ -1,4 +1,4 @@
-"""Tests for eedom.cli.main -- CLI entry point."""
+"""Tests for caliper.cli.main -- CLI entry point."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from eedom.cli.main import cli
+from caliper.cli.main import cli
 
 DIFF_NO_DEPS = """\
 diff --git a/src/app.py b/src/app.py
@@ -26,7 +26,7 @@ class TestEvaluateNoDependencyChanges:
         """When the diff contains no dependency file changes, exit 0 with a message."""
         runner = CliRunner()
         env = {
-            "EEDOM_DB_DSN": "postgresql://test:test@localhost/test",
+            "CALIPER_DB_DSN": "postgresql://test:test@localhost/test",
         }
 
         with runner.isolated_filesystem():
@@ -58,7 +58,7 @@ class TestEvaluateNoDependencyChanges:
         """An empty diff file exits 0 with no changes message."""
         runner = CliRunner()
         env = {
-            "EEDOM_DB_DSN": "postgresql://test:test@localhost/test",
+            "CALIPER_DB_DSN": "postgresql://test:test@localhost/test",
         }
 
         with runner.isolated_filesystem():
@@ -121,7 +121,7 @@ class TestEvaluateAlwaysExitsZero:
     def test_evaluate_exits_zero_on_config_error(self) -> None:
         """Even with a broken config, evaluate exits 0 (fail-open)."""
         runner = CliRunner()
-        # No EEDOM_DB_DSN set -- config will fail to load
+        # No CALIPER_DB_DSN set -- config will fail to load
         # The CLI should catch this and exit 0
 
         with runner.isolated_filesystem():
@@ -152,7 +152,7 @@ class TestEvaluateAlwaysExitsZero:
         """Evaluate accepts diff from stdin via '-'."""
         runner = CliRunner()
         env = {
-            "EEDOM_DB_DSN": "postgresql://test:test@localhost/test",
+            "CALIPER_DB_DSN": "postgresql://test:test@localhost/test",
         }
 
         result = runner.invoke(
@@ -191,7 +191,7 @@ class TestReviewWatchFlag:
         """DebounceTimer fires exactly once despite multiple rapid resets."""
         import time
 
-        from eedom.cli.main import DebounceTimer
+        from caliper.cli.main import DebounceTimer
 
         calls: list[int] = []
         timer = DebounceTimer(delay=0.1, callback=lambda: calls.append(1))
@@ -210,7 +210,7 @@ class TestReviewWatchFlag:
         """DebounceTimer.cancel() prevents the scheduled callback from firing."""
         import time
 
-        from eedom.cli.main import DebounceTimer
+        from caliper.cli.main import DebounceTimer
 
         calls: list[int] = []
         timer = DebounceTimer(delay=0.2, callback=lambda: calls.append(1))
@@ -225,7 +225,7 @@ class TestReviewWatchFlag:
         """DebounceTimer never fires if reset() was never called."""
         import time
 
-        from eedom.cli.main import DebounceTimer
+        from caliper.cli.main import DebounceTimer
 
         calls: list[int] = []
         timer = DebounceTimer(delay=0.05, callback=lambda: calls.append(1))
@@ -237,7 +237,7 @@ class TestReviewWatchFlag:
         """Rapid resets keep pushing the callback further out, not stacking calls."""
         import time
 
-        from eedom.cli.main import DebounceTimer
+        from caliper.cli.main import DebounceTimer
 
         calls: list[int] = []
         timer = DebounceTimer(delay=0.15, callback=lambda: calls.append(1))
@@ -574,7 +574,7 @@ class TestIsolatedEnvironmentCheck:
 
         monkeypatch.setattr(_sys, "prefix", "/usr")
         monkeypatch.setattr(_sys, "base_prefix", "/usr")
-        monkeypatch.delenv("EEDOM_ALLOW_GLOBAL", raising=False)
+        monkeypatch.delenv("CALIPER_ALLOW_GLOBAL", raising=False)
         monkeypatch.delenv("VIRTUAL_ENV", raising=False)
         monkeypatch.delenv("CONDA_PREFIX", raising=False)
 
@@ -600,12 +600,12 @@ class TestIsolatedEnvironmentCheck:
         assert result.exit_code == 0
 
     def test_allows_bypass_env_var(self, monkeypatch) -> None:
-        """EEDOM_ALLOW_GLOBAL=1 overrides the check."""
+        """CALIPER_ALLOW_GLOBAL=1 overrides the check."""
         import sys as _sys
 
         monkeypatch.setattr(_sys, "prefix", "/usr")
         monkeypatch.setattr(_sys, "base_prefix", "/usr")
-        monkeypatch.setenv("EEDOM_ALLOW_GLOBAL", "1")
+        monkeypatch.setenv("CALIPER_ALLOW_GLOBAL", "1")
 
         runner = CliRunner()
         result = runner.invoke(cli, ["review", "--repo-path", "."])
@@ -622,7 +622,7 @@ class TestIsolatedEnvironmentCheck:
 
         monkeypatch.setattr(_sys, "prefix", "/usr")
         monkeypatch.setattr(_sys, "base_prefix", "/usr")
-        monkeypatch.delenv("EEDOM_ALLOW_GLOBAL", raising=False)
+        monkeypatch.delenv("CALIPER_ALLOW_GLOBAL", raising=False)
         monkeypatch.delenv("CONDA_PREFIX", raising=False)
         monkeypatch.setenv("VIRTUAL_ENV", str(venv_dir))
 
@@ -641,7 +641,7 @@ class TestIsolatedEnvironmentCheck:
 
         monkeypatch.setattr(_sys, "prefix", str(venv_dir))
         monkeypatch.setattr(_sys, "base_prefix", str(venv_dir))
-        monkeypatch.delenv("EEDOM_ALLOW_GLOBAL", raising=False)
+        monkeypatch.delenv("CALIPER_ALLOW_GLOBAL", raising=False)
         monkeypatch.delenv("VIRTUAL_ENV", raising=False)
         monkeypatch.delenv("CONDA_PREFIX", raising=False)
 
@@ -655,7 +655,7 @@ class TestIsolatedEnvironmentCheck:
 
         monkeypatch.setattr(_sys, "prefix", "/usr")
         monkeypatch.setattr(_sys, "base_prefix", "/usr")
-        monkeypatch.delenv("EEDOM_ALLOW_GLOBAL", raising=False)
+        monkeypatch.delenv("CALIPER_ALLOW_GLOBAL", raising=False)
         monkeypatch.delenv("VIRTUAL_ENV", raising=False)
         monkeypatch.setenv("CONDA_PREFIX", str(tmp_path / "conda-env"))
 
@@ -670,7 +670,7 @@ class TestIsolatedEnvironmentCheck:
 
         monkeypatch.setattr(_sys, "prefix", "/usr")
         monkeypatch.setattr(_sys, "base_prefix", "/usr")
-        monkeypatch.delenv("EEDOM_ALLOW_GLOBAL", raising=False)
+        monkeypatch.delenv("CALIPER_ALLOW_GLOBAL", raising=False)
         monkeypatch.delenv("CONDA_PREFIX", raising=False)
         monkeypatch.setenv("VIRTUAL_ENV", str(tmp_path / "does-not-exist"))
 
@@ -725,7 +725,7 @@ class TestCliTopLevel:
 class TestReviewDisableEnable:
     """Tests for --disable and --enable flags on the review subcommand."""
 
-    _PATCH_TARGET = "eedom.cli.main.get_default_registry"
+    _PATCH_TARGET = "caliper.cli.main.get_default_registry"
 
     def _make_mock_registry(self) -> MagicMock:
         mock_reg = MagicMock()
@@ -817,15 +817,15 @@ class TestReviewDisableEnable:
 
 
 class TestReviewRepoConfigWiring:
-    """Verify .eagle-eyed-dom.yaml is loaded and flows into run_all disabled/enabled_names."""
+    """Verify .caliper.yaml is loaded and flows into run_all disabled/enabled_names."""
 
     def test_repo_config_disabled_flows_into_run_all(self, tmp_path: Path) -> None:
         """config plugins.disabled → disabled_names passed to run_all."""
         import yaml
 
-        from eedom.cli.main import cli
+        from caliper.cli.main import cli
 
-        (tmp_path / ".eagle-eyed-dom.yaml").write_text(
+        (tmp_path / ".caliper.yaml").write_text(
             yaml.dump({"plugins": {"disabled": ["test-plugin"]}})
         )
 
@@ -833,7 +833,7 @@ class TestReviewRepoConfigWiring:
         mock_registry.run_all.return_value = []
         mock_registry.list.return_value = []
 
-        with patch("eedom.cli.main.get_default_registry", return_value=mock_registry):
+        with patch("caliper.cli.main.get_default_registry", return_value=mock_registry):
             runner = CliRunner()
             result = runner.invoke(cli, ["review", "--all", "--repo-path", str(tmp_path)])
 
@@ -846,9 +846,9 @@ class TestReviewRepoConfigWiring:
         """CLI --disable and config disabled are both present in disabled_names."""
         import yaml
 
-        from eedom.cli.main import cli
+        from caliper.cli.main import cli
 
-        (tmp_path / ".eagle-eyed-dom.yaml").write_text(
+        (tmp_path / ".caliper.yaml").write_text(
             yaml.dump({"plugins": {"disabled": ["config-plugin"]}})
         )
 
@@ -856,7 +856,7 @@ class TestReviewRepoConfigWiring:
         mock_registry.run_all.return_value = []
         mock_registry.list.return_value = []
 
-        with patch("eedom.cli.main.get_default_registry", return_value=mock_registry):
+        with patch("caliper.cli.main.get_default_registry", return_value=mock_registry):
             runner = CliRunner()
             result = runner.invoke(
                 cli,
@@ -873,9 +873,9 @@ class TestReviewRepoConfigWiring:
         """CLI --enable puts the plugin name in enabled_names, overriding config disabled."""
         import yaml
 
-        from eedom.cli.main import cli
+        from caliper.cli.main import cli
 
-        (tmp_path / ".eagle-eyed-dom.yaml").write_text(
+        (tmp_path / ".caliper.yaml").write_text(
             yaml.dump({"plugins": {"disabled": ["test-plugin"]}})
         )
 
@@ -883,7 +883,7 @@ class TestReviewRepoConfigWiring:
         mock_registry.run_all.return_value = []
         mock_registry.list.return_value = []
 
-        with patch("eedom.cli.main.get_default_registry", return_value=mock_registry):
+        with patch("caliper.cli.main.get_default_registry", return_value=mock_registry):
             runner = CliRunner()
             result = runner.invoke(
                 cli,
@@ -897,7 +897,7 @@ class TestReviewRepoConfigWiring:
 
     def test_package_flag_in_review_help(self) -> None:
         """--package flag appears in review --help."""
-        from eedom.cli.main import cli
+        from caliper.cli.main import cli
 
         runner = CliRunner()
         result = runner.invoke(cli, ["review", "--help"])
@@ -912,7 +912,7 @@ class TestEvaluateInputValidation:
         """evaluate rejects --repo-path that does not exist."""
         nonexistent = tmp_path / "nonexistent"
         runner = CliRunner()
-        with patch("eedom.core.config.EedomSettings", side_effect=Exception("no config")):
+        with patch("caliper.core.config.CaliperSettings", side_effect=Exception("no config")):
             result = runner.invoke(
                 cli,
                 [
@@ -938,7 +938,7 @@ class TestEvaluateInputValidation:
         file_path = tmp_path / "notadir.txt"
         file_path.write_text("test")
         runner = CliRunner()
-        with patch("eedom.core.config.EedomSettings", side_effect=Exception("no config")):
+        with patch("caliper.core.config.CaliperSettings", side_effect=Exception("no config")):
             result = runner.invoke(
                 cli,
                 [
@@ -962,7 +962,7 @@ class TestEvaluateInputValidation:
     def test_evaluate_pr_url_invalid_format(self, tmp_path: Path) -> None:
         """evaluate rejects --pr-url that is not a valid GitHub PR URL."""
         runner = CliRunner()
-        with patch("eedom.core.config.EedomSettings", side_effect=Exception("no config")):
+        with patch("caliper.core.config.CaliperSettings", side_effect=Exception("no config")):
             result = runner.invoke(
                 cli,
                 [
@@ -986,7 +986,7 @@ class TestEvaluateInputValidation:
     def test_evaluate_pr_url_non_github(self, tmp_path: Path) -> None:
         """evaluate rejects --pr-url pointing to non-GitHub services."""
         runner = CliRunner()
-        with patch("eedom.core.config.EedomSettings", side_effect=Exception("no config")):
+        with patch("caliper.core.config.CaliperSettings", side_effect=Exception("no config")):
             result = runner.invoke(
                 cli,
                 [
@@ -1010,7 +1010,7 @@ class TestEvaluateInputValidation:
     def test_evaluate_team_invalid(self, tmp_path: Path) -> None:
         """evaluate rejects --team values not in the allowed list."""
         runner = CliRunner()
-        with patch("eedom.core.config.EedomSettings", side_effect=Exception("no config")):
+        with patch("caliper.core.config.CaliperSettings", side_effect=Exception("no config")):
             result = runner.invoke(
                 cli,
                 [
@@ -1039,12 +1039,12 @@ class TestEvaluateExceptionLogging:
         """Pipeline failures must call logger.error (exc_info=True), not logger.exception."""
         runner = CliRunner()
         with (
-            patch("eedom.core.config.EedomSettings") as mock_settings,
+            patch("caliper.core.config.CaliperSettings") as mock_settings,
             patch(
-                "eedom.composition.bootstrap.bootstrap",
+                "caliper.composition.bootstrap.bootstrap",
                 side_effect=ValueError("simulated pipeline error"),
             ),
-            patch("eedom.cli.main.logger") as mock_logger,
+            patch("caliper.cli.main.logger") as mock_logger,
         ):
             mock_settings.return_value = MagicMock()
             with runner.isolated_filesystem():
@@ -1074,7 +1074,7 @@ class TestEvaluateExceptionLogging:
 class TestReviewGhRepoValidation:
     """GitHub repo format validation on review command (wave2-finding-4)."""
 
-    _REG_PATCH = "eedom.cli.main.get_default_registry"
+    _REG_PATCH = "caliper.cli.main.get_default_registry"
 
     def _mock_registry(self) -> MagicMock:
         mock_reg = MagicMock()
@@ -1133,7 +1133,7 @@ class TestWatchExtensionsIncludesJson:
     """Watch mode must detect .json file changes (issue #81)."""
 
     def test_json_in_watch_extensions(self) -> None:
-        from eedom.cli.main import _WATCH_EXTENSIONS
+        from caliper.cli.main import _WATCH_EXTENSIONS
 
         assert ".json" in _WATCH_EXTENSIONS
 
@@ -1141,7 +1141,7 @@ class TestWatchExtensionsIncludesJson:
 class TestBuildFileListJsonDiscovery:
     """Verify _build_file_list includes .json files in --all mode (issue #55)."""
 
-    _REG_PATCH = "eedom.cli.main.get_default_registry"
+    _REG_PATCH = "caliper.cli.main.get_default_registry"
 
     def test_json_cfn_template_appears_in_file_list(self, tmp_path: Path) -> None:
         """A .json file in the repo is included in the files passed to run_all.
@@ -1174,7 +1174,7 @@ class TestBuildFileListJsonDiscovery:
 class TestReviewPRMode:
     """Tests for --pr inline review posting mode."""
 
-    _REG_PATCH = "eedom.cli.main.get_default_registry"
+    _REG_PATCH = "caliper.cli.main.get_default_registry"
 
     def _mock_registry(self) -> MagicMock:
         mock_reg = MagicMock()
@@ -1199,10 +1199,10 @@ class TestReviewPRMode:
 
         with (
             patch(self._REG_PATCH, return_value=mock_reg),
-            patch("eedom.core.pr_review.detect_gh_repo", return_value="org/repo"),
-            patch("eedom.core.pr_review.get_pr_diff_files", return_value={"src/app.py"}),
-            patch("eedom.core.pr_review.sarif_to_review", return_value=mock_review),
-            patch("eedom.core.pr_review.post_review", return_value=True) as mock_post,
+            patch("caliper.core.pr_review.detect_gh_repo", return_value="org/repo"),
+            patch("caliper.core.pr_review.get_pr_diff_files", return_value={"src/app.py"}),
+            patch("caliper.core.pr_review.sarif_to_review", return_value=mock_review),
+            patch("caliper.core.pr_review.post_review", return_value=True) as mock_post,
         ):
             runner = CliRunner()
             result = runner.invoke(
@@ -1219,7 +1219,7 @@ class TestReviewPRMode:
 
         with (
             patch(self._REG_PATCH, return_value=mock_reg),
-            patch("eedom.core.pr_review.detect_gh_repo", return_value=None),
+            patch("caliper.core.pr_review.detect_gh_repo", return_value=None),
         ):
             runner = CliRunner()
             result = runner.invoke(cli, ["review", "--repo-path", ".", "--pr", "42"])
@@ -1237,10 +1237,10 @@ class TestReviewPRMode:
 
         with (
             patch(self._REG_PATCH, return_value=mock_reg),
-            patch("eedom.core.pr_review.detect_gh_repo", return_value="org/repo"),
-            patch("eedom.core.pr_review.get_pr_diff_files", return_value=set()),
-            patch("eedom.core.pr_review.sarif_to_review", return_value=mock_review),
-            patch("eedom.core.pr_review.post_review", return_value=False),
+            patch("caliper.core.pr_review.detect_gh_repo", return_value="org/repo"),
+            patch("caliper.core.pr_review.get_pr_diff_files", return_value=set()),
+            patch("caliper.core.pr_review.sarif_to_review", return_value=mock_review),
+            patch("caliper.core.pr_review.post_review", return_value=False),
         ):
             runner = CliRunner()
             result = runner.invoke(
@@ -1256,9 +1256,9 @@ class TestReviewPRMode:
 
         with (
             patch(self._REG_PATCH, return_value=mock_reg),
-            patch("eedom.core.pr_review.detect_gh_repo", return_value="org/repo"),
+            patch("caliper.core.pr_review.detect_gh_repo", return_value="org/repo"),
             patch(
-                "eedom.core.pr_review.get_pr_diff_files",
+                "caliper.core.pr_review.get_pr_diff_files",
                 side_effect=RuntimeError("API error: 404"),
             ),
         ):

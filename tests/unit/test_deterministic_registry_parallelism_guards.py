@@ -33,7 +33,7 @@ _CONCURRENCY_MARKERS = ("ThreadPoolExecutor", "gather", "concurrent.futures", "a
 
 
 def _get_registry_source() -> str:
-    from eedom.core.registry import PluginRegistry
+    from caliper.core.registry import PluginRegistry
 
     src = inspect.getsource(PluginRegistry)
     assert len(src) > 200, (

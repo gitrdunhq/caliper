@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml
 
-from eedom.plugins._runners.graph_builder import CodeGraph
+from caliper.plugins._runners.graph_builder import CodeGraph
 
 _POLICIES_DIR = Path(__file__).parent.parent.parent / "policies" / "semgrep"
 _SOLID_FIRST_YAML = _POLICIES_DIR / "solid-first.yaml"

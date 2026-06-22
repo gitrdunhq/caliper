@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files that may contain logging configuration
 _LOGGING_CONFIG_FILES: list[Path] = [

@@ -44,7 +44,7 @@ OSV_CONFIG_HEADER = """\
 #
 # Instructs osv-scanner to ignore all packages found in this directory.
 # This directory contains intentionally pinned old deps used as scan-target
-# fixtures — they are test inputs for eedom, not eedom's own dependencies.
+# fixtures — they are test inputs for caliper, not caliper's own dependencies.
 
 [[PackageOverrides]]
 ignore = true

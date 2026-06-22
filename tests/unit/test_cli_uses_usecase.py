@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from eedom.cli.main import cli
-from eedom.core.use_cases import ReviewOptions, ReviewResult
+from caliper.cli.main import cli
+from caliper.core.use_cases import ReviewOptions, ReviewResult
 
 
 def _make_fake_result(results: list | None = None) -> ReviewResult:
@@ -41,7 +41,7 @@ class TestCliCallsReviewRepository:
         fake_result = _make_fake_result()
 
         with (
-            patch("eedom.core.use_cases.review_repository", return_value=fake_result) as mock_rr,
+            patch("caliper.core.use_cases.review_repository", return_value=fake_result) as mock_rr,
             runner.isolated_filesystem(),
         ):
             runner.invoke(cli, ["review", "--repo-path", ".", "--all"])
@@ -64,7 +64,7 @@ class TestCliPassesCorrectReviewOptions:
         fake_result = _make_fake_result()
 
         with (
-            patch("eedom.core.use_cases.review_repository", return_value=fake_result) as mock_rr,
+            patch("caliper.core.use_cases.review_repository", return_value=fake_result) as mock_rr,
             runner.isolated_filesystem(),
         ):
             runner.invoke(
@@ -82,7 +82,7 @@ class TestCliPassesCorrectReviewOptions:
         fake_result = _make_fake_result()
 
         with (
-            patch("eedom.core.use_cases.review_repository", return_value=fake_result) as mock_rr,
+            patch("caliper.core.use_cases.review_repository", return_value=fake_result) as mock_rr,
             runner.isolated_filesystem(),
         ):
             runner.invoke(
@@ -99,7 +99,7 @@ class TestCliPassesCorrectReviewOptions:
         fake_result = _make_fake_result()
 
         with (
-            patch("eedom.core.use_cases.review_repository", return_value=fake_result) as mock_rr,
+            patch("caliper.core.use_cases.review_repository", return_value=fake_result) as mock_rr,
             runner.isolated_filesystem(),
         ):
             runner.invoke(
@@ -129,9 +129,9 @@ class TestCliUsesReviewResultForRendering:
         fake_plugin_result.error = None
         fake_result = _make_fake_result(results=[fake_plugin_result])
 
-        with patch("eedom.core.use_cases.review_repository", return_value=fake_result):
+        with patch("caliper.core.use_cases.review_repository", return_value=fake_result):
             with patch(
-                "eedom.core.renderer.render_comment", return_value="# report"
+                "caliper.core.renderer.render_comment", return_value="# report"
             ) as mock_render:
                 with runner.isolated_filesystem():
                     runner.invoke(cli, ["review", "--repo-path", ".", "--all"])

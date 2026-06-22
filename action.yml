@@ -51,25 +51,25 @@ runs:
       id: evaluate
       shell: bash
       env:
-        EEDOM_OPERATING_MODE: ${{ inputs.operating-mode }}
-        EEDOM_DB_DSN: ${{ inputs.db-dsn }}
-        EEDOM_EVIDENCE_PATH: ${{ inputs.evidence-path }}
-        EEDOM_OPA_POLICY_PATH: ${{ inputs.policy-path }}
-        EEDOM_ENABLED_SCANNERS: ${{ inputs.enabled-scanners }}
-        EEDOM_PR_URL: ${{ github.event.pull_request.html_url }}
-        EEDOM_DIFF_PATH: ${{ steps.diff.outputs.diff-path }}
-        EEDOM_TEAM: ${{ inputs.team }}
-        EEDOM_MODE: ${{ inputs.operating-mode }}
+        CALIPER_OPERATING_MODE: ${{ inputs.operating-mode }}
+        CALIPER_DB_DSN: ${{ inputs.db-dsn }}
+        CALIPER_EVIDENCE_PATH: ${{ inputs.evidence-path }}
+        CALIPER_OPA_POLICY_PATH: ${{ inputs.policy-path }}
+        CALIPER_ENABLED_SCANNERS: ${{ inputs.enabled-scanners }}
+        CALIPER_PR_URL: ${{ github.event.pull_request.html_url }}
+        CALIPER_DIFF_PATH: ${{ steps.diff.outputs.diff-path }}
+        CALIPER_TEAM: ${{ inputs.team }}
+        CALIPER_MODE: ${{ inputs.operating-mode }}
       run: |
         DECISION_FILE="$RUNNER_TEMP/decision.json"
         MEMO_FILE="$RUNNER_TEMP/memo.md"
 
-        uv run python -m eedom.cli.main evaluate \
+        uv run python -m caliper.cli.main evaluate \
           --repo-path "$GITHUB_WORKSPACE" \
-          --diff "$EEDOM_DIFF_PATH" \
-          --pr-url "$EEDOM_PR_URL" \
-          --team "$EEDOM_TEAM" \
-          --operating-mode "$EEDOM_MODE" \
+          --diff "$CALIPER_DIFF_PATH" \
+          --pr-url "$CALIPER_PR_URL" \
+          --team "$CALIPER_TEAM" \
+          --operating-mode "$CALIPER_MODE" \
           --output-json "$DECISION_FILE" \
           | tee "$MEMO_FILE"
 
@@ -98,7 +98,7 @@ runs:
           exit 0
         fi
 
-        MARKER="<!-- eedom-result -->"
+        MARKER="<!-- caliper-result -->"
         COMMENT_BODY="$MARKER
         <details>
         <summary>Dependency Review</summary>

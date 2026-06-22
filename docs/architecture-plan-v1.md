@@ -8,7 +8,7 @@
 
 This document defines a **platform-agnostic, event-driven dependency review system** for governing how third-party software packages and version upgrades are approved for use.
 
-The core objective is to move dependency security from a **reactive scanning model** to a **proactive eedom model**.
+The core objective is to move dependency security from a **reactive scanning model** to a **proactive caliper model**.
 
 Instead of discovering problems after developers have already adopted dependencies, the system evaluates requests **before** packages or upgrades are broadly consumable in the environment.
 
@@ -145,7 +145,7 @@ This system applies the same mental model to software dependencies.
 | Allow / deny / mutate               | Approve / reject / constrain              |
 | Cluster state                       | Internal artifact availability state      |
 
-The result is a **Eagle Eyed Dom**.
+The result is a **Caliper**.
 
 ## 4.2 Why this is different from standard scanning
 
@@ -209,7 +209,7 @@ This system must answer broader questions:
 
 - package request intake
 - version upgrade request intake
-- metadata enrichment
+- metadata scribe
 - vulnerability analysis
 - secrets analysis where applicable
 - SAST-like code pattern inspection where applicable
@@ -238,7 +238,7 @@ Trigger Source
   -> Event Layer
   -> Workflow Orchestration
   -> Review Orchestrator
-      -> Package Metadata Enrichment
+      -> Package Metadata Scribe
       -> SBOM Generation
       -> Security Scanners
       -> License Analysis
@@ -333,7 +333,7 @@ Recommended characteristics:
 
 Examples:
 
-- OPA Gatekeeper
+- OPA Foreman
 - Kyverno
 
 These are the strongest conceptual precedent because they enforce policy before acceptance.
@@ -424,7 +424,7 @@ Advantages:
 
 - strong context capture
 - explicit approval history
-- easiest to enrich with business justification
+- easiest to scribe with business justification
 
 Disadvantages:
 
@@ -510,7 +510,7 @@ Purpose:
 
 Responsibilities:
 
-- metadata enrichment
+- metadata scribe
 - scanning
 - reasoning
 - policy enforcement
@@ -761,7 +761,7 @@ Examples:
 - registry publish event -> candidate approval request
 - API form submission -> direct request model
 
-## 14.3 Package Metadata Enrichment Layer
+## 14.3 Package Metadata Scribe Layer
 
 Responsibilities:
 
@@ -976,9 +976,9 @@ Fields:
 }
 ```
 
-## 16.3 SCM-derived request enrichment
+## 16.3 SCM-derived request scribe
 
-When requests are created from PR changes, the system should enrich the payload with:
+When requests are created from PR changes, the system should scribe the payload with:
 
 - repository name
 - PR number
@@ -999,7 +999,7 @@ When requests are created from PR changes, the system should enrich the payload 
 - assign request ID
 - persist request
 
-### Step 2: Metadata enrichment
+### Step 2: Metadata scribe
 
 - resolve package and version metadata
 - find repository/source
@@ -1616,7 +1616,7 @@ Outputs:
 - functioning orchestrator service
 - request tracking and lifecycle management
 
-## Epic 5: Metadata Enrichment and Trust Signal Collection
+## Epic 5: Metadata Scribe and Trust Signal Collection
 
 Objective: Collect package and publisher context needed for decisions.
 
@@ -1631,7 +1631,7 @@ Scope:
 
 Outputs:
 
-- enriched package context model
+- scribeed package context model
 - reusable trust signal service
 
 ## Epic 6: Scanner Integration Framework
@@ -1714,7 +1714,7 @@ Objective: Deliver the first end-to-end package approval capability.
 Scope:
 
 - intake new package request
-- execute enrichment and scans
+- execute scribe and scans
 - run policy evaluation
 - produce decision
 - promote or reject in registry
@@ -1877,7 +1877,7 @@ Outcome:
 
 Include:
 
-- Metadata Enrichment
+- Metadata Scribe
 - Decision Assembly and Evidence Model
 - Upgrade Intelligence Workflow
 - Human Review and Exception Workflow
@@ -1957,7 +1957,7 @@ A developer requests `foo-parser@3.2.1` for a public API service.
 Workflow summary:
 
 1. Request enters via API or PR.
-2. Package metadata is enriched.
+2. Package metadata is scribeed.
 3. SBOM is generated.
 4. Vulnerability, license, provenance, and selected code behavior scans run.
 5. Task-fit analysis checks whether the package is proportionate to the need and whether an approved parser already exists.
@@ -2209,7 +2209,7 @@ Isolation goals:
 Steps:
 
 1. Normalize request
-2. Enrich metadata
+2. Scribe metadata
 3. Fan-out scan jobs (via Argo or internal workers)
 4. Wait for scan completion
 5. Aggregate results
@@ -2422,7 +2422,7 @@ flowchart TB
 
     subgraph EP["Execution Plane"]
         ARGO["Argo Workflows"]
-        META["Metadata Enrichment"]
+        META["Metadata Scribe"]
         SBOM["Syft SBOM Generation"]
         VULN["OSV / Trivy / Grype"]
         LICENSE["ScanCode License Analysis"]
@@ -2639,7 +2639,7 @@ sequenceDiagram
     participant API as Review API
     participant T as Temporal
     participant O as Orchestrator
-    participant E as Metadata Enrichment
+    participant E as Metadata Scribe
     participant A as Argo Scanner Workflows
     participant TF as Task-Fit Engine
     participant P as OPA
@@ -2817,7 +2817,7 @@ flowchart TD
     E1 --> E4["Epic 4: Review Orchestrator"]
     E2 --> E4
     E3 --> E4
-    E4 --> E5["Epic 5: Metadata Enrichment"]
+    E4 --> E5["Epic 5: Metadata Scribe"]
     E4 --> E6["Epic 6: Scanner Integration"]
     E4 --> E7["Epic 7: Policy Engine"]
     E4 --> E8["Epic 8: Registry Control"]

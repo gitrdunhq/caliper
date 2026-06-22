@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from eedom.core.plugin import (
+from caliper.core.plugin import (
     PluginCategory,
     PluginFinding,
     PluginResult,
@@ -48,7 +48,7 @@ class _DictPlugin(ScannerPlugin):
 
 class TestRegistryNormalization:
     def test_registry_normalizes_findings_to_plugin_finding(self) -> None:
-        from eedom.core.registry import PluginRegistry
+        from caliper.core.registry import PluginRegistry
 
         registry = PluginRegistry()
         registry.register(_DictPlugin())
@@ -65,7 +65,7 @@ class TestRegistryNormalization:
         assert f.metadata["custom_key"] == "preserved"
 
     def test_already_typed_findings_pass_through(self) -> None:
-        from eedom.core.plugin import normalize_finding
+        from caliper.core.plugin import normalize_finding
 
         raw = {"id": "X", "severity": "info", "message": "ok"}
         finding = normalize_finding(raw)

@@ -7,11 +7,11 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from eedom.plugins._runners.semgrep_runner import run_semgrep
+from caliper.plugins._runners.semgrep_runner import run_semgrep
 
 
 class TestOpengrepBinaryName:
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_uses_opengrep_binary(self, mock_run):
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
         mock_run.return_value.returncode = 0
@@ -22,7 +22,7 @@ class TestOpengrepBinaryName:
 
 
 class TestRegistryAndLocalRules:
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_includes_default_registry_rulesets(self, mock_run):
         """p/default and p/ci should always be present for max coverage."""
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
@@ -33,7 +33,7 @@ class TestRegistryAndLocalRules:
         assert "p/default" in config_values
         assert "p/ci" in config_values
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_python_file_adds_python_ruleset(self, mock_run):
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
         mock_run.return_value.returncode = 0
@@ -42,7 +42,7 @@ class TestRegistryAndLocalRules:
         config_values = [cmd[i + 1] for i, v in enumerate(cmd) if v == "--config"]
         assert "p/python" in config_values
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_uses_local_policies_dir(self, mock_run):
         """Should use policies/semgrep/ when it exists."""
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
@@ -55,9 +55,9 @@ class TestRegistryAndLocalRules:
 
 
 class TestExtraConfigDirs:
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_extra_config_dirs_added(self, mock_run, tmp_path):
-        """Extra config dirs from .eagle-eyed-dom.yaml appear as --config args."""
+        """Extra config dirs from .caliper.yaml appear as --config args."""
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
         mock_run.return_value.returncode = 0
         extra = tmp_path / "community-rules"
@@ -68,7 +68,7 @@ class TestExtraConfigDirs:
         config_values = [cmd[i + 1] for i, v in enumerate(cmd) if v == "--config"]
         assert str(extra) in config_values
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_extra_config_dir_missing_is_skipped(self, mock_run):
         """Non-existent extra config dirs are silently skipped."""
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
@@ -94,7 +94,7 @@ class TestFailClosedOnAbort:
         '"message": "File not found: .antigravitycli/dead.json"}]}'
     )
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_abort_with_fatal_exit_code_sets_status_error(self, mock_run):
         """returncode 2 + empty results + level=error -> status error, never clean."""
         mock_run.return_value.stdout = self._ABORT_STDOUT
@@ -105,7 +105,7 @@ class TestFailClosedOnAbort:
         assert data["errors"], "fail-closed result must carry an error entry"
         assert "File not found" in data["errors"][0]["message"]
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_fatal_exit_code_without_error_entries_sets_status_error(self, mock_run):
         """returncode >= 2 fails closed even when the JSON errors list is empty."""
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
@@ -114,7 +114,7 @@ class TestFailClosedOnAbort:
         assert data.get("status") == "error"
         assert data["errors"], "fail-closed result must carry an error entry"
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_zero_results_with_fatal_errors_sets_status_error(self, mock_run):
         """Empty results + level=error entries fail closed even if exit code is 0."""
         mock_run.return_value.stdout = self._ABORT_STDOUT
@@ -122,7 +122,7 @@ class TestFailClosedOnAbort:
         data = run_semgrep(["app.py"], "/workspace")
         assert data.get("status") == "error"
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_clean_scan_stays_clean(self, mock_run):
         """No findings, no errors, exit 0 -> genuinely clean, no status injected."""
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
@@ -131,7 +131,7 @@ class TestFailClosedOnAbort:
         assert data.get("status") is None
         assert data["results"] == []
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_warn_level_errors_with_zero_results_stay_clean(self, mock_run):
         """Non-fatal (level=warn) errors with zero results are not an abort."""
         mock_run.return_value.stdout = (
@@ -141,7 +141,7 @@ class TestFailClosedOnAbort:
         data = run_semgrep(["app.py"], "/workspace")
         assert data.get("status") is None
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_partial_scan_with_findings_keeps_findings(self, mock_run):
         """Per-file level=error entries alongside real findings: scan ran, keep results."""
         mock_run.return_value.stdout = (
@@ -155,7 +155,7 @@ class TestFailClosedOnAbort:
 
 
 class TestExcludeRules:
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_exclude_rules_passed_to_cli(self, mock_run):
         """Excluded rule IDs are passed as --exclude-rule flags."""
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
@@ -170,7 +170,7 @@ class TestExcludeRules:
         assert "path-traversal" in exclude_values
         assert "unvalidated-path-construction" in exclude_values
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_no_exclude_rules_by_default(self, mock_run):
         """No --exclude-rule flags when list is empty/None."""
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
@@ -179,7 +179,7 @@ class TestExcludeRules:
         cmd = mock_run.call_args[0][0]
         assert "--exclude-rule" not in cmd
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_exclude_rules_post_filter_prefixed_ids(self, mock_run):
         """Local-rule ids get dotted path prefixes (e.g. policies.semgrep.X);
         post-filter must drop them when the bare rule id is excluded."""
@@ -197,7 +197,7 @@ class TestExcludeRules:
         assert "policies.semgrep.sql-injection" in ids
         assert any("subprocess-shell-true" in i for i in ids)
 
-    @patch("eedom.plugins._runners.semgrep_runner.subprocess.run")
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_exclude_rules_post_filter_exact_and_suffix(self, mock_run):
         """Exclusion matches the full check_id or its trailing dotted segment,
         never a bare substring (excluding 'traversal' must not drop path-traversal)."""

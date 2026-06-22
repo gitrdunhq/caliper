@@ -9,9 +9,9 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from eedom.core.plugin import PluginCategory
-from eedom.core.registry import _normalize_findings
-from eedom.plugins.osv_scanner import OsvScannerPlugin
+from caliper.core.plugin import PluginCategory
+from caliper.core.registry import _normalize_findings
+from caliper.plugins.osv_scanner import OsvScannerPlugin
 
 OSV_RESPONSE = {
     "results": [
@@ -63,7 +63,7 @@ class TestOsvPlugin:
         assert p.can_run(["app.py"], Path(".")) is False
         assert p.can_run(["main.tf"], Path(".")) is False
 
-    @patch("eedom.plugins.osv_scanner.subprocess.run")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
     def test_extracts_findings_with_cve_ids(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = json.dumps(OSV_RESPONSE)
@@ -75,7 +75,7 @@ class TestOsvPlugin:
         assert "CVE-2024-47081" in ids
         assert "CVE-2023-0286" in ids
 
-    @patch("eedom.plugins.osv_scanner.subprocess.run")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
     def test_severity_mapping(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = json.dumps(OSV_RESPONSE)
@@ -85,7 +85,7 @@ class TestOsvPlugin:
         assert by_id["CVE-2024-47081"]["severity"] == "medium"
         assert by_id["CVE-2023-0286"]["severity"] == "high"
 
-    @patch("eedom.plugins.osv_scanner.subprocess.run")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
     def test_advisory_urls(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = json.dumps(OSV_RESPONSE)
@@ -95,7 +95,7 @@ class TestOsvPlugin:
         assert "nvd.nist.gov" in by_id["CVE-2023-0286"]["url"]
         assert "nvd.nist.gov" in by_id["CVE-2024-47081"]["url"]
 
-    @patch("eedom.plugins.osv_scanner.subprocess.run")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
     def test_ghsa_preserved(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = json.dumps(OSV_RESPONSE)
@@ -104,7 +104,7 @@ class TestOsvPlugin:
         by_id = {f["id"]: f for f in result.findings}
         assert by_id["CVE-2023-0286"]["ghsa"] == "GHSA-x4qr-2fvf-3mr5"
 
-    @patch("eedom.plugins.osv_scanner.subprocess.run")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
     def test_summary_counts(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = json.dumps(OSV_RESPONSE)
@@ -115,7 +115,7 @@ class TestOsvPlugin:
         assert result.summary["medium"] == 1
 
     @patch(
-        "eedom.plugins.osv_scanner.subprocess.run",
+        "caliper.plugins.osv_scanner.subprocess.run",
         side_effect=FileNotFoundError,
     )
     def test_binary_not_found(self, _mock):
@@ -123,7 +123,7 @@ class TestOsvPlugin:
         result = p.run(["requirements.txt"], Path("."))
         assert "not installed" in result.error
 
-    @patch("eedom.plugins.osv_scanner.subprocess.run")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
     def test_clean_repo_no_findings(self, mock_run):
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = ""
@@ -132,7 +132,7 @@ class TestOsvPlugin:
         assert result.error == ""
         assert result.findings == []
 
-    @patch("eedom.plugins.osv_scanner.subprocess.run")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
     def test_render_critical(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = json.dumps(OSV_RESPONSE)
@@ -143,7 +143,7 @@ class TestOsvPlugin:
         assert "CVE-2023-0286" in md
         assert "nvd.nist.gov" in md
 
-    @patch("eedom.plugins.osv_scanner.subprocess.run")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
     def test_render_after_registry_normalization(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = json.dumps(OSV_RESPONSE)
@@ -158,7 +158,7 @@ class TestOsvPlugin:
         assert "Vulnerable OpenSSL" in md
 
     def test_render_error(self):
-        from eedom.core.plugin import PluginResult
+        from caliper.core.plugin import PluginResult
 
         p = OsvScannerPlugin()
         result = PluginResult(
@@ -169,7 +169,7 @@ class TestOsvPlugin:
         assert "not installed" in md
 
     def test_render_empty(self):
-        from eedom.core.plugin import PluginResult
+        from caliper.core.plugin import PluginResult
 
         p = OsvScannerPlugin()
         result = PluginResult(plugin_name="osv-scanner")

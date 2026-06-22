@@ -6,7 +6,7 @@ from __future__ import annotations
 
 class TestPluginFindingContract:
     def test_finding_has_required_fields(self) -> None:
-        from eedom.core.plugin import PluginFinding
+        from caliper.core.plugin import PluginFinding
 
         f = PluginFinding(
             id="CVE-2025-1234",
@@ -18,7 +18,7 @@ class TestPluginFindingContract:
         assert f.message == "Remote code execution"
 
     def test_finding_has_optional_location_fields(self) -> None:
-        from eedom.core.plugin import PluginFinding
+        from caliper.core.plugin import PluginFinding
 
         f = PluginFinding(
             id="CVE-1",
@@ -31,7 +31,7 @@ class TestPluginFindingContract:
         assert f.line == 42
 
     def test_finding_defaults(self) -> None:
-        from eedom.core.plugin import PluginFinding
+        from caliper.core.plugin import PluginFinding
 
         f = PluginFinding(id="X", severity="info", message="x")
         assert f.file == ""
@@ -45,7 +45,7 @@ class TestPluginFindingContract:
         assert f.metadata == {}
 
     def test_metadata_preserves_unknown_keys(self) -> None:
-        from eedom.core.plugin import PluginFinding
+        from caliper.core.plugin import PluginFinding
 
         f = PluginFinding(
             id="X",
@@ -57,7 +57,7 @@ class TestPluginFindingContract:
         assert f.metadata["fingerprint"] == "abc123"
 
     def test_finding_to_dict(self) -> None:
-        from eedom.core.plugin import PluginFinding
+        from caliper.core.plugin import PluginFinding
 
         f = PluginFinding(
             id="CVE-1",
@@ -79,7 +79,7 @@ class TestPluginFindingIsFrozenContract:
     def test_is_frozen(self) -> None:
         import pytest
 
-        from eedom.core.plugin import PluginFinding
+        from caliper.core.plugin import PluginFinding
 
         f = PluginFinding(id="CVE-1", severity="high", message="bad")
         with pytest.raises(Exception):
@@ -88,26 +88,26 @@ class TestPluginFindingIsFrozenContract:
     def test_rejects_extra_fields(self) -> None:
         import pytest
 
-        from eedom.core.plugin import PluginFinding
+        from caliper.core.plugin import PluginFinding
 
         with pytest.raises(Exception):
             PluginFinding(id="CVE-1", severity="high", message="bad", bogus="x")
 
     def test_no_dict_shims_remain(self) -> None:
-        from eedom.core.plugin import PluginFinding
+        from caliper.core.plugin import PluginFinding
 
         f = PluginFinding(id="CVE-1", severity="high", message="bad")
         assert not hasattr(f, "get")
 
     def test_fields_read_by_attribute(self) -> None:
-        from eedom.core.plugin import PluginFinding
+        from caliper.core.plugin import PluginFinding
 
         f = PluginFinding(id="CVE-1", severity="high", message="bad", package="requests")
         assert f.severity == "high"
         assert f.package == "requests"
 
     def test_metadata_read_via_metadata_dict(self) -> None:
-        from eedom.core.plugin import PluginFinding
+        from caliper.core.plugin import PluginFinding
 
         f = PluginFinding(id="CVE-1", severity="high", message="bad", metadata={"entropy": 4.5})
         assert f.metadata["entropy"] == 4.5
@@ -117,27 +117,27 @@ class TestFindingGet:
     """finding_get bridges PluginFinding and raw-dict findings transitionally."""
 
     def test_known_field_from_model(self) -> None:
-        from eedom.core.plugin import PluginFinding, finding_get
+        from caliper.core.plugin import PluginFinding, finding_get
 
         f = PluginFinding(id="CVE-1", severity="high", message="bad", package="requests")
         assert finding_get(f, "severity") == "high"
         assert finding_get(f, "package") == "requests"
 
     def test_metadata_key_from_model(self) -> None:
-        from eedom.core.plugin import PluginFinding, finding_get
+        from caliper.core.plugin import PluginFinding, finding_get
 
         f = PluginFinding(id="CVE-1", severity="high", message="bad", metadata={"entropy": 4.5})
         assert finding_get(f, "entropy") == 4.5
 
     def test_missing_returns_default(self) -> None:
-        from eedom.core.plugin import PluginFinding, finding_get
+        from caliper.core.plugin import PluginFinding, finding_get
 
         f = PluginFinding(id="CVE-1", severity="high", message="bad")
         assert finding_get(f, "missing") is None
         assert finding_get(f, "missing", 99) == 99
 
     def test_works_on_raw_dict(self) -> None:
-        from eedom.core.plugin import finding_get
+        from caliper.core.plugin import finding_get
 
         d = {"severity": "low", "check": "x"}
         assert finding_get(d, "severity") == "low"
@@ -147,7 +147,7 @@ class TestFindingGet:
 
 class TestNormalizeFindings:
     def test_normalize_dict_to_plugin_finding(self) -> None:
-        from eedom.core.plugin import PluginFinding, normalize_finding
+        from caliper.core.plugin import PluginFinding, normalize_finding
 
         raw = {
             "id": "CVE-2025-1234",
@@ -170,7 +170,7 @@ class TestNormalizeFindings:
         assert finding.metadata["custom_field"] == "preserved"
 
     def test_normalize_missing_fields_get_defaults(self) -> None:
-        from eedom.core.plugin import PluginFinding, normalize_finding
+        from caliper.core.plugin import PluginFinding, normalize_finding
 
         raw = {"severity": "high", "message": "something bad"}
         finding = normalize_finding(raw)
@@ -180,7 +180,7 @@ class TestNormalizeFindings:
         assert finding.line == 0
 
     def test_normalize_preserves_all_unknown_keys_in_metadata(self) -> None:
-        from eedom.core.plugin import normalize_finding
+        from caliper.core.plugin import normalize_finding
 
         raw = {
             "id": "X",

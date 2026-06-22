@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.metrics.high_cardinality import HighCardinalityMetricsDetector
+from caliper.detectors.metrics.high_cardinality import HighCardinalityMetricsDetector
 
 
 class TestHighCardinalityMetricsDetector:
-    """Tests for HighCardinalityMetricsDetector (EED-015)."""
+    """Tests for HighCardinalityMetricsDetector (CAL-015)."""
 
     @pytest.fixture
     def detector(self):
@@ -36,7 +36,7 @@ def handle_request(user_id, endpoint):
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-015"
+        assert findings[0].detector_id == "CAL-015"
 
     def test_detects_request_id_in_labels(self, detector):
         """Detects request_id as metric label (high cardinality)."""

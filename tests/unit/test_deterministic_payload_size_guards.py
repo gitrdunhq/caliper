@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files with HTTP request handlers that must have payload size limits (issue #171)
 _PAYLOAD_SIZE_CHECK_FILES: tuple[Path, ...] = (_SRC / "webhook" / "server.py",)

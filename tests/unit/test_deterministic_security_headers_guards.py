@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import Set
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # File(s) containing HTTP response handling
 _RESPONSE_FILES: tuple[Path, ...] = (_SRC / "webhook" / "server.py",)
@@ -90,15 +90,15 @@ def test_170_webhook_responses_missing_security_headers() -> None:
         - Referrer-Policy: strict-origin-when-cross-origin (or similar)
 
     Current violations (response lines without security headers):
-        - src/eedom/webhook/server.py:125-128 - payload too large response
-        - src/eedom/webhook/server.py:134 - missing signature response
-        - src/eedom/webhook/server.py:138 - signature mismatch response
-        - src/eedom/webhook/server.py:144-147 - invalid content type response
-        - src/eedom/webhook/server.py:153 - ignored event response
-        - src/eedom/webhook/server.py:160 - JSON parse error response
-        - src/eedom/webhook/server.py:165 - ignored PR action response
-        - src/eedom/webhook/server.py:176 - missing payload field response
-        - src/eedom/webhook/server.py:231 - success response
+        - src/caliper/webhook/server.py:125-128 - payload too large response
+        - src/caliper/webhook/server.py:134 - missing signature response
+        - src/caliper/webhook/server.py:138 - signature mismatch response
+        - src/caliper/webhook/server.py:144-147 - invalid content type response
+        - src/caliper/webhook/server.py:153 - ignored event response
+        - src/caliper/webhook/server.py:160 - JSON parse error response
+        - src/caliper/webhook/server.py:165 - ignored PR action response
+        - src/caliper/webhook/server.py:176 - missing payload field response
+        - src/caliper/webhook/server.py:231 - success response
 
     Acceptance criteria for fix:
         - All Response/JSONResponse calls include security headers

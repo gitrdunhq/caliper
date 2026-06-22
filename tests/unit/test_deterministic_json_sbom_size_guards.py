@@ -25,7 +25,7 @@ import pytest
 
 
 def _get_syft_run_source() -> str:
-    from eedom.plugins.syft import SyftPlugin
+    from caliper.plugins.syft import SyftPlugin
 
     src = inspect.getsource(SyftPlugin.run)
     assert len(src) > 50, (

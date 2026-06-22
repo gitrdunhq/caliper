@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scan any repo with eedom using the local arm64 image.
+# Scan any repo with caliper using the local arm64 image.
 #
 # Usage:
 #   bash scripts/scan.sh /path/to/repo
@@ -13,8 +13,8 @@ set -euo pipefail
 
 TARGET="${1:-}"
 FORMAT="${2:-markdown}"
-IMAGE="${EEDOM_IMAGE:-eedom:arm64}"
-PLATFORM="${EEDOM_PLATFORM:-linux/arm64}"
+IMAGE="${CALIPER_IMAGE:-caliper:arm64}"
+PLATFORM="${CALIPER_PLATFORM:-linux/arm64}"
 
 if [ -z "${TARGET}" ]; then
     echo "Usage: bash scripts/scan.sh <repo-path> [markdown|sarif]" >&2
@@ -29,10 +29,10 @@ if [ ! -d "${REPO}" ]; then
     exit 1
 fi
 
-TRIVY_CACHE="${HOME}/.cache/eedom/trivy"
+TRIVY_CACHE="${HOME}/.cache/caliper/trivy"
 mkdir -p "${TRIVY_CACHE}"
 
-echo "=== Eagle Eyed Dom ==="
+echo "=== Caliper ==="
 echo "Target : ${REPO}"
 echo "Format : ${FORMAT}"
 echo "Image  : ${IMAGE}"
@@ -47,7 +47,7 @@ podman run --rm \
     --security-opt apparmor=unconfined \
     --tmpfs /workspace/.temp:rw,size=512m \
     -v "${REPO}:/workspace:ro" \
-    -v "${TRIVY_CACHE}:/home/eedom/.cache/trivy" \
+    -v "${TRIVY_CACHE}:/home/caliper/.cache/trivy" \
     "${IMAGE}" review --repo-path /workspace --all \
     ${FORMAT:+--format "${FORMAT}"}
 

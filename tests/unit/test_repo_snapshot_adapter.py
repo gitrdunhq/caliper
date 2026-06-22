@@ -1,7 +1,7 @@
 # tested-by: tests/unit/test_repo_snapshot_adapter.py
 """Contract tests for GitWorktreeSnapshot adapter (issue #176).
 
-RED phase: all tests import from eedom.adapters.repo_snapshot which does not exist yet.
+RED phase: all tests import from caliper.adapters.repo_snapshot which does not exist yet.
 """
 
 from __future__ import annotations
@@ -12,10 +12,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from eedom.adapters.repo_snapshot import (
+from caliper.adapters.repo_snapshot import (
     GitWorktreeSnapshot,  # noqa: F401 — will ImportError until green
 )
-from eedom.core.ports import RepoSnapshotPort
+from caliper.core.ports import RepoSnapshotPort
 
 # ---------------------------------------------------------------------------
 # Protocol conformance

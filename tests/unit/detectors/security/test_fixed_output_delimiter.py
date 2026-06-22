@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.detectors.security.fixed_output_delimiter import FixedOutputDelimiterDetector
+from caliper.detectors.security.fixed_output_delimiter import FixedOutputDelimiterDetector
 
 # Buggy: classic MEMO_EOF delimiter writing to GITHUB_OUTPUT
 BUGGY_MEMO_EOF_YAML = """\
@@ -90,7 +90,7 @@ jobs:
 
 
 class TestFixedOutputDelimiterDetector:
-    """Tests for FixedOutputDelimiterDetector (EED-020)."""
+    """Tests for FixedOutputDelimiterDetector (CAL-020)."""
 
     @pytest.fixture
     def detector(self):
@@ -104,7 +104,7 @@ class TestFixedOutputDelimiterDetector:
         findings = detector.detect(f)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-020"
+        assert findings[0].detector_id == "CAL-020"
         assert findings[0].severity.value == "low"
 
     def test_detects_bare_eof_delimiter(self, detector, tmp_path):
@@ -115,7 +115,7 @@ class TestFixedOutputDelimiterDetector:
         findings = detector.detect(f)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-020"
+        assert findings[0].detector_id == "CAL-020"
 
     def test_detects_delimiter_with_github_env(self, detector, tmp_path):
         """Flags YAML using fixed delimiter with GITHUB_ENV (not just GITHUB_OUTPUT)."""
@@ -125,7 +125,7 @@ class TestFixedOutputDelimiterDetector:
         findings = detector.detect(f)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-020"
+        assert findings[0].detector_id == "CAL-020"
 
     def test_no_finding_for_echo_based_write(self, detector, tmp_path):
         """No finding when using simple echo >> without a heredoc."""
@@ -195,6 +195,6 @@ class TestFixedOutputDelimiterDetector:
 
     def test_category_is_security(self, detector):
         """Detector category is security."""
-        from eedom.detectors.categories import DetectorCategory
+        from caliper.detectors.categories import DetectorCategory
 
         assert detector.category == DetectorCategory.security

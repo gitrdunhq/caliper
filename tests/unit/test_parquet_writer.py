@@ -1,4 +1,4 @@
-"""Tests for eedom.data.parquet_writer.
+"""Tests for caliper.data.parquet_writer.
 
 # tested-by: tests/unit/test_parquet_writer.py  (self-referential — this is the test file)
 """
@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-pq = pytest.importorskip("pyarrow.parquet", reason="pyarrow not installed (eedom[parquet])")
+pq = pytest.importorskip("pyarrow.parquet", reason="pyarrow not installed (caliper[parquet])")
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from eedom.core.models import (
+from caliper.core.models import (
     DecisionVerdict,
     Finding,
     FindingCategory,
@@ -26,7 +26,7 @@ from eedom.core.models import (
     ScanResult,
     ScanResultStatus,
 )
-from eedom.data.parquet_writer import (
+from caliper.data.parquet_writer import (
     _build_schema,
     append_decisions,
     decision_to_row,

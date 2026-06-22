@@ -15,7 +15,7 @@ from tests.e2e.conftest import (
     run_review,
 )
 
-pytestmark = pytest.mark.skipif(not E2E_ENABLED, reason="E2E tests require EEDOM_E2E=1")
+pytestmark = pytest.mark.skipif(not E2E_ENABLED, reason="E2E tests require CALIPER_E2E=1")
 
 
 class TestFullReviewMarkdown:
@@ -24,7 +24,7 @@ class TestFullReviewMarkdown:
         breakpoint_dump(tmp_path, "layer3_markdown", {"output": output})
 
         assert result.exit_code == 0, f"Exit code {result.exit_code}: {result.output}"
-        assert "Eagle Eyed Dom" in output, "Missing header"
+        assert "Caliper" in output, "Missing header"
         assert "Plugin" in output, "Missing scanner table header"
 
     def test_full_review_all_plugins_present(self, vuln_repo: Path, tmp_path: Path) -> None:

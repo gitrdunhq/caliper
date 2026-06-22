@@ -13,12 +13,12 @@ import os
 import pytest
 from click.testing import CliRunner
 
-os.environ.setdefault("EEDOM_DB_DSN", "postgresql://t:t@localhost/t")
-os.environ.setdefault("EEDOM_ALLOW_GLOBAL", "1")
+os.environ.setdefault("CALIPER_DB_DSN", "postgresql://t:t@localhost/t")
+os.environ.setdefault("CALIPER_ALLOW_GLOBAL", "1")
 
-from eedom.cli.main import cli  # noqa: E402
-from eedom.core.models import DecisionVerdict, PolicyEvaluation  # noqa: E402
-from eedom.core.plugin import PluginFinding  # noqa: E402
+from caliper.cli.main import cli  # noqa: E402
+from caliper.core.models import DecisionVerdict, PolicyEvaluation  # noqa: E402
+from caliper.core.plugin import PluginFinding  # noqa: E402
 
 _DIFF = (
     "diff --git a/requirements.txt b/requirements.txt\n"
@@ -44,7 +44,7 @@ def _patched(monkeypatch):
     """Patch the scan + gate so the CLI test never hits the network or OPA."""
     findings = [_malicious_finding()]
     monkeypatch.setattr(
-        "eedom.data.supply_chain_scan.run_supply_chain_diff", lambda *a, **k: findings
+        "caliper.data.supply_chain_scan.run_supply_chain_diff", lambda *a, **k: findings
     )
 
     def fake_gate(_findings, _settings):
@@ -52,19 +52,19 @@ def _patched(monkeypatch):
             decision=DecisionVerdict.reject, triggered_rules=["x"], policy_bundle_version="t"
         )
 
-    monkeypatch.setattr("eedom.core.supply_chain_diff.evaluate_gate", fake_gate)
+    monkeypatch.setattr("caliper.core.supply_chain_diff.evaluate_gate", fake_gate)
     return findings
 
 
 def test_gated_off_skips(monkeypatch):  # Integrity
-    monkeypatch.delenv("EEDOM_SUPPLY_CHAIN_DIFF_ENABLED", raising=False)
+    monkeypatch.delenv("CALIPER_SUPPLY_CHAIN_DIFF_ENABLED", raising=False)
     res = CliRunner().invoke(cli, ["supply-chain-diff", "--diff", "-"], input=_DIFF)
     assert res.exit_code == 0
     assert "gated off" in (res.stderr or res.output)
 
 
 def test_gated_on_markdown_reports_findings(monkeypatch, _patched):
-    monkeypatch.setenv("EEDOM_SUPPLY_CHAIN_DIFF_ENABLED", "1")
+    monkeypatch.setenv("CALIPER_SUPPLY_CHAIN_DIFF_ENABLED", "1")
     res = CliRunner().invoke(cli, ["supply-chain-diff", "--diff", "-"], input=_DIFF)
     assert res.exit_code == 0  # monitor mode never fails the build
     assert "SC-INSTALL-HOOK" in res.output
@@ -72,7 +72,7 @@ def test_gated_on_markdown_reports_findings(monkeypatch, _patched):
 
 
 def test_advise_mode_exits_nonzero_on_reject(monkeypatch, _patched):  # Availability
-    monkeypatch.setenv("EEDOM_SUPPLY_CHAIN_DIFF_ENABLED", "1")
+    monkeypatch.setenv("CALIPER_SUPPLY_CHAIN_DIFF_ENABLED", "1")
     res = CliRunner().invoke(
         cli,
         ["supply-chain-diff", "--diff", "-", "--operating-mode", "advise"],
@@ -82,7 +82,7 @@ def test_advise_mode_exits_nonzero_on_reject(monkeypatch, _patched):  # Availabi
 
 
 def test_json_format(monkeypatch, _patched):
-    monkeypatch.setenv("EEDOM_SUPPLY_CHAIN_DIFF_ENABLED", "1")
+    monkeypatch.setenv("CALIPER_SUPPLY_CHAIN_DIFF_ENABLED", "1")
     res = CliRunner().invoke(
         cli, ["supply-chain-diff", "--diff", "-", "--format", "json"], input=_DIFF
     )

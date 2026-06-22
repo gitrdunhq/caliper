@@ -1,4 +1,4 @@
-"""Tests for eedom.data.catalog — PackageCatalog and CatalogEntry.
+"""Tests for caliper.data.catalog — PackageCatalog and CatalogEntry.
 # tested-by: tests/unit/test_catalog.py
 """
 
@@ -35,7 +35,7 @@ def _make_pool(fetchone_result=None, fetchall_result=None, rowcount=0):
 
 def _make_entry(**overrides):
     """Build a CatalogEntry with sensible defaults for all slots."""
-    from eedom.data.catalog import CatalogEntry
+    from caliper.data.catalog import CatalogEntry
 
     defaults = {
         "catalog_id": 1,
@@ -130,7 +130,7 @@ class TestPackageCatalogLookup:
     """PackageCatalog.lookup() returns CatalogEntry or None."""
 
     def test_lookup_returns_none_when_not_found(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         pool, _ = _make_pool(fetchone_result=None)
         catalog = PackageCatalog(pool)
@@ -138,14 +138,14 @@ class TestPackageCatalogLookup:
         assert result is None
 
     def test_lookup_returns_none_when_pool_is_none(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         catalog = PackageCatalog(None)
         result = catalog.lookup("pypi", "requests", "2.31.0")
         assert result is None
 
     def test_lookup_returns_catalog_entry(self) -> None:
-        from eedom.data.catalog import CatalogEntry, PackageCatalog
+        from caliper.data.catalog import CatalogEntry, PackageCatalog
 
         row = (
             42,  # catalog_id
@@ -186,7 +186,7 @@ class TestPackageCatalogUpsert:
     """PackageCatalog.upsert() inserts or updates a catalog entry."""
 
     def test_upsert_creates_new_entry(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         pool, cursor = _make_pool()
         catalog = PackageCatalog(pool)
@@ -198,7 +198,7 @@ class TestPackageCatalogUpsert:
         assert "INSERT INTO package_catalog" in first_call_sql
 
     def test_upsert_no_pool_does_not_raise(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         catalog = PackageCatalog(None)
         catalog.upsert("pypi", "requests", "2.31.0")  # must not raise
@@ -213,7 +213,7 @@ class TestPackageCatalogSearchSemantic:
     """PackageCatalog.search_semantic() queries by vector embedding."""
 
     def test_search_semantic_returns_results(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         rows = [
             ("requests", "2.31.0", "pypi", "HTTP library", "approve", None, "active", 0.95),
@@ -230,13 +230,13 @@ class TestPackageCatalogSearchSemantic:
         assert results[1]["package_name"] == "httpx"
 
     def test_search_semantic_returns_empty_when_pool_is_none(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         catalog = PackageCatalog(None)
         assert catalog.search_semantic([0.1], limit=5) == []
 
     def test_search_semantic_returns_empty_on_db_error(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         pool = MagicMock()
         pool.connection.side_effect = Exception("connection refused")
@@ -254,7 +254,7 @@ class TestPackageCatalogGetConsumers:
     """PackageCatalog.get_consumers() returns repo names that use a package."""
 
     def test_get_consumers_returns_repo_names(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         rows = [("repo-a",), ("repo-b",)]
         pool, _ = _make_pool(fetchall_result=rows)
@@ -265,14 +265,14 @@ class TestPackageCatalogGetConsumers:
         assert result == ["repo-a", "repo-b"]
 
     def test_get_consumers_returns_empty_when_none(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         pool, _ = _make_pool(fetchall_result=[])
         catalog = PackageCatalog(pool)
         assert catalog.get_consumers("pypi", "requests", "2.31.0") == []
 
     def test_get_consumers_returns_empty_when_pool_is_none(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         catalog = PackageCatalog(None)
         assert catalog.get_consumers("pypi", "requests", "2.31.0") == []
@@ -287,7 +287,7 @@ class TestPackageCatalogIngestLockfile:
     """PackageCatalog.ingest_lockfile() stores repo package inventory."""
 
     def test_ingest_lockfile_stores_packages(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         pool, cursor = _make_pool()
         catalog = PackageCatalog(pool)
@@ -303,7 +303,7 @@ class TestPackageCatalogIngestLockfile:
         assert cursor.execute.call_count >= 3
 
     def test_ingest_lockfile_no_pool_does_not_raise(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         catalog = PackageCatalog(None)
         catalog.ingest_lockfile("repo", "/lockfile", [{"name": "x", "version": "1.0"}])
@@ -318,7 +318,7 @@ class TestPackageCatalogQueueScan:
     """PackageCatalog.queue_scan() adds a package to the scan queue."""
 
     def test_queue_scan_adds_to_queue(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         pool, cursor = _make_pool()
         catalog = PackageCatalog(pool)
@@ -330,7 +330,7 @@ class TestPackageCatalogQueueScan:
         assert "INSERT INTO scan_queue" in insert_sql
 
     def test_queue_scan_no_pool_does_not_raise(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         catalog = PackageCatalog(None)
         catalog.queue_scan("pypi", "requests", "2.31.0")
@@ -345,7 +345,7 @@ class TestPackageCatalogMarkVulnStale:
     """PackageCatalog.mark_vuln_stale() nullifies vuln timestamps."""
 
     def test_mark_vuln_stale_returns_count(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         pool, cursor = _make_pool(rowcount=42)
         catalog = PackageCatalog(pool)
@@ -355,7 +355,7 @@ class TestPackageCatalogMarkVulnStale:
         assert count == 42
 
     def test_mark_vuln_stale_returns_zero_when_pool_is_none(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         catalog = PackageCatalog(None)
         assert catalog.mark_vuln_stale() == 0
@@ -370,7 +370,7 @@ class TestPackageCatalogExceptionAbsorption:
     """All PackageCatalog methods absorb DB exceptions and return gracefully."""
 
     def test_all_methods_absorb_exceptions(self) -> None:
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         pool = MagicMock()
         pool.connection.side_effect = Exception("DB down")
@@ -396,7 +396,7 @@ class TestSqlInjectionPrevention:
         The vulnerable code interpolates field keys directly as column names.
         With whitelisting, unknown keys are silently dropped — no UPDATE executes.
         """
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         pool, cursor = _make_pool()
         catalog = PackageCatalog(pool)
@@ -411,7 +411,7 @@ class TestSqlInjectionPrevention:
 
     def test_valid_field_keys_still_work(self):
         """Whitelisted column names must still update correctly."""
-        from eedom.data.catalog import PackageCatalog
+        from caliper.data.catalog import PackageCatalog
 
         pool, cursor = _make_pool()
         catalog = PackageCatalog(pool)

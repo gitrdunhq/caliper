@@ -1,4 +1,4 @@
-"""Tests for eedom.data.pkgsrc -- package fetch/extract/diff.
+"""Tests for caliper.data.pkgsrc -- package fetch/extract/diff.
 
 DPS-12 domains:
   Integrity (SAFETY): safe_extract never writes outside the destination
@@ -21,9 +21,9 @@ import httpx
 import pytest
 import respx
 
-from eedom.core.registries import PACKAGE_SOURCES
-from eedom.core.supply_chain_models import FetchedPackage, FileChange
-from eedom.data.pkgsrc import (
+from caliper.core.registries import PACKAGE_SOURCES
+from caliper.core.supply_chain_models import FetchedPackage, FileChange
+from caliper.data.pkgsrc import (
     ExtractionError,
     NpmSource,
     PyPISource,

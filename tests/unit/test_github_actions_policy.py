@@ -173,14 +173,14 @@ def test_workflow_policy_runs_read_only_policy_checks() -> None:
     assert "tests/unit/test_ruff_policy.py" in run_text
     assert "docker.io/library/python@sha256:" in run_text
     assert '-v "$GITHUB_WORKSPACE:/workspace:ro"' in run_text
-    assert "UV_PROJECT_ENVIRONMENT=/tmp/eedom-policy-venv" in run_text
+    assert "UV_PROJECT_ENVIRONMENT=/tmp/caliper-policy-venv" in run_text
     assert "uv run --frozen pytest" in run_text
-    assert "EEDOM_ALLOW_HOST_TESTS" not in run_text
+    assert "CALIPER_ALLOW_HOST_TESTS" not in run_text
 
 
 def test_pull_request_ci_skips_draft_prs_and_runs_when_ready_for_review() -> None:
     pr_ci_workflows = [
-        _WORKFLOWS / "gatekeeper.yml",
+        _WORKFLOWS / "foreman.yml",
         _WORKFLOWS / "workflow-policy.yml",
     ]
 
@@ -209,8 +209,8 @@ def test_pull_request_ci_skips_draft_prs_and_runs_when_ready_for_review() -> Non
             ), f"{path.relative_to(_ROOT)} job {job_name} must skip draft PRs"
 
 
-def test_gatekeeper_keeps_pr_ci_fast_and_full_e2e_manual_only() -> None:
-    workflow = _load_yaml(_WORKFLOWS / "gatekeeper.yml")
+def test_foreman_keeps_pr_ci_fast_and_full_e2e_manual_only() -> None:
+    workflow = _load_yaml(_WORKFLOWS / "foreman.yml")
     assert workflow.get("permissions") == {"contents": "read"}
     on_block = _github_on(workflow)
     assert isinstance(on_block, dict)
@@ -254,21 +254,21 @@ def test_gatekeeper_keeps_pr_ci_fast_and_full_e2e_manual_only() -> None:
     preflight_run = _job_run_text(preflight)
     for contract_path in (
         "tests/contract/",
-        "src/eedom/core/use_cases.py",
-        "src/eedom/core/registry.py",
-        "src/eedom/core/renderer.py",
-        "src/eedom/plugins/supply_chain.py",
+        "src/caliper/core/use_cases.py",
+        "src/caliper/core/registry.py",
+        "src/caliper/core/renderer.py",
+        "src/caliper/plugins/supply_chain.py",
     ):
         assert contract_path in preflight_run
 
     for release_only_path in (
         "tests/e2e/",
-        "src/eedom/data/scanners/",
-        "src/eedom/plugins/_runners/",
-        "src/eedom/plugins/cspell.py",
+        "src/caliper/data/scanners/",
+        "src/caliper/plugins/_runners/",
+        "src/caliper/plugins/cspell.py",
     ):
         assert release_only_path not in preflight_run
-    assert "src/eedom/plugins/*" not in preflight_run
+    assert "src/caliper/plugins/*" not in preflight_run
 
     contract_step_names = {
         step.get("name") for step in _job_steps(contract) if isinstance(step.get("name"), str)
@@ -367,8 +367,8 @@ def test_nightly_release_candidate_runs_full_e2e_and_creates_prerelease() -> Non
         if isinstance(step.get("name"), str)
     }
     assert "Run full e2e tests" in release_step_names
-    assert "Run full Dom review" in release_step_names
-    assert "Enforce Dom release verdict" in release_step_names
+    assert "Run full Caliper review" in release_step_names
+    assert "Enforce Caliper release verdict" in release_step_names
     assert "Build distributions" in release_step_names
     assert "Upload release-candidate artifacts" in release_step_names
     assert "Create GitHub prerelease" not in release_step_names
@@ -381,11 +381,11 @@ def test_nightly_release_candidate_runs_full_e2e_and_creates_prerelease() -> Non
     assert "tag_name={tag_name}" in run_text
     assert 'f"v{base_version}-rc.{run_date}.{candidate_number}"' in run_text
     assert "uv run pytest tests/e2e/ -v --tb=short" in run_text
-    assert "uv run eedom review --repo-path . --all --format sarif" in run_text
-    assert "uv run eedom review --repo-path . --all --output" in run_text
-    assert 'result.get("ruleId") == "eedom-plugin-error"' in run_text
+    assert "uv run caliper review --repo-path . --all --format sarif" in run_text
+    assert "uv run caliper review --repo-path . --all --output" in run_text
+    assert 'result.get("ruleId") == "caliper-plugin-error"' in run_text
     assert 're.findall(r"BINARY_CRASHED", markdown)' in run_text
-    assert "Release candidate blocked by Dom review" in run_text
+    assert "Release candidate blocked by Caliper review" in run_text
     assert "Nightly release candidate for ${BASE_VERSION}." in run_text
     assert "Daily release candidate" not in run_text
     assert "uv build" in run_text

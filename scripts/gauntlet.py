@@ -1,4 +1,4 @@
-"""Run the full GATEKEEPER 7-tool suite against all stress test PRs."""
+"""Run the full Foreman 7-tool suite against all stress test PRs."""
 
 from __future__ import annotations
 
@@ -7,15 +7,15 @@ import os
 from collections import Counter
 from pathlib import Path
 
-os.environ.setdefault("GATEKEEPER_GITHUB_TOKEN", "fake_for_test")
+os.environ.setdefault("FOREMAN_GITHUB_TOKEN", "fake_for_test")
 
-from eedom.agent.tool_helpers import (
+from caliper.agent.tool_helpers import (
     detect_manifest_changes,
     detect_rulesets,
     extract_changed_files,
     get_agent_settings,
 )
-from eedom.agent.tools import (  # noqa: F401
+from caliper.agent.tools import (  # noqa: F401
     analyze_complexity,
     evaluate_change,
     scan_code,
@@ -138,7 +138,7 @@ def build_comment(
     appr = [d for d in decisions if d["decision"] == "approve"]
 
     c: list[str] = []
-    c.append(f"## ⚡ GATEKEEPER — {repo_full}#{pr_num}")
+    c.append(f"## ⚡ Foreman — {repo_full}#{pr_num}")
     c.append(f"**{title}**")
     c.append("")
 
@@ -374,7 +374,7 @@ def build_comment(
     c.append("---")
     cfg = get_agent_settings()
     c.append(
-        f"*GATEKEEPER v{cfg.policy_version} • "
+        f"*Foreman v{cfg.policy_version} • "
         f"9 tools • {len(decisions)} pkgs • "
         f"{len(findings)} code • {len(duplicates)} dupes • "
         f"CCN avg {complexity_summary.get('avg_cyclomatic_complexity', 0)}*"

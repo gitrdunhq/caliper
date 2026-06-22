@@ -14,12 +14,12 @@ Two approaches were considered:
 
 ## Decision
 
-We will create `src/eedom/agent/` as a separate presentation-tier module, parallel to `cli/`. The agent imports from `core/` and `data/` — the same tiers the CLI uses. No shared code is duplicated; the agent calls `ReviewPipeline.evaluate()` directly.
+We will create `src/caliper/agent/` as a separate presentation-tier module, parallel to `cli/`. The agent imports from `core/` and `data/` — the same tiers the CLI uses. No shared code is duplicated; the agent calls `ReviewPipeline.evaluate()` directly.
 
 ## Consequences
 
 - The CLI continues to work unmodified — zero risk of regression
-- The agent has its own config (`AgentSettings` with `GATEKEEPER_` prefix) independent of `EedomSettings`
-- The agent must construct an `EedomSettings` internally to pass to `ReviewPipeline`, mapping its own config fields
+- The agent has its own config (`AgentSettings` with `FOREMAN_` prefix) independent of `CaliperSettings`
+- The agent must construct an `CaliperSettings` internally to pass to `ReviewPipeline`, mapping its own config fields
 - Two entry points means two places to maintain environment documentation
 - The three-tier architecture is preserved: `agent/` is presentation, `core/` is logic, `data/` is persistence

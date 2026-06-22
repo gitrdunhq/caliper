@@ -8,7 +8,7 @@ import json
 import subprocess
 from unittest.mock import MagicMock, patch
 
-from eedom.core.pr_review import (
+from caliper.core.pr_review import (
     get_pr_diff_hunks,
     line_in_hunks,
     parse_hunk_ranges,
@@ -248,7 +248,7 @@ class TestSarifToReviewWithHunks:
 # ---------------------------------------------------------------------------
 
 
-from eedom.core.pr_review import (  # noqa: E402
+from caliper.core.pr_review import (  # noqa: E402
     PRReview,
     get_pr_diff_files,
     post_review,

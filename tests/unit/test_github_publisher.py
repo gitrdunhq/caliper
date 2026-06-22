@@ -1,17 +1,17 @@
 # tested-by: tests/unit/test_github_publisher.py
 """Contract tests for GitHubPublisher adapter (issue #177).
 
-RED phase: all tests import from eedom.adapters.github_publisher which does not exist yet.
+RED phase: all tests import from caliper.adapters.github_publisher which does not exist yet.
 """
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from eedom.adapters.github_publisher import (
+from caliper.adapters.github_publisher import (
     GitHubPublisher,  # noqa: F401 — will ImportError until green
 )
-from eedom.core.ports import PullRequestPublisherPort
+from caliper.core.ports import PullRequestPublisherPort
 
 # ---------------------------------------------------------------------------
 # Protocol conformance

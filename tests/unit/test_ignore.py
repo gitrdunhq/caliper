@@ -1,4 +1,4 @@
-"""Tests for eedom.core.ignore — .eedomignore loading and path filtering."""
+"""Tests for caliper.core.ignore — .caliperignore loading and path filtering."""
 
 # tested-by: tests/unit/test_ignore.py
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from eedom.core.ignore import DEFAULT_PATTERNS, load_ignore_patterns, should_ignore
+from caliper.core.ignore import DEFAULT_PATTERNS, load_ignore_patterns, should_ignore
 
 # ---------------------------------------------------------------------------
 # load_ignore_patterns
@@ -19,48 +19,48 @@ class TestLoadIgnorePatterns:
     """Tests for load_ignore_patterns()."""
 
     def test_no_file_returns_defaults_only(self, tmp_path: Path) -> None:
-        """When .eedomignore does not exist, only default patterns are returned."""
+        """When .caliperignore does not exist, only default patterns are returned."""
         patterns = load_ignore_patterns(tmp_path)
         assert patterns == DEFAULT_PATTERNS
 
     def test_loads_patterns_from_file(self, tmp_path: Path) -> None:
-        """Patterns listed in .eedomignore are appended after defaults."""
-        (tmp_path / ".eedomignore").write_text("vendor/\ntests/fixtures/\n")
+        """Patterns listed in .caliperignore are appended after defaults."""
+        (tmp_path / ".caliperignore").write_text("vendor/\ntests/fixtures/\n")
         patterns = load_ignore_patterns(tmp_path)
         assert "vendor/" in patterns
         assert "tests/fixtures/" in patterns
 
     def test_comments_are_ignored(self, tmp_path: Path) -> None:
         """Lines starting with # are treated as comments and excluded."""
-        (tmp_path / ".eedomignore").write_text("# This is a comment\nvendor/\n")
+        (tmp_path / ".caliperignore").write_text("# This is a comment\nvendor/\n")
         patterns = load_ignore_patterns(tmp_path)
         assert "# This is a comment" not in patterns
         assert "vendor/" in patterns
 
     def test_inline_comments_not_stripped(self, tmp_path: Path) -> None:
         """A line that does NOT start with # is kept verbatim (inline # is not stripped)."""
-        (tmp_path / ".eedomignore").write_text("vendor/  # keep this\n")
+        (tmp_path / ".caliperignore").write_text("vendor/  # keep this\n")
         patterns = load_ignore_patterns(tmp_path)
         # The line is kept as-is after stripping leading/trailing whitespace.
         assert "vendor/  # keep this" in patterns
 
     def test_empty_lines_are_ignored(self, tmp_path: Path) -> None:
         """Blank lines are skipped and do not appear in the returned list."""
-        (tmp_path / ".eedomignore").write_text("\n\nvendor/\n\n")
+        (tmp_path / ".caliperignore").write_text("\n\nvendor/\n\n")
         patterns = load_ignore_patterns(tmp_path)
         assert "" not in patterns
         assert "vendor/" in patterns
 
     def test_whitespace_only_lines_are_ignored(self, tmp_path: Path) -> None:
         """Lines containing only whitespace are skipped."""
-        (tmp_path / ".eedomignore").write_text("   \n  \t  \nvendor/\n")
+        (tmp_path / ".caliperignore").write_text("   \n  \t  \nvendor/\n")
         patterns = load_ignore_patterns(tmp_path)
         assert "   " not in patterns
         assert "vendor/" in patterns
 
     def test_defaults_always_present_when_file_exists(self, tmp_path: Path) -> None:
-        """Default patterns are included even when .eedomignore is present."""
-        (tmp_path / ".eedomignore").write_text("vendor/\n")
+        """Default patterns are included even when .caliperignore is present."""
+        (tmp_path / ".caliperignore").write_text("vendor/\n")
         patterns = load_ignore_patterns(tmp_path)
         for default in DEFAULT_PATTERNS:
             assert default in patterns
@@ -71,8 +71,8 @@ class TestLoadIgnorePatterns:
         assert isinstance(result, list)
 
     def test_file_with_only_comments_returns_defaults(self, tmp_path: Path) -> None:
-        """A .eedomignore with only comment lines is equivalent to no user patterns."""
-        (tmp_path / ".eedomignore").write_text("# ignore everything\n# nope\n")
+        """A .caliperignore with only comment lines is equivalent to no user patterns."""
+        (tmp_path / ".caliperignore").write_text("# ignore everything\n# nope\n")
         patterns = load_ignore_patterns(tmp_path)
         assert patterns == DEFAULT_PATTERNS
 

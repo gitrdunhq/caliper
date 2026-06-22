@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from eedom.core.registry import PluginRegistry
-from eedom.core.use_cases import ReviewOptions, review_repository
+from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
+from caliper.core.registry import PluginRegistry
+from caliper.core.use_cases import ReviewOptions, review_repository
 
 pytestmark = pytest.mark.contract
 
@@ -52,8 +52,8 @@ class FakeAnalyzerRegistry:
 
 
 def test_registry_diff_scope_keeps_repo_wide_plugins_on_repo_files(tmp_path: Path) -> None:
-    changed_files = ["src/eedom/core/use_cases.py"]
-    repo_files = ["pyproject.toml", "src/eedom/core/use_cases.py", "Dockerfile"]
+    changed_files = ["src/caliper/core/use_cases.py"]
+    repo_files = ["pyproject.toml", "src/caliper/core/use_cases.py", "Dockerfile"]
     quality_plugin = RecordingPlugin("quality-contract", PluginCategory.quality)
     dependency_plugin = RecordingPlugin("dependency-contract", PluginCategory.dependency)
 
@@ -91,7 +91,7 @@ def test_review_repository_forwards_filter_contract_and_derives_blocked_verdict(
 
     review_result = review_repository(
         context,  # type: ignore[arg-type]
-        ["src/eedom/core/use_cases.py"],
+        ["src/caliper/core/use_cases.py"],
         tmp_path,
         options,
         repo_files=["pyproject.toml"],
@@ -100,7 +100,7 @@ def test_review_repository_forwards_filter_contract_and_derives_blocked_verdict(
     assert review_result.verdict == "blocked"
     assert registry.calls == [
         {
-            "files": ["src/eedom/core/use_cases.py"],
+            "files": ["src/caliper/core/use_cases.py"],
             "repo_path": tmp_path,
             "names": ["dependency-contract"],
             "categories": None,

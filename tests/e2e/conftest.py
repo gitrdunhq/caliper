@@ -1,8 +1,8 @@
 # tested-by: tests/e2e/test_breakpoints.py
 """E2E test fixtures — container-only, real scanners, deterministic assertions.
 
-Guard: all tests skip unless EEDOM_E2E=1 (set in the e2e container).
-Breakpoints: when EEDOM_E2E_BREAKPOINTS=1, intermediate pipeline state is
+Guard: all tests skip unless CALIPER_E2E=1 (set in the e2e container).
+Breakpoints: when CALIPER_E2E_BREAKPOINTS=1, intermediate pipeline state is
 dumped to tmp_path/breakpoints/ for binary-search debugging.
 """
 
@@ -17,14 +17,16 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from eedom.cli.main import cli
+from caliper.cli.main import cli
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
-E2E_ENABLED = os.getenv("EEDOM_E2E") == "1"
-BREAKPOINTS_ENABLED = os.getenv("EEDOM_E2E_BREAKPOINTS") == "1"
+E2E_ENABLED = os.getenv("CALIPER_E2E") == "1"
+BREAKPOINTS_ENABLED = os.getenv("CALIPER_E2E_BREAKPOINTS") == "1"
 
-pytestmark = pytest.mark.skipif(not E2E_ENABLED, reason="E2E tests require EEDOM_E2E=1 (container)")
+pytestmark = pytest.mark.skipif(
+    not E2E_ENABLED, reason="E2E tests require CALIPER_E2E=1 (container)"
+)
 
 
 @pytest.fixture()
@@ -144,7 +146,7 @@ def run_review(
     output_format: str = "json",
     extra_args: list[str] | None = None,
 ) -> tuple[object, dict | str]:
-    """Run `eedom review` and return (CliRunner result, parsed output).
+    """Run `caliper review` and return (CliRunner result, parsed output).
 
     For json/sarif formats, output is parsed as dict.
     For markdown, output is the raw string.
@@ -228,7 +230,7 @@ def get_all_findings(parsed: dict | list) -> list[dict]:
 def breakpoint_dump(tmp_path: Path, name: str, data: object) -> Path | None:
     """Dump intermediate state for binary-search debugging.
 
-    Only writes when EEDOM_E2E_BREAKPOINTS=1.
+    Only writes when CALIPER_E2E_BREAKPOINTS=1.
     Returns the path written, or None if breakpoints disabled.
     """
     if not BREAKPOINTS_ENABLED:

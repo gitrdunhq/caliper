@@ -1,4 +1,4 @@
-"""Tests for eedom.data.supply_chain_scan -- fetch+diff orchestration.
+"""Tests for caliper.data.supply_chain_scan -- fetch+diff orchestration.
 
 DPS-12 domains:
   Availability / fail-open (LIVENESS): a raising/unavailable source never aborts
@@ -14,11 +14,11 @@ from pathlib import Path
 
 import pytest
 
-os.environ.setdefault("EEDOM_DB_DSN", "postgresql://t:t@localhost/t")
+os.environ.setdefault("CALIPER_DB_DSN", "postgresql://t:t@localhost/t")
 
-from eedom.core.config import EedomSettings  # noqa: E402
-from eedom.core.supply_chain_models import FetchedPackage  # noqa: E402
-from eedom.data.supply_chain_scan import analyze_upgrade, run_supply_chain_diff  # noqa: E402
+from caliper.core.config import CaliperSettings  # noqa: E402
+from caliper.core.supply_chain_models import FetchedPackage  # noqa: E402
+from caliper.data.supply_chain_scan import analyze_upgrade, run_supply_chain_diff  # noqa: E402
 
 _NPM_DIFF = (
     "diff --git a/package.json b/package.json\n"
@@ -62,8 +62,8 @@ class _UnavailableSource:
         return FetchedPackage(available=False, error="registry 503")
 
 
-def _settings() -> EedomSettings:
-    return EedomSettings()
+def _settings() -> CaliperSettings:
+    return CaliperSettings()
 
 
 class TestRunSupplyChainDiff:
@@ -74,13 +74,13 @@ class TestRunSupplyChainDiff:
         assert "SC-RISKY-IMPORT" in ids
 
     def test_respects_ecosystem_allowlist(self) -> None:
-        os.environ["EEDOM_SUPPLY_CHAIN_DIFF_ECOSYSTEMS"] = "pypi"
+        os.environ["CALIPER_SUPPLY_CHAIN_DIFF_ECOSYSTEMS"] = "pypi"
         try:
             findings = run_supply_chain_diff(
-                _NPM_DIFF, EedomSettings(), sources={"npm": _FakeSource()}
+                _NPM_DIFF, CaliperSettings(), sources={"npm": _FakeSource()}
             )
         finally:
-            del os.environ["EEDOM_SUPPLY_CHAIN_DIFF_ECOSYSTEMS"]
+            del os.environ["CALIPER_SUPPLY_CHAIN_DIFF_ECOSYSTEMS"]
         assert findings == []
 
     def test_deterministic(self) -> None:  # Determinism

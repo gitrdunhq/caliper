@@ -12,8 +12,8 @@
   <line x1="28" y1="120.5" x2="1252" y2="120.5" stroke="#f2c14a" stroke-width="3"/>
   <rect x="52" y="58" width="175" height="32" fill="#f2c14a" stroke="#0e0706" stroke-width="2"/>
   <text x="140" y="79" fill="#0e0706" font-family="ui-monospace, monospace" font-weight="700" font-size="11" text-anchor="middle">16-BIT REVIEWER</text>
-  <text x="248" y="89" fill="#0e0706" font-family="'Space Grotesk', 'Arial Black', sans-serif" font-weight="700" font-size="42">EAGLE EYED DOM</text>
-  <text x="245" y="86" fill="#f4efe6" font-family="'Space Grotesk', 'Arial Black', sans-serif" font-weight="700" font-size="42">EAGLE EYED DOM</text>
+  <text x="248" y="89" fill="#0e0706" font-family="'Space Grotesk', 'Arial Black', sans-serif" font-weight="700" font-size="42">CALIPER</text>
+  <text x="245" y="86" fill="#f4efe6" font-family="'Space Grotesk', 'Arial Black', sans-serif" font-weight="700" font-size="42">CALIPER</text>
   <text x="1228" y="64" fill="#f2c14a" font-family="ui-monospace, monospace" font-size="10" text-anchor="end">N° 001</text>
   <text x="1228" y="82" fill="#f4efe6" font-family="ui-monospace, monospace" font-size="10" text-anchor="end">V0.1.0</text>
   <rect x="28" y="140" width="911" height="328" fill="url(#dioGrad)"/>

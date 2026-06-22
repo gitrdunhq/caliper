@@ -1,6 +1,6 @@
 ---
 title: "Architecture Violations — Coupling, Layer Inversion, and Sequential Scanners"
-component: src/eedom/core/orchestrator.py, src/eedom/cli/main.py
+component: src/caliper/core/orchestrator.py, src/caliper/cli/main.py
 tags: architecture, solid, srp, dip, coupling, three-tier, parallel, performance, maintainability
 category: performance-issues
 date: 2026-04-23
@@ -22,7 +22,7 @@ root_cause: "Three architecture violations: (1) core/ imports private symbols fr
 
 ```python
 # orchestrator.py (core layer) imports from scanners/base.py (data layer)
-from eedom.data.scanners.base import _make_failed_result
+from caliper.data.scanners.base import _make_failed_result
 
 # The underscore prefix means this is module-private
 # core/ should not know about data/ internals
@@ -46,7 +46,7 @@ class ScanResult(BaseModel):
                    message=message, duration_seconds=0.0)
 
 # orchestrator.py — imports from core/models.py (same layer)
-from eedom.core.models import ScanResult
+from caliper.core.models import ScanResult
 result = ScanResult.failed(scanner.name, str(e))
 ```
 
@@ -70,7 +70,7 @@ This is ALL business logic. The CLI should be a thin adapter: parse args → cal
 # After — extract to core/pipeline.py
 # core/pipeline.py
 class ReviewPipeline:
-    def __init__(self, config: EedomSettings):
+    def __init__(self, config: CaliperSettings):
         self._config = config
         self._orchestrator = self._build_orchestrator()
         self._opa = OpaEvaluator(...)
@@ -84,7 +84,7 @@ class ReviewPipeline:
 # cli/main.py — thin adapter
 @cli.command()
 def evaluate(repo_path, diff, pr_url, team, operating_mode, output_json):
-    config = EedomSettings()
+    config = CaliperSettings()
     pipeline = ReviewPipeline(config)
     diff_text = _read_diff(diff)
     decisions = pipeline.evaluate(diff_text, pr_url, team, OperatingMode(operating_mode))
@@ -129,13 +129,13 @@ These three violations share a root cause: **the architecture was specified corr
   ```python
   def test_core_does_not_import_data():
       import ast, pathlib
-      core_files = pathlib.Path("src/eedom/core").glob("*.py")
+      core_files = pathlib.Path("src/caliper/core").glob("*.py")
       for f in core_files:
           tree = ast.parse(f.read_text())
           for node in ast.walk(tree):
               if isinstance(node, (ast.Import, ast.ImportFrom)):
                   module = getattr(node, "module", "") or ""
-                  assert "eedom.data" not in module, f"{f.name} imports from data layer"
+                  assert "caliper.data" not in module, f"{f.name} imports from data layer"
   ```
 
 - **Test case — CLI is thin:** Assert that `cli/main.py` has fewer than 100 lines of non-import, non-decorator code. If it grows past this, logic is leaking into the presentation layer.

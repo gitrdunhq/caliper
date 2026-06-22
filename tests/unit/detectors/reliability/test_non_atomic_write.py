@@ -1,4 +1,4 @@
-"""Tests for NonAtomicWriteDetector (EED-021).
+"""Tests for NonAtomicWriteDetector (CAL-021).
 # tested-by: tests/unit/detectors/reliability/test_non_atomic_write.py
 """
 
@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.detectors.reliability.non_atomic_write import NonAtomicWriteDetector
+from caliper.detectors.reliability.non_atomic_write import NonAtomicWriteDetector
 
 
 class TestNonAtomicWriteDetector:
-    """Tests for NonAtomicWriteDetector (EED-021)."""
+    """Tests for NonAtomicWriteDetector (CAL-021)."""
 
     @pytest.fixture
     def detector(self):
@@ -21,10 +21,10 @@ class TestNonAtomicWriteDetector:
     # ------------------------------------------------------------------
 
     def test_detector_id(self, detector):
-        assert detector.detector_id == "EED-021"
+        assert detector.detector_id == "CAL-021"
 
     def test_category_is_reliability(self, detector):
-        from eedom.detectors.categories import DetectorCategory
+        from caliper.detectors.categories import DetectorCategory
 
         assert detector.category == DetectorCategory.reliability
 
@@ -49,7 +49,7 @@ def save(target, data):
         findings = detector.detect(f)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-021"
+        assert findings[0].detector_id == "CAL-021"
         assert findings[0].line_number >= 1
 
     def test_detects_write_text_without_atomic_rename(self, detector, tmp_path):
@@ -64,7 +64,7 @@ def dump(path, content):
         findings = detector.detect(f)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-021"
+        assert findings[0].detector_id == "CAL-021"
 
     def test_finding_message_mentions_atomic_rename(self, detector, tmp_path):
         """Finding message explains the crash-safety issue."""

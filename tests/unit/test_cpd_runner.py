@@ -6,10 +6,10 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from eedom.plugins._runners.cpd_runner import (
+from caliper.plugins._runners.cpd_runner import (
     _enclosing_symbol,
-    _enrich_clones,
     _parse_cpd_xml,
+    _scribe_clones,
     run_cpd,
 )
 
@@ -49,7 +49,7 @@ def test_parse_cpd_xml_handles_pmd_7_namespace() -> None:
     ]
 
 
-@patch("eedom.plugins._runners.cpd_runner.subprocess.run")
+@patch("caliper.plugins._runners.cpd_runner.subprocess.run")
 def test_run_cpd_parses_xml_with_stdout_preamble(mock_run) -> None:
     mock_run.return_value.returncode = 0
     mock_run.return_value.stdout = (
@@ -86,7 +86,7 @@ def test_enclosing_symbol_python_picks_innermost(tmp_path) -> None:
     assert _enclosing_symbol(str(f), 99) == ""  # out of range, fail-open
 
 
-def test_enrich_clones_adds_occurrences_symbol_and_home(tmp_path) -> None:
+def test_scribe_clones_adds_occurrences_symbol_and_home(tmp_path) -> None:
     a = tmp_path / "a.py"
     a.write_text("def foo():\n    return 1\n")
     b = tmp_path / "b.py"
@@ -112,7 +112,7 @@ def test_enrich_clones_adds_occurrences_symbol_and_home(tmp_path) -> None:
         },
     ]
 
-    out = _enrich_clones(dupes, str(tmp_path))
+    out = _scribe_clones(dupes, str(tmp_path))
 
     assert out[0]["tokens"] == 90  # ranked by tokens x occurrences
     assert out[0]["occurrences"] == 2

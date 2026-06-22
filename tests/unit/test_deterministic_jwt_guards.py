@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     pass
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Files that may contain JWT token generation
 _JWT_SOURCE_PATHS = (

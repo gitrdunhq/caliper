@@ -17,16 +17,16 @@ import pytest
 
 def test_templates_accessible_via_importlib_resources():
     """Verify templates are accessible via importlib.resources in both dev and installed contexts."""
-    # This test should work whether eedom is installed or running from source
-    import eedom
+    # This test should work whether caliper is installed or running from source
+    import caliper
 
-    eedom_package = eedom
+    caliper_package = caliper
     template_names = ["comment.md.j2", "semgrep.md.j2"]
 
     for template_name in template_names:
         # Try to access template using importlib.resources
         try:
-            with importlib.resources.files("eedom.templates").joinpath(template_name).open() as f:
+            with importlib.resources.files("caliper.templates").joinpath(template_name).open() as f:
                 content = f.read()
                 assert len(content) > 0, f"Template {template_name} is empty"
         except (ImportError, ModuleNotFoundError, FileNotFoundError) as e:
@@ -84,7 +84,7 @@ def test_renderer_can_load_templates_in_installed_context():
     """
     import jinja2
 
-    from eedom.core.renderer import render_comment
+    from caliper.core.renderer import render_comment
 
     # Try to render a comment - this will fail if templates aren't accessible
     try:
@@ -124,7 +124,7 @@ def test_templates_directory_structure_preserved():
 
         with zipfile.ZipFile(wheel_files[0], "r") as whl:
             # Check that templates are in the expected path
-            expected_path_prefix = "eedom/templates/"
+            expected_path_prefix = "caliper/templates/"
             template_paths = [
                 name
                 for name in whl.namelist()

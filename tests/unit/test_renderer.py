@@ -4,8 +4,8 @@
 
 from __future__ import annotations
 
-from eedom.core.plugin import PluginResult
-from eedom.core.renderer import (  # noqa: PLC2701
+from caliper.core.plugin import PluginResult
+from caliper.core.renderer import (  # noqa: PLC2701
     _VERSION,
     CATEGORY_PRIORITY,
     _build_sections,
@@ -84,7 +84,7 @@ class TestRenderComment:
             pr_num=42,
             title="feat: add thing",
         )
-        assert "Eagle Eyed Dom" in md
+        assert "Caliper" in md
         assert "org/repo#42" in md
         assert "feat: add thing" in md
 
@@ -171,7 +171,7 @@ class TestRenderComment:
             pr_num=1,
             title="test",
         )
-        assert f"Eagle Eyed Dom v{_VERSION}" in md
+        assert f"Caliper v{_VERSION}" in md
 
     def test_truncation_at_65k(self):
         class VerbosePlugin:
@@ -539,7 +539,7 @@ class TestRenderCommentTruncation:
 
     def test_truncated_output_within_max_length(self) -> None:
         """render_comment output must never exceed _MAX_COMMENT_LENGTH."""
-        from eedom.core.renderer import _MAX_COMMENT_LENGTH
+        from caliper.core.renderer import _MAX_COMMENT_LENGTH
 
         output = render_comment([self._big_result()], repo="org/repo", pr_num=1)
 

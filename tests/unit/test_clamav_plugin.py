@@ -7,8 +7,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from eedom.core.plugin import PluginCategory, PluginResult
-from eedom.plugins.clamav import ClamAvPlugin
+from caliper.core.plugin import PluginCategory, PluginResult
+from caliper.plugins.clamav import ClamAvPlugin
 
 CLEAN_OUTPUT = """\
 /workspace/src/app.py: OK
@@ -46,7 +46,7 @@ class TestClamAvPlugin:
         p = ClamAvPlugin()
         assert p.can_run(["app.py"], Path(".")) is True
 
-    @patch("eedom.plugins.clamav.subprocess.run")
+    @patch("caliper.plugins.clamav.subprocess.run")
     def test_clean_scan(self, mock_run):
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = CLEAN_OUTPUT
@@ -57,7 +57,7 @@ class TestClamAvPlugin:
         assert len(result.findings) == 0
         assert result.summary["infected"] == 0
 
-    @patch("eedom.plugins.clamav.subprocess.run")
+    @patch("caliper.plugins.clamav.subprocess.run")
     def test_infected_scan(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = INFECTED_OUTPUT
@@ -71,7 +71,7 @@ class TestClamAvPlugin:
         assert result.summary["infected"] == 2
 
     @patch(
-        "eedom.plugins.clamav.subprocess.run",
+        "caliper.plugins.clamav.subprocess.run",
         side_effect=FileNotFoundError,
     )
     def test_binary_not_found(self, _mock):
@@ -79,7 +79,7 @@ class TestClamAvPlugin:
         result = p.run(["app.py"], Path("."))
         assert "not installed" in result.error
 
-    @patch("eedom.plugins.clamav.subprocess.run")
+    @patch("caliper.plugins.clamav.subprocess.run")
     def test_render_infected(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = INFECTED_OUTPUT
@@ -109,7 +109,7 @@ class TestClamAvPlugin:
         md = p.render(result)
         assert "not installed" in md
 
-    @patch("eedom.plugins.clamav.subprocess.run")
+    @patch("caliper.plugins.clamav.subprocess.run")
     def test_clamscan_exit2_includes_stderr(self, mock_run):
         mock_run.return_value.returncode = 2
         mock_run.return_value.stdout = ""
@@ -119,7 +119,7 @@ class TestClamAvPlugin:
         assert "BINARY_CRASHED" in result.error
         assert "LibClamAV Error" in result.error
 
-    @patch("eedom.plugins.clamav.subprocess.run")
+    @patch("caliper.plugins.clamav.subprocess.run")
     def test_clamscan_exit2_no_stderr(self, mock_run):
         mock_run.return_value.returncode = 2
         mock_run.return_value.stdout = ""

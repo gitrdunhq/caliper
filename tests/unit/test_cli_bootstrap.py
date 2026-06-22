@@ -16,13 +16,13 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from eedom.cli.main import cli
+from caliper.cli.main import cli
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-_RUNNER_ENV = {"EEDOM_ALLOW_GLOBAL": "1"}
+_RUNNER_ENV = {"CALIPER_ALLOW_GLOBAL": "1"}
 
 
 def _make_fake_context():
@@ -32,7 +32,7 @@ def _make_fake_context():
     that test assertions can verify which components are actually called during
     CLI execution.
     """
-    from eedom.composition.bootstrap import ApplicationContext, bootstrap_test
+    from caliper.composition.bootstrap import ApplicationContext, bootstrap_test
 
     base = bootstrap_test()
 
@@ -69,18 +69,18 @@ def _make_fake_context():
 
 class TestCLIImportsBootstrap:
     def test_cli_module_imports_bootstrap_function(self) -> None:
-        """cli/main.py must import bootstrap (or bootstrap_test) from eedom.composition.bootstrap.
+        """cli/main.py must import bootstrap (or bootstrap_test) from caliper.composition.bootstrap.
 
         FAILS (RED): cli/main.py currently does not import bootstrap at all.
         After #161, the CLI must call bootstrap(settings) to obtain an
         ApplicationContext instead of constructing PluginRegistry directly via
         get_default_registry().
         """
-        import eedom.cli.main as cli_module
+        import caliper.cli.main as cli_module
 
         source = inspect.getsource(cli_module)
-        assert "eedom.composition.bootstrap" in source, (
-            "cli/main.py must import from eedom.composition.bootstrap. "
+        assert "caliper.composition.bootstrap" in source, (
+            "cli/main.py must import from caliper.composition.bootstrap. "
             "Currently it constructs PluginRegistry directly via get_default_registry()."
         )
 
@@ -95,7 +95,7 @@ class TestReviewUsesContextAnalyzerRegistry:
         """The review command must call ctx.analyzer_registry.run_all via bootstrap_review()."""
         fake_ctx, mock_registry, _ = _make_fake_context()
 
-        with patch("eedom.composition.bootstrap.bootstrap_review", return_value=fake_ctx):
+        with patch("caliper.composition.bootstrap.bootstrap_review", return_value=fake_ctx):
             runner = CliRunner()
             with runner.isolated_filesystem():
                 runner.invoke(
@@ -111,7 +111,7 @@ class TestReviewUsesContextAnalyzerRegistry:
         import ast
         import inspect
 
-        from eedom.cli import main as cli_module
+        from caliper.cli import main as cli_module
 
         source = inspect.getsource(cli_module)
         tree = ast.parse(source)
@@ -150,7 +150,7 @@ class TestEvaluateUsesContextPolicyEngine:
             "+requests==2.28.0\n"
         )
 
-        with patch("eedom.composition.bootstrap.bootstrap", return_value=fake_ctx):
+        with patch("caliper.composition.bootstrap.bootstrap", return_value=fake_ctx):
             runner = CliRunner()
             with runner.isolated_filesystem():
                 Path("test.diff").write_text(diff_content)
@@ -169,7 +169,7 @@ class TestEvaluateUsesContextPolicyEngine:
                         "--operating-mode",
                         "monitor",
                     ],
-                    env=dict(_RUNNER_ENV, EEDOM_DB_DSN="postgresql://test:test@localhost/test"),
+                    env=dict(_RUNNER_ENV, CALIPER_DB_DSN="postgresql://test:test@localhost/test"),
                 )
 
         # Fails because the CLI never calls bootstrap(), so mock_policy.evaluate
@@ -195,7 +195,7 @@ class TestBootstrapTestInjection:
         import ast
         import inspect
 
-        from eedom.cli import main as cli_module
+        from caliper.cli import main as cli_module
 
         source = inspect.getsource(cli_module)
         tree = ast.parse(source)
@@ -226,7 +226,7 @@ class TestNoCLIDirectConstruction:
         review command. After the refactor it must call bootstrap() and use
         ctx.analyzer_registry instead.
         """
-        import eedom.cli.main as cli_module
+        import caliper.cli.main as cli_module
 
         source = inspect.getsource(cli_module)
         tree = ast.parse(source)
@@ -253,7 +253,7 @@ class TestNoCLIDirectConstruction:
         After #161, the evaluate command must pass an ApplicationContext so
         the injected policy_engine is used instead of a hardwired OpaEvaluator.
         """
-        import eedom.cli.main as cli_module
+        import caliper.cli.main as cli_module
 
         source = inspect.getsource(cli_module)
         tree = ast.parse(source)

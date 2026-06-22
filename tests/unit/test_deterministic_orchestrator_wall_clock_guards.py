@@ -24,7 +24,7 @@ pytestmark = pytest.mark.xfail(
     strict=False,
 )
 
-from eedom.core.orchestrator import ScanOrchestrator
+from caliper.core.orchestrator import ScanOrchestrator
 
 
 class TestOrchestratorWallClockBound:

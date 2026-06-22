@@ -7,7 +7,7 @@
 
 [fixture_dirs]
 # Directories containing intentionally pinned old deps used as scan-target fixtures.
-# These are NOT eedom's own dependencies — they are test inputs for the scanner.
+# These are NOT caliper's own dependencies — they are test inputs for the scanner.
 paths = [
     "tests/e2e/fixtures",
 ]

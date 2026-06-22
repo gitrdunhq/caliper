@@ -1,4 +1,4 @@
-"""Tests for eedom.data.pypi -- PyPI metadata enrichment."""
+"""Tests for caliper.data.pypi -- PyPI metadata scribe."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from datetime import datetime
 import httpx
 import respx
 
-from eedom.data.pypi import PyPIClient, _compute_first_published
+from caliper.data.pypi import PyPIClient, _compute_first_published
 
 # ---------------------------------------------------------------------------
 # Fixtures

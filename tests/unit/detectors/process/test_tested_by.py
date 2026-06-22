@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from eedom.detectors.process.tested_by import TestedByAnnotationDetector
+from caliper.detectors.process.tested_by import TestedByAnnotationDetector
 
 
 class TestTestedByAnnotationDetector:
-    """Tests for TestedByAnnotationDetector (EED-014)."""
+    """Tests for TestedByAnnotationDetector (CAL-014)."""
 
     @pytest.fixture
     def detector(self):
@@ -31,7 +31,7 @@ class TestTestedByAnnotationDetector:
             findings = detector.detect(Path(f.name))
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-014"
+        assert findings[0].detector_id == "CAL-014"
         assert "missing" in findings[0].message.lower()
 
     def test_ignores_file_with_annotation(self, detector):

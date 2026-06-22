@@ -8,8 +8,8 @@ Boundedness (counts equal the findings present).
 
 from __future__ import annotations
 
-from eedom.core.plugin import PluginResult
-from eedom.core.review_summary import ReviewVerdict, summarize_review
+from caliper.core.plugin import PluginResult
+from caliper.core.review_summary import ReviewVerdict, summarize_review
 
 
 def _res(name, category, findings, *, error=None, status=None):

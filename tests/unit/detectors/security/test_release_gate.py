@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from eedom.detectors.security.release_gate import ReleaseGateBypassDetector
+from caliper.detectors.security.release_gate import ReleaseGateBypassDetector
 
 BUGGY_YAML = """\
 jobs:
@@ -67,7 +67,7 @@ jobs:
 
 
 class TestReleaseGateBypassDetector:
-    """Tests for ReleaseGateBypassDetector (EED-016)."""
+    """Tests for ReleaseGateBypassDetector (CAL-016)."""
 
     @pytest.fixture
     def detector(self):
@@ -81,7 +81,7 @@ class TestReleaseGateBypassDetector:
         findings = detector.detect(f)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-016"
+        assert findings[0].detector_id == "CAL-016"
         assert "exit 1" in findings[0].fix_hint
         assert findings[0].severity.value == "high"
 
@@ -102,7 +102,7 @@ class TestReleaseGateBypassDetector:
         findings = detector.detect(f)
 
         assert len(findings) == 1
-        assert findings[0].detector_id == "EED-016"
+        assert findings[0].detector_id == "CAL-016"
 
     def test_no_finding_for_unrelated_exit_zero(self, detector, tmp_path):
         """No finding when exit 0 is not inside an empty/null check block."""

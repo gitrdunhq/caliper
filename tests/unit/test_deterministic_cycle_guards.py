@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     pass
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src" / "eedom"
+_SRC = _REPO / "src" / "caliper"
 
 # Graph builder module paths
 _GRAPH_BUILDER_PATH = _SRC / "plugins" / "_runners" / "graph_builder.py"

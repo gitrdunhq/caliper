@@ -1,7 +1,7 @@
 """Version drift guard — ensures a single canonical version source.
 # tested-by: tests/unit/test_version_drift.py
 
-All tests in this file are RED. They drive implementation of eedom.core.version.
+All tests in this file are RED. They drive implementation of caliper.core.version.
 """
 
 from __future__ import annotations
@@ -12,13 +12,13 @@ from unittest.mock import patch
 import pytest
 
 # ---------------------------------------------------------------------------
-# 1. get_version() exists in eedom.core.version
+# 1. get_version() exists in caliper.core.version
 # ---------------------------------------------------------------------------
 
 
 def test_get_version_is_importable():
-    """eedom.core.version must export get_version()."""
-    from eedom.core.version import get_version  # noqa: F401 — existence check only
+    """caliper.core.version must export get_version()."""
+    from caliper.core.version import get_version  # noqa: F401 — existence check only
 
     assert callable(get_version)
 
@@ -30,8 +30,8 @@ def test_get_version_is_importable():
 
 def test_renderer_version_matches_canonical():
     """renderer._VERSION must equal get_version() — no local override allowed."""
-    import eedom.core.renderer as renderer
-    from eedom.core.version import get_version
+    import caliper.core.renderer as renderer
+    from caliper.core.version import get_version
 
     canonical = get_version()
     assert canonical == renderer._VERSION, (
@@ -48,9 +48,9 @@ def test_renderer_version_matches_canonical():
 
 def test_sarif_tool_driver_version_matches_canonical():
     """SARIF tool driver must embed get_version() as the driver version."""
-    from eedom.core.plugin import PluginResult
-    from eedom.core.sarif import to_sarif
-    from eedom.core.version import get_version
+    from caliper.core.plugin import PluginResult
+    from caliper.core.sarif import to_sarif
+    from caliper.core.version import get_version
 
     result = PluginResult(plugin_name="test-plugin", findings=[])
     doc = to_sarif([result])
@@ -76,7 +76,7 @@ _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+")
 
 def test_get_version_returns_semver():
     """get_version() must return a string matching X.Y.Z semver pattern."""
-    from eedom.core.version import get_version
+    from caliper.core.version import get_version
 
     version = get_version()
     assert isinstance(version, str), f"get_version() must return str, got {type(version)}"
@@ -98,16 +98,16 @@ def test_get_version_reads_from_importlib_metadata():
         # Re-import to bypass any module-level caching
         import importlib as _importlib
 
-        import eedom.core.version as _version_mod
+        import caliper.core.version as _version_mod
 
         _importlib.reload(_version_mod)
-        from eedom.core.version import get_version
+        from caliper.core.version import get_version
 
         result = get_version()
 
     assert result == sentinel, (
         f"get_version() returned {result!r} instead of the patched sentinel "
-        f"{sentinel!r}. It must call importlib.metadata.version('eedom') at "
+        f"{sentinel!r}. It must call importlib.metadata.version('caliper') at "
         "call-time (not cache a hardcoded literal at import time)."
     )
 
@@ -118,20 +118,20 @@ def test_get_version_reads_from_importlib_metadata():
 
 
 def test_get_version_returns_fallback_when_package_not_found():
-    """get_version() must return a non-empty string (not raise) when eedom is not
+    """get_version() must return a non-empty string (not raise) when caliper is not
     installed as a distribution (regression for P10-2: PackageNotFoundError guard)."""
     import importlib.metadata
 
     with patch(
         "importlib.metadata.version",
-        side_effect=importlib.metadata.PackageNotFoundError("eedom"),
+        side_effect=importlib.metadata.PackageNotFoundError("caliper"),
     ):
         import importlib as _importlib
 
-        import eedom.core.version as _version_mod
+        import caliper.core.version as _version_mod
 
         _importlib.reload(_version_mod)
-        from eedom.core.version import get_version
+        from caliper.core.version import get_version
 
         try:
             result = get_version()

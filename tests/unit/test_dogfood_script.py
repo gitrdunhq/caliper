@@ -28,7 +28,7 @@ _SARIF_CLEAR = json.dumps(
         "version": "2.1.0",
         "runs": [
             {
-                "tool": {"driver": {"name": "eedom", "rules": []}},
+                "tool": {"driver": {"name": "caliper", "rules": []}},
                 "results": [
                     {"ruleId": "DEP001", "level": "warning", "message": {"text": "medium finding"}},
                     {"ruleId": "DEP002", "level": "note", "message": {"text": "low finding"}},
@@ -43,7 +43,7 @@ _SARIF_BLOCKED = json.dumps(
         "version": "2.1.0",
         "runs": [
             {
-                "tool": {"driver": {"name": "eedom", "rules": []}},
+                "tool": {"driver": {"name": "caliper", "rules": []}},
                 "results": [
                     {"ruleId": "DEP001", "level": "error", "message": {"text": "critical finding"}},
                     {"ruleId": "DEP002", "level": "warning", "message": {"text": "medium finding"}},
@@ -55,7 +55,7 @@ _SARIF_BLOCKED = json.dumps(
 
 
 def _mock_uv(tmp_path: Path, sarif_content: str) -> Path:
-    """Write a mock `uv` binary to tmp_path that mimics `uv run eedom review`.
+    """Write a mock `uv` binary to tmp_path that mimics `uv run caliper review`.
 
     When called with `--format sarif --output <file>`, writes sarif_content to that file.
     Otherwise writes a minimal markdown stub to `--output <file>` if provided.
@@ -79,7 +79,7 @@ def _mock_uv(tmp_path: Path, sarif_content: str) -> Path:
                     if is_sarif:
                         fh.write({repr(sarif_content)})
                     else:
-                        fh.write('## Eagle Eyed Dom Review\\n\\nNo findings.\\n')
+                        fh.write('## Caliper Review\\n\\nNo findings.\\n')
                 if is_sarif:
                     print(f'SARIF written to {{output_path}}')
                 else:
