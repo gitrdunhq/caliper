@@ -62,13 +62,30 @@ Launch **one `Explore` agent** to map the target into review partitions. Rules:
 
 For a diff target, partition only the changed files (+ their direct call sites).
 
+### 1.5 Generate grounding bundles (one per partition)
+Grounding is what makes the cheap reviewer accurate; produce a bundle per partition that the
+reviewer consults as ground truth (`.temp/review/grounding/partition-NN.json`):
+- **eedom repos** — the gated feature: `EEDOM_GROUNDING_ENABLED=1 EEDOM_DB_DSN=<any-dsn> eedom
+  ground --files <partition files...> --out .temp/review/grounding/partition-NN.json`
+  (codegraph/gitnexus providers; emits `{fact_sheet, type_context}`).
+- **any other repo** — the portable fallback: `python
+  .claude/skills/adversarial-review/scripts/ground.py --root <repo>
+  --out .temp/review/grounding/partition-NN.json <partition files...>` (universal-ctags → ripgrep).
+
+Keep bundles **lean** — prefer signatures over code snippets, cap at ~40 symbols. If grounding
+is unavailable (flag off, no tool), proceed ungrounded with an empty bundle; reviewers still run.
+
 ### 2. Stage 1 — adversarial reviewers (parallel, `reviewer-model`)
 Launch **one agent per partition**, batched into single messages for concurrency,
 `run_in_background: true`. Build each prompt from
 `templates/reviewer-brief.md`, substituting: partition id, file list, the `focus`
-set, and the project invariants (for eedom: pull the bullet list from `CLAUDE.md`
+set, the project invariants (for eedom: pull the bullet list from `CLAUDE.md`
 — fail-open, `cli→core→data` import direction, enums-not-strings, typed Pydantic
-boundaries, config-driven timeouts, highest-severity-wins dedup, OPA `input.pkg`).
+boundaries, config-driven timeouts, highest-severity-wins dedup, OPA `input.pkg`),
+the partition's grounding bundle into `{{GROUNDING_BUNDLE}}`, and the don't-flag
+ledger into `{{LEDGER}}` (= `templates/ledger-universal.md` + the project's
+`.eedom/adversarial-ledger.md`, both verbatim). The reviewer-brief requires the
+`guard_checked` / `why_not_intended` self-refutation fields — keep them.
 Each agent **writes** `.temp/review/raw/partition-NN.json` (one JSON object per the
 reviewer-brief schema) and returns only its count.
 
