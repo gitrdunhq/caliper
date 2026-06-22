@@ -51,8 +51,9 @@ class _CommaSeparatedEnvSource(EnvSettingsSource):
 class EedomSettings(BaseSettings):
     """Eedom configuration loaded from EEDOM_* env vars.
 
-    Required fields:
-        db_dsn: PostgreSQL connection string — must be provided, no default.
+    db_dsn (PostgreSQL connection string) is optional: when unset, the composition
+    root falls back to a NullRepository (decisions are not persisted) rather than
+    crashing at startup — consistent with the existing fail-open fallback.
 
     All timeout values match architecture doc Section 14.3.
     """
@@ -65,8 +66,8 @@ class EedomSettings(BaseSettings):
     # Operating mode
     operating_mode: OperatingMode = OperatingMode.monitor
 
-    # Database (required — no default)
-    db_dsn: str
+    # Database — optional; NullRepository fallback when unset (see class docstring).
+    db_dsn: str | None = None
 
     # Evidence storage
     evidence_path: str = "./evidence"
