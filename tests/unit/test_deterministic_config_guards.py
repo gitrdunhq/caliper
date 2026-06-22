@@ -7,10 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
-
-@pytest.mark.xfail(reason="deterministic bug detector for #262", strict=False)
 def test_262_config_merge_preserves_telemetry_settings(tmp_path: Path) -> None:
     """Detect when telemetry settings are dropped during config merge.
 

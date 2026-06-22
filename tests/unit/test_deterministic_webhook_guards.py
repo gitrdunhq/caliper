@@ -301,3 +301,91 @@ def test_webhook_does_not_log_full_findings():
                         f"Bug #210: Logging full finding objects causes bloat.\n"
                         f"Fix: Use count-based logging only."
                     )
+
+
+# =============================================================================
+# Regression P20-2 — webhook PR handler must use select_file_source(), not rglob
+# =============================================================================
+
+
+def test_p20_2_webhook_handler_uses_select_file_source() -> None:
+    """Regression P20-2: the PR handler must enumerate files via
+    select_file_source() instead of Path.rglob.
+
+    Before the fix, the webhook handler called Path(...).rglob(...)
+    directly, bypassing the eedom exclusion layer in core/ignore.py and
+    the FileSourcePort seam.  The fix replaced that with:
+
+        from eedom.core.file_source import select_file_source
+        _source = select_file_source(_repo_path)
+        _files = [str(p) for p in _source.list_files(_repo_path, suffixes=...)]
+
+    This test reads server.py as text and AST to assert:
+      1. "select_file_source" appears in the source (the import and call are present).
+      2. ".rglob(" is NOT present in the webhook handler closure.
+    """
+    repo_root = Path(__file__).parent.parent.parent
+    server_path = repo_root / "src" / "eedom" / "webhook" / "server.py"
+
+    if not server_path.exists():
+        pytest.skip("webhook server.py not found")
+
+    source = server_path.read_text()
+
+    # 1. select_file_source must be referenced (imported and called).
+    assert "select_file_source" in source, (
+        "P20-2 regression: 'select_file_source' not found in webhook/server.py. "
+        "The PR handler must import and call select_file_source() to enumerate "
+        "files through the FileSourcePort seam instead of using Path.rglob."
+    )
+
+    # 2. list_files must be called on the source object.
+    assert "list_files" in source, (
+        "P20-2 regression: 'list_files' not found in webhook/server.py. "
+        "The PR handler must call _source.list_files(suffixes=...) to enumerate files."
+    )
+
+    # 3. The handler closure must NOT use .rglob — that bypasses the seam.
+    tree = ast.parse(source)
+    webhook_func = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AsyncFunctionDef):
+            seg = ast.get_source_segment(source, node) or ""
+            if "X-GitHub-Event" in seg or "pull_request" in seg:
+                webhook_func = node
+                break
+
+    if webhook_func is not None:
+        handler_source = ast.get_source_segment(source, webhook_func) or ""
+        assert ".rglob(" not in handler_source, (
+            "P20-2 regression: '.rglob(' found inside the webhook handler. "
+            "File enumeration must go through select_file_source().list_files(), "
+            "not Path.rglob — rglob bypasses the eedom exclusion layer."
+        )
+
+
+def test_p20_2_webhook_does_not_import_ignore_directly() -> None:
+    """The rglob removal also dropped direct eedom.core.ignore imports from
+    server.py (those were only needed to replicate ignore logic inline).
+
+    This test confirms that server.py delegates ignore logic to file_source
+    and does not re-implement it by importing from core.ignore directly.
+    """
+    repo_root = Path(__file__).parent.parent.parent
+    server_path = repo_root / "src" / "eedom" / "webhook" / "server.py"
+
+    if not server_path.exists():
+        pytest.skip("webhook server.py not found")
+
+    source = server_path.read_text()
+
+    # After P20-2, server.py should NOT import from eedom.core.ignore.
+    assert "from eedom.core.ignore" not in source, (
+        "P20-2 regression: server.py still imports from eedom.core.ignore. "
+        "Ignore logic must be delegated to select_file_source().list_files() — "
+        "the server should not re-implement the exclusion layer."
+    )
+    assert "import eedom.core.ignore" not in source, (
+        "P20-2 regression: server.py still imports eedom.core.ignore. "
+        "File enumeration and exclusions belong in the FileSourcePort seam."
+    )

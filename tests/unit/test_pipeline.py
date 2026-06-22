@@ -355,3 +355,108 @@ class TestPolicyEvaluationConstraintsRegression:
 
         assert result.decision == DecisionVerdict.approve
         assert result.constraints == []
+
+
+# ---------------------------------------------------------------------------
+# Regression P01-1 — evaluate_sbom must stamp commit_sha onto each request
+# ---------------------------------------------------------------------------
+
+_BEFORE_SBOM: dict = {"components": []}
+_AFTER_SBOM: dict = {
+    "components": [
+        {
+            "name": "requests",
+            "version": "2.32.0",
+            "purl": "pkg:pypi/requests@2.32.0",
+            "type": "library",
+        }
+    ]
+}
+
+
+class TestEvaluateSbomCommitShaRegression:
+    """Regression for P01-1: evaluate_sbom left req.commit_sha=None."""
+
+    def test_evaluate_sbom_stamps_resolved_commit_sha(self, tmp_path: Path) -> None:
+        """Each ReviewRequest produced by evaluate_sbom must carry the resolved
+        commit SHA (not None).  Before the fix, commit_sha was never assigned
+        inside evaluate_sbom(), so audit/parquet records had no commit reference.
+        """
+        from eedom.core.models import OperatingMode
+        from eedom.core.pipeline import ReviewPipeline
+
+        config = _make_config(tmp_path)
+        ctx = _fake_pipeline_context()
+
+        # Capture the requests actually built during the run so we can assert
+        # their commit_sha field after the pipeline completes.
+        captured_requests: list = []
+        original_save = ctx.decision_repository.save_request
+
+        def _capturing_save(req) -> None:
+            captured_requests.append(req)
+            return original_save(req)
+
+        ctx.decision_repository.save_request = _capturing_save
+
+        fixed_sha = "deadbeef1234567890abcdef12345678deadbeef"
+
+        with (
+            patch("eedom.core.pipeline.ScanOrchestrator.run", return_value=[]),
+            patch("eedom.core.pipeline.resolve_git_sha", return_value=fixed_sha),
+        ):
+            decisions = ReviewPipeline(config, context=ctx).evaluate_sbom(
+                before_sbom=_BEFORE_SBOM,
+                after_sbom=_AFTER_SBOM,
+                pr_url="https://github.com/org/repo/pull/7",
+                team="platform",
+                mode=OperatingMode.monitor,
+                repo_path=tmp_path,
+            )
+
+        assert len(decisions) >= 1, "Expected at least one decision from the sbom diff"
+        assert len(captured_requests) >= 1, "Expected at least one request to be saved"
+
+        for req in captured_requests:
+            assert req.commit_sha == fixed_sha, (
+                f"P01-1 regression: req.commit_sha should be {fixed_sha!r} "
+                f"but got {req.commit_sha!r}. evaluate_sbom() must stamp commit_sha "
+                "on each ReviewRequest before the per-package loop."
+            )
+
+    def test_evaluate_sbom_commit_sha_explicit_arg_not_overridden(self, tmp_path: Path) -> None:
+        """When commit_sha is passed explicitly it must be used as-is, not
+        overridden by resolve_git_sha."""
+        from eedom.core.models import OperatingMode
+        from eedom.core.pipeline import ReviewPipeline
+
+        config = _make_config(tmp_path)
+        ctx = _fake_pipeline_context()
+
+        captured_requests: list = []
+        original_save = ctx.decision_repository.save_request
+
+        def _capturing_save(req) -> None:
+            captured_requests.append(req)
+            return original_save(req)
+
+        ctx.decision_repository.save_request = _capturing_save
+
+        explicit_sha = "aaaa0000bbbb1111cccc2222dddd3333eeee4444"
+
+        with patch("eedom.core.pipeline.ScanOrchestrator.run", return_value=[]):
+            ReviewPipeline(config, context=ctx).evaluate_sbom(
+                before_sbom=_BEFORE_SBOM,
+                after_sbom=_AFTER_SBOM,
+                pr_url="https://github.com/org/repo/pull/8",
+                team="platform",
+                mode=OperatingMode.monitor,
+                repo_path=tmp_path,
+                commit_sha=explicit_sha,
+            )
+
+        for req in captured_requests:
+            assert req.commit_sha == explicit_sha, (
+                f"P01-1 regression: explicit commit_sha {explicit_sha!r} "
+                f"was not stamped; got {req.commit_sha!r}"
+            )
