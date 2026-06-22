@@ -292,3 +292,66 @@ class TestCountTransitiveDepsFromScan:
         ]
 
         assert count_transitive_deps_from_scan(results) is None
+
+
+# ---------------------------------------------------------------------------
+# Regression P03-3 — PolicyEvaluation.constraints must be populated from
+# warn_reasons so approve_with_constraints surfaces readable context.
+# ---------------------------------------------------------------------------
+
+
+class TestPolicyEvaluationConstraintsRegression:
+    def test_constraints_populated_from_warn_reasons(self) -> None:
+        """When OPA returns warn messages, PolicyEvaluation.constraints must be
+        populated (regression for P03-3: previously constraints was always [])."""
+        from unittest.mock import MagicMock
+
+        from eedom.core.models import DecisionVerdict, PolicyEvaluation
+        from eedom.core.pipeline import _policy_evaluation
+        from eedom.core.policy_port import PolicyDecision
+
+        warn_msgs = ["package age < 30 days", "high transitive dep count"]
+
+        fake_engine = MagicMock()
+        fake_engine.evaluate.return_value = PolicyDecision(
+            verdict="approve_with_constraints",
+            deny_reasons=[],
+            warn_reasons=warn_msgs,
+            triggered_rules=warn_msgs,
+        )
+
+        fake_ctx = MagicMock()
+        fake_ctx.policy_engine = fake_engine
+
+        result = _policy_evaluation(fake_ctx, [], {})
+
+        assert isinstance(result, PolicyEvaluation)
+        assert result.decision == DecisionVerdict.approve_with_constraints
+        assert set(warn_msgs).issubset(set(result.constraints)), (
+            "PolicyEvaluation.constraints must be populated from warn_reasons — "
+            f"expected {warn_msgs!r} in constraints, got {result.constraints!r}"
+        )
+
+    def test_constraints_empty_on_full_approve(self) -> None:
+        """constraints must be empty when OPA approves unconditionally."""
+        from unittest.mock import MagicMock
+
+        from eedom.core.models import DecisionVerdict
+        from eedom.core.pipeline import _policy_evaluation
+        from eedom.core.policy_port import PolicyDecision
+
+        fake_engine = MagicMock()
+        fake_engine.evaluate.return_value = PolicyDecision(
+            verdict="approve",
+            deny_reasons=[],
+            warn_reasons=[],
+            triggered_rules=[],
+        )
+
+        fake_ctx = MagicMock()
+        fake_ctx.policy_engine = fake_engine
+
+        result = _policy_evaluation(fake_ctx, [], {})
+
+        assert result.decision == DecisionVerdict.approve
+        assert result.constraints == []

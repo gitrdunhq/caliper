@@ -442,3 +442,68 @@ class TestPathTraversalInRun:
         assert (
             len(docker_findings) == 1
         ), "Legitimate Dockerfile inside repo should still be scanned"
+
+
+# ── Regression P18-1 — monorepo lockfile-without-manifest check ──────────────
+
+
+class TestMonorepoLockfileRegression:
+    """Regression for P18-1: manifest_changed check must be scoped per directory.
+
+    Before the fix, only the last lock_dir was evaluated so a monorepo with
+    lockfile-without-manifest in multiple dirs silently lost all but the final
+    finding.
+    """
+
+    def test_two_monorepo_dirs_each_produce_lockfile_finding(self, tmp_path):
+        """Two independent monorepo packages that each have a lockfile change but
+        no corresponding manifest change must each produce a lockfile finding
+        (regression for P18-1: only one finding was emitted before the fix)."""
+        # Set up two independent package directories
+        pkg_a = tmp_path / "packages" / "alpha"
+        pkg_b = tmp_path / "packages" / "beta"
+        pkg_a.mkdir(parents=True)
+        pkg_b.mkdir(parents=True)
+
+        # Write lockfiles in each dir (no manifests — so each lock is 'orphaned')
+        (pkg_a / "uv.lock").write_text("# uv.lock alpha\nversion = 1\n")
+        (pkg_b / "uv.lock").write_text("# uv.lock beta\nversion = 1\n")
+
+        # Both lockfiles changed, neither has a pyproject.toml alongside
+        files = [
+            str(pkg_a / "uv.lock"),
+            str(pkg_b / "uv.lock"),
+        ]
+        plugin = SupplyChainPlugin()
+        findings = plugin._check_lockfiles(files, tmp_path)
+
+        lockfile_findings = [f for f in findings if f.get("type") == "lockfile"]
+        assert len(lockfile_findings) == 2, (
+            f"Expected one lockfile finding per monorepo dir (2 total), got {lockfile_findings!r}. "
+            "Regression: manifest_changed check must be inside the per-dir loop."
+        )
+        dirs_reported = {f.get("lockfile") for f in lockfile_findings}
+        assert "uv.lock" in dirs_reported
+
+    def test_single_dir_with_lockfile_and_manifest_no_finding(self, tmp_path):
+        """When the lockfile and manifest both change in the same dir, no orphan
+        finding must be emitted (the lock is consistent with the manifest)."""
+        pkg = tmp_path / "myapp"
+        pkg.mkdir(parents=True)
+        (pkg / "uv.lock").write_text("# uv.lock\nversion = 1\n")
+        (pkg / "pyproject.toml").write_text("[project]\nname = 'myapp'\n")
+
+        files = [str(pkg / "uv.lock"), str(pkg / "pyproject.toml")]
+        plugin = SupplyChainPlugin()
+        findings = plugin._check_lockfiles(files, tmp_path)
+
+        orphan_findings = [
+            f
+            for f in findings
+            if f.get("type") == "lockfile"
+            and f.get("lockfile") == "uv.lock"
+            and "did NOT" in f.get("message", "")
+        ]
+        assert (
+            orphan_findings == []
+        ), "When both lockfile and manifest change together, no orphan finding expected"

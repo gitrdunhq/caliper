@@ -93,3 +93,59 @@ class TestDockerPinDriftDetector:
         # File does not exist — should not raise
         findings = detector.detect(nonexistent)
         assert findings == []
+
+
+# ---------------------------------------------------------------------------
+# Regression P14-2 — pip regex must be word-boundary anchored so "mypip install"
+# is NOT flagged as a pip version pin.
+# ---------------------------------------------------------------------------
+
+
+class TestDockerPinDriftPipRegexRegression:
+    """Regression for P14-2: the original _PIP_PIN_RE matched any substring containing
+    'pip install', so 'mypip install x==1' was falsely flagged.  The fix adds \\b
+    so only the word 'pip' at a word boundary matches."""
+
+    @pytest.fixture
+    def detector(self):
+        return DockerPinDriftDetector()
+
+    def test_mypip_install_not_flagged(self, detector, tmp_path):
+        """'mypip install package==1.0' must NOT be flagged — 'mypip' is not 'pip'
+        (regression for P14-2: _PIP_PIN_RE lacked word boundary anchor)."""
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12-slim\nRUN mypip install requests==2.28.0\n")
+
+        findings = detector.detect(dockerfile)
+
+        pip_findings = [f for f in findings if "pyproject.toml" in f.message]
+        assert len(pip_findings) == 0, (
+            f"'mypip install' must NOT be flagged as a pip pin (P14-2 regression), "
+            f"got findings: {pip_findings!r}"
+        )
+
+    def test_pip_install_is_still_flagged(self, detector, tmp_path):
+        """'pip install package==1.0' must still be flagged (positive case preserved)."""
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12-slim\nRUN pip install requests==2.28.0\n")
+
+        findings = detector.detect(dockerfile)
+
+        pip_findings = [f for f in findings if "pyproject.toml" in f.message]
+        assert (
+            len(pip_findings) == 1
+        ), f"'pip install' must still be flagged — got findings: {pip_findings!r}"
+
+    def test_uv_pip_install_is_flagged(self, detector, tmp_path):
+        """'uv pip install package==1.0' contains 'pip install' at a word boundary
+        and must be flagged (pip is a distinct word even after 'uv ')."""
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12-slim\nRUN uv pip install requests==2.28.0\n")
+
+        findings = detector.detect(dockerfile)
+
+        # 'uv pip install' — 'pip' is a word by itself here, so must be flagged
+        pip_findings = [f for f in findings if "pyproject.toml" in f.message]
+        assert (
+            len(pip_findings) == 1
+        ), "'uv pip install' must be flagged — 'pip' is a word boundary match"

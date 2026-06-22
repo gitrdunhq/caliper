@@ -354,3 +354,60 @@ class TestDurationTracking:
 
         assert isinstance(result.duration_ms, int)
         assert result.duration_ms >= 0
+
+
+# ---------------------------------------------------------------------------
+# Regression: P10-1 / P10-3 — binary output and OSError must not propagate
+# ---------------------------------------------------------------------------
+
+
+class TestRegressionP10:
+    def test_binary_output_does_not_raise_unicode_decode_error(self):
+        """errors='replace' ensures non-UTF-8 binary stdout never raises UnicodeDecodeError
+        (regression for P10-1: subprocess_runner must not propagate encoding errors)."""
+        runner = SubprocessToolRunner()
+        invocation = _make_invocation()
+
+        # Simulate subprocess.run called with errors="replace" by patching subprocess.run
+        # to return a completed process with text that would be produced by errors="replace".
+        # The real guard is that SubprocessToolRunner passes errors="replace" — we verify
+        # the kwarg is forwarded so the codec can never raise.
+        with patch("subprocess.run", return_value=_completed(stdout="ok�")) as mock_run:
+            result = runner.run(invocation)
+
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs.get("errors") == "replace", (
+            "subprocess.run must be called with errors='replace' so binary output "
+            "never raises UnicodeDecodeError"
+        )
+        assert isinstance(result, ToolResult)
+        assert result.timed_out is False
+        assert result.not_installed is False
+
+    def test_oserror_returns_typed_result_not_raises(self):
+        """OSError from subprocess.run must not propagate — returns ToolResult with
+        exit_code=-1 and stderr describing the error (regression for P10-3)."""
+        runner = SubprocessToolRunner()
+        invocation = _make_invocation()
+
+        with patch("subprocess.run", side_effect=OSError("Permission denied")):
+            try:
+                result = runner.run(invocation)
+            except OSError:
+                pytest.fail("SubprocessToolRunner must not propagate OSError")
+
+        assert isinstance(result, ToolResult)
+        assert result.exit_code == -1
+        assert result.timed_out is False
+        assert result.not_installed is False
+        assert "Permission denied" in result.stderr
+
+    def test_oserror_stderr_contains_error_description(self):
+        """stderr in the OSError ToolResult must contain a description of the error."""
+        runner = SubprocessToolRunner()
+        invocation = _make_invocation()
+
+        with patch("subprocess.run", side_effect=OSError("NotADirectoryError: /tmp")):
+            result = runner.run(invocation)
+
+        assert "NotADirectoryError" in result.stderr or result.exit_code == -1

@@ -9,6 +9,8 @@ from __future__ import annotations
 import re
 from unittest.mock import patch
 
+import pytest
+
 # ---------------------------------------------------------------------------
 # 1. get_version() exists in eedom.core.version
 # ---------------------------------------------------------------------------
@@ -108,3 +110,36 @@ def test_get_version_reads_from_importlib_metadata():
         f"{sentinel!r}. It must call importlib.metadata.version('eedom') at "
         "call-time (not cache a hardcoded literal at import time)."
     )
+
+
+# ---------------------------------------------------------------------------
+# 6. Regression P10-2 — PackageNotFoundError must not crash get_version()
+# ---------------------------------------------------------------------------
+
+
+def test_get_version_returns_fallback_when_package_not_found():
+    """get_version() must return a non-empty string (not raise) when eedom is not
+    installed as a distribution (regression for P10-2: PackageNotFoundError guard)."""
+    import importlib.metadata
+
+    with patch(
+        "importlib.metadata.version",
+        side_effect=importlib.metadata.PackageNotFoundError("eedom"),
+    ):
+        import importlib as _importlib
+
+        import eedom.core.version as _version_mod
+
+        _importlib.reload(_version_mod)
+        from eedom.core.version import get_version
+
+        try:
+            result = get_version()
+        except importlib.metadata.PackageNotFoundError:
+            pytest.fail(
+                "get_version() must not propagate PackageNotFoundError — "
+                "it must return a fallback string"
+            )
+
+    assert isinstance(result, str), f"get_version() must return str, got {type(result)}"
+    assert result, "get_version() must return a non-empty string when not installed"
