@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eedom.dev/schema/adversarial-review-report.schema.json",
+  "title": "Adversarial Review Report",
+  "description": "Machine-readable output of the adversarial-review skill. The final report (docs/reviews/adversarial-<date>.json) MUST validate against this; a human-readable .md sibling renders the same data.",
+  "type": "object",
+  "required": ["schema_version", "generated", "target", "focus", "models", "stats", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "generated": { "type": "string", "description": "ISO date the report was produced (YYYY-MM-DD)." },
+    "target": { "type": "string", "description": "What was reviewed (dir, package, or diff range)." },
+    "focus": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["correctness", "design", "security", "tests"] },
+      "minItems": 1
+    },
+    "models": {
+      "type": "object",
+      "required": ["reviewer", "challenger"],
+      "additionalProperties": false,
+      "properties": {
+        "reviewer": { "type": "string" },
+        "challenger": { "type": "string" },
+        "verifier": { "type": ["string", "null"] }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "required": ["raw", "confirmed", "false_positive", "uncertain", "by_severity"],
+      "additionalProperties": false,
+      "properties": {
+        "raw": { "type": "integer", "minimum": 0 },
+        "confirmed": { "type": "integer", "minimum": 0 },
+        "false_positive": { "type": "integer", "minimum": 0 },
+        "uncertain": { "type": "integer", "minimum": 0 },
+        "by_severity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "high": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "low": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "description": "CONFIRMED findings only, ranked by severity then subpackage.",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "uncertain": {
+      "type": "array",
+      "description": "UNCERTAIN findings kept for human review.",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "partitions": {
+      "type": "array",
+      "description": "Audit trail of how the target was sharded.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "files"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "files": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["id", "file", "line", "severity", "category", "claim", "evidence", "fix", "verdict"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "Stable id, e.g. P03-2." },
+        "file": { "type": "string" },
+        "line": { "type": "string", "description": "Single line \"142\" or range \"107-109\"." },
+        "severity": { "type": "string", "enum": ["high", "medium", "low"] },
+        "category": { "type": "string", "enum": ["correctness", "design", "security", "tests"] },
+        "claim": { "type": "string" },
+        "evidence": { "type": "string" },
+        "fix": { "type": "string" },
+        "verdict": { "type": "string", "enum": ["CONFIRMED", "UNCERTAIN"] },
+        "verdict_reason": { "type": "string" },
+        "partition": { "type": "string" }
+      }
+    }
+  }
+}
