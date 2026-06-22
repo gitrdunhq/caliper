@@ -22,7 +22,7 @@ classifiers = [
 dependencies = [
     "click==8.3.3",
     "pydantic==2.13.3",
-    "pydantic-settings==2.14.0",
+    "pydantic-settings==2.14.2",
     "structlog==25.5.0",
     "httpx==0.28.1",
     "orjson==3.11.8",
