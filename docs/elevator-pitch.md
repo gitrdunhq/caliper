@@ -87,7 +87,7 @@ Everything. No vendor lock-in on policy.
 
 - **`.caliper.yaml`** — enable/disable any of the 19 plugins, set thresholds, configure per-repo
 - **OPA rules** — 6 Rego rules, version-controlled, individually toggleable. Add your own.
-- **`--disable clamav,cspell`** — turn off plugins per-run from the CLI
+- **`--disable clamav,typos`** — turn off plugins per-run from the CLI
 - **Monorepo support** — auto-discovers packages, runs per-package, respects per-directory config overrides
 
 ## What it costs

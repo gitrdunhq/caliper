@@ -15,7 +15,6 @@ _BINARY_MAP: dict[str, list[str] | None] = {
     "clamav": ["clamscan"],
     "complexity": ["lizard"],
     "cpd": ["pmd"],
-    "cspell": ["cspell"],
     "gitleaks": ["gitleaks"],
     "kube-linter": ["kube-linter"],
     "ls-lint": ["ls-lint"],
@@ -27,6 +26,7 @@ _BINARY_MAP: dict[str, list[str] | None] = {
     "supply-chain": None,
     "syft": ["syft"],
     "trivy": ["trivy"],
+    "typos": ["typos"],
 }
 
 

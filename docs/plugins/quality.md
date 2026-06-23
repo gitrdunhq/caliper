@@ -73,14 +73,16 @@ Duplicate code is a quality signal: it is unlikely to pass a thorough human revi
 
 ---
 
-## cspell
+## typos
 
-Spell-checks identifiers and comments throughout the codebase.
+Detects typos in identifiers, comments, and strings throughout the codebase
+using [crate-ci/typos](https://github.com/crate-ci/typos) — a deterministic,
+identifier-aware checker tuned for very low false positives (no dictionary
+maintenance, no noise on domain jargon).
 
 | Severity | Condition |
 |----------|-----------|
-| Warning | Misspelled identifier or symbol name |
-| Info | Typo in a comment |
+| Info | Typo with one or more suggested corrections |
 
 Misspelled names are harder to grep, autocomplete, and explain in code review — a small fix with compounding payoff.
 

@@ -37,11 +37,11 @@ class TestLoadMergedConfig:
 
     def test_package_root_equals_repo_root_returns_root_config(self, tmp_path: Path) -> None:
         """When package_root == repo_path, no merge — returns root config as-is."""
-        _write_config(tmp_path, {"plugins": {"disabled": ["cspell"]}})
+        _write_config(tmp_path, {"plugins": {"disabled": ["typos"]}})
 
         result = load_merged_config(tmp_path, package_root=tmp_path)
 
-        assert result.plugins.disabled == ["cspell"]
+        assert result.plugins.disabled == ["typos"]
 
     def test_no_package_config_file_falls_back_to_root(self, tmp_path: Path) -> None:
         """When the package directory has no .caliper.yaml, returns root config."""
@@ -96,7 +96,7 @@ class TestLoadMergedConfig:
         """Root thresholds not mentioned in package config are kept in the merge."""
         _write_config(
             tmp_path,
-            {"thresholds": {"trivy": {"severity": "critical"}, "cspell": {"words": 5}}},
+            {"thresholds": {"trivy": {"severity": "critical"}, "typos": {"words": 5}}},
         )
         pkg_dir = tmp_path / "libs" / "core"
         pkg_dir.mkdir(parents=True)
@@ -105,7 +105,7 @@ class TestLoadMergedConfig:
         result = load_merged_config(tmp_path, package_root=pkg_dir)
 
         assert result.thresholds["trivy"] == {"severity": "high"}
-        assert result.thresholds["cspell"] == {"words": 5}
+        assert result.thresholds["typos"] == {"words": 5}
 
     def test_root_has_no_config_package_has_values(self, tmp_path: Path) -> None:
         """When root has no config file and package does, package config is used."""
@@ -126,14 +126,14 @@ class TestLoadMergedConfig:
 
     def test_root_disabled_used_when_package_has_no_disabled(self, tmp_path: Path) -> None:
         """When package config exists but has no disabled list, root disabled is kept."""
-        _write_config(tmp_path, {"plugins": {"disabled": ["cspell"]}})
+        _write_config(tmp_path, {"plugins": {"disabled": ["typos"]}})
         pkg_dir = tmp_path / "packages" / "lib"
         pkg_dir.mkdir(parents=True)
         _write_config(pkg_dir, {"thresholds": {"semgrep": {"max_findings": 5}}})
 
         result = load_merged_config(tmp_path, package_root=pkg_dir)
 
-        assert result.plugins.disabled == ["cspell"]
+        assert result.plugins.disabled == ["typos"]
 
     def test_returns_repo_config_instance(self, tmp_path: Path) -> None:
         """load_merged_config always returns a RepoConfig instance."""
@@ -169,7 +169,7 @@ class TestLoadMergedConfigTelemetryRegression:
         )
         pkg_dir = tmp_path / "packages" / "svc"
         pkg_dir.mkdir(parents=True)
-        _write_config(pkg_dir, {"plugins": {"disabled": ["cspell"]}})
+        _write_config(pkg_dir, {"plugins": {"disabled": ["typos"]}})
 
         result = load_merged_config(tmp_path, package_root=pkg_dir)
 
@@ -249,7 +249,7 @@ class TestLoadMergedConfigSemgrepRegression:
         pkg_dir = tmp_path / "services" / "web"
         pkg_dir.mkdir(parents=True)
         # Package config has NO semgrep section — root semgrep config must survive.
-        _write_config(pkg_dir, {"plugins": {"disabled": ["cspell"]}})
+        _write_config(pkg_dir, {"plugins": {"disabled": ["typos"]}})
 
         result = load_merged_config(tmp_path, package_root=pkg_dir)
 

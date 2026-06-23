@@ -51,7 +51,7 @@ _QUALITY_PLUGINS: set[str] = {
     "blast-radius",
     "complexity",
     "cpd",
-    "cspell",
+    "typos",
     "ls-lint",
 }
 
@@ -64,7 +64,7 @@ def _plugin_is_security(plugin_name: str) -> bool:
 def calculate_severity_score(results: list[PluginResult]) -> float:
     """Return a 0-100 health score based on security plugin findings only.
 
-    Quality plugins (blast-radius, complexity, cpd, cspell, ls-lint) are
+    Quality plugins (blast-radius, complexity, cpd, typos, ls-lint) are
     excluded from the score — they are advisory, not merge-blocking.
 
     Formula: max(0, 100 - sum(weight(severity) for each security finding))

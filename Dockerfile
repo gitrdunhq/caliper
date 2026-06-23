@@ -16,7 +16,7 @@ ARG OPENGREP_VERSION=1.20.0
 ARG SCANCODE_VERSION=32.3.0
 ARG LIZARD_VERSION=1.17.13
 ARG MYPY_VERSION=1.15.0
-ARG CSPELL_VERSION=8.18.1
+ARG TYPOS_VERSION=1.47.2
 ARG AWS_CDK_VERSION=2.1120.0
 ARG CFN_NAG_VERSION=0.8.10
 ARG LS_LINT_VERSION=2.3.1
@@ -36,6 +36,7 @@ ARG GITLEAKS_COMMIT=83d9cd684c87d95d656c1458ef04895a7f1cbd8e
 ARG KUBE_LINTER_COMMIT=10ae003038c81855aca8489df5e35da150f4dc2e
 ARG JQ_COMMIT=71c2ab509a8628dbbad4bc7b3f98a64aa90d3297
 ARG LS_LINT_COMMIT=b530dd769e259aa9fc546cc3c0098e6a0c82870e
+ARG TYPOS_COMMIT=37bb98842b0d8c4ffebdb75301a13db0267cef89
 
 # ── SHA256 checksums — per architecture ──────────────────────────────────────
 # Build fails hard if any hash mismatches — no silent pass.
@@ -48,6 +49,7 @@ ARG GITLEAKS_SHA256_ARM64=e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62
 ARG JQ_SHA256_ARM64=4dd2d8a0661df0b22f1bb9a1f9830f06b6f3b8f7d91211a1ef5d7c4f06a8b4a5
 ARG KUBE_LINTER_SHA256_ARM64=802e1b09eabd08f6f0a060a6b8ab2bf7bc7e6bf4f673bb2692303704c84b3e22
 ARG LS_LINT_SHA256_ARM64=2abdb71243c619f0bb29587be5c228bec84c107985f2c066139ef0ec35fd3a99
+ARG TYPOS_SHA256_ARM64=596d5c6b9ecf34307f68bea649178c5b45a4398fe3a1fcef9598e85aa2ccb742
 ARG PMD_SHA256=110934b36d39c19094d1b77386931978093f238f2c2f1851748822b69c7367ac
 ARG OPENGREP_SHA256_ARM64=3bade33c9aee60edf88899cac2b58086bf728caf0a93aced97dd77c272a740f1
 # SwiftLint — arm64 Linux binary not yet available; plugin degrades gracefully if missing
@@ -65,6 +67,7 @@ ARG GITLEAKS_SHA256_AMD64=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca
 ARG JQ_SHA256_AMD64=5942c9b0934e510ee61eb3e30273f1b3fe2590df93933a93d7c58b81d19c8ff5
 ARG KUBE_LINTER_SHA256_AMD64=1a6d8419b11971372971fdbc22682b684ebfb7cf1c39591662d1b6ca736c41df
 ARG LS_LINT_SHA256_AMD64=b5a0d2e4427ad039fbc574551f17679f38f142b25d15e0e538769f8cf15af397
+ARG TYPOS_SHA256_AMD64=7aef58932fc123b4cf4b40d86468e89a3297d80169051d7cfd13a235e05fc426
 ARG OPENGREP_SHA256_AMD64=09cbb4c938df696246018a678823adaa8d651a774f321fd19fb5ad44c0129860
 ARG UV_COMMIT=0e961dd9a2bb6f73493d9e8398b725ad2d3b3837
 
@@ -88,11 +91,11 @@ FROM docker.io/library/python@${PYTHON_SHA256_ARM64} AS python_base_arm64
 # ════════════════════════════════════════════════════════════════════════════
 FROM python_base_${TARGETARCH} AS builder
 
-ARG SYFT_VERSION TRIVY_VERSION OSV_VERSION OPA_VERSION GITLEAKS_VERSION JQ_VERSION KUBE_LINTER_VERSION PMD_VERSION LS_LINT_VERSION SWIFTLINT_VERSION
-ARG SYFT_COMMIT TRIVY_COMMIT OSV_COMMIT OPA_COMMIT GITLEAKS_COMMIT KUBE_LINTER_COMMIT JQ_COMMIT LS_LINT_COMMIT UV_COMMIT
+ARG SYFT_VERSION TRIVY_VERSION OSV_VERSION OPA_VERSION GITLEAKS_VERSION JQ_VERSION KUBE_LINTER_VERSION PMD_VERSION LS_LINT_VERSION SWIFTLINT_VERSION TYPOS_VERSION
+ARG SYFT_COMMIT TRIVY_COMMIT OSV_COMMIT OPA_COMMIT GITLEAKS_COMMIT KUBE_LINTER_COMMIT JQ_COMMIT LS_LINT_COMMIT TYPOS_COMMIT UV_COMMIT
 ARG OPENGREP_VERSION SCANCODE_VERSION LIZARD_VERSION MYPY_VERSION
-ARG SYFT_SHA256_ARM64 TRIVY_SHA256_ARM64 OSV_SHA256_ARM64 OPA_SHA256_ARM64 GITLEAKS_SHA256_ARM64 JQ_SHA256_ARM64 KUBE_LINTER_SHA256_ARM64 LS_LINT_SHA256_ARM64 PMD_SHA256
-ARG SYFT_SHA256_AMD64 TRIVY_SHA256_AMD64 OSV_SHA256_AMD64 OPA_SHA256_AMD64 GITLEAKS_SHA256_AMD64 JQ_SHA256_AMD64 KUBE_LINTER_SHA256_AMD64 LS_LINT_SHA256_AMD64 SWIFTLINT_SHA256_AMD64
+ARG SYFT_SHA256_ARM64 TRIVY_SHA256_ARM64 OSV_SHA256_ARM64 OPA_SHA256_ARM64 GITLEAKS_SHA256_ARM64 JQ_SHA256_ARM64 KUBE_LINTER_SHA256_ARM64 LS_LINT_SHA256_ARM64 TYPOS_SHA256_ARM64 PMD_SHA256
+ARG SYFT_SHA256_AMD64 TRIVY_SHA256_AMD64 OSV_SHA256_AMD64 OPA_SHA256_AMD64 GITLEAKS_SHA256_AMD64 JQ_SHA256_AMD64 KUBE_LINTER_SHA256_AMD64 LS_LINT_SHA256_AMD64 TYPOS_SHA256_AMD64 SWIFTLINT_SHA256_AMD64
 ARG TARGETARCH
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
@@ -117,7 +120,8 @@ RUN set -eux; \
             GITLEAKS_ARCH="x64";     GITLEAKS_SHA="${GITLEAKS_SHA256_AMD64}"; \
             JQ_ARCH="amd64";         JQ_SHA="${JQ_SHA256_AMD64}"; \
             KL_SUFFIX="";           KL_SHA="${KUBE_LINTER_SHA256_AMD64}"; \
-            LL_ARCH="amd64";         LL_SHA="${LS_LINT_SHA256_AMD64}" ;; \
+            LL_ARCH="amd64";         LL_SHA="${LS_LINT_SHA256_AMD64}"; \
+            TYPOS_ARCH="x86_64";     TYPOS_SHA="${TYPOS_SHA256_AMD64}" ;; \
         "arm64") \
             SYFT_ARCH="arm64";       SYFT_SHA="${SYFT_SHA256_ARM64}"; \
             TRIVY_ARCH="ARM64";      TRIVY_SHA="${TRIVY_SHA256_ARM64}"; \
@@ -126,7 +130,8 @@ RUN set -eux; \
             GITLEAKS_ARCH="arm64";   GITLEAKS_SHA="${GITLEAKS_SHA256_ARM64}"; \
             JQ_ARCH="arm64";         JQ_SHA="${JQ_SHA256_ARM64}"; \
             KL_SUFFIX="_arm64";     KL_SHA="${KUBE_LINTER_SHA256_ARM64}"; \
-            LL_ARCH="arm64";         LL_SHA="${LS_LINT_SHA256_ARM64}" ;; \
+            LL_ARCH="arm64";         LL_SHA="${LS_LINT_SHA256_ARM64}"; \
+            TYPOS_ARCH="aarch64";    TYPOS_SHA="${TYPOS_SHA256_ARM64}" ;; \
         *) echo "Fatal: unsupported architecture ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
     curl -sSfL -o /tmp/syft.tar.gz "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_${SYFT_ARCH}.tar.gz"; \
@@ -147,6 +152,9 @@ RUN set -eux; \
     tar -xzf /tmp/kube-linter.tar.gz -C /staging/gobin kube-linter; \
     curl -sSfL -o /staging/gobin/ls-lint "https://github.com/loeffel-io/ls-lint/releases/download/v${LS_LINT_VERSION}/ls-lint-linux-${LL_ARCH}"; \
     echo "${LL_SHA}  /staging/gobin/ls-lint" | sha256sum --strict -c -; \
+    curl -sSfL -o /tmp/typos.tar.gz "https://github.com/crate-ci/typos/releases/download/v${TYPOS_VERSION}/typos-v${TYPOS_VERSION}-${TYPOS_ARCH}-unknown-linux-musl.tar.gz"; \
+    echo "${TYPOS_SHA}  /tmp/typos.tar.gz" | sha256sum --strict -c -; \
+    tar -xzf /tmp/typos.tar.gz -C /staging/gobin ./typos; \
     curl -sSfL -o /tmp/pmd.zip "https://github.com/pmd/pmd/releases/download/pmd_releases/${PMD_VERSION}/pmd-dist-${PMD_VERSION}-bin.zip"; \
     echo "${PMD_SHA256}  /tmp/pmd.zip" | sha256sum --strict -c -; \
     unzip -q /tmp/pmd.zip -d /staging/pmd; \
@@ -186,7 +194,7 @@ RUN set -eux; \
     fi
 
 # ── Build-time checksums for runtime verification ────────────────────────────
-RUN for b in syft trivy osv-scanner opa gitleaks kube-linter ls-lint; do \
+RUN for b in syft trivy osv-scanner opa gitleaks kube-linter ls-lint typos; do \
       sha256sum "/staging/gobin/$b" | sed "s|/staging/gobin/$b|/usr/local/bin/$b|"; \
     done > /staging/scripts/checksums.txt \
     && sha256sum /staging/jq/jq | sed 's|/staging/jq/jq|/usr/bin/jq|' >> /staging/scripts/checksums.txt
@@ -202,6 +210,7 @@ RUN printf '%s\n' \
       "kube-linter=${KUBE_LINTER_COMMIT}" \
       "jq=${JQ_COMMIT}" \
       "ls-lint=${LS_LINT_COMMIT}" \
+      "typos=${TYPOS_COMMIT}" \
     > /staging/scripts/release-revisions.txt
 
 # ── Python: lockfile-based venv install ──────────────────────────────────────
@@ -250,7 +259,6 @@ RUN set -eux; \
 ARG TARGETARCH=amd64
 FROM python_base_${TARGETARCH}
 
-ARG CSPELL_VERSION
 ARG PMD_VERSION
 
 LABEL org.opencontainers.image.title="Caliper" \
@@ -279,8 +287,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends nodejs \
     && npm install -g \
-         "cspell@${CSPELL_VERSION}" \
-         "@cspell/cspell-json-reporter@${CSPELL_VERSION}" \
          "aws-cdk@${AWS_CDK_VERSION}" \
          --no-fund --no-audit \
     && npm cache clean --force \
@@ -302,6 +308,7 @@ COPY --from=builder /staging/gobin/opa         /usr/local/bin/opa
 COPY --from=builder /staging/gobin/gitleaks    /usr/local/bin/gitleaks
 COPY --from=builder /staging/gobin/kube-linter /usr/local/bin/kube-linter
 COPY --from=builder /staging/gobin/ls-lint    /usr/local/bin/ls-lint
+COPY --from=builder /staging/gobin/typos       /usr/local/bin/typos
 COPY --from=builder /usr/local/bin/opengrep   /usr/local/bin/opengrep
 COPY --from=builder /staging/pmd/              /opt/pmd/
 COPY --from=builder /staging/jq/jq             /usr/bin/jq
@@ -334,7 +341,7 @@ ENV PATH="/opt/caliper/.venv/bin:$PATH" \
     XDG_CACHE_HOME=/home/caliper/.cache \
     CALIPER_OPERATING_MODE=monitor \
     CALIPER_OPA_POLICY_PATH=/opt/caliper/policies \
-    CALIPER_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,cspell,ls-lint,cdk-nag,cfn-nag
+    CALIPER_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,typos,ls-lint,cdk-nag,cfn-nag
 
 USER caliper
 WORKDIR /home/caliper

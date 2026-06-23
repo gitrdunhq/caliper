@@ -84,7 +84,7 @@ All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper t
 | # | Plugin | What it does |
 |---|--------|-------------|
 | 13 | **Lizard + Radon** | Cyclomatic complexity + maintainability index |
-| 14 | **cspell** | Code-aware spell checking (en-CA, 15 dictionaries) |
+| 14 | **typos** | Source-aware typo detection (crate-ci/typos, low false positives) |
 | 15 | **ls-lint** | File naming conventions |
 | 16 | **Blast Radius** | AST→SQLite code graph, 12 SQL checks |
 
@@ -428,7 +428,7 @@ Drop `.caliper.yaml` at the root of any repo to enable/disable plugins and overr
 plugins:
   disable:
     - clamav         # disable heavy AV scan in local dev
-    - cspell         # disable spell checking for this repo
+    - typos          # disable typo checking for this repo
   enable:
     - gitleaks       # always on, even if disabled globally
 
@@ -451,7 +451,7 @@ Override config at the command line for one-off runs:
 
 ```bash
 # Disable specific plugins for this run
-uv run caliper review --repo-path . --all --disable clamav,cspell
+uv run caliper review --repo-path . --all --disable clamav,typos
 
 # Enable a plugin that is disabled in config
 uv run caliper review --repo-path . --all --enable gitleaks

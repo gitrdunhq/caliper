@@ -5,7 +5,7 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-06-22
+  LAST VERIFIED: 2026-06-23
   VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
   plugin (20 ScannerPlugin subclasses total); 21 detectors in src/caliper/detectors/;
   61 semgrep rule ids in policies/semgrep/.
@@ -81,7 +81,7 @@ wired separately — it consumes every other plugin's findings and runs last
 |--------|------|---------|
 | blast-radius | `plugins/blast_radius.py` | Code graph impact analysis. AST → SQLite, then 12 SQL checks (see below). Full + incremental indexing. Python + JS/TS. Extensible via `graph.register_check()`. |
 | complexity | `plugins/complexity.py` | Cyclomatic complexity (Lizard) + maintainability index (Radon). 10 languages. Per-function: CCN, NLOC, tokens, params, MI grade (A/B/C). |
-| cspell | `plugins/cspell.py` | Code-aware spell checking. 15 dictionaries (en-CA + 14 tech: python, typescript, node, golang, java, rust, cpp, csharp, html, css, bash, docker, k8s, softwareTerms). Shows suggestions. |
+| typos | `plugins/typos.py` | Source-aware typo detection (crate-ci/typos). Single pinned Rust binary, very low false positives, identifier-aware (camelCase/snake_case splitting). Shows corrections. |
 | ls-lint | `plugins/ls_lint.py` | File naming convention enforcement. Only runs when `.ls-lint.yml` config exists. |
 
 ### infra (3)

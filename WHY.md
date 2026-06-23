@@ -168,7 +168,7 @@ Drop `.caliper.yaml` at the repo root:
 
 ```yaml
 plugins:
-  disabled: [clamav, cspell]    # skip heavy scanners locally
+  disabled: [clamav, typos]     # skip heavy scanners locally
   enabled: [gitleaks]           # always on, even if globally disabled
 
 thresholds:

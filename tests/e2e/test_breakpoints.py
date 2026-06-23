@@ -28,7 +28,7 @@ ALL_SCANNERS = [
     "complexity",
     "cpd",
     "mypy",
-    "cspell",
+    "typos",
     "ls-lint",
     "kube-linter",
     "cfn-nag",

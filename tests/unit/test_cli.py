@@ -745,20 +745,20 @@ class TestReviewDisableEnable:
         mock_reg = self._make_mock_registry()
         with patch(self._PATCH_TARGET, return_value=mock_reg), runner.isolated_filesystem():
             result = runner.invoke(
-                cli, ["review", "--repo-path", ".", "--disable", "semgrep,cspell"]
+                cli, ["review", "--repo-path", ".", "--disable", "semgrep,typos"]
             )
         assert result.exit_code == 0
         kwargs = mock_reg.run_all.call_args.kwargs
-        assert kwargs.get("disabled_names") == {"semgrep", "cspell"}
+        assert kwargs.get("disabled_names") == {"semgrep", "typos"}
 
     def test_enable_flag_passes_enabled_names_to_run_all(self) -> None:
         runner = CliRunner()
         mock_reg = self._make_mock_registry()
         with patch(self._PATCH_TARGET, return_value=mock_reg), runner.isolated_filesystem():
-            result = runner.invoke(cli, ["review", "--repo-path", ".", "--enable", "cspell"])
+            result = runner.invoke(cli, ["review", "--repo-path", ".", "--enable", "typos"])
         assert result.exit_code == 0
         kwargs = mock_reg.run_all.call_args.kwargs
-        assert kwargs.get("enabled_names") == {"cspell"}
+        assert kwargs.get("enabled_names") == {"typos"}
 
     def test_enable_and_disable_both_passed_to_run_all(self) -> None:
         """Both sets reach registry.run_all — the registry decides priority."""
@@ -772,15 +772,15 @@ class TestReviewDisableEnable:
                     "--repo-path",
                     ".",
                     "--disable",
-                    "cspell",
+                    "typos",
                     "--enable",
-                    "cspell",
+                    "typos",
                 ],
             )
         assert result.exit_code == 0
         kwargs = mock_reg.run_all.call_args.kwargs
-        assert "cspell" in kwargs.get("disabled_names", set())
-        assert "cspell" in kwargs.get("enabled_names", set())
+        assert "typos" in kwargs.get("disabled_names", set())
+        assert "typos" in kwargs.get("enabled_names", set())
 
     def test_no_disable_enable_passes_empty_sets(self) -> None:
         """Omitting --disable/--enable passes empty sets (not None) to run_all."""
