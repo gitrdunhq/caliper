@@ -66,7 +66,7 @@ Sources: [snyk.io/plans](https://snyk.io/plans/), [sonatype.com/products/pricing
 
 ## Extensibility: Write Rules, Not Tickets
 
-caliper is designed to be extended by the teams that use it. When you see a recurring anti-pattern in code review, you encode it as a rule — and dom catches it on every PR from that point forward.
+caliper is designed to be extended by the teams that use it. When you see a recurring anti-pattern in code review, you encode it as a rule — and Caliper catches it on every PR from that point forward.
 
 ### Custom Semgrep Rules (61 and growing)
 
