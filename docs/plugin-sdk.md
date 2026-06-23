@@ -433,7 +433,7 @@ as a timeout or `NOT_INSTALLED` error depending on context.
 ### Direct `subprocess.run` is also acceptable
 
 Many built-in plugins call `subprocess.run` directly (see `ls_lint.py`,
-`cspell.py`). Both approaches are valid. Use `run_subprocess_with_timeout` when
+`typos.py`). Both approaches are valid. Use `run_subprocess_with_timeout` when
 you want the structured return tuple and centralised timeout logging; use
 `subprocess.run` directly when you need finer control over error handling.
 

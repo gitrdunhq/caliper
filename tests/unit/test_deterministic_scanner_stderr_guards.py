@@ -23,7 +23,7 @@ _SUBPROCESS_SCANNER_FILES: tuple[Path, ...] = (
     _SRC / "plugins" / "osv_scanner.py",
     _SRC / "plugins" / "syft.py",
     _SRC / "plugins" / "scancode.py",
-    _SRC / "plugins" / "cspell.py",
+    _SRC / "plugins" / "typos.py",
     _SRC / "plugins" / "mypy.py",
     _SRC / "plugins" / "clamav.py",
     _SRC / "plugins" / "ls_lint.py",

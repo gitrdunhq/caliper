@@ -28,7 +28,7 @@ def test_clean_is_clear():
 
 
 def test_skipped_only_is_clear_not_warnings():
-    s = summarize_review([_res("cspell", "quality", [], status="skipped")])
+    s = summarize_review([_res("typos", "quality", [], status="skipped")])
     assert s.verdict == ReviewVerdict.clear
     assert s.skipped_count == 1
 
@@ -75,7 +75,7 @@ class TestProperties:
     def test_determinism_order_independent(self):
         a = _res("trivy", "dependency", [_f("high", "a.txt")])
         b = _res("complexity", "quality", [_f("medium")])
-        c = _res("cspell", "quality", [], status="skipped")
+        c = _res("typos", "quality", [], status="skipped")
         s1 = summarize_review([a, b, c], changed_files={"a.txt"})
         s2 = summarize_review([c, b, a], changed_files={"a.txt"})
         assert s1 == s2  # Determinism: order does not matter

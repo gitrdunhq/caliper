@@ -19,7 +19,7 @@ _EXPECTED_PLUGINS = {
     "clamav",
     "complexity",
     "cpd",
-    "cspell",
+    "typos",
     "gitleaks",
     "kube-linter",
     "ls-lint",

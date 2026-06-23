@@ -69,7 +69,7 @@ def _complexity_result() -> PluginResult:
 
 
 def _empty_result() -> PluginResult:
-    return PluginResult(plugin_name="cspell", summary={"status": "skipped"})
+    return PluginResult(plugin_name="typos", summary={"status": "skipped"})
 
 
 def _error_result() -> PluginResult:
@@ -128,7 +128,7 @@ class TestRenderComment:
             file_count=5,
         )
         assert "| osv-scanner | 2 |" in md
-        assert "| cspell | skipped |" in md
+        assert "| typos | skipped |" in md
         assert "| Files scanned | 5 |" in md
 
     def test_error_plugin_shows_error(self):

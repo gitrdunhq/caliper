@@ -265,7 +265,7 @@ def test_foreman_keeps_pr_ci_fast_and_full_e2e_manual_only() -> None:
         "tests/e2e/",
         "src/caliper/data/scanners/",
         "src/caliper/plugins/_runners/",
-        "src/caliper/plugins/cspell.py",
+        "src/caliper/plugins/typos.py",
     ):
         assert release_only_path not in preflight_run
     assert "src/caliper/plugins/*" not in preflight_run

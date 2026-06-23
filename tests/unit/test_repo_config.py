@@ -45,18 +45,18 @@ class TestLoadRepoConfigDefaults:
 
 class TestLoadRepoConfigDisabled:
     def test_disabled_plugins_parsed(self, tmp_path: Path) -> None:
-        """config with plugins.disabled: [cspell] → cspell in disabled list."""
-        _write_config(tmp_path, {"plugins": {"disabled": ["cspell"]}})
+        """config with plugins.disabled: [typos] → typos in disabled list."""
+        _write_config(tmp_path, {"plugins": {"disabled": ["typos"]}})
         config = load_repo_config(tmp_path)
-        assert config.plugins.disabled == ["cspell"]
+        assert config.plugins.disabled == ["typos"]
         assert config.plugins.enabled is None
 
     def test_disabled_multiple_plugins(self, tmp_path: Path) -> None:
         """Multiple disabled plugins are all captured."""
-        _write_config(tmp_path, {"plugins": {"disabled": ["cspell", "trivy", "semgrep"]}})
+        _write_config(tmp_path, {"plugins": {"disabled": ["typos", "trivy", "semgrep"]}})
         config = load_repo_config(tmp_path)
         assert config.plugins.disabled is not None
-        assert set(config.plugins.disabled) == {"cspell", "trivy", "semgrep"}
+        assert set(config.plugins.disabled) == {"typos", "trivy", "semgrep"}
 
 
 class TestLoadRepoConfigEnabled:
@@ -87,7 +87,7 @@ class TestLoadRepoConfigThresholds:
 
     def test_missing_thresholds_defaults_to_empty_dict(self, tmp_path: Path) -> None:
         """When thresholds key absent, defaults to {}."""
-        _write_config(tmp_path, {"plugins": {"disabled": ["cspell"]}})
+        _write_config(tmp_path, {"plugins": {"disabled": ["typos"]}})
         config = load_repo_config(tmp_path)
         assert config.thresholds == {}
 
@@ -146,10 +146,10 @@ class TestRepoConfigModel:
 
     def test_custom_values(self) -> None:
         rc = RepoConfig(
-            plugins=PluginConfig(disabled=["cspell"]),
+            plugins=PluginConfig(disabled=["typos"]),
             thresholds={"semgrep": {"level": "error"}},
         )
-        assert rc.plugins.disabled == ["cspell"]
+        assert rc.plugins.disabled == ["typos"]
         assert rc.thresholds["semgrep"] == {"level": "error"}
 
 

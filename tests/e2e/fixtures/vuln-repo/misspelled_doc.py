@@ -1,4 +1,4 @@
-"""Module with deliberatte misspelllings for cspell testing."""
+"""Module with deliberatte misspelllings for typos testing."""
 
 
 def calcualte_tottal(ammount: int) -> int:
