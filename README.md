@@ -25,7 +25,7 @@ Those checks aren't hard. They're tedious. And they're the reason your senior en
 
 Both outcomes cost real money. One costs velocity. The other costs incidents.
 
-**Caliper doesn't replace human review. It removes the mechanical half so humans can do the half that requires judgment.** Eighteen plugins run the checks that don't need a brain. OPA policy makes the accept/reject decision deterministically. The reviewer opens a PR and the dependency, vulnerability, license, complexity, and secret checks are already done — with evidence, an audit trail, and a clear verdict. They can skip straight to "does this design make sense?"
+**Caliper doesn't replace human review. It removes the mechanical half so humans can do the half that requires judgment.** Nineteen plugins run the checks that don't need a brain. OPA policy makes the accept/reject decision deterministically. The reviewer opens a PR and the dependency, vulnerability, license, complexity, and secret checks are already done — with evidence, an audit trail, and a clear verdict. They can skip straight to "does this design make sense?"
 
 ---
 
