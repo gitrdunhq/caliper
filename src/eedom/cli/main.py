@@ -401,8 +401,10 @@ def review(
                     full = (repo / fpath).resolve()
                     if not full.is_relative_to(repo.resolve()):
                         continue
-                    if (full.exists() or not fpath.startswith(".git")) and not should_ignore(
-                        fpath, ignore_patterns
+                    if (
+                        full.exists()
+                        and not fpath.startswith(".git")
+                        and not should_ignore(fpath, ignore_patterns)
                     ):
                         files.append(str(full))
         return files
