@@ -134,6 +134,18 @@ def test_delete_part_flagged_in_script() -> None:
     assert "DELETE: review for cross-part deletion safety" in _render(PartTarget.stack)
 
 
+def test_script_never_creates_the_backup_bookmark() -> None:
+    """The backup bookmark is the gate's job (created before the script is emitted);
+    the script must never create or move it — only the rollback header references it."""
+    for target in (PartTarget.stack, PartTarget.series):
+        script = _render(target)
+        for line in script.splitlines():
+            if line.lstrip().startswith("#"):
+                continue  # the rollback header names the backup in a comment
+            assert "caliper-part-backup-" not in line
+            assert "bookmark create caliper-part-backup" not in line
+
+
 def test_rollback_header_helper() -> None:
     lines = rollback_header("bk", "op1")
     assert any("bk" in line for line in lines)

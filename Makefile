@@ -32,6 +32,7 @@ test:
 	@$(CONTAINER_ENGINE) run --rm \
 		--platform $(TEST_PLATFORM) \
 		$(CONTAINER_RUN_SECURITY) \
+		--env CI \
 		--entrypoint "" \
 		$(TEST_IMAGE) \
 		/opt/test-venv/bin/python -m pytest tests/ -v

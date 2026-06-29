@@ -146,6 +146,22 @@ def test_single_oversized_record_flagged() -> None:
     assert cut.parts[0].files == ["huge.py"]
 
 
+def test_oversized_flag_surfaces_in_serialized_output() -> None:
+    """7 (honesty): the oversized flag is present in the SERIALIZED cut list, not
+    merely on the in-memory object — a green cap test must not hide an oversized part."""
+    import json
+
+    records = [Record(file="huge.py", change_type=ChangeType.logic, size=3000)]
+    cut = part(records, PartingConfig(size_cap=400))
+
+    data = json.loads(cut.model_dump_json())
+    oversized = [p for p in data["parts"] if p["oversized"]]
+    assert len(oversized) == 1
+    assert oversized[0]["files"] == ["huge.py"]
+    # the flag is literally serialized as true
+    assert '"oversized":true' in cut.model_dump_json().replace(" ", "")
+
+
 # ---------------------------------------------------------------------------
 # Property tests (8-13)
 # ---------------------------------------------------------------------------
