@@ -24,8 +24,10 @@
 #   USE_LLM=1 CALIPER_LLM_ENDPOINT=http://localhost:PORT/v1 CALIPER_LLM_MODEL=qwen3.6-35b \
 #       ./scripts/try-caliper-on-pr.sh              # with the Review LLM tier enabled
 #
-#   Override via env: REPO_URL, PR_NUM, BASE_BRANCH, WORKDIR, USE_LLM, CALIPER_SRC, REINSTALL,
-#   or set CALIPER="my-wrapper" to skip auto-install and use your own caliper invocation.
+#   ALLOW_MISSING_GAUGES=0 ./scripts/try-caliper-on-pr.sh   # strict: missing scanner = part fails
+#
+#   Override via env: REPO_URL, PR_NUM, BASE_BRANCH, WORKDIR, USE_LLM, ALLOW_MISSING_GAUGES,
+#   CALIPER_SRC, REINSTALL, or set CALIPER="my-wrapper" to skip auto-install and use your own.
 #
 set -euo pipefail
 
@@ -39,6 +41,7 @@ CALIPER_SRC="${CALIPER_SRC:-$(cd "$SCRIPT_DIR/.." && pwd)}"  # caliper checkout 
 CALIPER="${CALIPER:-caliper}"                        # invocation; default auto-installs below
 REINSTALL="${REINSTALL:-0}"                          # 1 = force `uv tool install --force`
 USE_LLM="${USE_LLM:-0}"                              # 1 = enable the oMLX/OpenAI-compatible Review backend
+ALLOW_MISSING_GAUGES="${ALLOW_MISSING_GAUGES:-1}"    # 1 = tolerate missing scanners (default); 0 = strict fail-closed
 
 NAME="$(basename "$REPO_URL" .git)"
 SRC="$WORKDIR/$NAME"
@@ -108,22 +111,36 @@ git checkout -q --detach "$HEAD_SHA"
 
 mkdir -p "$OUT"
 
-# ---- optional: enable the Review (LLM) tier --------------------------------------
-NO_LLM="--no-llm"
+# ---- compose repo config (allow-missing-gauges + optional Review backend) ---------
+# inspect reads config from the repo root; write a throwaway one into the clone so we
+# can tolerate scanner binaries that aren't installed locally (Screen is fail-closed by
+# default) and, when asked, point the Review tier at a model.
+if [ "$ALLOW_MISSING_GAUGES" = "1" ]; then AMG="true"; else AMG="false"; fi
 if [ "$USE_LLM" = "1" ]; then
   : "${CALIPER_LLM_ENDPOINT:?set CALIPER_LLM_ENDPOINT (your oMLX / OpenAI-compatible URL, e.g. http://localhost:PORT/v1)}"
   : "${CALIPER_LLM_MODEL:?set CALIPER_LLM_MODEL (e.g. qwen3.6-35b)}"
   export CALIPER_LLM_ENABLED=1
-  # inspect reads the backend from repo config; write a throwaway one into the clone.
-  cat > "$SRC/.caliper.yaml" <<YAML
-inspect:
-  backend: omlx
-  model_id: ${CALIPER_LLM_MODEL}
-YAML
-  NO_LLM=""
+fi
+{
+  echo "inspect:"
+  echo "  allow_missing_gauges: $AMG"
+  if [ "$USE_LLM" = "1" ]; then
+    echo "  backend: omlx"
+    echo "  model_id: ${CALIPER_LLM_MODEL}"
+  fi
+} > "$SRC/.caliper.yaml"
+
+NO_LLM="--no-llm"
+[ "$USE_LLM" = "1" ] && NO_LLM=""
+if [ "$USE_LLM" = "1" ]; then
   echo ">> Review tier: ENABLED (omlx -> $CALIPER_LLM_ENDPOINT, model $CALIPER_LLM_MODEL)"
 else
   echo ">> Review tier: disabled (deterministic Screen + Adjudicate only). Re-run with USE_LLM=1 to enable."
+fi
+if [ "$AMG" = "true" ]; then
+  echo ">> Screen: missing scanner binaries tolerated (allow_missing_gauges=true). Set ALLOW_MISSING_GAUGES=0 for strict."
+else
+  echo ">> Screen: strict (allow_missing_gauges=false) — a missing scanner hard-fails its part."
 fi
 
 # ---- 1) cut the PR diff into an ordered cut list ----------------------------------
