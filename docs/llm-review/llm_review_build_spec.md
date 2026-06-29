@@ -24,19 +24,19 @@ recorded but not consulted by the routing table.
 
 ## 0. Conflicts for human decision
 
-These are unresolved by synthesis and need a human call before the build starts.
+These need a human call before the build starts.
 
-1. **`caliper part` is not built on this branch — HARD CONFLICT.** Agent A's shared
-   context asserts `caliper part` is "built, v0." Agent B verified the repo: **no
-   `part`/PARTING/kerf/cut-list/stock/`PartMetadata`/`Bucket` code exists** in `src/`,
-   `tests/`, or git history, and `pyproject.toml [project.scripts]` has no `part`
-   entry. The likely explanation: `part()` was built on the sibling branch
-   `claude/caliper-part-subcommand-906l7z` and is not merged into the current branch
-   `claude/caliper-part-subcommand-kn8yv0`. **Decision needed:** merge/rebase the
-   `part()` work onto this branch before starting, OR treat "build `part()` +
-   `PartMetadata` + `Bucket` enum" as **Step 0** of this phase (Agent B's build
-   sequence assumes the latter). Everything below consumes `PartMetadata` + an ordered
-   cut list; it cannot be built or tested without them.
+1. **`caliper part` v0 exists on the sibling branch `906l7z` — conflict RESOLVED,
+   merge needed.** Agent B's repo scan was of the current branch
+   `claude/caliper-part-subcommand-kn8yv0`, where `part()` is genuinely absent. A
+   follow-up check of the sibling branch `claude/caliper-part-subcommand-906l7z`
+   confirms `caliper part` v0 **is built there** (3 commits, 23 files, ~2,779 lines;
+   pre-PR). So Agent A's "built, v0" was correct — just on a branch not merged here.
+   See [§0a Verified symbol map](#0a-verified-symbol-map-from-906l7z) for the real
+   names. **Decision needed:** merge/rebase `906l7z` onto this branch (or build atop
+   it) **before** starting this phase — that is Step 0. The §12 build sequence and the
+   symbol names below assume the `906l7z` definitions, not the placeholder
+   `PartMetadata`/`Bucket` names used in the original draft.
 
 2. **Migrate legacy `caliper audit` (`core/concern_review.py`) onto the new port — or
    leave it?** `concern_review.py` already does cluster→scan→attach-findings→fan-out-
@@ -54,6 +54,38 @@ These are unresolved by synthesis and need a human call before the build starts.
    `anchor_quote`, integer `line_start`/`line_end`, `reasoning`) wins over B's leaner
    `Claim` dataclass draft. Adopted in §3. No human call needed unless the local model
    cannot reliably emit `anchor_quote` (resolve via §9 eval, not by dropping the field).
+
+---
+
+## 0a. Verified symbol map (from `906l7z`)
+
+The real `caliper part` v0 names, verified by reading the sibling branch. Use these,
+not the placeholder names in the original draft. Everything below this section has been
+reconciled to them.
+
+| Draft placeholder | Real symbol on `906l7z` | Notes |
+|---|---|---|
+| `Bucket` enum | **`ChangeType`** (`core/models.py`) | values: `generated, move, delete, binary, config, test, logic` — exact match for the 7 buckets |
+| `PartMetadata` | **`Part`** (`core/models.py`) | fields: `id`, `files: list[str]` (sorted), `bucket: ChangeType`, `size: int`, `opened_by: Kerf`, `oversized: bool` |
+| ordered cut list | **`CutList`** (`core/models.py`) | `parts`, `ambiguities`, `size_cap`, `provenance`, `stats`; bottom-of-stack first; "a proposal, never a verdict" |
+| `part()` (pure upstream) | **`core.parting.part(records, cfg, provenance=None) -> CutList`** | pure, deterministic, callable with no repo/git — exactly the upstream pure function the LLM is sealed against |
+| stock producer (impure) | **`core.part_stock.build_stock`** | the impure git step; `Record` (`file, change_type, size, old_path`) is the per-file unit |
+| PARTING registry | **`PARTING: Registry[AnalyzerPort]`** (`core/registries.py:60`) | **EXISTS** — see §8 correction |
+| parting plugin (consumer) | **`plugins/_parting.py` `PartingPlugin`** | underscore-prefixed (autodiscover skips it), self-registers into `PARTING` not `ANALYZERS`, `can_run` always `False` — isolation already built |
+| config | **`core/repo_config.py PartingConfig`** | `size_cap`, `rename_threshold`, etc.; `config_digest()` is pure |
+
+**Two corrections that change the spec below:**
+
+- **C1 — `Part` carries `files` + `size` only, NOT hunk ranges.** v0 is **whole-file**
+  (one `Record` per file, no hunk-level split). The anchor rule (§6 rule 2) therefore
+  **cannot** read hunk ranges off `Part`; the per-part diff/hunks must be passed into
+  `adjudicate()` separately (carried on `ReviewRequest.part_diff`, parsed with
+  `pr_review.parse_hunk_ranges`). Reflected in §6.
+- **C2 — naming collision: `core/part_gate.py` already exists** and is the parting
+  **safety** gate (jj reversibility preconditions, fail-closed, via `ToolRunnerPort`) —
+  **unrelated** to the LLM-review Tier 0. Do **not** name the Tier 0 module `part_gate`.
+  The spec keeps `core/llm_review/tier0.py` (class `PartScopedGate`), which avoids the
+  clash. Note also `part_gate` is fail-**closed**; Tier 0 review gating stays advisory.
 
 ---
 
@@ -110,9 +142,14 @@ REUSED (already in repo):
 ISOLATION: the DET side may NOT import the ADV side or core/llm_client.py.
            Enforced by a contract test (sibling of tests/unit/test_port_registries.py).
 
-UPSTREAM GAP: part() / cut-list / stock / PartMetadata / Bucket DO NOT EXIST on this
-              branch (see §0.1). The whole pipeline consumes PartMetadata + an ordered
-              cut list.
+UPSTREAM (exists on 906l7z, unmerged here — §0.1, §0a):
+  core/parting.py        part(records, cfg, provenance) -> CutList   PURE upstream
+  core/part_stock.py     build_stock(...)                            impure git producer
+  core/models.py         ChangeType, Record, Part, Kerf, CutList, Provenance, CutStats
+  core/registries.py:60  PARTING: Registry[AnalyzerPort]             isolation template (§8)
+  plugins/_parting.py    PartingPlugin (can_run=False)               consumer, autodiscover-skipped
+  core/part_gate.py      parting SAFETY gate (jj) — NOT Tier 0       naming-collision warning (§0a C2)
+The whole pipeline consumes a CutList of Part(s). Merge 906l7z first.
 ```
 
 Tier separation maps onto caliper's `cli -> core -> data` import-downward rule. The
@@ -166,7 +203,7 @@ Rules of the contract:
 ```python
 @dataclass(frozen=True)
 class ReviewRequest:
-    part_id: str; bucket: Bucket; part_diff: str
+    part_id: str; bucket: ChangeType; part_diff: str
     lower_context: str; tier0_findings: list[Tier0Finding]; content_hash: str
 @dataclass(frozen=True)
 class ReviewResponse:
@@ -201,7 +238,7 @@ class ReviewResponse:
 
 ### Bucket → gate routing table (`core/llm_review/routing.py`)
 
-`BUCKET_GATES: dict[Bucket, tuple[str, ...]]` whose values are **keys into existing
+`BUCKET_GATES: dict[ChangeType, tuple[str, ...]]` whose values are **keys into existing
 registries** (`detectors/_registry.py DETECTORS`, `RULE_RUNNERS`, `CODEGRAPH_CHECKS`,
 `AnalyzerRegistryPort`). Mirrors `bootstrap.build_scribes` (`composition/bootstrap.py:250`)
 resolving named scribes from `SCRIBES`. Routing imports only registry keys + the
@@ -287,11 +324,15 @@ calls, **(4) full lower-part text only when a symbol is directly referenced.**
 
 - **Module:** `core/llm_review/adjudicator.py` (deterministic side, pure).
 - **Signature:**
-  `def adjudicate(claims: list[Claim], part: PartMetadata, tier0: Tier0Result) -> AdjudicationResult`
+  `def adjudicate(claims: list[Claim], part: Part, hunks: HunkRanges, tier0: Tier0Result) -> AdjudicationResult`
+  (`Part` is the real `core/models.py` type. `hunks` is passed **separately** — see C1:
+  `Part` carries `files` + `size` only, not hunk ranges, so the per-part changed lines
+  come from `ReviewRequest.part_diff` parsed via `pr_review.parse_hunk_ranges`.)
 - **Output:** `AdjudicationResult(survivors: list[Claim], drops: list[Drop])`; each
   `Drop` records the **firing rule** (for logging + the §10 flywheel).
-- **No IO.** No file reads (the part carries its file set + hunk ranges), no network, no
-  DB. Same discipline as the already-pure `core/normalizer.py`.
+- **No IO.** No file reads (the part's file set comes from `Part.files`, the changed
+  lines from the pre-parsed `hunks` argument), no network, no DB. Same discipline as the
+  already-pure `core/normalizer.py`.
 
 ### Rules, in firing order
 
@@ -302,7 +343,8 @@ invariant; flagged as a technique recommendation, not a mandated rule.
 
 1. **scope** — drop `claim.file not in part.files`.
 2. **anchor** — drop claims not on a real changed line. **Reuse `pr_review.parse_hunk_ranges`
-   + `line_in_hunks` (`pr_review.py:23,34`)** — already pure and tested. Verify
+   + `line_in_hunks` (`pr_review.py:23,34`)** — already pure and tested. Hunks come from
+   the `hunks` argument (parsed from `part_diff`), **not** from `Part` (C1). Verify
    `anchor_quote` is a verbatim substring of the changed lines *first*, so line numbers
    are trustworthy before any join.
 3. **substantiation (post-hoc evidence binding)** — for each `blocking` claim, search the
@@ -355,7 +397,14 @@ Survivors are the review output; drops are logged.
 ## 8. Structural isolation — "no LLM in the decision path"
 
 Enforced the way caliper already enforces tier boundaries: by **import direction** plus a
-**contract test** (the structural substitute for the non-existent `PARTING` registry).
+**contract test**. **Correction:** the `PARTING` registry is **not** non-existent — it is
+real (`core/registries.py:60`, `PARTING: Registry[AnalyzerPort]`) and is the **exact
+template to copy**, not something to substitute. `plugins/_parting.py` already
+demonstrates the pattern: underscore-prefixed so `autodiscover` skips it, self-registers
+into `PARTING` rather than `ANALYZERS`, and `can_run` is always `False` — so it is
+structurally impossible for parting to enter `caliper review` / Foreman / the webhook.
+The new `LLM_REVIEWERS` registry + the deterministic/advisory split below apply that same
+isolation to the LLM path.
 
 1. Two sibling sub-packages in `core/llm_review/`:
    - **deterministic side** (`tier0.py`, `adjudicator.py`, `routing.py`) imports only
@@ -444,9 +493,10 @@ Diamond's low cross-part catch rate).
 Split RED/GREEN across agents per CLAUDE.md (context-poisoning prevention). Tests run in
 containers (`make test`); the LLM port uses `Null`/`Fake` reviewers in tests, never live.
 
-0. **(Blocked on §0.1)** Build `part()` + `PartMetadata` + `Bucket` enum, OR merge the
-   `906l7z` branch. Cut list ordered bottom-first; each part carries file set + hunk
-   ranges + bucket. The shared contract (`Bucket` enum, `PartMetadata`) is defined once.
+0. **(Blocked on §0.1) Merge/rebase `906l7z` onto this branch.** `part()`, `CutList`,
+   `Part`, `ChangeType`, `build_stock`, and the `PARTING` registry already exist there —
+   do **not** rebuild them. Note v0 is whole-file (no hunk split); the per-part diff for
+   the anchor rule is derived downstream from the stock, not carried on `Part` (C1).
 1. **`adjudicator.py` (Tier 2) — pure, build first after part().** RED: the §6 property
    tests from acceptance criteria. GREEN: on top of `pr_review` anchor + `normalizer`
    dedup. No IO; fully testable without any LLM.
@@ -468,20 +518,23 @@ containers (`make test`); the LLM port uses `Null`/`Fake` reviewers in tests, ne
 
 ## 13. Risk list (from the internal study)
 
-1. **`part()` does not exist on this branch** — the design's upstream input is unbuilt.
-   Biggest risk; Step 0 is mandatory (see §0.1).
+1. **`part()` exists on `906l7z` but is unmerged here** — Step 0 is a merge/rebase, not
+   a build (see §0.1, §0a). Risk is integration/merge, not greenfield. v0 is whole-file
+   with no hunk split, so the anchor rule needs the per-part diff passed separately (C1).
 2. **`concern_review.py` is a decision-path leak waiting to be copied** — copy its
    structure, not its direct-`httpx` transport (§0.2, §8).
 3. **`ScannerPort.scan(target_path)` is single-path** (`core/ports.py:43`); plugin gates
    (secrets, OSV) don't take a file set; OSV only supports exclude. `PartScopedGate` must
    post-filter by `finding.file in part.files`.
-4. **No "cut a diff into ordered parts" producer exists** — `diff.py` only parses
-   dependency manifests; hunk extraction exists but the stock→parts cutter is net-new.
+4. **The cutter exists on `906l7z`** — `core.part_stock.build_stock` (impure git stock)
+   + `core.parting.part` (pure cut). Risk #4 from the internal study ("net-new cutter")
+   is **retired** once `906l7z` is merged; until then it is just unmerged.
 5. **No cache layer in core** — content-hash cache is net-new (reuse `seal.py` for the key).
 6. **No `LlmReviewPort`/`LLM_REVIEWERS` yet** — `LlmClient` is concrete, not a Protocol
    behind a registry; add the port + registry for swap/isolation like `ToolRunnerPort`.
-7. **`Bucket` enum + `PartMetadata` are a shared contract** between the unbuilt `part()`
-   and every tier here — define once, as an Enum.
+7. **`ChangeType` + `Part`/`CutList` are the shared contract** (already defined on
+   `906l7z`, `core/models.py`) — consume them, do not redefine. The LLM-review tiers
+   import these types; the routing table (§3) keys on `ChangeType`.
 8. **Category→detector compat map is caliper-specific** — no canonical published mapping;
    build `CATEGORY_COMPAT` against caliper's detector/semgrep catalog (A's open gap).
 9. **Local model at the recall floor** — Qwen3.6 ~27B sits at the threshold; only the §9
