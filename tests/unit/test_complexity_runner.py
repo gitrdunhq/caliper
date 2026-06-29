@@ -1,4 +1,4 @@
-"""Tests for complexity runner — Lizard output parsing + escomplex MI override.
+"""Tests for complexity runner — Lizard output parsing + Halstead MI.
 # tested-by: tests/unit/test_complexity_runner.py
 """
 
@@ -7,6 +7,8 @@ from __future__ import annotations
 import json
 import subprocess
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from caliper.plugins._runners.complexity_runner import (
     _halstead_mi,
@@ -138,6 +140,7 @@ class TestHalsteadMi:
 
 
 class TestEscomplexOverride:
+    @pytest.mark.skip(reason="escomplex override disabled — JS/TS uses Halstead; see #441")
     def test_js_mi_comes_from_escomplex_not_approximation(self):
         """MI for a JS file must use escomplex output, not the Halstead approximation."""
         lizard_side = [_lizard_result(_LIZARD_CSV_LINE)]
@@ -162,6 +165,7 @@ class TestEscomplexOverride:
             mi_str != approx_str
         ), "MI string should differ from Halstead approximation when escomplex is available"
 
+    @pytest.mark.skip(reason="escomplex override disabled — JS/TS uses Halstead; see #441")
     def test_ts_mi_comes_from_escomplex(self):
         """MI for a TS file also uses escomplex."""
         lizard_csv = "8,2,40,1,12,handler@5,server.ts,1,0,\n"
@@ -217,6 +221,7 @@ class TestEscomplexFallback:
         assert mi_str[0] in ("A", "B", "C")
         assert "(" in mi_str
 
+    @pytest.mark.skip(reason="escomplex override disabled — no escomplex warning emitted; see #441")
     def test_fallback_warning_logged(self, caplog):
         """A structlog warning is emitted when escomplex is missing."""
         lizard_side = [_lizard_result(_LIZARD_CSV_LINE)]
