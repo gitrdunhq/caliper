@@ -64,7 +64,9 @@ ensure_caliper() {
     exit 1
   }
   echo ">> installing caliper as a uv tool from $CALIPER_SRC"
-  uv tool install --force "$CALIPER_SRC"
+  # --reinstall is required: --force alone reuses the cached build when the
+  # version is unchanged, so same-version source edits silently don't take.
+  uv tool install --force --reinstall "$CALIPER_SRC"
   bin="$(uv tool dir --bin 2>/dev/null || true)"
   [ -n "$bin" ] && export PATH="$bin:$PATH"
 }
