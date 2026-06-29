@@ -18,8 +18,8 @@ rejects anything else.
 
 from __future__ import annotations
 
-from caliper.core.llm_port import LLMResult, LLMReview
-from caliper.core.registries import INSPECT_BACKENDS
+from caliper.core.llm_port import DraftRequest, DraftResult, LLMResult, LLMReview
+from caliper.core.registries import GAUGE_DRAFTERS, INSPECT_BACKENDS
 
 
 class NullLLM:
@@ -37,3 +37,20 @@ class NullLLM:
 @INSPECT_BACKENDS.register("null")
 def build_null_backend() -> NullLLM:
     return NullLLM()
+
+
+class NullGaugeDrafter:
+    """A gauge drafter that is always unavailable — propose drafts no candidates.
+
+    The safe default: with no model wired, the flywheel surfaces ranked clusters but
+    mints nothing. Real drafters (oMLX/cloud) register here behind the same port and
+    must emit a candidate gauge spec; the backtest and human promotion gate it.
+    """
+
+    def draft(self, request: DraftRequest) -> DraftResult:
+        return DraftResult(available=False, note="gauge drafter 'null' is unavailable")
+
+
+@GAUGE_DRAFTERS.register("null")
+def build_null_drafter() -> NullGaugeDrafter:
+    return NullGaugeDrafter()
