@@ -478,8 +478,9 @@ uv run caliper part --explain .parting/cutlist.json
 The cut is computed by a pure, deterministic function — the same stock always
 yields a byte-identical cut list. Before touching anything, a precondition gate
 checks the repo is a clean jj/colocated repo with no untracked files, no git
-stash, and an unpushed target, then records a rescue point and an immutable backup
-bookmark. Every emitted script and printed cut list opens with a rollback header
+stash, and an unpushed target, then records a rescue point and a backup bookmark
+anchoring the pre-parting base (so the rebuilt parts are exactly `backup+::@`).
+Every emitted script and printed cut list opens with a rollback header
 (`jj op restore <id>`). jj surgery is reversible by construction; parting never
 deletes, force-pushes, or rebases shared history — push/submit stay printed
 comments you run yourself.

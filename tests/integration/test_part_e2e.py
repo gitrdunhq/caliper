@@ -146,9 +146,13 @@ def test_backup_bookmark_created_by_gate_before_script(colocated_repo, tmp_path)
     repo, base, head, env = colocated_repo
     out = tmp_path / "o"
     assert _invoke(repo, base, head, out, "stack").exit_code == 0
-    # backup exists right after the CLI returns, with no restack executed yet
-    bookmarks = _run(["jj", "bookmark", "list"], repo, env)
-    assert "caliper-part-backup-" in bookmarks
+    # backup exists right after the CLI returns, with no restack executed yet,
+    # and it anchors the base (not the tip).
+    backup = _backup_bookmark(repo, env)
+    backup_commit = _run(
+        ["jj", "log", "-r", backup, "--no-graph", "-T", "commit_id"], repo, env
+    ).strip()
+    assert backup_commit == base
     # the script never creates/moves the backup (only references it in a comment)
     for line in (out / "restack.sh").read_text().splitlines():
         if not line.lstrip().startswith("#"):
@@ -312,14 +316,23 @@ def test_rename_with_subthreshold_delta_rebuilds_byte_for_byte(tmp_path) -> None
     assert _trees_identical(repo, env, head, new_top), "rebuilt top diverges from head"
 
 
-def test_parts_form_linear_chain_no_empty_no_conflict(colocated_repo, tmp_path) -> None:
-    """Acceptance test 17: after parting, the parts are exactly the linear chain
-    with no fork, no empty commit, no conflicted commit, and the gate-resolved
-    revset commit ids appear in provenance.
+def _backup_bookmark(repo: Path, env: dict) -> str:
+    """Return the caliper-part-backup-* bookmark name from `jj bookmark list`."""
+    out = _run(["jj", "bookmark", "list"], repo, env)
+    for line in out.splitlines():
+        name = line.split(":", 1)[0].strip()
+        if name.startswith("caliper-part-backup-"):
+            return name
+    raise AssertionError(f"no backup bookmark found in:\n{out}")
 
-    Spec phrases the chain as ``backup+::@``. This implementation rebuilds the
-    stack on ``base`` (the backup bookmark anchors the original tip for rollback),
-    so the equivalent pinned range is ``base..@`` — asserted below.
+
+def test_parts_form_linear_chain_backup_plus_to_at(colocated_repo, tmp_path) -> None:
+    """Acceptance test 17 (literal ``backup+::@``): after parting, the parts are
+    exactly the linear chain ``backup+::@`` with no fork, no empty commit, no
+    conflicted commit, and the gate-resolved revset ids appear in provenance.
+
+    The backup bookmark is anchored on ``base``, so its children up to ``@`` are
+    precisely the rebuilt parts.
     """
     repo, base, head, env = colocated_repo
     out = tmp_path / "o"
@@ -332,9 +345,16 @@ def test_parts_form_linear_chain_no_empty_no_conflict(colocated_repo, tmp_path) 
     assert rr["base"] == base and rr["head"] == head
     assert all(rr[k] for k in ("base", "head", "@", "trunk"))
 
+    # The backup bookmark anchors the base (so backup+::@ == the parts).
+    backup = _backup_bookmark(repo, env)
+    backup_commit = _run(
+        ["jj", "log", "-r", backup, "--no-graph", "-T", "commit_id"], repo, env
+    ).strip()
+    assert backup_commit == base
+
     _exec_restack(repo, out, env)
 
-    rng = f"{base}..@"
+    rng = f"{backup}+::@"  # the spec's literal linear-chain revset
 
     def _count(revset: str) -> int:
         out_s = _run(
@@ -342,7 +362,7 @@ def test_parts_form_linear_chain_no_empty_no_conflict(colocated_repo, tmp_path) 
         )
         return len([ln for ln in out_s.splitlines() if ln.strip()])
 
-    assert _count(rng) == nparts  # the parts ARE the chain
+    assert _count(rng) == nparts  # the parts ARE backup+::@
     assert _count(f"heads({rng})") == 1  # single head: no fork
     assert _count(f"roots({rng})") == 1  # single root: linear chain
     assert _count(f"({rng}) & empty()") == 0  # no empty commit

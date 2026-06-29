@@ -41,7 +41,7 @@ def rollback_header(backup_bookmark: str, rescue_op_id: str) -> list[str]:
     """
     return [
         "ROLLBACK — parting is non-destructive and fully reversible:",
-        f"  backup bookmark : {backup_bookmark}  (original stock; never moved)",
+        f"  backup bookmark : {backup_bookmark}  (anchors the pre-parting base; never moved)",
         f"  undo everything : jj op restore {rescue_op_id}",
     ]
 
