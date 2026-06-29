@@ -120,7 +120,7 @@ def adjudicate(
     changed_text = changed_text or {}
     dropped: list[DroppedClaim] = []
 
-    # Rule 0 — parse. Validate each raw claim against the schema; drop unparseable.
+    # Rule 0 — parse. Validate each raw claim against the schema; drop unparsable.
     parsed: list[Claim] = []
     for raw in raw_claims:
         try:
