@@ -182,19 +182,71 @@ echo ">> caliper inspect  (Screen / Review / Adjudicate per part, then integrati
 # nosemgrep: unquoted-variable-expansion-in-command — $CALIPER and $NO_LLM must word-split
 $CALIPER inspect --repo "$SRC" --cutlist "$OUT/cutlist.json" --out "$OUT" $NO_LLM
 
-# ---- results ----------------------------------------------------------------------
+# ---- results: per-part summary table ----------------------------------------------
+_summary() {
+  command -v python3 >/dev/null 2>&1 || {
+    echo "  (install python3 for the summary table; raw reports are in $OUT/inspect/)"
+    return 0
+  }
+  python3 - "$OUT" <<'PY'
+import glob, json, os, sys
+
+out = sys.argv[1]
+cut = {}
+try:
+    cl = json.load(open(os.path.join(out, "cutlist.json")))
+    for p in cl.get("parts", []):
+        cut[p["id"]] = (len(p.get("files", [])), p.get("size", 0))
+except Exception:
+    pass
+
+# integration report sorts last
+paths = sorted(
+    glob.glob(os.path.join(out, "inspect", "*.json")),
+    key=lambda p: (os.path.basename(p) == "integration.json", p),
+)
+rows = [("PART", "BUCKET", "FILES", "SIZE", "GAUGES", "FND", "CLAIMS", "DROP", "LLM")]
+tot_parts = tot_claims = tot_fail = 0
+for path in paths:
+    try:
+        r = json.load(open(path))
+    except Exception:
+        continue
+    pid = r.get("part_id", "?")
+    gauges = r.get("gauges", [])
+    npass = sum(1 for g in gauges if g.get("verdict") == "pass")
+    nfail = sum(1 for g in gauges if g.get("verdict") == "fail")
+    nfnd = sum(len(g.get("findings", [])) for g in gauges)
+    nclaims = len(r.get("claims", []))
+    nfiles, size = cut.get(pid, ("-", "-"))
+    short = "INTEGRATION" if pid == "integration" else pid.replace("part-", "")
+    rows.append(
+        (short, r.get("bucket", ""), str(nfiles), str(size), f"{npass}P/{nfail}F",
+         str(nfnd), str(nclaims), str(len(r.get("dropped", []))),
+         "skip" if r.get("skipped_llm") else "ran")
+    )
+    if pid != "integration":
+        tot_parts += 1
+    tot_claims += nclaims
+    tot_fail += nfail
+
+w = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
+for i, row in enumerate(rows):
+    print("  " + "  ".join(row[j].ljust(w[j]) for j in range(len(row))))
+    if i == 0:
+        print("  " + "  ".join("-" * w[j] for j in range(len(row))))
+print(f"\n  {tot_parts} parts · {tot_claims} surviving claims · {tot_fail} failed gauge(s)")
+print("  GAUGES = Screen pass/fail · FND = Screen findings · DROP = claims filtered by Adjudicate")
+PY
+}
+
 echo
 echo "=================================================================="
-echo "Reports written to: $OUT/inspect/"
-ls -1 "$OUT/inspect/" 2>/dev/null || true
+echo "Per-part summary (deterministic Screen + Adjudicate; CLAIMS populate with USE_LLM=1):"
 echo
-echo "Per-part + integration cut list: $OUT/cutlist.json"
+_summary
 echo
-echo "Integration (cross-part) summary:"
+echo "Reports: $OUT/inspect/   ·   cut list: $OUT/cutlist.json"
 # nosemgrep: unquoted-variable-expansion-in-command — $CALIPER must word-split (see above)
-if ! $CALIPER inspect --explain "$OUT/inspect/integration.json" 2>/dev/null; then
-  echo "  (no integration report — see $OUT/inspect/)"
-fi
+echo "Re-print any part:  $CALIPER inspect --explain $OUT/inspect/<part-id>.json"
 echo "=================================================================="
-echo "Tip: open any $OUT/inspect/<part-id>.json for the full per-part claims + dropped log,"
-echo "     or re-print one with:  $CALIPER inspect --explain $OUT/inspect/<part-id>.json"
