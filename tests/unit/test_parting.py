@@ -163,6 +163,47 @@ def test_oversized_flag_surfaces_in_serialized_output() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Bucket-order completeness — the load-bearing invariant for the taxonomy
+# ---------------------------------------------------------------------------
+
+
+def test_bucket_order_covers_every_change_type() -> None:
+    """Every ChangeType must appear in _BUCKET_ORDER exactly once.
+
+    ``part()`` does ``by_bucket[eff]`` keyed on the effective change type; a
+    ChangeType missing from _BUCKET_ORDER is a KeyError at runtime, not a skip.
+    """
+    from caliper.core.parting import _BUCKET_ORDER
+
+    assert set(_BUCKET_ORDER) == set(ChangeType), (
+        "BUCKET_ORDER missing: " f"{set(ChangeType) - set(_BUCKET_ORDER)}"
+    )
+    assert len(_BUCKET_ORDER) == len(set(_BUCKET_ORDER)), "duplicate bucket in _BUCKET_ORDER"
+    assert len(_BUCKET_ORDER) == len(ChangeType)
+
+
+def test_new_taxonomy_buckets_partition_cleanly() -> None:
+    """A stock spanning every new bucket parts without error and covers the stock."""
+    records = [
+        Record(file="ui/App.tsx", change_type=ChangeType.frontend, size=10),
+        Record(file="svc/order.py", change_type=ChangeType.business, size=10),
+        Record(file="db/repo.py", change_type=ChangeType.data, size=10),
+        Record(file="infra/stack.ts", change_type=ChangeType.infra, size=10),
+        Record(file="README.md", change_type=ChangeType.documentation, size=10),
+        Record(file="package.json", change_type=ChangeType.supply_chain, size=10),
+        Record(file="ci.yml", change_type=ChangeType.ci_cd, size=10),
+        Record(file="policy.rego", change_type=ChangeType.security_policy, size=10),
+        Record(file="api.proto", change_type=ChangeType.schema_contracts, size=10),
+        Record(file="mystery.py", change_type=ChangeType.logic, size=10),
+    ]
+    cut = part(records, PartingConfig())
+    union = sorted(f for p in cut.parts for f in p.files)
+    assert union == sorted(r.file for r in records)
+    # Buckets are preserved (no over-delta moves here, so effective == declared).
+    assert {p.bucket for p in cut.parts} == {r.change_type for r in records}
+
+
+# ---------------------------------------------------------------------------
 # Property tests (8-13)
 # ---------------------------------------------------------------------------
 

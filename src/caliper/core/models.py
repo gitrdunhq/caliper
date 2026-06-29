@@ -314,8 +314,19 @@ class BypassRecord(BaseModel):
 class ChangeType(enum.StrEnum):
     """Classification of a single changed file in the stock.
 
-    Drives bucketing in ``part()``. ``binary`` records (binary, mode-only, or
-    symlink changes) have no meaningful size and are never accreted by the cap.
+    Drives bucketing in ``part()``. Three axes share this one enum:
+
+    * **structural** (from git, never overridable): ``move`` / ``delete`` /
+      ``binary``. ``binary`` records (binary, mode-only, or symlink changes)
+      have no meaningful size and are never accreted by the cap.
+    * **content intent** (non-code, from globs): ``documentation`` /
+      ``supply_chain`` / ``ci_cd`` / ``security_policy`` / ``config`` /
+      ``schema_contracts`` / ``test`` / ``generated``.
+    * **architectural tier** (code, from globs): ``frontend`` / ``business`` /
+      ``data`` / ``infra``.
+
+    ``logic`` is the residual: code that matched no tier glob. It is the honest
+    "needs a tier" bucket the reclassify loop is meant to drain, not a failure.
     """
 
     generated = "generated"
@@ -325,6 +336,17 @@ class ChangeType(enum.StrEnum):
     config = "config"
     test = "test"
     logic = "logic"
+    # Content intent (non-code) — new in the two-axis taxonomy.
+    documentation = "documentation"
+    supply_chain = "supply_chain"
+    ci_cd = "ci_cd"
+    security_policy = "security_policy"
+    schema_contracts = "schema_contracts"
+    # Architectural tier (code) — subdivides the old ``logic`` catch-all.
+    frontend = "frontend"
+    business = "business"
+    data = "data"
+    infra = "infra"
 
 
 class PartTarget(enum.StrEnum):
