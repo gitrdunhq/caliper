@@ -154,6 +154,14 @@ fi
 (cd "$SRC" && jj config set --repo "revset-aliases.'immutable_heads()'" "none()") \
   || echo "WARN: could not set immutable_heads=none(); part may refuse with immutable-overlap"
 
+# Step 2 (below) writes $SRC/.caliper.yaml so `inspect` can read its settings. On a reused
+# clone that file lingers, and on the NEXT run it dirties the working copy — tripping
+# `part`'s dirty-tree gate before it does anything. Gitignore it (jj + the gate both honor
+# .git/info/exclude, same trick as .venv/ below) and clear any stale copy before parting.
+grep -qxF '.caliper.yaml' "$SRC/.git/info/exclude" 2>/dev/null \
+  || echo '.caliper.yaml' >> "$SRC/.git/info/exclude"
+rm -f "$SRC/.caliper.yaml"
+
 echo
 echo ">> caliper part  (base..head -> cut list of parts)"
 # nosemgrep: unquoted-variable-expansion-in-command — $CALIPER must word-split (see above)
