@@ -296,3 +296,127 @@ class BypassRecord(BaseModel):
     invoked_by: str
     reason: str
     timestamp: datetime = Field(default_factory=_utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Parting (caliper part) — diff-cutting models
+#
+# Vocabulary: a *stock* (the whole diff) is cut into ordered *parts* (reviewable
+# slices); a *kerf* is the boundary between two parts tagged with the rule that
+# opened it; the ordered manifest of parts is the *cut list*. These models are
+# the contract that the pure ``core.parting.part()`` decision consumes and emits.
+# Parting is advisory: a CutList is a proposal, never a verdict, and never enters
+# the decision audit lake.
+# ---------------------------------------------------------------------------
+
+
+class ChangeType(enum.StrEnum):
+    """Classification of a single changed file in the stock.
+
+    Drives bucketing in ``part()``. ``binary`` records (binary, mode-only, or
+    symlink changes) have no meaningful size and are never accreted by the cap.
+    """
+
+    generated = "generated"
+    move = "move"
+    delete = "delete"
+    binary = "binary"
+    config = "config"
+    test = "test"
+    logic = "logic"
+
+
+class PartTarget(enum.StrEnum):
+    """Substrate handoff shape — affects only the emitted script, never the cut list."""
+
+    stack = "stack"
+    series = "series"
+
+
+class Record(BaseModel):
+    """One changed file in the stock — the unit of parting (no hunk-level split in v0).
+
+    ``file`` is the canonical key: for a rename it is the *new* path, so old and
+    new paths never double-count and the stock file set is well defined. ``size``
+    is added+removed lines, or ``None`` for ``binary`` (size is undefined there).
+    """
+
+    model_config = _MODEL_CONFIG
+
+    file: str
+    change_type: ChangeType
+    size: int | None = None
+    old_path: str | None = None
+
+
+class Kerf(BaseModel):
+    """A boundary between two parts, tagged with the rule that opened the next part."""
+
+    model_config = _MODEL_CONFIG
+
+    fired_rule: str  # "R1" | "R2" | "R4" | "bucket-end"
+    rationale: str = ""  # v1 scribe fills this deterministically
+
+
+class Part(BaseModel):
+    """One reviewable slice of the stock."""
+
+    model_config = _MODEL_CONFIG
+
+    id: str  # stable, derived from contents (sorted files + bucket)
+    files: list[str]  # sorted
+    bucket: ChangeType
+    size: int
+    opened_by: Kerf
+    oversized: bool = False  # single record over the cap; cap promise cannot be kept
+
+
+class Ambiguity(BaseModel):
+    """A record the classifier could not place confidently (emitted as ``logic``)."""
+
+    model_config = _MODEL_CONFIG
+
+    file: str
+    reason: str
+
+
+class Provenance(BaseModel):
+    """Stamps a cut list so it is independently reproducible.
+
+    ``base_sha``/``head_sha`` and ``resolved_revsets`` come from git at run time
+    (the producer/gate fills them); ``rename_threshold`` and ``config_digest`` are
+    pure functions of the effective config.
+    """
+
+    model_config = _MODEL_CONFIG
+
+    caliper_version: str
+    base_sha: str
+    head_sha: str
+    rename_threshold: int
+    config_digest: str
+    resolved_revsets: dict[str, str] = Field(default_factory=dict)
+
+
+class CutStats(BaseModel):
+    """Summary statistics over a cut list (deterministic, derived from the parts)."""
+
+    model_config = _MODEL_CONFIG
+
+    part_count: int
+    file_count: int
+    size_p50: int
+    size_p90: int
+    move_logic_pure: bool  # no part mixes ``move`` with ``logic``
+
+
+class CutList(BaseModel):
+    """The ordered manifest of parts — bottom of stack first. A proposal, not a verdict."""
+
+    model_config = _MODEL_CONFIG
+
+    parts: list[Part]
+    ambiguities: list[Ambiguity] = Field(default_factory=list)
+    size_cap: int
+    provenance: Provenance
+    stats: CutStats
