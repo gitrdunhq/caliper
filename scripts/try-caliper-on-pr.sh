@@ -111,24 +111,16 @@ git checkout -q --detach "$HEAD_SHA"
 
 mkdir -p "$OUT"
 
-# ---- compose repo config (allow-missing-gauges + optional Review backend) ---------
-# inspect reads config from the repo root; write a throwaway one into the clone so we
-# can tolerate scanner binaries that aren't installed locally (Screen is fail-closed by
-# default) and, when asked, point the Review tier at a model.
+# ---- resolve run settings (the .caliper.yaml is written AFTER `part`) -------------
+# inspect reads config from the repo root, but `caliper part` runs the parting gate
+# which aborts on a dirty working copy — so we must NOT add .caliper.yaml before part.
+# We resolve the settings here and write the file just before `inspect` (below).
 if [ "$ALLOW_MISSING_GAUGES" = "1" ]; then AMG="true"; else AMG="false"; fi
 if [ "$USE_LLM" = "1" ]; then
   : "${CALIPER_LLM_ENDPOINT:?set CALIPER_LLM_ENDPOINT (your oMLX / OpenAI-compatible URL, e.g. http://localhost:PORT/v1)}"
   : "${CALIPER_LLM_MODEL:?set CALIPER_LLM_MODEL (e.g. qwen3.6-35b)}"
   export CALIPER_LLM_ENABLED=1
 fi
-{
-  echo "inspect:"
-  echo "  allow_missing_gauges: $AMG"
-  if [ "$USE_LLM" = "1" ]; then
-    echo "  backend: omlx"
-    echo "  model_id: ${CALIPER_LLM_MODEL}"
-  fi
-} > "$SRC/.caliper.yaml"
 
 NO_LLM="--no-llm"
 [ "$USE_LLM" = "1" ] && NO_LLM=""
@@ -165,6 +157,18 @@ if [ ! -f "$OUT/cutlist.json" ]; then
 fi
 
 # ---- 2) inspect each part + the integration pass ---------------------------------
+# Write the throwaway repo config now (after `part`, so the parting gate saw a clean
+# tree). inspect has no dirty-tree gate, so the new file is fine here. It carries
+# allow_missing_gauges and, when USE_LLM=1, the oMLX backend.
+{
+  echo "inspect:"
+  echo "  allow_missing_gauges: $AMG"
+  if [ "$USE_LLM" = "1" ]; then
+    echo "  backend: omlx"
+    echo "  model_id: ${CALIPER_LLM_MODEL}"
+  fi
+} > "$SRC/.caliper.yaml"
+
 echo
 echo ">> caliper inspect  (Screen / Review / Adjudicate per part, then integration)"
 # shellcheck disable=SC2086
