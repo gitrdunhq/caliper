@@ -5,7 +5,7 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-06-23
+  LAST VERIFIED: 2026-06-29
   VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
   plugin (20 ScannerPlugin subclasses total); 21 detectors in src/caliper/detectors/;
   61 semgrep rule ids in policies/semgrep/.
@@ -30,7 +30,7 @@ supply-chain version-bump narrative is advisory metadata only).
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
 | Finding scribes | 4 (enclosing-symbol, code-graph, semgrep opt-in, supply-chain-threat opt-in) |
-| CLI commands | 7 |
+| CLI commands | 8 |
 | Output formats | 4 |
 | Supported ecosystems (SBOM) | 18 |
 | Supported languages (CPD) | 15 |
@@ -289,6 +289,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | `caliper schema` | Print the JSON Schema for `caliper review --format json` output. `--output` writes to a file. Published artifact: `docs/schema/report-v1.0.json`. |
 | `caliper query` | Natural language query against code graph SQLite database. |
 | `caliper supply-chain-diff` | Separate, feature-flag-gated step (`CALIPER_SUPPLY_CHAIN_DIFF_ENABLED=1`). Fetches the source of both versions of every dependency bump in a diff, scores deterministic supply-chain signals (which gate via OPA), and optionally attaches an advisory LLM narrative. Formats: markdown, json, sarif. Modes: monitor/advise. NOT part of the normal scan. |
+| `caliper part` | Manual, developer-invoked diff-cutting. Computes the stock (`--base..--head`), runs a pure deterministic `part()` to propose an ordered cut list of small reviewable parts (rules R1 generated/binary isolation, R2 move/logic separation, R4 size cap), and emits a jj `restack.sh` (`--target stack|series`). Fail-closed and advisory: never gates a build, never enters the decision audit lake, lives in a dedicated PARTING registry (NOT in the review pipeline). A non-destructive precondition gate + rollback header make it fully reversible. `--explain` re-prints a saved cut list. |
 
 ---
 

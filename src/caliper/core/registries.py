@@ -15,6 +15,7 @@ directly.
 
 from __future__ import annotations
 
+from caliper.core.plugin import AnalyzerPort
 from caliper.core.policy_port import PolicyEnginePort
 from caliper.core.ports import (
     CodeGraphCheckPort,
@@ -52,6 +53,11 @@ DECISION_STORES: Registry[DecisionStorePort] = Registry("decision_store")
 EVIDENCE_STORES: Registry[EvidenceStorePort] = Registry("evidence_store")
 PUBLISHERS: Registry[PullRequestPublisherPort] = Registry("publisher")
 REPO_SNAPSHOTS: Registry[RepoSnapshotPort] = Registry("repo_snapshot")
+# Parting (caliper part) — a dedicated, manual registry. The parting plugin
+# self-registers here and is deliberately kept OUT of ANALYZERS so it can never
+# be auto-discovered into the automatic review pipeline. It runs only when the
+# developer invokes `caliper part`. See caliper.plugins._parting.
+PARTING: Registry[AnalyzerPort] = Registry("parting")
 
 __all__ = [
     "CODEGRAPH_CHECKS",
@@ -62,6 +68,7 @@ __all__ = [
     "GROUNDING_PROVIDERS",
     "PACKAGE_INDEXES",
     "PACKAGE_SOURCES",
+    "PARTING",
     "POLICY_ENGINES",
     "PUBLISHERS",
     "RENDERERS",

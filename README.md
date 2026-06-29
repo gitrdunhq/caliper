@@ -443,7 +443,57 @@ licenses:
     - AGPL-3.0-only
     - SSPL-1.0
     - Commons-Clause
+
+parting:                          # config for `caliper part` (manual diff cutting)
+  size_cap: 400                   # hard cap on lines (added+removed) per part
+  target: stack                   # stack (bookmark per part) | series (one tip bookmark)
+  move_ambiguity_size: 50         # a rename with a larger content delta is emitted as logic
+  validate_command: ""            # optional per-part self-check run by restack.sh (off by default)
+  generated_globs:                # parted off first, isolated (lockfiles, codegen, snapshots)
+    - "*.lock"
+    - "*.generated.*"
+  config_globs: ["*.yaml", "*.toml", ".github/**"]
+  test_globs: ["test_*.py", "*_test.py", "tests/**"]
 ```
+
+### Parting — `caliper part`
+
+`caliper part` is a **manual, developer-invoked** operation that proposes how to
+cut a big working branch into an ordered *cut list* of small, reviewable *parts*,
+and emits a jj `restack.sh` that performs the cut non-destructively. It is **not**
+wired into the automatic review pipeline (no Foreman, no webhook, no Action), it
+never gates a build, and its output is a proposal, not a verdict.
+
+```bash
+# Propose a cut list for the diff base..head and write restack.sh + cutlist.json
+uv run caliper part --base main --head HEAD --out .parting
+
+# One commit per part on a single branch instead of a stack of bookmarks
+uv run caliper part --base main --head HEAD --target series --out .parting
+
+# Re-print a saved cut list and the rule fired at each kerf
+uv run caliper part --explain .parting/cutlist.json
+```
+
+The cut is computed by a pure, deterministic function — the same stock always
+yields a byte-identical cut list. Before touching anything, a precondition gate
+checks the repo is a clean jj/colocated repo with no untracked files, no git
+stash, and an unpushed target, then records a rescue point and an immutable backup
+bookmark. Every emitted script and printed cut list opens with a rollback header
+(`jj op restore <id>`). jj surgery is reversible by construction; parting never
+deletes, force-pushes, or rebases shared history — push/submit stay printed
+comments you run yourself.
+
+> **Fail-closed carve-out.** Unlike the scanners (which are fail-open — see below),
+> the parting path is **fail-closed**: a missing input, a classifier timeout, or
+> any partial result is a hard error, never a silent continue. Fail-open is correct
+> for scanning because OPA still gates; it would be wrong here, where a degraded
+> input would silently change the cut and break determinism.
+
+**v1 plugs in** at three named seams (none implemented in v0): the Blast Radius
+CodeGraph for the dependency graph and the R3 (layer) / R5 (risk) rules; the
+scribe + taskfit path for deterministic kerf rationale (disabled by default, no
+LLM in the decision); and a post-merge scorecard for the convergence metric.
 
 ### Plugin CLI flags
 

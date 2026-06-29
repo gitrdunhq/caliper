@@ -11,6 +11,8 @@ import structlog
 import yaml
 from pydantic import BaseModel, ValidationError
 
+from caliper.core.models import PartTarget
+
 logger = structlog.get_logger()
 
 _CONFIG_FILENAME = ".caliper.yaml"
@@ -38,12 +40,93 @@ class TelemetryConfig(BaseModel):
     endpoint: str = "https://telemetry.caliper.dev/v1/events"
 
 
+# Default classification globs for parting. Matched (fnmatch-style) against the
+# posix relative path AND the basename, so both ``poetry.lock`` and
+# ``sub/dir/poetry.lock`` match. Order does not matter — classification in
+# ``part_stock`` checks generated, then config, then test, then falls to logic.
+_DEFAULT_GENERATED_GLOBS: list[str] = [
+    "*.lock",
+    "package-lock.json",
+    "poetry.lock",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "Pipfile.lock",
+    "Cargo.lock",
+    "go.sum",
+    "uv.lock",
+    "*.generated.*",
+    "*.gen.go",
+    "*_pb2.py",
+    "*_pb2.pyi",
+    "*.pb.go",
+    "*.snap",
+    "vendor/**",
+    "**/vendor/**",
+    "**/__generated__/**",
+    "**/__snapshots__/**",
+]
+_DEFAULT_CONFIG_GLOBS: list[str] = [
+    "*.yaml",
+    "*.yml",
+    "*.toml",
+    "*.ini",
+    "*.cfg",
+    "*.conf",
+    "*.properties",
+    ".github/**",
+    "**/.github/**",
+    "Dockerfile",
+    "**/Dockerfile",
+    "*.env",
+    ".env*",
+]
+_DEFAULT_TEST_GLOBS: list[str] = [
+    "test_*.py",
+    "*_test.py",
+    "*_test.go",
+    "*.test.*",
+    "*.spec.*",
+    "tests/**",
+    "**/tests/**",
+    "test/**",
+    "**/test/**",
+    "**/__tests__/**",
+]
+
+
+class PartingConfig(BaseModel):
+    """Configuration for ``caliper part`` (the parting / diff-cutting operation).
+
+    All knobs are deterministic inputs to the pure ``part()`` decision and the
+    pinned git diff invocation. The defaults target reviewable parts of roughly
+    50-200 changed lines with a hard cap of 400.
+    """
+
+    size_cap: int = 400
+    target: PartTarget = PartTarget.stack
+    # Pinned git diff thresholds — fixed so classification never depends on
+    # ambient git config (see core/part_stock.py).
+    rename_threshold: int = 50  # --find-renames=N%
+    copy_threshold: int = 50  # --find-copies=N%
+    rename_limit: int = 1000  # -l <limit>
+    # A move (rename) whose content delta exceeds this is not a confident move:
+    # it is re-emitted as ``logic`` and recorded in the cut list's ambiguities.
+    move_ambiguity_size: int = 50
+    generated_globs: list[str] = _DEFAULT_GENERATED_GLOBS
+    config_globs: list[str] = _DEFAULT_CONFIG_GLOBS
+    test_globs: list[str] = _DEFAULT_TEST_GLOBS
+    # Optional per-part validate command run after each peel by restack.sh.
+    # Empty (the default) means the self-check is skipped silently.
+    validate_command: str = ""
+
+
 class RepoConfig(BaseModel):
     """Top-level repo config parsed from .caliper.yaml."""
 
     plugins: PluginConfig = PluginConfig()
     thresholds: dict[str, dict[str, Any]] = {}
     telemetry: TelemetryConfig = TelemetryConfig()
+    parting: PartingConfig = PartingConfig()
 
 
 def load_merged_config(repo_path: Path, package_root: Path | None = None) -> RepoConfig:

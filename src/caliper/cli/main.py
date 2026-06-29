@@ -156,6 +156,7 @@ def cli() -> None:
 
 def _register_subcommands() -> None:
     from caliper.cli.inspect_cmds import check_health, healthcheck, plugins, schema
+    from caliper.cli.part_cmd import part
     from caliper.cli.query_cmd import query
 
     cli.add_command(healthcheck)
@@ -163,6 +164,7 @@ def _register_subcommands() -> None:
     cli.add_command(plugins)
     cli.add_command(schema)
     cli.add_command(query)
+    cli.add_command(part)
 
 
 _register_subcommands()
