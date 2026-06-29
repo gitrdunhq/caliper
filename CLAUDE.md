@@ -135,10 +135,36 @@ What the script manages:
 
 8 rules in `policies/policy.rego`. Critical/high vulns deny. Forbidden licenses deny. Package age < 30 days denies. Malicious packages deny. Critical/high supply-chain version-bump signals deny. Medium vulns warn. High transitive dep count warns. Medium supply-chain signals warn.
 
+## Parting Taxonomy & Reclassify Sidecar
+
+`caliper part` classifies each file into a two-axis taxonomy: architectural code
+tiers (`frontend`/`business`/`data`/`infra`) + non-code intent buckets
+(`documentation`/`supply_chain`/`ci_cd`/`security_policy`/`config`/`schema_contracts`/`test`),
+with `logic` as the honest **untiered residual** (code we couldn't tier — a human
+should label it), plus the structural facts `move`/`delete`/`binary`/`generated`.
+`_classify` precedence (`core/part_stock.py`): structural facts first (never
+overridable) → **override table** → ordered glob heuristics (`_GLOB_PRECEDENCE`,
+most-specific-first) → `logic`. `_BUCKET_ORDER` in `core/parting.py` MUST contain
+every `ChangeType` or `part()` KeyErrors.
+
+**Override table** (`parting.overrides` in `.caliper.yaml`): a version-controlled
+`OverrideRule {glob, bucket, note}` list. First matching glob wins; duplicate globs
+and structural buckets are rejected at load. It is hashed into `config_digest`, so
+an override is provenance-tracked. This is the one human decision point in the
+otherwise deterministic classifier — no ML.
+
+**`caliper part --serve [--port N]`** (`cli/part_serve.py`): a loopback sidecar
+(127.0.0.1:12700) serving the live cut report. A reviewer reclassifies a file from
+the browser → `write_override` appends/updates a `parting.overrides` entry and
+re-parts. starlette is imported lazily (caliper[copilot] extra) so the pure
+`write_override` stays importable/tested without it. Browser gate: `scripts/screenshots.ts`.
+
 ## Dev Ports
 
 Port range 12000-13000 only. Never use common ports.
 - PostgreSQL: 12432
+- `caliper part --serve` sidecar: 12700 (loopback only)
+- Webhook server: 12800
 
 ## Testing
 

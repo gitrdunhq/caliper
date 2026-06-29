@@ -35,6 +35,9 @@ htmlcov/
 # Serena tooling
 .serena/
 
+# Browser-gate screenshot artifacts (scripts/screenshots.ts output)
+screenshots/
+
 # Node (used only for tooling, not runtime)
 node_modules/
 package.json
