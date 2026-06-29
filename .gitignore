@@ -32,6 +32,9 @@ htmlcov/
 .temp/
 .wfc/
 
+# Serena tooling
+.serena/
+
 # Node (used only for tooling, not runtime)
 node_modules/
 package.json
