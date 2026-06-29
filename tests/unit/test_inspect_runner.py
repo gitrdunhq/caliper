@@ -17,6 +17,7 @@ from caliper.core.inspect_view import PartView
 from caliper.core.llm_port import LLMResult, LLMReview
 from caliper.core.models import ChangeType, Kerf, Part
 from caliper.core.repo_config import InspectConfig
+from caliper.plugins._inspect_llm import OpenAICompatReviewer, parse_claims_json
 
 
 def _part(files=("a.py",)) -> Part:
@@ -125,6 +126,50 @@ def test_render_prompt_puts_pr_context_first_and_emits_schema() -> None:
     assert "Change description (read first)" in prompt
     # prose appears before the changed-hunks section
     assert prompt.index("Change description") < prompt.index("Part under review")
+
+
+class _FakeClient:
+    """Stand-in for LlmClient: no network, controllable enabled/reply."""
+
+    def __init__(self, enabled: bool = True, text: str = "") -> None:
+        self.enabled = enabled
+        self._text = text
+        self.calls = 0
+
+    def complete(self, messages, *, max_tokens: int = 200) -> str:
+        self.calls += 1
+        return self._text
+
+
+def _review() -> LLMReview:
+    return LLMReview(part_id="p", bucket="logic", prompt="...", model_id="m", prompt_version="v0")
+
+
+def test_openai_reviewer_parses_json_claims() -> None:
+    text = (
+        '[{"file":"a.py","line_range":[1,2],"severity":"minor","category":"style",'
+        '"assertion":"x","anchor_quote":"y = 1"}]'
+    )
+    res = OpenAICompatReviewer(client=_FakeClient(True, text)).review(_review())
+    assert res.available is True
+    assert len(res.raw_claims) == 1 and res.raw_claims[0]["file"] == "a.py"
+
+
+def test_openai_reviewer_disabled_is_fail_soft() -> None:
+    res = OpenAICompatReviewer(client=_FakeClient(enabled=False)).review(_review())
+    assert res.available is False and res.raw_claims == []
+
+
+def test_openai_reviewer_empty_reply_is_fail_soft() -> None:
+    res = OpenAICompatReviewer(client=_FakeClient(True, "   ")).review(_review())
+    assert res.available is False
+
+
+def test_parse_claims_json_tolerates_fences_and_garbage() -> None:
+    assert parse_claims_json('```json\n[{"a": 1}]\n```') == [{"a": 1}]
+    assert parse_claims_json('here you go: [{"a": 1}] thanks') == [{"a": 1}]
+    assert parse_claims_json("not json at all") == []
+    assert parse_claims_json("") == []
 
 
 def test_pr_context_change_misses_cache(tmp_path) -> None:
