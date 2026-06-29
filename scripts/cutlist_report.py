@@ -18,6 +18,8 @@ Example:
         ~/.cache/caliper-tryout/aws-...-pr48-out --open
 """
 
+# ruff: noqa: E501  — embedded CSS/HTML template lines are intentionally long.
+
 from __future__ import annotations
 
 import argparse
