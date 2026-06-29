@@ -26,6 +26,7 @@ import orjson
 # INSPECT_BACKENDS; it is never auto-discovered into the review pipeline.
 import caliper.plugins._inspect_llm  # noqa: E402,F401
 from caliper.core import ledger as ledger_store
+from caliper.core.gauge_engine import run_gauge
 from caliper.core.inspect import adjudicate
 from caliper.core.inspect_cache import InspectCache
 from caliper.core.inspect_gauges import has_hard_failure, run_gauges, screen_findings
@@ -35,19 +36,51 @@ from caliper.core.models import (
     ChangeType,
     Claim,
     CutList,
+    GaugeFinding,
+    GaugeResult,
     InspectionReport,
     Kerf,
     LedgerEntry,
     Part,
+    Promotion,
 )
 from caliper.core.plugin import PluginResult
 from caliper.core.repo_config import load_repo_config
+from caliper.core.tool_crib import load_promotions
 from caliper.plugins import get_default_registry  # noqa: E402
+from caliper.plugins._runners.semgrep_runner import run_semgrep  # noqa: E402
 
 
 def _analyze(files: list[str], repo_path: Path, categories: list[str]) -> list[PluginResult]:
     """Screen analyzer runner: the existing registry, scoped to a part's files."""
     return get_default_registry().run_all(files, repo_path, categories=categories)
+
+
+def _promoted_gauge_results(
+    files: list[str], repo_path: Path, promotions: list[Promotion]
+) -> tuple[list[GaugeResult], list[GaugeFinding]]:
+    """Run active promoted gauges (the closed flywheel) over *files*, as Screen findings.
+
+    Only ``semgrep`` gauges are auto-executable; others are skipped (a human must
+    register a detector). Findings enrich the deterministic Screen evidence base (so
+    claims can bind to them) but do not themselves hard-fail the part — fail-open, so a
+    missing opengrep or a single bad gauge never breaks ``inspect``.
+    """
+    results: list[GaugeResult] = []
+    findings: list[GaugeFinding] = []
+    for promo in promotions:
+        cand = promo.candidate
+        try:
+            run = run_gauge(cand, files, repo_path, semgrep_run=run_semgrep)
+        except Exception:  # noqa: BLE001 - promoted-gauge augmentation is fail-open
+            continue
+        if not run.executable or not run.findings:
+            continue
+        results.append(
+            GaugeResult(gauge=f"gauge:{cand.cluster_key}", verdict="pass", findings=run.findings)
+        )
+        findings.extend(run.findings)
+    return results, findings
 
 
 def _render_report(rep: InspectionReport) -> str:
@@ -248,12 +281,16 @@ def inspect(
     # context, and load an already-indexed code graph (best-effort) for signatures.
     views = [build_view(repo_path, base, head, part.files) for part in parts]
     graph = _load_existing_graph(repo_path)
+    # Closed flywheel: active promoted gauges run as part of Screen (deterministic).
+    promotions = load_promotions(repo_path / ".caliper" / "tool-crib")
 
     all_screen = []
     for i, part in enumerate(parts):
         view = views[i]
         gauges = run_gauges(part, repo_path, cfg, analyze=_analyze)  # fail-closed
-        screen = screen_findings(gauges)
+        pg_results, _ = _promoted_gauge_results(part.files, repo_path, promotions)
+        gauges = gauges + pg_results
+        screen = screen_findings(gauges)  # includes promoted-gauge findings
         all_screen.extend(screen)
 
         # A hard gauge failure means the part is reported with its LLM review skipped.

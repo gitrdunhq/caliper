@@ -23,6 +23,7 @@ import caliper.plugins._inspect_llm  # noqa: E402,F401
 from caliper.core.backtest import RunOutput, backtest
 from caliper.core.flywheel import cluster_key, top_candidates
 from caliper.core.gauge import GaugeError
+from caliper.core.gauge_engine import make_backtest_runner
 from caliper.core.gauge_propose import propose, resolve_drafter
 from caliper.core.gauge_status import convergence
 from caliper.core.ledger import load as load_ledger
@@ -30,6 +31,7 @@ from caliper.core.models import CandidateGauge
 from caliper.core.repo_config import load_repo_config
 from caliper.core.tool_crib import active_cluster_keys, load_promotions
 from caliper.core.tool_crib import promote as crib_promote
+from caliper.plugins._runners.semgrep_runner import run_semgrep  # noqa: E402
 
 
 def _paths(repo: str):
@@ -39,10 +41,35 @@ def _paths(repo: str):
 
 
 def _null_runner(candidate: CandidateGauge, samples: list[str]) -> RunOutput:
-    """v0 backtest runner: no engine wired yet, so it flags nothing (candidate fails
-    recall -> not promotable). Wiring a real semgrep/AST runner is the remaining seam;
-    it changes nothing about the safety boundary (the backtest still gates)."""
+    """Fallback runner used when no corpus is provided: flags nothing, so the candidate
+    fails the recall floor and is not promotable. The real engine
+    (``core.gauge_engine``) is wired via :func:`_resolve_backtest_runner` whenever a
+    corpus is given; either way the deterministic backtest still gates promotion."""
     return RunOutput(hits=set(), runtime_ms=0)
+
+
+def _resolve_backtest_runner(
+    repo_path: Path, clean_corpus: str | None, historical_corpus: str | None
+):
+    """Return the real gauge runner when a corpus is available, else the null runner.
+
+    Sample-id resolution: a clean sample id is a path relative to ``--clean-corpus``; a
+    historical sample id is a content hash naming a snapshot under
+    ``--historical-corpus``. With no corpus the gauge cannot execute, so the safe null
+    runner is kept (flags nothing -> fails recall -> not promotable).
+    """
+    if not clean_corpus and not historical_corpus:
+        return _null_runner
+
+    def resolve(sid: str) -> list[str]:
+        files: list[str] = []
+        if clean_corpus and (Path(clean_corpus) / sid).is_file():
+            files.append(str(Path(clean_corpus) / sid))
+        if historical_corpus:
+            files.extend(str(p) for p in Path(historical_corpus).glob(f"{sid}*") if p.is_file())
+        return files
+
+    return make_backtest_runner(repo_path, resolve, run_semgrep)
 
 
 @click.group(name="gauge")
@@ -108,11 +135,22 @@ def propose_cmd(ledger_path: str | None, top: int | None, out: str | None, repo:
     "clean_corpus",
     type=click.Path(),
     default=None,
-    help="Directory of clean samples for the precision gate.",
+    help="Directory of clean samples for the precision gate (sample id = relative path).",
+)
+@click.option(
+    "--historical-corpus",
+    "historical_corpus",
+    type=click.Path(),
+    default=None,
+    help="Directory of historical snapshots named by content hash, for the recall gate.",
 )
 @click.option("--repo", "repo", type=click.Path(exists=True), default=".", help="Repository root.")
 def backtest_cmd(
-    candidate: str, ledger_path: str | None, clean_corpus: str | None, repo: str
+    candidate: str,
+    ledger_path: str | None,
+    clean_corpus: str | None,
+    historical_corpus: str | None,
+    repo: str,
 ) -> None:
     """Run the deterministic four-part backtest and write the result into the candidate."""
     repo_path, default_ledger, _crib, _out = _paths(repo)
@@ -134,7 +172,8 @@ def backtest_cmd(
             str(p.relative_to(clean_corpus)) for p in Path(clean_corpus).rglob("*") if p.is_file()
         )
 
-    bt = backtest(cand, historical, clean, _null_runner, cfg)
+    runner = _resolve_backtest_runner(repo_path, clean_corpus, historical_corpus)
+    bt = backtest(cand, historical, clean, runner, cfg)
     cand = cand.model_copy(update={"backtest": bt})
     Path(candidate).write_bytes(
         orjson.dumps(cand.model_dump(mode="json"), option=orjson.OPT_INDENT_2)
@@ -143,8 +182,11 @@ def backtest_cmd(
         f"backtest: recall={bt.recall:.2f} precision={bt.precision:.2f} "
         f"deterministic={bt.deterministic} runtime={bt.runtime_ms}ms passed={bt.passed}"
     )
-    if not bt.passed:
-        click.echo("(not promotable; a real gauge runner must be wired for recall — v0 seam)")
+    if not bt.passed and runner is _null_runner:
+        click.echo(
+            "(not promotable; provide --historical-corpus / --clean-corpus so the "
+            "gauge actually executes for the recall/precision gates)"
+        )
 
 
 @gauge.command("promote")
