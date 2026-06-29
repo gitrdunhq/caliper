@@ -26,6 +26,7 @@ import html
 import json
 import sys
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 
 # Bucket -> accent hue (CSS var driven; see STYLE). Unknown buckets fall back to slate.
@@ -249,7 +250,7 @@ def _part_html(idx: int, part: dict, summary: dict, cap: int) -> str:
 </article>"""
 
 
-def render(cutlist: dict, reports: dict[str, dict]) -> str:
+def render(cutlist: dict, reports: dict[str, dict], label: str, generated_at: str) -> str:
     prov = cutlist.get("provenance", {})
     stats = cutlist.get("stats", {})
     cap = cutlist.get("size_cap", 0) or 1
@@ -293,14 +294,14 @@ def render(cutlist: dict, reports: dict[str, dict]) -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>caliper cut list · {base}→{head}</title>
+<title>caliper · {html.escape(label)} · {base}→{head} · {generated_at}</title>
 <style>{STYLE}</style>
 </head>
 <body>
 <header class="hero">
   <div class="hero-inner">
-    <h1>caliper cut list</h1>
-    <span class="sub">{len(parts)} parts · caliper {html.escape(str(ver))}</span>
+    <h1>caliper cut list · {html.escape(label)}</h1>
+    <span class="sub">{len(parts)} parts · caliper {html.escape(str(ver))} · {generated_at}</span>
     <span class="sha">{base} → {head}</span>
   </div>
 </header>
@@ -327,14 +328,31 @@ def main() -> int:
         "out", type=Path, help="caliper output dir (contains cutlist.json [+ inspect/])"
     )
     ap.add_argument(
-        "-o", "--output", type=Path, default=None, help="HTML path (default: <out>/report.html)"
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
+        help="HTML path (default: <out>/cutlist-report-<label>-<head>-<RUN_ID>.html)",
+    )
+    ap.add_argument(
+        "--label",
+        default=None,
+        help="human label for the title (default: derived from the out dir name)",
     )
     ap.add_argument("--open", action="store_true", help="open the report in a browser when done")
     args = ap.parse_args()
 
     cutlist, reports = _load(args.out)
-    out_html = args.output or (args.out / "report.html")
-    out_html.write_text(render(cutlist, reports), encoding="utf-8")
+
+    # Unique title + filename per run: every report is distinguishable in a browser tab
+    # and never silently clobbers a prior one (Output Persistence — RUN_ID in the name).
+    run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    label = args.label or args.out.resolve().name.removesuffix("-out") or "cut-list"
+    head = _short(cutlist.get("provenance", {}).get("head_sha", ""), 8)
+
+    out_html = args.output or (args.out / f"cutlist-report-{label}-{head}-{run_id}.html")
+    out_html.write_text(render(cutlist, reports, label, generated_at), encoding="utf-8")
 
     n_parts = len(cutlist.get("parts", []))
     print(f"wrote {out_html}  ({n_parts} parts, {len(reports)} inspect reports merged)")
