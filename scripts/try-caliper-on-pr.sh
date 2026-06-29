@@ -146,6 +146,13 @@ if ! (cd "$SRC" && jj root >/dev/null 2>&1); then
     || { echo "ERROR: 'jj git init' failed in $SRC"; exit 1; }
 fi
 
+# A PR's commits are already pushed, so jj treats them as immutable (the branch is an
+# untracked remote bookmark at/below head) and the parting gate refuses to rewrite
+# immutable history ([immutable-overlap]). This is a throwaway analysis clone we never
+# push, so neutralize immutability here — `caliper part` only needs to *read* the diff.
+(cd "$SRC" && jj config set --repo "revset-aliases.'immutable_heads()'" "none()") \
+  || echo "WARN: could not set immutable_heads=none(); part may refuse with immutable-overlap"
+
 echo
 echo ">> caliper part  (base..head -> cut list of parts)"
 # nosemgrep: unquoted-variable-expansion-in-command — $CALIPER must word-split (see above)
