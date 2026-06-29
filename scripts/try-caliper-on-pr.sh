@@ -9,6 +9,8 @@
 # PREREQUISITES
 #   - git
 #   - uv (https://astral.sh/uv) — the script installs caliper for you via `uv tool install`.
+#   - jj / jujutsu (https://github.com/jj-vcs/jj) — `caliper part` runs the parting safety
+#     gate, which needs a jj repo; the script `jj git init`s the clone for you. (macOS: brew install jj)
 #   - For the LLM Review tier (optional): a local oMLX or any OpenAI-compatible endpoint.
 #
 # This script lives in the caliper repo, so by default it installs caliper as a uv tool
@@ -65,6 +67,11 @@ ensure_caliper() {
 
 # ---- preflight --------------------------------------------------------------------
 command -v git >/dev/null 2>&1 || { echo "ERROR: git not found"; exit 1; }
+command -v jj >/dev/null 2>&1 || {
+  echo "ERROR: jj (jujutsu) not found — caliper part needs it. Install: https://github.com/jj-vcs/jj"
+  echo "       macOS: brew install jj"
+  exit 1
+}
 [ "$CALIPER" = "caliper" ] && ensure_caliper
 # $CALIPER is intentionally unquoted so a multi-word wrapper (e.g. "uv run ... caliper")
 # word-splits into argv; quoting it would break that. Same below for $CALIPER / $NO_LLM.
@@ -120,6 +127,16 @@ else
 fi
 
 # ---- 1) cut the PR diff into an ordered cut list ----------------------------------
+# `caliper part` runs the parting safety gate, which needs a jj repo (jj is colocated
+# on top of the git clone). Initialize it once; outputs go to $OUT (outside $SRC), so
+# the working copy stays clean.
+if ! (cd "$SRC" && jj root >/dev/null 2>&1); then
+  echo ">> jj git init $SRC  (caliper part needs a jj repo)"
+  (cd "$SRC" && jj git init --colocate >/dev/null 2>&1) \
+    || (cd "$SRC" && jj git init >/dev/null 2>&1) \
+    || { echo "ERROR: 'jj git init' failed in $SRC"; exit 1; }
+fi
+
 echo
 echo ">> caliper part  (base..head -> cut list of parts)"
 # nosemgrep: unquoted-variable-expansion-in-command — $CALIPER must word-split (see above)
