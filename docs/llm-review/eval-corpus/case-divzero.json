@@ -1,0 +1,32 @@
+{
+  "part": { "id": "case-divzero", "files": ["a.py"], "bucket": "logic", "size": 12 },
+  "changed_lines": { "a.py": [10, 11, 12] },
+  "changed_text": { "a.py": "def f(x):\n    return x / 0\n    pass" },
+  "screen": [],
+  "raw_claims": [
+    {
+      "file": "a.py",
+      "line_range": [11, 11],
+      "severity": "major",
+      "category": "correctness",
+      "assertion": "division by zero",
+      "anchor_quote": "return x / 0"
+    },
+    {
+      "file": "a.py",
+      "line_range": [12, 12],
+      "severity": "nit",
+      "category": "style",
+      "assertion": "unreachable statement",
+      "anchor_quote": "pass"
+    },
+    {
+      "file": "other.py",
+      "line_range": [1, 1],
+      "severity": "major",
+      "category": "correctness",
+      "assertion": "hallucinated, out of the part's file set"
+    }
+  ],
+  "truths": [{ "file": "a.py", "line": 11 }]
+}

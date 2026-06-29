@@ -1,0 +1,27 @@
+{
+  "part": { "id": "case-sqli", "files": ["b.py"], "bucket": "logic", "size": 6 },
+  "changed_lines": { "b.py": [3, 4] },
+  "changed_text": { "b.py": "query = \"SELECT \" + user\nexecute(query)" },
+  "screen": [
+    {
+      "id": "semgrep:0",
+      "file": "b.py",
+      "line_range": [3, 3],
+      "category": "security",
+      "severity": "high",
+      "message": "possible SQL injection",
+      "source": "semgrep"
+    }
+  ],
+  "raw_claims": [
+    {
+      "file": "b.py",
+      "line_range": [3, 3],
+      "severity": "blocking",
+      "category": "security",
+      "assertion": "SQL injection via string concatenation",
+      "anchor_quote": "query = \"SELECT \" + user"
+    }
+  ],
+  "truths": [{ "file": "b.py", "line": 3 }]
+}
