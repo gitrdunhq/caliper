@@ -12,7 +12,7 @@ from __future__ import annotations
 # Register the isolated backends (the CLI does this in production; core may not).
 import caliper.plugins._inspect_llm  # noqa: E402,F401
 from caliper.core.inspect_cache import InspectCache
-from caliper.core.inspect_runner import run_review
+from caliper.core.inspect_runner import render_prompt, run_review
 from caliper.core.inspect_view import PartView
 from caliper.core.llm_port import LLMResult, LLMReview
 from caliper.core.models import ChangeType, Kerf, Part
@@ -112,3 +112,35 @@ def test_null_backend_resolves_and_is_unavailable() -> None:
     out = run_review(_part(), PartView(changed_bytes=b"x"), "", InspectConfig(backend="null"))
     assert out.skipped_llm is True
     assert out.raw_claims == []
+
+
+def test_render_prompt_puts_pr_context_first_and_emits_schema() -> None:
+    """PR/issue prose is presented before the diff, and the claim schema (with the
+    verbatim anchor_quote contract) is in the prompt so a real backend can comply."""
+    view = PartView(diff_text="@@ -1 +1 @@\n+x = 1")
+    prompt = render_prompt(
+        _part(), view, "lower stuff", InspectConfig(), pr_context="Fixes the auth bug."
+    )
+    assert "anchor_quote" in prompt
+    assert "Change description (read first)" in prompt
+    # prose appears before the changed-hunks section
+    assert prompt.index("Change description") < prompt.index("Part under review")
+
+
+def test_pr_context_change_misses_cache(tmp_path) -> None:
+    """Different PR context -> different rendered prompt -> different key -> port re-called."""
+    claims = [
+        {
+            "file": "a.py",
+            "line_range": [1, 1],
+            "severity": "nit",
+            "category": "style",
+            "assertion": "x",
+        }
+    ]
+    backend = CountingBackend(claims)
+    cache = InspectCache(tmp_path / "c")
+    view = PartView(diff_text="d")
+    run_review(_part(), view, "", InspectConfig(), pr_context="ctx-1", cache=cache, backend=backend)
+    run_review(_part(), view, "", InspectConfig(), pr_context="ctx-2", cache=cache, backend=backend)
+    assert backend.calls == 2

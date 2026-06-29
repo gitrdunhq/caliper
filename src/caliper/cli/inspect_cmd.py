@@ -101,11 +101,57 @@ def _ledger_entries(
     return out
 
 
-def _lower_context(parts: list[Part], index: int) -> str:
-    """Compact, read-only summary of the lower parts (``::part-``)."""
+def _load_existing_graph(repo_path: Path):
+    """Return an already-indexed ``CodeGraph`` for *repo_path*, or None (fail-open).
+
+    We never trigger a full index here — ``inspect`` must stay fast, and lower-part
+    signatures are a best-effort context enrichment. A missing or empty graph simply
+    falls back to the file list.
+    """
+    try:
+        from caliper.plugins._runners.graph_builder import CodeGraph, resolve_graph_db_path
+
+        db = Path(resolve_graph_db_path(str(repo_path)))
+        if not db.exists():
+            return None
+        graph = CodeGraph(db_path=str(db), repo_root=repo_path)
+        return graph if graph.stats().get("symbols", 0) > 0 else None
+    except Exception:  # noqa: BLE001 - graph context is best-effort, never fatal
+        return None
+
+
+def _part_signatures(view: PartView, graph) -> str:
+    """Compact enclosing-symbol signatures for a part's changed lines (empty if none)."""
+    names: list[str] = []
+    for f, lns in sorted(view.changed_lines.items()):
+        for ln in sorted(lns):
+            try:
+                sym = graph.symbol_at(f, ln)
+            except Exception:  # noqa: BLE001
+                sym = None
+            if sym and sym.get("name"):
+                kind = sym.get("kind", "")
+                label = f"{sym['name']}()" if kind in ("function", "method") else sym["name"]
+                if label not in names:
+                    names.append(label)
+            if len(names) >= 8:
+                return ", ".join(names)
+    return ", ".join(names)
+
+
+def _lower_context(parts: list[Part], views: list[PartView], index: int, graph=None) -> str:
+    """Compact, read-only summary of the lower parts (``::part-``).
+
+    With a code graph available, each lower part is summarized by the enclosing symbols
+    of its changed lines (signatures beat full text per the research); otherwise it
+    falls back to the file list.
+    """
     lines = []
-    for p in parts[:index]:
-        lines.append(f"part {p.id} ({p.bucket.value}): {', '.join(p.files)}")
+    for j in range(index):
+        p = parts[j]
+        sig = _part_signatures(views[j], graph) if graph is not None else ""
+        body = sig if sig else ", ".join(p.files)
+        lines.append(f"part {p.id} ({p.bucket.value}): {body}")
     return "\n".join(lines)
 
 
@@ -149,6 +195,13 @@ def _lower_context(parts: list[Part], index: int) -> str:
     default=None,
     help="Claims ledger to append to (default .caliper/claims-ledger.jsonl).",
 )
+@click.option(
+    "--pr-context",
+    "pr_context_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="File with PR/issue prose to give the model first (lifts review quality).",
+)
 def inspect(
     cutlist_path: str | None,
     repo: str,
@@ -157,6 +210,7 @@ def inspect(
     token_budget: int | None,
     explain: str | None,
     ledger_path: str | None,
+    pr_context_path: str | None,
 ) -> None:
     """Review the parts of a cut list and write per-part + integration reports."""
     if explain:
@@ -184,23 +238,35 @@ def inspect(
     report_dir = out_dir / "inspect"
     cache = InspectCache(out_dir / ".inspect-cache")
 
+    pr_context = Path(pr_context_path).read_text() if pr_context_path else ""
+
     repo_name = repo_path.name
     ledger_entries: list[LedgerEntry] = []
 
     parts = cutlist.parts
-    all_changed: dict[str, set[int]] = {}
+    # Build every part's view up front so lower parts are available as read-only
+    # context, and load an already-indexed code graph (best-effort) for signatures.
+    views = [build_view(repo_path, base, head, part.files) for part in parts]
+    graph = _load_existing_graph(repo_path)
+
     all_screen = []
     for i, part in enumerate(parts):
-        view = build_view(repo_path, base, head, part.files)
+        view = views[i]
         gauges = run_gauges(part, repo_path, cfg, analyze=_analyze)  # fail-closed
         screen = screen_findings(gauges)
         all_screen.extend(screen)
-        for f, lines in view.changed_lines.items():
-            all_changed.setdefault(f, set()).update(lines)
 
         # A hard gauge failure means the part is reported with its LLM review skipped.
         enabled = not no_llm and not has_hard_failure(gauges)
-        review = run_review(part, view, _lower_context(parts, i), cfg, cache=cache, enabled=enabled)
+        review = run_review(
+            part,
+            view,
+            _lower_context(parts, views, i, graph),
+            cfg,
+            pr_context=pr_context,
+            cache=cache,
+            enabled=enabled,
+        )
         adj = adjudicate(
             review.raw_claims, part, screen, cfg, view.changed_lines, view.changed_text
         )
@@ -230,7 +296,9 @@ def inspect(
         opened_by=Kerf(fired_rule="bucket-end"),
     )
     integ_view = build_view(repo_path, base, head, all_files)
-    integ_review = run_review(integ_part, integ_view, "", cfg, cache=cache, enabled=not no_llm)
+    integ_review = run_review(
+        integ_part, integ_view, "", cfg, pr_context=pr_context, cache=cache, enabled=not no_llm
+    )
     integ_adj = adjudicate(
         integ_review.raw_claims,
         integ_part,
