@@ -148,6 +148,9 @@ class FakeSession:
         self.reclassified.append((target, bucket))
         return _FAKE_CUT
 
+    def overrides(self) -> list[dict]:
+        return []
+
 
 @pytest.fixture
 def client_and_session():
@@ -210,6 +213,69 @@ class TestPartServeApp:
         resp = client.post("/repart")
         assert resp.status_code == 200
         assert session.reparted == 1
+
+
+class TestRenderReport:
+    """The report renderer is a pure function — no starlette, runs everywhere."""
+
+    def test_renders_part_buckets_and_files(self) -> None:
+        from caliper.cli.part_serve import render_report
+
+        out = render_report(_FAKE_CUT)
+        assert "<!doctype html>" in out.lower()
+        assert "src/app.py" in out
+        assert "deadbeefcafe" in out  # config digest stamped
+
+    def test_offers_every_selectable_bucket(self) -> None:
+        from caliper.cli.part_serve import _SELECTABLE_BUCKETS, render_report
+
+        out = render_report(_FAKE_CUT)
+        for bucket in _SELECTABLE_BUCKETS:
+            assert f'<option value="{bucket}"' in out
+        # Structural buckets are decided by git — never offered for reclassification.
+        for structural in ("delete", "move", "binary"):
+            assert f'<option value="{structural}"' not in out
+
+    def test_untiered_part_is_flagged(self) -> None:
+        from caliper.cli.part_serve import render_report
+
+        out = render_report(_FAKE_CUT)  # the only part is bucket "logic"
+        assert "needs a tier" in out
+        assert "untiered" in out
+
+    def test_per_file_reclassify_controls_present(self) -> None:
+        from caliper.cli.part_serve import render_report
+
+        out = render_report(_FAKE_CUT)
+        assert '<select class="bucket">' in out
+        assert "/reclassify" in out  # the JS posts to it
+        assert "/repart" in out
+
+    def test_glob_suggestion_broadens_nested_path(self) -> None:
+        from caliper.cli.part_serve import _suggest_glob
+
+        assert _suggest_glob("src/ui/app.py") == "src/ui/**"
+        assert _suggest_glob("README.md") == "README.md"  # top-level: itself
+
+    def test_override_badges_rendered(self) -> None:
+        from caliper.cli.part_serve import render_report
+
+        out = render_report(_FAKE_CUT, overrides=[{"glob": "src/ui/**", "bucket": "frontend"}])
+        assert "active overrides" in out
+        assert "src/ui/**" in out
+
+    def test_no_overrides_shows_empty_hint(self) -> None:
+        from caliper.cli.part_serve import render_report
+
+        out = render_report(_FAKE_CUT, overrides=[])
+        assert "no overrides yet" in out
+
+    def test_defensive_on_empty_cut(self) -> None:
+        """A partial/empty cut still renders without raising."""
+        from caliper.cli.part_serve import render_report
+
+        out = render_report({})
+        assert "<!doctype html>" in out.lower()
 
 
 class TestLoopbackOnly:
