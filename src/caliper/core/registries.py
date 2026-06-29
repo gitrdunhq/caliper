@@ -15,6 +15,7 @@ directly.
 
 from __future__ import annotations
 
+from caliper.core.llm_port import LLMPort
 from caliper.core.plugin import AnalyzerPort
 from caliper.core.policy_port import PolicyEnginePort
 from caliper.core.ports import (
@@ -58,6 +59,11 @@ REPO_SNAPSHOTS: Registry[RepoSnapshotPort] = Registry("repo_snapshot")
 # be auto-discovered into the automatic review pipeline. It runs only when the
 # developer invokes `caliper part`. See caliper.plugins._parting.
 PARTING: Registry[AnalyzerPort] = Registry("parting")
+# Inspect (caliper inspect) — Tier 1 LLM review backends. The LLM lives ONLY behind
+# this seam; the deterministic tiers (Tier 0 gauges, Tier 2 adjudicator) must never
+# import the concrete backends (plugins/_inspect_llm.py) or the runner. A structural
+# test enforces that isolation.
+INSPECT_BACKENDS: Registry[LLMPort] = Registry("inspect_backend")
 
 __all__ = [
     "CODEGRAPH_CHECKS",
@@ -66,6 +72,7 @@ __all__ = [
     "EVIDENCE_STORES",
     "FILE_SOURCES",
     "GROUNDING_PROVIDERS",
+    "INSPECT_BACKENDS",
     "PACKAGE_INDEXES",
     "PACKAGE_SOURCES",
     "PARTING",

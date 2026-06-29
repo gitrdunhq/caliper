@@ -496,6 +496,59 @@ CodeGraph for the dependency graph and the R3 (layer) / R5 (risk) rules; the
 scribe + taskfit path for deterministic kerf rationale (disabled by default, no
 LLM in the decision); and a post-merge scorecard for the convergence metric.
 
+### Inspect — `caliper inspect`
+
+`caliper inspect` reviews the parts of a cut list, one part at a time, and writes a
+per-part inspection report plus one integration report over the assembled stack. It
+is **manual and advisory**, like `caliper part`: it never gates a build, never enters
+the decision audit lake, and is not in the auto review pipeline (no Foreman, no
+webhook, no Action).
+
+```bash
+# Review each part of a cut list, then the assembled stack
+uv run caliper inspect --cutlist .parting/cutlist.json --out .inspect
+
+# Fully deterministic: Tier 0 gauges + Tier 2 adjudicator only, no model
+uv run caliper inspect --cutlist .parting/cutlist.json --out .inspect --no-llm
+
+# Re-print a saved report
+uv run caliper inspect --explain .inspect/inspect/<part-id>.json
+```
+
+**Three tiers per part:**
+
+- **Tier 0 — gauges (deterministic, no LLM).** Caliper's existing analyzers/
+  detectors/secret scanners, scoped to the part's file set and routed by bucket.
+  Produces pass/fail verdicts. A part that fails a hard gauge is reported and its
+  LLM review is skipped.
+- **Tier 1 — LLM review (advisory only).** Runs on parts that clear Tier 0 and need
+  judgment (mostly `logic`), behind an `LLMPort`. It emits structured **claims** —
+  never a verdict, never a gate. Sealed and swappable; cached on part content.
+- **Tier 2 — adjudicator (deterministic, no LLM).** A pure function (sibling of
+  `part()`) filters claims by six rules in firing order: parse, scope, anchor,
+  substantiation (a `blocking` claim without a Tier 0 witness is downgraded to
+  advisory, not deleted), category allow-list per bucket, severity floor, and dedup.
+  Only survivors reach the report.
+
+> **Determinism boundary.** The *decision path* is deterministic; the *review* is
+> not. The defended claim is "no LLM output reaches a human or a gate except through
+> the pure Tier 2 adjudicator" — not "no LLM touches review." LLM output is cached
+> keyed on part content, so a part inspects identically until it changes (the cache
+> is deterministic; the model is not claimed to be).
+
+> **Fail behavior.** Tier 0 and Tier 2 are **fail-closed** (a gauge that errors or
+> times out is a hard error). Tier 1 is **fail-soft**: if the LLM is unavailable the
+> report shows Tier 0 results and notes `skipped_llm` — it never invents claims to
+> fill a gap. The LLM lives only behind `LLMPort`; the deterministic tiers are
+> structurally unable to import it (enforced by a test), mirroring how `PARTING` is
+> isolated from the auto pipeline.
+
+The claim schema, context presentation, evidence binding, model default, bucket→
+gauge routing, category allow-lists, and severity floors are research-fed defaults,
+each behind a `.caliper.yaml` `inspect:` knob so a finding can replace it without
+restructuring. R3/R5 risk-driven routing (and the Blast Radius graph) are a later
+phase; this phase routes by bucket only.
+
 ### Plugin CLI flags
 
 Override config at the command line for one-off runs:
