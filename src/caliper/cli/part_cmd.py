@@ -97,6 +97,15 @@ def _cutlist_json(cut: CutList) -> str:
 @click.option(
     "--force", is_flag=True, default=False, help="Override the already-pushed safety check."
 )
+@click.option(
+    "--serve",
+    is_flag=True,
+    default=False,
+    help="Serve a live reclassify report on localhost instead of cutting.",
+)
+@click.option(
+    "--port", type=int, default=None, help="Port for --serve (default 12700, loopback only)."
+)
 def part(
     base: str | None,
     head: str | None,
@@ -106,11 +115,21 @@ def part(
     out: str | None,
     explain: str | None,
     force: bool,
+    serve: bool,
+    port: int | None,
 ) -> None:
     """Propose an ordered cut list for a diff and emit a jj restack script."""
     if explain:
         cut = CutList.model_validate_json(Path(explain).read_text())
         click.echo(_render_cutlist(cut, backup_bookmark=None, rescue_op_id=None))
+        return
+
+    if serve:
+        if not base or not head:
+            raise click.UsageError("--base and --head are required with --serve")
+        from caliper.cli.part_serve import DEFAULT_PORT, serve_part
+
+        serve_part(Path(repo).resolve(), base, head, port=port or DEFAULT_PORT)
         return
 
     if not base or not head:
