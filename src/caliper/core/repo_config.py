@@ -9,7 +9,7 @@ from typing import Any
 
 import structlog
 import yaml
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from caliper.core.models import PartTarget
 
@@ -120,6 +120,91 @@ class PartingConfig(BaseModel):
     validate_command: str = ""
 
 
+# Bucket -> admissible claim categories (research-fed default; rule 4). Empty list
+# means "drop all claims" for that bucket. A move part admits only behavioral-change.
+_DEFAULT_ALLOWED_CATEGORIES: dict[str, list[str]] = {
+    "generated": [],
+    "binary": [],
+    "move": ["behavioral-change"],
+    "config": ["correctness", "security", "maintainability", "style"],
+    "test": ["correctness", "maintainability", "style"],
+    "logic": [
+        "correctness",
+        "security",
+        "behavioral-change",
+        "maintainability",
+        "performance",
+        "style",
+    ],
+    "delete": ["correctness", "behavioral-change"],
+}
+
+# Bucket -> minimum admissible severity (rule 5). Default "nit" keeps everything;
+# research tunes per bucket.
+_DEFAULT_SEVERITY_FLOOR: dict[str, str] = {
+    "generated": "nit",
+    "binary": "nit",
+    "move": "nit",
+    "config": "nit",
+    "test": "nit",
+    "logic": "nit",
+    "delete": "nit",
+}
+
+# Bucket -> Tier 0 gauge routing (analyzer category names, run scoped to the part).
+# Research-fed default; reuses existing analyzers, never new scanners.
+_DEFAULT_BUCKET_GAUGES: dict[str, list[str]] = {
+    "generated": [],  # checksum/stamp handled structurally; no analyzers, no LLM
+    "binary": ["supply_chain"],  # malware/size
+    "move": [],  # structural-identity gauge handled structurally
+    "config": ["infra", "quality"],
+    "test": ["quality"],
+    "logic": ["code", "quality", "supply_chain"],  # full set + LLM
+    "delete": [],  # reference gauge where available (v0 cross-part gap)
+}
+
+# Buckets whose parts get an LLM review (Tier 1). Others are Tier 0 only.
+_DEFAULT_LLM_BUCKETS: list[str] = ["logic", "config", "test"]
+
+# Claim category -> compatible Tier 0 finding categories for evidence binding
+# (research-fed default). A blocking claim needs a binding to keep gate-shaped signal.
+_DEFAULT_CATEGORY_COMPAT: dict[str, list[str]] = {
+    "security": ["security", "vulnerability", "malicious", "malware", "supply_chain"],
+    "correctness": ["correctness", "behavioral", "code_smell", "bug"],
+    "behavioral-change": ["behavioral", "behavioral-change", "code_smell"],
+    "maintainability": ["code_smell", "maintainability", "quality"],
+    "performance": ["performance", "resource"],
+    "style": ["style", "code_smell"],
+}
+
+
+class InspectConfig(BaseModel):
+    """Configuration for ``caliper inspect`` (per-part review).
+
+    Every research-fed default is a knob here so a finding can replace it without
+    restructuring. The adjudicator (Tier 2) is pure and reads only this config.
+    """
+
+    token_budget: int = 8000  # lower-parts context budget (research-fed)
+    backend: str = "null"  # LLMPort backend key (research-fed: oMLX + cloud fallback)
+    model_id: str = "unset"  # part of the cache key
+    prompt_version: str = "v0"  # part of the cache key
+    allowed_categories: dict[str, list[str]] = Field(
+        default_factory=lambda: dict(_DEFAULT_ALLOWED_CATEGORIES)
+    )
+    severity_floor: dict[str, str] = Field(default_factory=lambda: dict(_DEFAULT_SEVERITY_FLOOR))
+    bucket_gauges: dict[str, list[str]] = Field(
+        default_factory=lambda: dict(_DEFAULT_BUCKET_GAUGES)
+    )
+    llm_buckets: list[str] = Field(default_factory=lambda: list(_DEFAULT_LLM_BUCKETS))
+    category_compat: dict[str, list[str]] = Field(
+        default_factory=lambda: dict(_DEFAULT_CATEGORY_COMPAT)
+    )
+    # Fail-closed default: a Tier 0 gauge that cannot run is a hard error. Relax
+    # only for local dev where scanner binaries are absent.
+    allow_missing_gauges: bool = False
+
+
 class RepoConfig(BaseModel):
     """Top-level repo config parsed from .caliper.yaml."""
 
@@ -127,6 +212,7 @@ class RepoConfig(BaseModel):
     thresholds: dict[str, dict[str, Any]] = {}
     telemetry: TelemetryConfig = TelemetryConfig()
     parting: PartingConfig = PartingConfig()
+    inspect: InspectConfig = InspectConfig()
 
 
 def load_merged_config(repo_path: Path, package_root: Path | None = None) -> RepoConfig:

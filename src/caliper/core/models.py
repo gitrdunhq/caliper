@@ -10,6 +10,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 import orjson
 from pydantic import BaseModel, ConfigDict, Field
@@ -420,3 +421,110 @@ class CutList(BaseModel):
     size_cap: int
     provenance: Provenance
     stats: CutStats
+
+
+# ---------------------------------------------------------------------------
+# Inspect (caliper inspect) — per-part review models
+#
+# `caliper part` cuts a stock into parts; `caliper inspect` reviews each part in
+# three tiers: Tier 0 deterministic gauges, Tier 1 advisory LLM claims, Tier 2 a
+# pure adjudicator that filters claims. The LLM never produces a verdict; only the
+# deterministic adjudicator's survivors reach a human. Advisory and manual: never
+# gates a build, never enters the decision audit lake.
+# ---------------------------------------------------------------------------
+
+
+class Severity(enum.StrEnum):
+    """Claim severity. ``blocking`` requires a deterministic Tier 0 witness."""
+
+    blocking = "blocking"
+    major = "major"
+    minor = "minor"
+    nit = "nit"
+
+
+class Category(enum.StrEnum):
+    """Claim category. The admissible set per part is decided by the bucket."""
+
+    correctness = "correctness"
+    security = "security"
+    behavioral_change = "behavioral-change"
+    maintainability = "maintainability"
+    performance = "performance"
+    style = "style"
+
+
+# Severity ordering for the floor and dedup rules (higher = more severe).
+SEVERITY_RANK: dict[Severity, int] = {
+    Severity.nit: 0,
+    Severity.minor: 1,
+    Severity.major: 2,
+    Severity.blocking: 3,
+}
+
+
+class Claim(BaseModel):
+    """One structured finding emitted by the LLM (Tier 1). Never a verdict.
+
+    The LLM must emit exactly this structure; freeform prose is rejected by the
+    adjudicator's parse rule, not salvaged. ``evidence_ref`` is set deterministically
+    by Tier 2 evidence-binding (the model is never asked to know rule ids).
+    """
+
+    model_config = _MODEL_CONFIG
+
+    file: str
+    line_range: tuple[int, int]
+    severity: Severity
+    category: Category
+    assertion: str
+    suggested_fix: str | None = None
+    evidence_ref: str | None = None  # id of a Tier 0 finding, set by binding
+
+
+class GaugeFinding(BaseModel):
+    """A single Tier 0 finding, each with a stable id a claim can bind to."""
+
+    model_config = _MODEL_CONFIG
+
+    id: str
+    file: str = ""
+    line_range: tuple[int, int] | None = None
+    severity: str = "info"
+    category: str = ""
+    message: str = ""
+    source: str = ""  # the gauge/analyzer that produced it
+
+
+class GaugeResult(BaseModel):
+    """The verdict of one Tier 0 gauge over a part's file set."""
+
+    model_config = _MODEL_CONFIG
+
+    gauge: str
+    verdict: Literal["pass", "fail"]
+    findings: list[GaugeFinding] = Field(default_factory=list)
+
+
+class DroppedClaim(BaseModel):
+    """A claim removed by the adjudicator, logged with the rule that killed it."""
+
+    model_config = _MODEL_CONFIG
+
+    claim: dict  # the raw claim as received (may be malformed)
+    rule: str  # "parse" | "scope" | "anchor" | "category" | "floor" | "dedup"
+    reason: str = ""
+
+
+class InspectionReport(BaseModel):
+    """Per-part (or integration) output: Tier 0 verdicts + adjudicated claims."""
+
+    model_config = _MODEL_CONFIG
+
+    part_id: str
+    bucket: str = ""
+    kind: Literal["part", "integration"] = "part"
+    gauges: list[GaugeResult] = Field(default_factory=list)
+    claims: list[Claim] = Field(default_factory=list)  # adjudicated survivors only
+    skipped_llm: bool = False
+    dropped: list[DroppedClaim] = Field(default_factory=list)  # logged, not shown by default
