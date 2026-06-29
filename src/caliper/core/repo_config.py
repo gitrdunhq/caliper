@@ -205,6 +205,34 @@ class InspectConfig(BaseModel):
     allow_missing_gauges: bool = False
 
 
+class GaugeConfig(BaseModel):
+    """Configuration for ``caliper gauge`` (the flywheel).
+
+    The bias guards are mandatory defaults, all config-tunable: only correctness/
+    security/behavioral-change claims are candidate-eligible, and a cluster must
+    recur across enough distinct parts and authors before it can be drafted. The
+    backtest thresholds are the deterministic gate.
+    """
+
+    # Candidacy floor: nits and pure-style claims are ineligible by default.
+    eligible_categories: list[str] = Field(
+        default_factory=lambda: ["correctness", "security", "behavioral-change"]
+    )
+    # Recurrence threshold: N distinct parts and M distinct authors/PRs.
+    recurrence_min_parts: int = 3
+    recurrence_min_authors: int = 2
+    # Backtest gates.
+    recall_floor: float = 0.7  # must catch at least this fraction of historical hits
+    precision_fp_ceiling: float = 0.05  # max false-positive rate on the clean corpus
+    runtime_budget_ms: int = 2000  # Tier 0 time budget for a single gauge
+    # propose default.
+    top_default: int = 10
+    # LLM drafting backend (the only LLM step) + lineage stamps.
+    drafter: str = "null"
+    model_id: str = "unset"
+    prompt_version: str = "v0"
+
+
 class RepoConfig(BaseModel):
     """Top-level repo config parsed from .caliper.yaml."""
 
@@ -213,6 +241,7 @@ class RepoConfig(BaseModel):
     telemetry: TelemetryConfig = TelemetryConfig()
     parting: PartingConfig = PartingConfig()
     inspect: InspectConfig = InspectConfig()
+    gauge: GaugeConfig = GaugeConfig()
 
 
 def load_merged_config(repo_path: Path, package_root: Path | None = None) -> RepoConfig:

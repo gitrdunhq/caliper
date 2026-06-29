@@ -15,7 +15,7 @@ directly.
 
 from __future__ import annotations
 
-from caliper.core.llm_port import LLMPort
+from caliper.core.llm_port import GaugeDraftPort, LLMPort
 from caliper.core.plugin import AnalyzerPort
 from caliper.core.policy_port import PolicyEnginePort
 from caliper.core.ports import (
@@ -64,6 +64,10 @@ PARTING: Registry[AnalyzerPort] = Registry("parting")
 # import the concrete backends (plugins/_inspect_llm.py) or the runner. A structural
 # test enforces that isolation.
 INSPECT_BACKENDS: Registry[LLMPort] = Registry("inspect_backend")
+# Gauge (caliper gauge) — Tier 1 of the flywheel: LLM backends that DRAFT candidate
+# gauges. The LLM drafts but never promotes; drafts are gated by the deterministic
+# backtest and explicit human promotion. Isolated like INSPECT_BACKENDS.
+GAUGE_DRAFTERS: Registry[GaugeDraftPort] = Registry("gauge_drafter")
 
 __all__ = [
     "CODEGRAPH_CHECKS",
@@ -71,6 +75,7 @@ __all__ = [
     "SCRIBES",
     "EVIDENCE_STORES",
     "FILE_SOURCES",
+    "GAUGE_DRAFTERS",
     "GROUNDING_PROVIDERS",
     "INSPECT_BACKENDS",
     "PACKAGE_INDEXES",

@@ -549,6 +549,55 @@ each behind a `.caliper.yaml` `inspect:` knob so a finding can replace it withou
 restructuring. R3/R5 risk-driven routing (and the Blast Radius graph) are a later
 phase; this phase routes by bucket only.
 
+### Gauge — the flywheel (`caliper gauge`)
+
+`caliper gauge` is the terminal step of the arc: it turns **recurring advisory LLM
+claims into permanent deterministic Tier 0 gauges**, so deterministic coverage grows
+and the LLM is needed for less over time. It is maintainer-driven curation, not a
+per-PR operation.
+
+```bash
+caliper gauge propose                 # cluster the ledger, LLM drafts candidates (only LLM step)
+caliper gauge backtest <candidate>    # deterministic four-part validation (LLM-free)
+caliper gauge promote <candidate> --by <name>   # human-gated; refuses without a passing backtest
+caliper gauge status                  # convergence scorecard
+```
+
+The loop: `caliper inspect` appends every advisory/dropped claim to the **claims
+ledger** (advisory data, never the audit lake) with a content reference. `propose`
+clusters the ledger **deterministically**, ranks by recurrence × severity, and has
+the LLM draft a **candidate gauge** for each high-rank cluster. `backtest` validates
+each candidate deterministically. `promote` presents passing candidates to a human,
+who accepts or rejects. A promoted gauge is Tier 0 from then on, so the pattern
+becomes substantiated (or never reaches Tier 1) and the ledger stops accumulating it
+— the loop closes for that pattern.
+
+> **The LLM drafts; it never promotes.** This is the defining boundary of the phase:
+> an LLM now drafts artifacts that become deterministic decision logic, so every rule
+> exists to keep that safe. A candidate enters Tier 0 only after a deterministic
+> backtest **and** an explicit human promotion — there is no code path from LLM
+> output to an active gauge that skips both (a gauge is active iff a `Promotion`
+> exists for it). `propose` is the only LLM step; `backtest` and `promote` are
+> LLM-free. Clustering, ranking, and the backtest are deterministic and
+> property-tested.
+
+> **Guards against enshrining model bias (all mandatory).** A *candidacy floor* —
+> only correctness/security/behavioral-change claims are eligible; nits and style
+> never mint rules. A *recurrence threshold* — a cluster must recur across enough
+> distinct parts and authors, so one noisy run cannot create a rule. A *precision
+> backtest* — a candidate that fires across a clean corpus above the configured
+> false-positive ceiling is rejected. And *human promotion* as the final gate. Every
+> promoted gauge records full **lineage** (cluster, backtest stats, model/prompt
+> version, promoter) so its origin is auditable forever.
+
+**The convergence scorecard** (`caliper gauge status`) makes the whole arc
+measurable: substantiation rate (claims with a deterministic witness — rising means
+the flywheel works), advisory recurrence (recurring patterns = open gaps), gauge
+coverage (promoted gauges), and LLM novelty (claims that are genuinely new vs
+recurring). The end state: the LLM's advisory output trends toward only the
+genuinely novel, because everything recurring has become a gauge — the system making
+itself need the model less.
+
 ### Plugin CLI flags
 
 Override config at the command line for one-off runs:

@@ -49,3 +49,37 @@ class LLMPort(Protocol):
     """Structural contract for an LLM review backend."""
 
     def review(self, review: LLMReview) -> LLMResult: ...
+
+
+# ---------------------------------------------------------------------------
+# Gauge drafting (the flywheel's only LLM step). The LLM drafts a candidate gauge;
+# it never promotes one. The draft is gated downstream by a deterministic backtest
+# and an explicit human promotion.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class DraftRequest:
+    """A request to draft a candidate gauge from a recurring claim cluster."""
+
+    cluster_key: str
+    category: str
+    assertions: list[str] = field(default_factory=list)  # representative claim text
+    examples: list[str] = field(default_factory=list)  # file:line references
+
+
+@dataclass(frozen=True)
+class DraftResult:
+    """A drafted candidate gauge, or unavailability (fail-soft: no candidate)."""
+
+    available: bool
+    kind: str = "manual"  # "semgrep" | "ast" | "manual"
+    draft: str = ""  # rule text, or a manual-implementation description
+    note: str = ""
+
+
+@runtime_checkable
+class GaugeDraftPort(Protocol):
+    """Structural contract for an LLM gauge-drafting backend (drafts, never promotes)."""
+
+    def draft(self, request: DraftRequest) -> DraftResult: ...

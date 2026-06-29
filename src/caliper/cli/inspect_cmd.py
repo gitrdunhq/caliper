@@ -15,6 +15,7 @@ report except through the pure adjudicator.
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import click
@@ -24,12 +25,21 @@ import orjson
 # plugins). Importing the isolated LLM backend module triggers its registration into
 # INSPECT_BACKENDS; it is never auto-discovered into the review pipeline.
 import caliper.plugins._inspect_llm  # noqa: E402,F401
+from caliper.core import ledger as ledger_store
 from caliper.core.inspect import adjudicate
 from caliper.core.inspect_cache import InspectCache
 from caliper.core.inspect_gauges import has_hard_failure, run_gauges, tier0_findings
 from caliper.core.inspect_runner import run_tier1
-from caliper.core.inspect_view import build_view
-from caliper.core.models import ChangeType, CutList, InspectionReport, Kerf, Part
+from caliper.core.inspect_view import PartView, build_view
+from caliper.core.models import (
+    ChangeType,
+    Claim,
+    CutList,
+    InspectionReport,
+    Kerf,
+    LedgerEntry,
+    Part,
+)
 from caliper.core.plugin import PluginResult
 from caliper.core.repo_config import load_repo_config
 from caliper.plugins import get_default_registry  # noqa: E402
@@ -63,6 +73,32 @@ def _write_report(out_dir: Path, rep: InspectionReport) -> Path:
     path = out_dir / f"{rep.part_id}.json"
     path.write_bytes(orjson.dumps(rep.model_dump(mode="json"), option=orjson.OPT_INDENT_2))
     return path
+
+
+def _ledger_entries(
+    rep: InspectionReport, view: PartView, repo_name: str, sha: str
+) -> list[LedgerEntry]:
+    """Build claims-ledger entries for a report: advisory survivors + valid dropped
+    claims, each with a content reference (content hash of the part's changed bytes)."""
+    content_hash = hashlib.sha256(view.changed_bytes).hexdigest()
+    out: list[LedgerEntry] = []
+    for c in rep.claims:
+        out.append(
+            LedgerEntry(
+                claim=c, repo=repo_name, sha=sha, content_hash=content_hash, part_id=rep.part_id
+            )
+        )
+    for d in rep.dropped:
+        try:
+            claim = Claim.model_validate(d.claim)
+        except Exception:  # noqa: BLE001 - parse-drops are not ledgerable claims
+            continue
+        out.append(
+            LedgerEntry(
+                claim=claim, repo=repo_name, sha=sha, content_hash=content_hash, part_id=rep.part_id
+            )
+        )
+    return out
 
 
 def _lower_context(parts: list[Part], index: int) -> str:
@@ -106,6 +142,13 @@ def _lower_context(parts: list[Part], index: int) -> str:
     default=None,
     help="Print a saved inspection report.",
 )
+@click.option(
+    "--ledger",
+    "ledger_path",
+    type=click.Path(),
+    default=None,
+    help="Claims ledger to append to (default .caliper/claims-ledger.jsonl).",
+)
 def inspect(
     cutlist_path: str | None,
     repo: str,
@@ -113,6 +156,7 @@ def inspect(
     no_llm: bool,
     token_budget: int | None,
     explain: str | None,
+    ledger_path: str | None,
 ) -> None:
     """Review the parts of a cut list and write per-part + integration reports."""
     if explain:
@@ -139,6 +183,9 @@ def inspect(
     out_dir = Path(out) if out else repo_path
     report_dir = out_dir / "inspect"
     cache = InspectCache(out_dir / ".inspect-cache")
+
+    repo_name = repo_path.name
+    ledger_entries: list[LedgerEntry] = []
 
     parts = cutlist.parts
     all_changed: dict[str, set[int]] = {}
@@ -167,6 +214,7 @@ def inspect(
         )
         click.echo(_render_report(rep))
         _write_report(report_dir, rep)
+        ledger_entries.extend(_ledger_entries(rep, view, repo_name, head))
 
     # Integration pass over the assembled stock (backup+::@) for cross-part defects
     # per-part isolation cannot see. Claims go through the same adjudicator with the
@@ -195,4 +243,14 @@ def inspect(
     )
     click.echo(_render_report(integ_rep))
     _write_report(report_dir, integ_rep)
-    click.echo(f"inspection reports written to {report_dir}")
+    ledger_entries.extend(_ledger_entries(integ_rep, integ_view, repo_name, head))
+
+    # Append advisory/dropped claims to the claims ledger (advisory data, not the
+    # decision audit lake) so the gauge flywheel can find recurring patterns.
+    ledger_file = (
+        Path(ledger_path) if ledger_path else (repo_path / ".caliper" / "claims-ledger.jsonl")
+    )
+    ledger_store.append(ledger_file, ledger_entries)
+    click.echo(
+        f"inspection reports written to {report_dir}; {len(ledger_entries)} claims -> ledger"
+    )

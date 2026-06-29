@@ -528,3 +528,78 @@ class InspectionReport(BaseModel):
     claims: list[Claim] = Field(default_factory=list)  # adjudicated survivors only
     skipped_llm: bool = False
     dropped: list[DroppedClaim] = Field(default_factory=list)  # logged, not shown by default
+
+
+# ---------------------------------------------------------------------------
+# Gauge (caliper gauge) — the flywheel: recurring advisory claims become gauges
+#
+# Advisory claims accumulate in the claims ledger; recurring clusters are drafted
+# by the LLM into candidate gauges; a deterministic backtest gates them; a human
+# promotes survivors into the Tier 0 tool crib. The LLM drafts but never promotes:
+# a gauge is active only if a Promotion exists for it. The ledger is advisory data,
+# never the decision audit lake.
+# ---------------------------------------------------------------------------
+
+
+class LedgerEntry(BaseModel):
+    """One advisory/dropped claim recorded over time, with a content reference so
+    the triggering code can be located later."""
+
+    model_config = _MODEL_CONFIG
+
+    claim: Claim
+    repo: str
+    sha: str
+    content_hash: str  # hash of the triggering part's changed content
+    inspected_at: datetime = Field(default_factory=_utcnow)
+    author: str = ""  # PR/author proxy (optional; v0 falls back to sha)
+    part_id: str = ""
+
+
+class ClaimCluster(BaseModel):
+    """A deterministic cluster of recurring ledger entries (a candidate pattern)."""
+
+    model_config = _MODEL_CONFIG
+
+    key: str  # deterministic, content-derived
+    category: Category
+    members: list[LedgerEntry]
+    distinct_parts: int
+    distinct_authors: int
+    rank: float  # recurrence x severity, deterministic
+
+
+class Backtest(BaseModel):
+    """The deterministic validation a candidate gauge must pass to be promotable."""
+
+    model_config = _MODEL_CONFIG
+
+    recall: float
+    precision: float
+    deterministic: bool
+    runtime_ms: int
+    passed: bool
+
+
+class CandidateGauge(BaseModel):
+    """A drafted deterministic check derived from a cluster. Not yet trusted."""
+
+    model_config = _MODEL_CONFIG
+
+    cluster_key: str
+    kind: Literal["semgrep", "ast", "manual"]
+    draft: str  # rule text, or a description for a manual-implementation request
+    model_version: str
+    prompt_version: str
+    backtest: Backtest | None = None
+
+
+class Promotion(BaseModel):
+    """The only artifact that activates a gauge — a deliberate human act with lineage."""
+
+    model_config = _MODEL_CONFIG
+
+    candidate: CandidateGauge
+    backtest: Backtest
+    promoted_by: str
+    promoted_at: datetime = Field(default_factory=_utcnow)
