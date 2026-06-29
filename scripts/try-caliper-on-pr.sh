@@ -66,6 +66,9 @@ ensure_caliper() {
 # ---- preflight --------------------------------------------------------------------
 command -v git >/dev/null 2>&1 || { echo "ERROR: git not found"; exit 1; }
 [ "$CALIPER" = "caliper" ] && ensure_caliper
+# $CALIPER is intentionally unquoted so a multi-word wrapper (e.g. "uv run ... caliper")
+# word-splits into argv; quoting it would break that. Same below for $CALIPER / $NO_LLM.
+# nosemgrep: unquoted-variable-expansion-in-command
 if ! $CALIPER --version >/dev/null 2>&1; then
   echo "ERROR: cannot run caliper via CALIPER='$CALIPER'."
   echo "       Default auto-installs from $CALIPER_SRC via uv; or set CALIPER to your own wrapper."
@@ -119,6 +122,7 @@ fi
 # ---- 1) cut the PR diff into an ordered cut list ----------------------------------
 echo
 echo ">> caliper part  (base..head -> cut list of parts)"
+# nosemgrep: unquoted-variable-expansion-in-command — $CALIPER must word-split (see above)
 $CALIPER part --repo "$SRC" --base "$BASE_SHA" --head "$HEAD_SHA" --out "$OUT"
 
 if [ ! -f "$OUT/cutlist.json" ]; then
@@ -130,6 +134,7 @@ fi
 echo
 echo ">> caliper inspect  (Screen / Review / Adjudicate per part, then integration)"
 # shellcheck disable=SC2086
+# nosemgrep: unquoted-variable-expansion-in-command — $CALIPER and $NO_LLM must word-split
 $CALIPER inspect --repo "$SRC" --cutlist "$OUT/cutlist.json" --out "$OUT" $NO_LLM
 
 # ---- results ----------------------------------------------------------------------
@@ -141,8 +146,10 @@ echo
 echo "Per-part + integration cut list: $OUT/cutlist.json"
 echo
 echo "Integration (cross-part) summary:"
-$CALIPER inspect --explain "$OUT/inspect/integration.json" 2>/dev/null || \
+# nosemgrep: unquoted-variable-expansion-in-command — $CALIPER must word-split (see above)
+if ! $CALIPER inspect --explain "$OUT/inspect/integration.json" 2>/dev/null; then
   echo "  (no integration report — see $OUT/inspect/)"
+fi
 echo "=================================================================="
 echo "Tip: open any $OUT/inspect/<part-id>.json for the full per-part claims + dropped log,"
 echo "     or re-print one with:  $CALIPER inspect --explain $OUT/inspect/<part-id>.json"
