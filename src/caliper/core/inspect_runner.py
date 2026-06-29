@@ -46,20 +46,49 @@ def resolve_backend(cfg: InspectConfig) -> LLMPort:
     return INSPECT_BACKENDS.create(cfg.backend)
 
 
-def render_prompt(part: Part, view: PartView, lower_context: str, cfg: InspectConfig) -> str:
-    """Render the read-only review prompt: full changed hunks + compact lower context.
+# The claim schema the model must emit. anchor_quote is mandatory in the contract
+# (the adjudicator's anchor rule verifies it verbatim); confidence/reasoning/
+# suggested_fix are optional. Emitting the schema in-prompt is what lets a real
+# backend return parseable claims.
+_CLAIM_SCHEMA_HINT = (
+    "Each claim is a JSON object with keys: file (string), line_range ([start, end] "
+    "ints), severity (blocking|major|minor|nit), category (correctness|security|"
+    "behavioral-change|maintainability|performance|style), assertion (one sentence), "
+    "anchor_quote (a VERBATIM copy of the exact source line(s) you are flagging — it "
+    "must appear character-for-character in the changed code), and optionally "
+    "confidence (low|medium|high), reasoning, suggested_fix. Respond with a JSON array "
+    "of claim objects and nothing else."
+)
 
-    The lower-parts context is labeled read-only and truncated to the token budget;
-    it is never to be reviewed, only used to understand the part under review.
+
+def render_prompt(
+    part: Part,
+    view: PartView,
+    lower_context: str,
+    cfg: InspectConfig,
+    pr_context: str = "",
+) -> str:
+    """Render the read-only review prompt.
+
+    Order (research-fed): the change description / PR-issue prose first (it lifts
+    review quality more per token than code context), then the part's changed hunks,
+    then compact lower-parts context. The lower-parts context is labeled read-only and
+    truncated to the token budget; it is never to be reviewed, only used to understand
+    the part under review.
     """
     budget_chars = max(0, cfg.token_budget * _CHARS_PER_TOKEN)
     lower = lower_context[:budget_chars]
-    return (
+    header = (
         f"# Review part {part.id} (bucket: {part.bucket.value})\n"
-        f"# Emit ONLY structured claims; no prose. Claims are advisory, never a verdict.\n\n"
-        f"## Part under review (changed hunks)\n{view.diff_text}\n\n"
-        f"## Lower parts (READ-ONLY context — do not review)\n{lower}\n"
+        f"# Emit ONLY structured claims; no prose. Claims are advisory, never a verdict.\n"
+        f"# {_CLAIM_SCHEMA_HINT}\n\n"
     )
+    sections: list[str] = []
+    if pr_context.strip():
+        sections.append(f"## Change description (read first)\n{pr_context.strip()}\n")
+    sections.append(f"## Part under review (changed hunks)\n{view.diff_text}\n")
+    sections.append(f"## Lower parts (READ-ONLY context — do not review)\n{lower}\n")
+    return header + "\n".join(sections)
 
 
 def run_review(
@@ -68,6 +97,7 @@ def run_review(
     lower_context: str,
     cfg: InspectConfig,
     *,
+    pr_context: str = "",
     cache: InspectCache | None = None,
     backend: LLMPort | None = None,
     enabled: bool = True,
@@ -82,7 +112,7 @@ def run_review(
     if part.bucket.value not in cfg.llm_buckets:
         return ReviewOutput(skipped_llm=True, note=f"bucket {part.bucket.value} gets no LLM review")
 
-    prompt = render_prompt(part, view, lower_context, cfg)
+    prompt = render_prompt(part, view, lower_context, cfg, pr_context)
     key = content_key(part.files, prompt, cfg.model_id, cfg.prompt_version)
     if cache is not None:
         cached = cache.get(key)
