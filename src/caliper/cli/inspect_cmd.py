@@ -20,6 +20,7 @@ from pathlib import Path
 
 import click
 import orjson
+import structlog
 
 # The CLI tier wires the deterministic core to the plugins tier (core may not import
 # plugins). Importing the isolated LLM backend module triggers its registration into
@@ -49,6 +50,8 @@ from caliper.core.repo_config import load_repo_config
 from caliper.core.tool_crib import load_promotions
 from caliper.plugins import get_default_registry  # noqa: E402
 from caliper.plugins._runners.semgrep_runner import run_semgrep  # noqa: E402
+
+logger = structlog.get_logger(__name__)
 
 
 def _analyze(files: list[str], repo_path: Path, categories: list[str]) -> list[PluginResult]:
@@ -149,8 +152,12 @@ def _load_existing_graph(repo_path: Path):
             return None
         graph = CodeGraph(db_path=str(db), repo_root=repo_path)
         return graph if graph.stats().get("symbols", 0) > 0 else None
-    except Exception:  # noqa: BLE001 - graph context is best-effort, never fatal
-        return None
+    except Exception as exc:  # noqa: BLE001 - graph context is best-effort, never fatal
+        # Fail-open: lower-part signatures are an optional enrichment, so any failure
+        # (missing plugins extra, unreadable db) degrades to the file-list fallback. We
+        # log rather than swallow silently so the degradation is observable.
+        logger.debug("inspect.graph_unavailable", repo=str(repo_path), error=str(exc))
+        return None  # nosemgrep: no-broad-except-return-none — intentional fail-open, logged above
 
 
 def _part_signatures(view: PartView, graph) -> str:
