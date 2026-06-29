@@ -27,7 +27,7 @@
 #   ALLOW_MISSING_GAUGES=0 ./scripts/try-caliper-on-pr.sh   # strict: missing scanner = part fails
 #
 #   Override via env: REPO_URL, PR_NUM, BASE_BRANCH, WORKDIR, USE_LLM, ALLOW_MISSING_GAUGES,
-#   CALIPER_SRC, REINSTALL, or set CALIPER="my-wrapper" to skip auto-install and use your own.
+#   INSTALL_DEPS, CALIPER_SRC, REINSTALL, or set CALIPER="my-wrapper" to skip auto-install.
 #
 set -euo pipefail
 
@@ -42,6 +42,7 @@ CALIPER="${CALIPER:-caliper}"                        # invocation; default auto-
 REINSTALL="${REINSTALL:-0}"                          # 1 = force `uv tool install --force`
 USE_LLM="${USE_LLM:-0}"                              # 1 = enable the oMLX/OpenAI-compatible Review backend
 ALLOW_MISSING_GAUGES="${ALLOW_MISSING_GAUGES:-1}"    # 1 = tolerate missing scanners (default); 0 = strict fail-closed
+INSTALL_DEPS="${INSTALL_DEPS:-1}"                    # 1 = install the target's Python deps so type/import gauges resolve
 
 NAME="$(basename "$REPO_URL" .git)"
 SRC="$WORKDIR/$NAME"
@@ -163,6 +164,29 @@ if [ ! -f "$OUT/cutlist.json" ]; then
   exit 1
 fi
 
+# ---- 1b) best-effort: install the target's Python deps so env-dependent Screen
+#      gauges (pyright/mypy) resolve imports instead of false-positiving "Import X
+#      could not be resolved" on a bare clone. pyright auto-detects $SRC/.venv. ----
+if [ "$INSTALL_DEPS" = "1" ]; then
+  printf '.venv/\npyrightconfig.json\n' >> "$SRC/.git/info/exclude" 2>/dev/null || true
+  if [ -f "$SRC/pyproject.toml" ] || [ -f "$SRC/uv.lock" ]; then
+    echo ">> installing target deps (uv sync) so type/import gauges resolve"
+    (cd "$SRC" && { uv sync --frozen || uv sync; }) >/dev/null 2>&1 \
+      || echo "   (uv sync failed; type/import gauges may report unresolved imports)"
+  elif ls "$SRC"/requirements*.txt >/dev/null 2>&1; then
+    echo ">> installing target deps (uv venv + requirements) so type/import gauges resolve"
+    (cd "$SRC" && uv venv >/dev/null 2>&1 && for r in requirements*.txt; do uv pip install -r "$r"; done) \
+      >/dev/null 2>&1 || echo "   (dependency install failed; type/import gauges may false-positive)"
+  else
+    echo ">> no Python deps manifest in target; skipping dep install (set INSTALL_DEPS=0 to silence)"
+  fi
+  # pyright runs with cwd=repo and auto-loads pyrightconfig.json; point it at the venv so
+  # it resolves third-party imports (uv sync alone isn't enough — pyright doesn't detect it).
+  if [ -d "$SRC/.venv" ]; then
+    printf '{ "venvPath": ".", "venv": ".venv" }\n' > "$SRC/pyrightconfig.json"
+  fi
+fi
+
 # ---- 2) inspect each part + the integration pass ---------------------------------
 # Write the throwaway repo config now (after `part`, so the parting gate saw a clean
 # tree). inspect has no dirty-tree gate, so the new file is fine here. It carries
@@ -205,7 +229,7 @@ paths = sorted(
     glob.glob(os.path.join(out, "inspect", "*.json")),
     key=lambda p: (os.path.basename(p) == "integration.json", p),
 )
-rows = [("PART", "BUCKET", "FILES", "SIZE", "GAUGES", "FND", "CLAIMS", "DROP", "LLM")]
+rows = [("PART", "BUCKET", "FILES", "SIZE", "GAUGES", "FIND", "CLAIMS", "DROP", "LLM")]
 tot_parts = tot_claims = tot_fail = 0
 for path in paths:
     try:
@@ -236,7 +260,7 @@ for i, row in enumerate(rows):
     if i == 0:
         print("  " + "  ".join("-" * w[j] for j in range(len(row))))
 print(f"\n  {tot_parts} parts · {tot_claims} surviving claims · {tot_fail} failed gauge(s)")
-print("  GAUGES = Screen pass/fail · FND = Screen findings · DROP = claims filtered by Adjudicate")
+print("  GAUGES = Screen pass/fail · FIND = Screen findings · DROP = claims filtered by Adjudicate")
 PY
 }
 
