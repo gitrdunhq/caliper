@@ -235,3 +235,46 @@ class TestClassifyPrecedence:
         from caliper.core.part_stock import _classify
 
         assert _classify(status, path, size, mode, PartingConfig()) == expected
+
+
+class TestOverrideTable:
+    """The human reclassification table: above globs, below structural facts."""
+
+    def test_override_beats_glob_heuristic(self) -> None:
+        from caliper.core.part_stock import _classify
+        from caliper.core.repo_config import OverrideRule
+
+        # README.md would be documentation by glob; override forces it to business.
+        cfg = PartingConfig(overrides=[OverrideRule(glob="*.md", bucket=ChangeType.business)])
+        assert _classify("M", "README.md", 5, "100644", cfg) == ChangeType.business
+
+    def test_override_tiers_untiered_code(self) -> None:
+        from caliper.core.part_stock import _classify
+        from caliper.core.repo_config import OverrideRule
+
+        cfg = PartingConfig(overrides=[OverrideRule(glob="src/api/**", bucket=ChangeType.frontend)])
+        assert _classify("M", "src/api/handler.py", 5, "100644", cfg) == ChangeType.frontend
+        # A path the override does not match stays in the residual.
+        assert _classify("M", "src/core/x.py", 5, "100644", cfg) == ChangeType.logic
+
+    def test_structural_facts_beat_override(self) -> None:
+        from caliper.core.part_stock import _classify
+        from caliper.core.repo_config import OverrideRule
+
+        cfg = PartingConfig(overrides=[OverrideRule(glob="src/api/**", bucket=ChangeType.frontend)])
+        assert _classify("D", "src/api/handler.py", 5, "100644", cfg) == ChangeType.delete
+        assert _classify("R100", "src/api/handler.py", 5, "100644", cfg) == ChangeType.move
+        assert _classify("M", "src/api/handler.py", None, "100644", cfg) == ChangeType.binary
+
+    def test_first_matching_rule_wins(self) -> None:
+        from caliper.core.part_stock import _classify
+        from caliper.core.repo_config import OverrideRule
+
+        cfg = PartingConfig(
+            overrides=[
+                OverrideRule(glob="src/**", bucket=ChangeType.business),
+                OverrideRule(glob="*.py", bucket=ChangeType.data),
+            ]
+        )
+        # src/x.py matches both globs; the earlier rule (business) wins.
+        assert _classify("M", "src/x.py", 5, "100644", cfg) == ChangeType.business
