@@ -65,6 +65,10 @@ _DEFAULT_GENERATED_GLOBS: list[str] = [
     "**/__generated__/**",
     "**/__snapshots__/**",
 ]
+# Generic runtime/app config. Deliberately low-precedence: ``*.yaml`` is greedy,
+# so the specific buckets below (ci_cd, infra, schema_contracts, supply_chain) are
+# matched FIRST in ``part_stock._classify``. ``.github/**`` and ``Dockerfile`` used
+# to live here; they now route to ci_cd / infra respectively.
 _DEFAULT_CONFIG_GLOBS: list[str] = [
     "*.yaml",
     "*.yml",
@@ -73,13 +77,116 @@ _DEFAULT_CONFIG_GLOBS: list[str] = [
     "*.cfg",
     "*.conf",
     "*.properties",
-    ".github/**",
-    "**/.github/**",
-    "Dockerfile",
-    "**/Dockerfile",
     "*.env",
     ".env*",
 ]
+# Security & policy-as-code (Rego, IAM, policy bundles).
+_DEFAULT_SECURITY_POLICY_GLOBS: list[str] = [
+    "*.rego",
+    "policies/**",
+    "**/policies/**",
+    "iam/**",
+    "**/iam/**",
+    "*.policy.json",
+]
+# Dependency manifests (the human-edited source; lockfiles stay ``generated``).
+_DEFAULT_SUPPLY_CHAIN_GLOBS: list[str] = [
+    "package.json",
+    "**/package.json",
+    "pyproject.toml",
+    "**/pyproject.toml",
+    "requirements*.txt",
+    "go.mod",
+    "Cargo.toml",
+    "Gemfile",
+    "pom.xml",
+    "build.gradle",
+    "build.gradle.kts",
+    "*.csproj",
+    "Pipfile",
+]
+# CI/CD pipelines and build orchestration.
+_DEFAULT_CI_CD_GLOBS: list[str] = [
+    ".github/workflows/**",
+    "**/.github/workflows/**",
+    "Makefile",
+    "**/Makefile",
+    "GNUmakefile",
+    ".gitlab-ci.yml",
+    "*.gitlab-ci.yml",
+    "Jenkinsfile",
+    "**/Jenkinsfile",
+    "azure-pipelines.yml",
+    ".circleci/**",
+    "**/.circleci/**",
+    ".pre-commit-config.yaml",
+]
+# Schemas, contracts, and migrations — the wire/storage shape.
+_DEFAULT_SCHEMA_CONTRACTS_GLOBS: list[str] = [
+    "*.proto",
+    "migrations/**",
+    "**/migrations/**",
+    "openapi*.yaml",
+    "openapi*.yml",
+    "openapi*.json",
+    "swagger*.yaml",
+    "swagger*.json",
+    "*.graphql",
+    "*.gql",
+    "*.avsc",
+    "schema.sql",
+    "**/schema.sql",
+]
+# Documentation and prose.
+_DEFAULT_DOCUMENTATION_GLOBS: list[str] = [
+    "*.md",
+    "*.mdx",
+    "*.rst",
+    "*.adoc",
+    "docs/**",
+    "**/docs/**",
+    "README*",
+    "**/README*",
+    "CHANGELOG*",
+    "LICENSE",
+    "LICENSE.*",
+    "NOTICE",
+    "AUTHORS",
+    "CONTRIBUTING*",
+]
+# Infrastructure-as-code and runtime/cloud topology.
+_DEFAULT_INFRA_GLOBS: list[str] = [
+    "*.tf",
+    "*.tfvars",
+    "*.tf.json",
+    "terraform/**",
+    "**/terraform/**",
+    "cdk/**",
+    "**/cdk/**",
+    "*-stack.ts",
+    "*.stack.ts",
+    "Dockerfile",
+    "**/Dockerfile",
+    "Dockerfile.*",
+    "docker-compose*.yml",
+    "docker-compose*.yaml",
+    "*.bicep",
+    "k8s/**",
+    "**/k8s/**",
+    "kubernetes/**",
+    "**/kubernetes/**",
+    "helm/**",
+    "**/helm/**",
+    "serverless.yml",
+    "serverless.yaml",
+    "Pulumi.yaml",
+]
+# Architectural code tiers that are NOT glob-determinable across repos
+# (frontend/data/business) default to empty: unmatched code falls to the
+# ``logic`` residual and is tiered by a human via the reclassify loop.
+_DEFAULT_FRONTEND_GLOBS: list[str] = []
+_DEFAULT_DATA_GLOBS: list[str] = []
+_DEFAULT_BUSINESS_GLOBS: list[str] = []
 _DEFAULT_TEST_GLOBS: list[str] = [
     "test_*.py",
     "*_test.py",
@@ -115,6 +222,18 @@ class PartingConfig(BaseModel):
     generated_globs: list[str] = _DEFAULT_GENERATED_GLOBS
     config_globs: list[str] = _DEFAULT_CONFIG_GLOBS
     test_globs: list[str] = _DEFAULT_TEST_GLOBS
+    # Two-axis taxonomy globs, checked most-specific-first in _classify (see the
+    # precedence list in part_stock.py). Non-code intent buckets first, then the
+    # architectural code tiers (sparse by default — human-tiered via overrides).
+    security_policy_globs: list[str] = _DEFAULT_SECURITY_POLICY_GLOBS
+    supply_chain_globs: list[str] = _DEFAULT_SUPPLY_CHAIN_GLOBS
+    ci_cd_globs: list[str] = _DEFAULT_CI_CD_GLOBS
+    schema_contracts_globs: list[str] = _DEFAULT_SCHEMA_CONTRACTS_GLOBS
+    documentation_globs: list[str] = _DEFAULT_DOCUMENTATION_GLOBS
+    infra_globs: list[str] = _DEFAULT_INFRA_GLOBS
+    data_globs: list[str] = _DEFAULT_DATA_GLOBS
+    frontend_globs: list[str] = _DEFAULT_FRONTEND_GLOBS
+    business_globs: list[str] = _DEFAULT_BUSINESS_GLOBS
     # Optional per-part validate command run after each peel by restack.sh.
     # Empty (the default) means the self-check is skipped silently.
     validate_command: str = ""
