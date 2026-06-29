@@ -177,10 +177,14 @@ def run_complexity(
         grade = "A" if mi >= 20 else ("B" if mi >= 10 else "C")
         fn["maintainability_index"] = f"{grade} ({mi:.1f})"
 
-    # JS/TS override: use escomplex for accurate Halstead MI
-    js_ts_files = [f for f in supported if Path(f).suffix in _JS_TS_EXTS]
-    if js_ts_files:
-        _apply_escomplex_mi(functions, js_ts_files, repo_path, timeout)
+    # JS/TS maintainability override is DISABLED: it shelled out to an `escomplex`
+    # binary that does not exist (the npm `escomplex-cli` package is fictional, and
+    # `escomplex` ships no CLI), so this path only ever FileNotFoundError'd and emitted
+    # a misleading install hint. JS/TS now uses the Halstead approximation above, same
+    # as Go/Rust/Java/C/Swift. Re-enable with a real tool per issue #441.
+    # js_ts_files = [f for f in supported if Path(f).suffix in _JS_TS_EXTS]
+    # if js_ts_files:
+    #     _apply_escomplex_mi(functions, js_ts_files, repo_path, timeout)
 
     py_files = [f for f in supported if f.endswith(".py")]
     if py_files:
