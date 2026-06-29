@@ -514,10 +514,24 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
     merged_telemetry = (
         pkg_config.telemetry if pkg_config.telemetry != TelemetryConfig() else root_config.telemetry
     )
+    # Carry parting/inspect/gauge through the merge (package precedence when set,
+    # else root). Previously RepoConfig was rebuilt with only plugins/thresholds/
+    # telemetry, silently dropping these three to defaults on a package merge —
+    # which would also wipe a parting.overrides table (#442).
+    merged_parting = (
+        pkg_config.parting if pkg_config.parting != PartingConfig() else root_config.parting
+    )
+    merged_inspect = (
+        pkg_config.inspect if pkg_config.inspect != InspectConfig() else root_config.inspect
+    )
+    merged_gauge = pkg_config.gauge if pkg_config.gauge != GaugeConfig() else root_config.gauge
     return RepoConfig(
         plugins=merged_plugins,
         thresholds=merged_thresholds,
         telemetry=merged_telemetry,
+        parting=merged_parting,
+        inspect=merged_inspect,
+        gauge=merged_gauge,
     )
 
 

@@ -321,3 +321,60 @@ class TestLoadMergedConfigSemgrepRegression:
         assert result.telemetry.endpoint == "https://t.example.com/v1"
         assert result.plugins.semgrep.extra_config_dirs == ["/shared/semgrep"]
         assert result.plugins.semgrep.exclude_rules == ["test.rule.one"]
+
+
+class TestPartingInspectGaugeSurviveMerge:
+    """Regression for #442: a package merge must not drop parting/inspect/gauge."""
+
+    def test_root_parting_overrides_survive_package_merge(self, tmp_path: Path) -> None:
+        """A root parting.overrides table is not wiped when a package config merges."""
+        _write_config(
+            tmp_path,
+            {
+                "parting": {
+                    "size_cap": 250,
+                    "overrides": [{"glob": "src/ui/**", "bucket": "frontend"}],
+                }
+            },
+        )
+        pkg_dir = tmp_path / "packages" / "core"
+        pkg_dir.mkdir(parents=True)
+        # Package config touches only plugins — parting must carry through from root.
+        _write_config(pkg_dir, {"plugins": {"disabled": ["trivy"]}})
+
+        result = load_merged_config(tmp_path, package_root=pkg_dir)
+
+        assert result.parting.size_cap == 250
+        assert len(result.parting.overrides) == 1
+        assert result.parting.overrides[0].glob == "src/ui/**"
+        assert result.parting.overrides[0].bucket == "frontend"
+        assert result.plugins.disabled == ["trivy"]
+
+    def test_package_parting_takes_precedence_when_set(self, tmp_path: Path) -> None:
+        """When the package sets parting, its value wins over root."""
+        _write_config(tmp_path, {"parting": {"size_cap": 250}})
+        pkg_dir = tmp_path / "packages" / "web"
+        pkg_dir.mkdir(parents=True)
+        _write_config(pkg_dir, {"parting": {"size_cap": 99}})
+
+        result = load_merged_config(tmp_path, package_root=pkg_dir)
+
+        assert result.parting.size_cap == 99
+
+    def test_root_inspect_and_gauge_survive_package_merge(self, tmp_path: Path) -> None:
+        """Root inspect/gauge tuning is not reset to defaults on a package merge."""
+        _write_config(
+            tmp_path,
+            {
+                "inspect": {"token_budget": 12345},
+                "gauge": {"recurrence_min_parts": 7},
+            },
+        )
+        pkg_dir = tmp_path / "packages" / "svc"
+        pkg_dir.mkdir(parents=True)
+        _write_config(pkg_dir, {"plugins": {"disabled": ["typos"]}})
+
+        result = load_merged_config(tmp_path, package_root=pkg_dir)
+
+        assert result.inspect.token_budget == 12345
+        assert result.gauge.recurrence_min_parts == 7
