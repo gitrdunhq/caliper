@@ -185,3 +185,59 @@ class TestSemgrepConfig:
         config = load_repo_config(tmp_path)
         assert config.plugins.semgrep.extra_config_dirs == []
         assert config.plugins.semgrep.exclude_rules == []
+
+
+class TestPartingOverrides:
+    """parting.overrides — the reclassification table loaded from .caliper.yaml."""
+
+    def test_overrides_parsed_from_yaml(self, tmp_path: Path) -> None:
+        _write_config(
+            tmp_path,
+            {
+                "parting": {
+                    "overrides": [
+                        {"glob": "src/ui/**", "bucket": "frontend", "note": "the SPA"},
+                        {"glob": "src/repo/**", "bucket": "data"},
+                    ]
+                }
+            },
+        )
+        config = load_repo_config(tmp_path)
+        assert len(config.parting.overrides) == 2
+        assert config.parting.overrides[0].glob == "src/ui/**"
+        assert config.parting.overrides[0].bucket == "frontend"
+        assert config.parting.overrides[0].note == "the SPA"
+
+    def test_duplicate_override_glob_raises(self, tmp_path: Path) -> None:
+        """Two rules with the same glob are an ambiguous conflict — fail at load."""
+        _write_config(
+            tmp_path,
+            {
+                "parting": {
+                    "overrides": [
+                        {"glob": "src/x/**", "bucket": "frontend"},
+                        {"glob": "src/x/**", "bucket": "data"},
+                    ]
+                }
+            },
+        )
+        with pytest.raises(ValueError, match="duplicate override glob"):
+            load_repo_config(tmp_path)
+
+    def test_structural_bucket_override_rejected(self, tmp_path: Path) -> None:
+        """An override may not target a structural bucket (delete/move/binary)."""
+        _write_config(
+            tmp_path,
+            {"parting": {"overrides": [{"glob": "src/x/**", "bucket": "delete"}]}},
+        )
+        with pytest.raises(ValueError):
+            load_repo_config(tmp_path)
+
+    def test_unknown_override_bucket_rejected(self, tmp_path: Path) -> None:
+        """A bucket outside the ChangeType enum is a load error, not silently dropped."""
+        _write_config(
+            tmp_path,
+            {"parting": {"overrides": [{"glob": "src/x/**", "bucket": "nonsense"}]}},
+        )
+        with pytest.raises(ValueError):
+            load_repo_config(tmp_path)

@@ -9,9 +9,22 @@ from typing import Any
 
 import structlog
 import yaml
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
-from caliper.core.models import PartTarget
+from caliper.core.models import ChangeType, PartTarget
+
+# Structural buckets are facts from git, not classification guesses — an override
+# may not target them (a file is a delete/move/binary or it is not).
+_STRUCTURAL_BUCKETS: frozenset[ChangeType] = frozenset(
+    {ChangeType.move, ChangeType.delete, ChangeType.binary}
+)
 
 logger = structlog.get_logger()
 
@@ -201,6 +214,40 @@ _DEFAULT_TEST_GLOBS: list[str] = [
 ]
 
 
+class OverrideRule(BaseModel):
+    """A human reclassification: files matching ``glob`` are forced into ``bucket``.
+
+    Overrides are the deterministic feedback loop — a version-controlled table that
+    sits above the heuristic globs in ``_classify`` but below the structural facts
+    (delete/move/binary), so a reviewer can correct a tier without touching code.
+    Glob-based (not exact paths) so a rename does not silently orphan an override.
+    First matching rule in list order wins.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    glob: str
+    bucket: ChangeType
+    note: str = ""  # why the human reclassified; provenance only, never gates
+
+    @field_validator("glob")
+    @classmethod
+    def _glob_nonempty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("override glob must be non-empty")
+        return v
+
+    @field_validator("bucket")
+    @classmethod
+    def _bucket_not_structural(cls, v: ChangeType) -> ChangeType:
+        if v in _STRUCTURAL_BUCKETS:
+            raise ValueError(
+                f"override bucket {v!r} is structural (delete/move/binary) and is "
+                "decided by git, not by reclassification"
+            )
+        return v
+
+
 class PartingConfig(BaseModel):
     """Configuration for ``caliper part`` (the parting / diff-cutting operation).
 
@@ -234,9 +281,31 @@ class PartingConfig(BaseModel):
     data_globs: list[str] = _DEFAULT_DATA_GLOBS
     frontend_globs: list[str] = _DEFAULT_FRONTEND_GLOBS
     business_globs: list[str] = _DEFAULT_BUSINESS_GLOBS
+    # Human reclassification table (the feedback loop). Applied above the globs but
+    # below structural facts in _classify; first matching rule wins. Part of the
+    # config_digest, so an override changes provenance.
+    overrides: list[OverrideRule] = Field(default_factory=list)
     # Optional per-part validate command run after each peel by restack.sh.
     # Empty (the default) means the self-check is skipped silently.
     validate_command: str = ""
+
+    @model_validator(mode="after")
+    def _no_duplicate_override_globs(self) -> PartingConfig:
+        """Reject duplicate override globs at load — a conflict is a config error.
+
+        Two rules with the same glob assigning different buckets is ambiguous; even
+        same-bucket duplicates are dead weight. Fail loudly rather than silently
+        picking one (first-match-wins only disambiguates *different* globs).
+        """
+        seen: set[str] = set()
+        dupes: set[str] = set()
+        for rule in self.overrides:
+            if rule.glob in seen:
+                dupes.add(rule.glob)
+            seen.add(rule.glob)
+        if dupes:
+            raise ValueError(f"duplicate override glob(s): {sorted(dupes)}")
+        return self
 
 
 # Bucket -> admissible claim categories (research-fed default; rule 4). Empty list

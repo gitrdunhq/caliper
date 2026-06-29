@@ -139,6 +139,19 @@ _GLOB_PRECEDENCE: tuple[tuple[str, ChangeType], ...] = (
 )
 
 
+def _match_override(path: str, cfg: PartingConfig) -> ChangeType | None:
+    """Return the bucket of the first override rule whose glob matches, else None.
+
+    First-match-in-list-order wins (deterministic). Overrides are validated at load
+    so a rule never targets a structural bucket; this is the human feedback loop's
+    one decision point in the classifier.
+    """
+    for rule in cfg.overrides:
+        if _match_globs(path, [rule.glob]):
+            return rule.bucket
+    return None
+
+
 def _classify_by_globs(path: str, cfg: PartingConfig) -> ChangeType:
     """Apply the ordered glob precedence to a path; ``logic`` if nothing matches.
 
@@ -179,6 +192,9 @@ def _classify(
         or mode in (_SYMLINK_MODE, _GITLINK_MODE)
     ):
         return ChangeType.binary
+    override = _match_override(new_path, cfg)
+    if override is not None:
+        return override
     return _classify_by_globs(new_path, cfg)
 
 
