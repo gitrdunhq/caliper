@@ -508,7 +508,7 @@ webhook, no Action).
 # Review each part of a cut list, then the assembled stack
 uv run caliper inspect --cutlist .parting/cutlist.json --out .inspect
 
-# Fully deterministic: Tier 0 gauges + Tier 2 adjudicator only, no model
+# Fully deterministic: Screen gauges + Adjudicate only, no model
 uv run caliper inspect --cutlist .parting/cutlist.json --out .inspect --no-llm
 
 # Re-print a saved report
@@ -517,28 +517,31 @@ uv run caliper inspect --explain .inspect/inspect/<part-id>.json
 
 **Three tiers per part:**
 
-- **Tier 0 — gauges (deterministic, no LLM).** Caliper's existing analyzers/
+- **Screen — gauges (deterministic, no LLM).** Caliper's existing analyzers/
   detectors/secret scanners, scoped to the part's file set and routed by bucket.
   Produces pass/fail verdicts. A part that fails a hard gauge is reported and its
   LLM review is skipped.
-- **Tier 1 — LLM review (advisory only).** Runs on parts that clear Tier 0 and need
+- **Review — LLM review (advisory only).** Runs on parts that clear Screen and need
   judgment (mostly `logic`), behind an `LLMPort`. It emits structured **claims** —
   never a verdict, never a gate. Sealed and swappable; cached on part content.
-- **Tier 2 — adjudicator (deterministic, no LLM).** A pure function (sibling of
-  `part()`) filters claims by six rules in firing order: parse, scope, anchor,
-  substantiation (a `blocking` claim without a Tier 0 witness is downgraded to
-  advisory, not deleted), category allow-list per bucket, severity floor, and dedup.
-  Only survivors reach the report.
+- **Adjudicate — the filter (deterministic, no LLM).** A pure function (sibling of
+  `part()`) filters claims by rules in firing order: parse, scope, anchor (a claim's
+  `anchor_quote` must be a verbatim substring of the part's changed text before its
+  line numbers are trusted — the anti-hallucination keystone), substantiation (a
+  `blocking` claim without a Screen witness is downgraded to advisory, not deleted),
+  category allow-list per bucket, severity floor, collapse-into-Screen (a non-blocking
+  claim that merely corroborates a Screen finding is dropped), and dedup. Only
+  survivors reach the report.
 
 > **Determinism boundary.** The *decision path* is deterministic; the *review* is
 > not. The defended claim is "no LLM output reaches a human or a gate except through
-> the pure Tier 2 adjudicator" — not "no LLM touches review." LLM output is cached
+> the pure Adjudicate filter" — not "no LLM touches review." LLM output is cached
 > keyed on part content, so a part inspects identically until it changes (the cache
 > is deterministic; the model is not claimed to be).
 
-> **Fail behavior.** Tier 0 and Tier 2 are **fail-closed** (a gauge that errors or
-> times out is a hard error). Tier 1 is **fail-soft**: if the LLM is unavailable the
-> report shows Tier 0 results and notes `skipped_llm` — it never invents claims to
+> **Fail behavior.** Screen and Adjudicate are **fail-closed** (a gauge that errors or
+> times out is a hard error). Review is **fail-soft**: if the LLM is unavailable the
+> report shows Screen results and notes `skipped_llm` — it never invents claims to
 > fill a gap. The LLM lives only behind `LLMPort`; the deterministic tiers are
 > structurally unable to import it (enforced by a test), mirroring how `PARTING` is
 > isolated from the auto pipeline.
@@ -552,7 +555,7 @@ phase; this phase routes by bucket only.
 ### Gauge — the flywheel (`caliper gauge`)
 
 `caliper gauge` is the terminal step of the arc: it turns **recurring advisory LLM
-claims into permanent deterministic Tier 0 gauges**, so deterministic coverage grows
+claims into permanent deterministic Screen gauges**, so deterministic coverage grows
 and the LLM is needed for less over time. It is maintainer-driven curation, not a
 per-PR operation.
 
@@ -568,13 +571,13 @@ ledger** (advisory data, never the audit lake) with a content reference. `propos
 clusters the ledger **deterministically**, ranks by recurrence × severity, and has
 the LLM draft a **candidate gauge** for each high-rank cluster. `backtest` validates
 each candidate deterministically. `promote` presents passing candidates to a human,
-who accepts or rejects. A promoted gauge is Tier 0 from then on, so the pattern
-becomes substantiated (or never reaches Tier 1) and the ledger stops accumulating it
+who accepts or rejects. A promoted gauge is a Screen gauge from then on, so the pattern
+becomes substantiated (or never reaches Review) and the ledger stops accumulating it
 — the loop closes for that pattern.
 
 > **The LLM drafts; it never promotes.** This is the defining boundary of the phase:
 > an LLM now drafts artifacts that become deterministic decision logic, so every rule
-> exists to keep that safe. A candidate enters Tier 0 only after a deterministic
+> exists to keep that safe. A candidate enters Screen only after a deterministic
 > backtest **and** an explicit human promotion — there is no code path from LLM
 > output to an active gauge that skips both (a gauge is active iff a `Promotion`
 > exists for it). `propose` is the only LLM step; `backtest` and `promote` are

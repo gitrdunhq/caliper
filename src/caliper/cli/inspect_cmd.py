@@ -2,12 +2,12 @@
 
 # tested-by: tests/integration/test_inspect_cli.py
 
-A thin CLI adapter. For each part of a ``caliper part`` cut list it runs Tier 0
-gauges (deterministic), an optional Tier 1 LLM review (advisory, behind a port),
-and the pure Tier 2 adjudicator, then writes a per-part inspection report. After
-the parts it runs one integration pass over the assembled stock. Output is a
-report: it never gates a build, never enters the decision audit lake, and is not
-in the auto pipeline.
+A thin CLI adapter. For each part of a ``caliper part`` cut list it runs Screen
+gauges (deterministic), an optional Review LLM pass (advisory, behind a port), and
+the pure Adjudicate filter, then writes a per-part inspection report. After the
+parts it runs one integration pass over the assembled stock. Output is a report:
+it never gates a build, never enters the decision audit lake, and is not in the
+auto pipeline.
 
 The decision path is deterministic; the review is not. No LLM output reaches this
 report except through the pure adjudicator.
@@ -28,8 +28,8 @@ import caliper.plugins._inspect_llm  # noqa: E402,F401
 from caliper.core import ledger as ledger_store
 from caliper.core.inspect import adjudicate
 from caliper.core.inspect_cache import InspectCache
-from caliper.core.inspect_gauges import has_hard_failure, run_gauges, tier0_findings
-from caliper.core.inspect_runner import run_tier1
+from caliper.core.inspect_gauges import has_hard_failure, run_gauges, screen_findings
+from caliper.core.inspect_runner import run_review
 from caliper.core.inspect_view import PartView, build_view
 from caliper.core.models import (
     ChangeType,
@@ -46,7 +46,7 @@ from caliper.plugins import get_default_registry  # noqa: E402
 
 
 def _analyze(files: list[str], repo_path: Path, categories: list[str]) -> list[PluginResult]:
-    """Tier 0 analyzer runner: the existing registry, scoped to a part's files."""
+    """Screen analyzer runner: the existing registry, scoped to a part's files."""
     return get_default_registry().run_all(files, repo_path, categories=categories)
 
 
@@ -126,7 +126,7 @@ def _lower_context(parts: list[Part], index: int) -> str:
     "no_llm",
     is_flag=True,
     default=False,
-    help="Tier 0 + Tier 2 only (fully deterministic).",
+    help="Screen + Adjudicate only (fully deterministic).",
 )
 @click.option(
     "--token-budget",
@@ -189,19 +189,21 @@ def inspect(
 
     parts = cutlist.parts
     all_changed: dict[str, set[int]] = {}
-    all_tier0 = []
+    all_screen = []
     for i, part in enumerate(parts):
         view = build_view(repo_path, base, head, part.files)
         gauges = run_gauges(part, repo_path, cfg, analyze=_analyze)  # fail-closed
-        t0 = tier0_findings(gauges)
-        all_tier0.extend(t0)
+        screen = screen_findings(gauges)
+        all_screen.extend(screen)
         for f, lines in view.changed_lines.items():
             all_changed.setdefault(f, set()).update(lines)
 
         # A hard gauge failure means the part is reported with its LLM review skipped.
         enabled = not no_llm and not has_hard_failure(gauges)
-        tier1 = run_tier1(part, view, _lower_context(parts, i), cfg, cache=cache, enabled=enabled)
-        adj = adjudicate(tier1.raw_claims, part, t0, cfg, view.changed_lines)
+        review = run_review(part, view, _lower_context(parts, i), cfg, cache=cache, enabled=enabled)
+        adj = adjudicate(
+            review.raw_claims, part, screen, cfg, view.changed_lines, view.changed_text
+        )
 
         rep = InspectionReport(
             part_id=part.id,
@@ -209,7 +211,7 @@ def inspect(
             kind="part",
             gauges=gauges,
             claims=adj.survivors,
-            skipped_llm=tier1.skipped_llm,
+            skipped_llm=review.skipped_llm,
             dropped=adj.dropped,
         )
         click.echo(_render_report(rep))
@@ -228,9 +230,14 @@ def inspect(
         opened_by=Kerf(fired_rule="bucket-end"),
     )
     integ_view = build_view(repo_path, base, head, all_files)
-    integ_t1 = run_tier1(integ_part, integ_view, "", cfg, cache=cache, enabled=not no_llm)
+    integ_review = run_review(integ_part, integ_view, "", cfg, cache=cache, enabled=not no_llm)
     integ_adj = adjudicate(
-        integ_t1.raw_claims, integ_part, all_tier0, cfg, integ_view.changed_lines
+        integ_review.raw_claims,
+        integ_part,
+        all_screen,
+        cfg,
+        integ_view.changed_lines,
+        integ_view.changed_text,
     )
     integ_rep = InspectionReport(
         part_id="integration",
@@ -238,7 +245,7 @@ def inspect(
         kind="integration",
         gauges=[],
         claims=integ_adj.survivors,
-        skipped_llm=integ_t1.skipped_llm,
+        skipped_llm=integ_review.skipped_llm,
         dropped=integ_adj.dropped,
     )
     click.echo(_render_report(integ_rep))

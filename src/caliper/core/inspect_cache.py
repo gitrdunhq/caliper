@@ -2,11 +2,16 @@
 
 # tested-by: tests/unit/test_inspect_cache.py
 
-LLM output is cached keyed on a hash of the part's content (file set + changed-line
-bytes) plus the model id and prompt version. The same key returns the cached claims
-without calling the port; a changed part misses. This does not claim the model is
-deterministic — it claims the cache is, so a part inspects identically until it
-changes.
+LLM output is cached keyed on a hash of the part's file set plus the *fully rendered
+review prompt* and the model id and prompt version. Keying on the rendered prompt
+means everything the model actually sees — the part's changed hunks, the bucket
+header, the lower-parts context, and any PR/issue prose — is captured, so a change in
+any of them correctly misses (closing the stale-hit gap where lower context changed
+but the part's own bytes did not). Screen findings are deliberately NOT in
+the key: they are bound to claims post-hoc by the adjudicator and never enter the
+prompt, so they cannot change the model's raw claims. The same key returns the cached
+claims without calling the port; this does not claim the model is deterministic — it
+claims the cache is, so a part inspects identically until its prompt changes.
 
 The cache lives OUTSIDE the decision audit lake (it is advisory review output, not
 a sealed verdict). It is a plain JSON-per-key directory.
@@ -20,20 +25,20 @@ from pathlib import Path
 import orjson
 
 
-def content_key(files: list[str], changed_bytes: bytes, model_id: str, prompt_version: str) -> str:
+def content_key(files: list[str], prompt: str, model_id: str, prompt_version: str) -> str:
     """Deterministic cache key for a part's review.
 
-    ``files`` is the part's file set, ``changed_bytes`` the concatenated bytes of its
-    changed lines (the producer's view). Sorting the file set makes the key order-
-    independent. The model id and prompt version are included so a model/prompt swap
-    correctly misses.
+    ``files`` is the part's file set; ``prompt`` is the fully rendered review prompt
+    (changed hunks + bucket + lower-parts context + any PR/issue prose). Sorting the
+    file set makes the key order-independent. The model id and prompt version are
+    included so a model/prompt swap correctly misses.
     """
     h = hashlib.sha256()
     for f in sorted(files):
         h.update(f.encode("utf-8"))
         h.update(b"\0")
     h.update(b"\x01")
-    h.update(changed_bytes)
+    h.update(prompt.encode("utf-8"))
     h.update(b"\x01")
     h.update(model_id.encode("utf-8"))
     h.update(b"\0")

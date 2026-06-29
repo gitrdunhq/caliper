@@ -3,7 +3,7 @@
 # tested-by: tests/unit/test_gauge_promotion.py
 
 The defining safety property: the LLM drafts but never promotes. A gauge is active
-in Tier 0 only if a ``Promotion`` exists for it, and the only function that writes a
+in Screen only if a ``Promotion`` exists for it, and the only function that writes a
 Promotion is ``promote()``, which requires a passing backtest and an explicit human.
 
 Property domains (DPS-12):

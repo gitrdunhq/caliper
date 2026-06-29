@@ -1,4 +1,4 @@
-"""Tests for the pure Tier 2 adjudicator — ``core.inspect.adjudicate``.
+"""Tests for the pure Adjudicate filter — ``core.inspect.adjudicate``.
 
 # tested-by: tests/unit/test_inspect_adjudicator.py
 
@@ -7,18 +7,24 @@ output reaches a report except through it. It is a pure function (sibling of
 ``part()``) — no IO, clock, or randomness — so it is property-tested first.
 
 Property domains (DPS-12):
-  Determinism   INVARIANT  same inputs -> identical output
-  Integrity     SAFETY     no blocking claim survives without a Tier 0 witness
-  Isolation     SAFETY     out-of-scope / unanchored claims never survive
+  Determinism   INVARIANT     same inputs -> identical output
+  Integrity     SAFETY        no blocking claim survives without a Screen witness
+  Isolation     SAFETY        out-of-scope / unanchored claims never survive
+  Monotonicity  SAFETY        adjudication never escalates severity nor invents a claim
+  Boundedness   PERFORMANCE   survivors never outnumber the raw claims in
 """
 
 from __future__ import annotations
+
+import builtins
+from unittest.mock import patch
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from caliper.core.inspect import adjudicate, bind_evidence
 from caliper.core.models import (
+    SEVERITY_RANK,
     ChangeType,
     Claim,
     GaugeFinding,
@@ -68,6 +74,17 @@ def _finding(fid="f1", file="a.py", lr=(1, 2), cat="correctness") -> GaugeFindin
     )
 
 
+def _parse(raw: list) -> list[Claim]:
+    """Mirror the adjudicator's parse rule for property assertions."""
+    out: list[Claim] = []
+    for r in raw:
+        try:
+            out.append(Claim.model_validate(r))
+        except Exception:  # noqa: BLE001
+            pass
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Unit rules
 # ---------------------------------------------------------------------------
@@ -87,8 +104,45 @@ def test_anchor_drops_claims_not_on_a_changed_line() -> None:
     assert any(d.rule == "anchor" for d in res.dropped)
 
 
+def test_anchor_quote_must_be_verbatim_substring_of_changed_text() -> None:
+    """Rule 2 (keystone): a non-empty anchor_quote that is not a literal substring of
+    the part's changed text is dropped before line numbers are trusted."""
+    changed_text = {"a.py": "x = compute(y)\nreturn z"}
+    res = adjudicate(
+        [_claim(lr=(1, 1), anchor_quote="value = never_written_here()")],
+        PART,
+        [],
+        CFG,
+        CHANGED,
+        changed_text,
+    )
+    assert res.survivors == []
+    assert any(d.rule == "anchor" for d in res.dropped)
+
+
+def test_anchor_quote_verbatim_present_survives() -> None:
+    """A claim whose anchor_quote is verbatim in the changed text passes the anchor rule."""
+    changed_text = {"a.py": "x = compute(y)\nreturn z"}
+    res = adjudicate(
+        [_claim(lr=(1, 1), anchor_quote="x = compute(y)")],
+        PART,
+        [],
+        CFG,
+        CHANGED,
+        changed_text,
+    )
+    assert len(res.survivors) == 1
+    assert res.survivors[0].anchor_quote == "x = compute(y)"
+
+
+def test_empty_anchor_quote_falls_back_to_line_check() -> None:
+    """Backward compatibility: a claim with no anchor_quote uses only the line check."""
+    res = adjudicate([_claim(lr=(1, 1), anchor_quote="")], PART, [], CFG, CHANGED, {})
+    assert len(res.survivors) == 1
+
+
 def test_unsubstantiated_blocking_is_downgraded_not_deleted() -> None:
-    """Rule 3: a blocking claim with no Tier 0 evidence survives as advisory (major)."""
+    """Rule 3: a blocking claim with no Screen evidence survives as advisory (major)."""
     res = adjudicate([_claim(sev="blocking")], PART, [], CFG, CHANGED)
     assert len(res.survivors) == 1
     assert res.survivors[0].severity == Severity.major  # downgraded, not removed
@@ -96,9 +150,9 @@ def test_unsubstantiated_blocking_is_downgraded_not_deleted() -> None:
 
 
 def test_substantiated_blocking_survives_as_blocking() -> None:
-    """A blocking claim that binds to a Tier 0 finding keeps blocking severity."""
-    tier0 = [_finding(fid="f1", file="a.py", lr=(1, 2), cat="correctness")]
-    res = adjudicate([_claim(sev="blocking", lr=(1, 2))], PART, tier0, CFG, CHANGED)
+    """A blocking claim that binds to a Screen finding keeps blocking severity."""
+    screen = [_finding(fid="f1", file="a.py", lr=(1, 2), cat="correctness")]
+    res = adjudicate([_claim(sev="blocking", lr=(1, 2))], PART, screen, CFG, CHANGED)
     assert len(res.survivors) == 1
     assert res.survivors[0].severity == Severity.blocking
     assert res.survivors[0].evidence_ref == "f1"
@@ -127,8 +181,24 @@ def test_floor_drops_below_threshold() -> None:
     assert any(d.rule == "floor" for d in res.dropped)
 
 
+def test_nonblocking_bound_claim_is_collapsed_into_screen() -> None:
+    """Rule 6: a non-blocking claim bound to a Screen finding is pure corroboration and
+    is collapsed (the human already has the deterministic finding)."""
+    screen = [_finding(fid="f1", file="a.py", lr=(1, 2), cat="correctness")]
+    res = adjudicate([_claim(sev="major", lr=(1, 2))], PART, screen, CFG, CHANGED)
+    assert res.survivors == []
+    assert any(d.rule == "collapse" for d in res.dropped)
+
+
+def test_novel_unbound_claim_is_not_collapsed() -> None:
+    """A claim with no Screen witness is novel signal and survives the collapse rule."""
+    res = adjudicate([_claim(sev="major", lr=(1, 2))], PART, [], CFG, CHANGED)
+    assert len(res.survivors) == 1
+    assert res.survivors[0].evidence_ref is None
+
+
 def test_dedup_collapses_to_highest_severity() -> None:
-    """Rule 6: same {file, line, category} collapses, keeping the highest severity."""
+    """Rule 7: same {file, line, category} collapses, keeping the highest severity."""
     res = adjudicate(
         [_claim(sev="minor", lr=(1, 1)), _claim(sev="major", lr=(1, 1))],
         PART,
@@ -142,7 +212,7 @@ def test_dedup_collapses_to_highest_severity() -> None:
 
 
 def test_bind_evidence_links_on_file_range_and_category() -> None:
-    tier0 = [
+    screen = [
         _finding(fid="f2", file="a.py", lr=(100, 200), cat="security"),
         _finding(fid="f1", file="a.py", lr=(1, 3), cat="correctness"),
     ]
@@ -155,8 +225,19 @@ def test_bind_evidence_links_on_file_range_and_category() -> None:
             assertion="x",
         )
     ]
-    bound = bind_evidence(claims, tier0, CFG)
+    bound = bind_evidence(claims, screen, CFG)
     assert bound[0].evidence_ref == "f1"  # overlapping range + compatible category
+
+
+def test_adjudicate_does_no_io() -> None:
+    """Purity: the adjudicator never opens a file (no IO, no clock, no randomness)."""
+
+    def _boom(*_a, **_k):
+        raise AssertionError("adjudicate performed file IO")
+
+    with patch.object(builtins, "open", _boom):
+        res = adjudicate([_claim(), _claim(sev="blocking")], PART, [], CFG, CHANGED)
+    assert isinstance(res.survivors, list)
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +275,7 @@ def _raw_claims(draw: st.DrawFn) -> list[dict]:
 
 
 @st.composite
-def _tier0(draw: st.DrawFn) -> list[GaugeFinding]:
+def _screen(draw: st.DrawFn) -> list[GaugeFinding]:
     out = []
     for i in range(draw(st.integers(min_value=0, max_value=3))):
         lo = draw(st.integers(min_value=1, max_value=12))
@@ -213,38 +294,64 @@ def _tier0(draw: st.DrawFn) -> list[GaugeFinding]:
 
 
 class TestProperties:
-    @given(claims=_raw_claims(), tier0=_tier0())
+    @given(claims=_raw_claims(), screen=_screen())
     @settings(max_examples=300)
-    def test_determinism(self, claims: list[dict], tier0: list[GaugeFinding]) -> None:
+    def test_determinism(self, claims: list[dict], screen: list[GaugeFinding]) -> None:
         """Determinism INVARIANT: same inputs -> identical output."""
-        a = adjudicate(claims, PART, tier0, CFG, CHANGED)
-        b = adjudicate(claims, PART, tier0, CFG, CHANGED)
+        a = adjudicate(claims, PART, screen, CFG, CHANGED)
+        b = adjudicate(claims, PART, screen, CFG, CHANGED)
         assert [c.model_dump() for c in a.survivors] == [c.model_dump() for c in b.survivors]
         assert [d.model_dump() for d in a.dropped] == [d.model_dump() for d in b.dropped]
 
-    @given(claims=_raw_claims(), tier0=_tier0())
+    @given(claims=_raw_claims(), screen=_screen())
     @settings(max_examples=500)
     def test_no_unsubstantiated_blocking(
-        self, claims: list[dict], tier0: list[GaugeFinding]
+        self, claims: list[dict], screen: list[GaugeFinding]
     ) -> None:
-        """Integrity SAFETY: no surviving blocking claim lacks a Tier 0 witness."""
-        res = adjudicate(claims, PART, tier0, CFG, CHANGED)
+        """Integrity SAFETY: no surviving blocking claim lacks a Screen witness."""
+        res = adjudicate(claims, PART, screen, CFG, CHANGED)
         for c in res.survivors:
             if c.severity == Severity.blocking:
                 assert c.evidence_ref is not None
 
-    @given(claims=_raw_claims(), tier0=_tier0())
+    @given(claims=_raw_claims(), screen=_screen())
     @settings(max_examples=300)
     def test_survivors_well_formed_and_in_scope(
-        self, claims: list[dict], tier0: list[GaugeFinding]
+        self, claims: list[dict], screen: list[GaugeFinding]
     ) -> None:
         """Isolation SAFETY: every survivor is a valid Claim, in scope, on a changed line."""
-        res = adjudicate(claims, PART, tier0, CFG, CHANGED)
+        res = adjudicate(claims, PART, screen, CFG, CHANGED)
         for c in res.survivors:
             assert isinstance(c, Claim)
             assert c.file in PART.files
             lo, hi = c.line_range
             assert any(ln in CHANGED[c.file] for ln in range(lo, hi + 1))
+
+    @given(claims=_raw_claims(), screen=_screen())
+    @settings(max_examples=300)
+    def test_monotonicity_no_escalation_no_invention(
+        self, claims: list[dict], screen: list[GaugeFinding]
+    ) -> None:
+        """Monotonicity SAFETY: adjudication never escalates a claim's severity and never
+        invents a claim — every survivor maps to an input (file, line_range, category) and
+        its severity rank does not exceed the highest the model emitted for that anchor."""
+        res = adjudicate(claims, PART, screen, CFG, CHANGED)
+        max_rank: dict[tuple, int] = {}
+        for c in _parse(claims):
+            key = (c.file, tuple(c.line_range), c.category.value)
+            max_rank[key] = max(max_rank.get(key, -1), SEVERITY_RANK[c.severity])
+        for s in res.survivors:
+            key = (s.file, tuple(s.line_range), s.category.value)
+            assert key in max_rank  # no invented claim
+            assert SEVERITY_RANK[s.severity] <= max_rank[key]  # no escalation
+
+    @given(claims=_raw_claims(), screen=_screen())
+    @settings(max_examples=300)
+    def test_boundedness(self, claims: list[dict], screen: list[GaugeFinding]) -> None:
+        """Boundedness PERFORMANCE: survivors never outnumber the raw claims in."""
+        res = adjudicate(claims, PART, screen, CFG, CHANGED)
+        assert len(res.survivors) <= len(claims)
+        assert len(res.survivors) <= len(_parse(claims))
 
     @given(claims=_raw_claims())
     @settings(max_examples=200)

@@ -3,7 +3,7 @@
 # tested-by: tests/integration/test_inspect_cli.py
 
 Builds a git repo, produces a real cut list (via the parting producer/consumer),
-and drives the actual ``caliper inspect`` CLI. Tier 0 is made hermetic for the
+and drives the actual ``caliper inspect`` CLI. Screen is made hermetic for the
 test by routing no analyzers (``bucket_gauges: {}``) so it depends on no scanner
 binaries; the gauge logic itself is unit-tested with fakes. Covers per-part +
 integration reports, ``--no-llm`` determinism, the null backend fail-soft, and
@@ -43,7 +43,7 @@ def _git(args: list[str], cwd: Path) -> str:
     return proc.stdout
 
 
-# Hermetic Tier 0: no analyzers routed, missing gauges tolerated.
+# Hermetic Screen: no analyzers routed, missing gauges tolerated.
 _CALIPER_YAML = "inspect:\n  bucket_gauges: {}\n  allow_missing_gauges: true\n"
 
 
@@ -122,7 +122,7 @@ def test_no_llm_skips_review_with_no_claims(cutlist_repo, tmp_path) -> None:
 
 def test_default_null_backend_fails_soft(cutlist_repo, tmp_path) -> None:
     """Without --no-llm, the default 'null' backend is unavailable: reports show
-    skipped_llm and no invented claims (fail-soft Tier 1)."""
+    skipped_llm and no invented claims (fail-soft Review)."""
     repo, cutlist_path, _ = cutlist_repo
     out = tmp_path / "out"
     assert _invoke(repo, cutlist_path, out).exit_code == 0

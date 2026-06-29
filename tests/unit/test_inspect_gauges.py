@@ -1,4 +1,4 @@
-"""Tests for Tier 0 gauges — ``core.inspect_gauges`` (injected analyzer runner).
+"""Tests for Screen gauges — ``core.inspect_gauges`` (injected analyzer runner).
 
 # tested-by: tests/unit/test_inspect_gauges.py
 
@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from caliper.core.inspect import InspectError
-from caliper.core.inspect_gauges import has_hard_failure, run_gauges, tier0_findings
+from caliper.core.inspect_gauges import has_hard_failure, run_gauges, screen_findings
 from caliper.core.models import ChangeType, Kerf, Part
 from caliper.core.plugin import PluginResult
 from caliper.core.repo_config import InspectConfig
@@ -57,7 +57,7 @@ def test_logic_runs_analyzers_and_records_findings_with_ids() -> None:
     gauges = run_gauges(
         _part(ChangeType.logic), Path("/repo"), InspectConfig(), analyze=fake_analyze
     )
-    findings = tier0_findings(gauges)
+    findings = screen_findings(gauges)
     assert any(
         f.id == "detectors:0" and f.file == "a.py" and f.line_range == (4, 4) for f in findings
     )

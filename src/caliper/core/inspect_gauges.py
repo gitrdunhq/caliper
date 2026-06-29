@@ -1,8 +1,8 @@
-"""Tier 0 gauges — deterministic go/no-go checks scoped to a part's file set.
+"""Screen gauges — deterministic go/no-go checks scoped to a part's file set.
 
 # tested-by: tests/unit/test_inspect_gauges.py
 
-Tier 0 reuses caliper's existing analyzers/detectors, scoped to a part's files and
+Screen reuses caliper's existing analyzers/detectors, scoped to a part's files and
 routed by bucket; it writes no new scanners. It is deterministic and fail-closed:
 a gauge that errors or times out is a hard error (``InspectError``), never a silent
 pass. A part that fails a hard gauge is reported and its LLM review is skipped.
@@ -44,7 +44,7 @@ def _require_analyze(*_args) -> list[PluginResult]:
     the caller (the CLI tier) did not wire one. Core must not import the plugins
     tier itself, so the registry-backed runner is injected from the CLI."""
     raise InspectError(
-        "Tier 0 analyzer runner not provided; the caller must inject one "
+        "Screen analyzer runner not provided; the caller must inject one "
         "(core may not import the plugins tier)"
     )
 
@@ -66,15 +66,15 @@ def _to_gauge_result(pr: PluginResult, cfg: InspectConfig) -> GaugeResult:
     err = (pr.error or "").lower()
     if err:
         if any(m in err for m in _TIMEOUT_MARKERS):
-            raise InspectError(f"Tier 0 gauge '{pr.plugin_name}' timed out: {pr.error}")
+            raise InspectError(f"Screen gauge '{pr.plugin_name}' timed out: {pr.error}")
         if any(m in err for m in _NOT_INSTALLED_MARKERS):
             if not cfg.allow_missing_gauges:
                 raise InspectError(
-                    f"Tier 0 gauge '{pr.plugin_name}' unavailable and "
+                    f"Screen gauge '{pr.plugin_name}' unavailable and "
                     f"allow_missing_gauges is false (fail-closed): {pr.error}"
                 )
             return GaugeResult(gauge=pr.plugin_name, verdict="pass", findings=[])
-        raise InspectError(f"Tier 0 gauge '{pr.plugin_name}' errored: {pr.error}")
+        raise InspectError(f"Screen gauge '{pr.plugin_name}' errored: {pr.error}")
 
     findings: list[GaugeFinding] = []
     hard = False
@@ -92,7 +92,7 @@ def run_gauges(
     cfg: InspectConfig,
     analyze: AnalyzerRun | None = None,
 ) -> list[GaugeResult]:
-    """Run the Tier 0 gauges for *part*, routed by its bucket. Fail-closed.
+    """Run the Screen gauges for *part*, routed by its bucket. Fail-closed.
 
     ``analyze`` is the analyzer runner injected by the CLI tier (core may not import
     the plugins tier). It is only invoked for buckets that route analyzer categories.
@@ -109,15 +109,15 @@ def run_gauges(
         try:
             plugin_results = analyze(list(part.files), repo_path, list(categories))
         except Exception as exc:  # noqa: BLE001 - any infra failure is fail-closed
-            raise InspectError(f"Tier 0 gauge run failed for part {part.id}: {exc}") from exc
+            raise InspectError(f"Screen gauge run failed for part {part.id}: {exc}") from exc
         for pr in plugin_results:
             results.append(_to_gauge_result(pr, cfg))
 
     return results
 
 
-def tier0_findings(gauges: list[GaugeResult]) -> list[GaugeFinding]:
-    """Flatten all Tier 0 findings (the witnesses a blocking claim can bind to)."""
+def screen_findings(gauges: list[GaugeResult]) -> list[GaugeFinding]:
+    """Flatten all Screen findings (the witnesses a blocking claim can bind to)."""
     return [gf for g in gauges for gf in g.findings]
 
 
