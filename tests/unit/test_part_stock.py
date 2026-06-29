@@ -164,3 +164,74 @@ def test_fail_closed_when_git_not_installed() -> None:
 
     with pytest.raises(PartingError):
         build_stock(Path("/repo"), "BASE", "HEAD", PartingConfig(), MissingRunner())
+
+
+# ---------------------------------------------------------------------------
+# Two-axis taxonomy classification — the glob precedence is the product
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyPrecedence:
+    """``_classify`` glob precedence: structural first, then most-specific globs."""
+
+    @pytest.mark.parametrize(
+        ("path", "expected"),
+        [
+            # Non-code intent buckets.
+            ("policies/policy.rego", ChangeType.security_policy),
+            ("infra/iam/role.json", ChangeType.security_policy),
+            ("package.json", ChangeType.supply_chain),
+            ("pyproject.toml", ChangeType.supply_chain),
+            (".github/workflows/ci.yml", ChangeType.ci_cd),
+            ("Makefile", ChangeType.ci_cd),
+            ("api/order.proto", ChangeType.schema_contracts),
+            ("db/migrations/0001_init.sql", ChangeType.schema_contracts),
+            ("openapi.yaml", ChangeType.schema_contracts),
+            ("README.md", ChangeType.documentation),
+            ("docs/guide.rst", ChangeType.documentation),
+            ("settings.yaml", ChangeType.config),
+            ("app.ini", ChangeType.config),
+            ("infra/main.tf", ChangeType.infra),
+            ("Dockerfile", ChangeType.infra),
+            ("cdk/app-stack.ts", ChangeType.infra),
+            # Code with no tier glob -> untiered residual.
+            ("src/service/order.py", ChangeType.logic),
+        ],
+    )
+    def test_glob_routing(self, path: str, expected: ChangeType) -> None:
+        from caliper.core.part_stock import _classify
+
+        assert _classify("M", path, size=5, mode="100644", cfg=PartingConfig()) == expected
+
+    def test_specific_beats_generic_config(self) -> None:
+        """A workflow YAML is ci_cd, not generic config; openapi YAML is schema."""
+        from caliper.core.part_stock import _classify
+
+        cfg = PartingConfig()
+        assert _classify("M", ".github/workflows/x.yaml", 5, "100644", cfg) == ChangeType.ci_cd
+        assert _classify("M", "openapi.yaml", 5, "100644", cfg) == ChangeType.schema_contracts
+
+    def test_lockfile_is_generated_not_supply_chain(self) -> None:
+        """package-lock.json is generated (checked first), package.json is supply_chain."""
+        from caliper.core.part_stock import _classify
+
+        cfg = PartingConfig()
+        assert _classify("M", "package-lock.json", 5, "100644", cfg) == ChangeType.generated
+        assert _classify("M", "package.json", 5, "100644", cfg) == ChangeType.supply_chain
+
+    @pytest.mark.parametrize(
+        ("status", "path", "size", "mode", "expected"),
+        [
+            ("D", "policies/policy.rego", 5, "100644", ChangeType.delete),
+            ("R100", "policies/policy.rego", 5, "100644", ChangeType.move),
+            ("M", "policies/policy.rego", None, "100644", ChangeType.binary),
+            ("M", "policies/policy.rego", 5, "120000", ChangeType.binary),
+        ],
+    )
+    def test_structural_facts_beat_globs(
+        self, status: str, path: str, size: int | None, mode: str, expected: ChangeType
+    ) -> None:
+        """A delete/move/binary is never reclassified by a content glob."""
+        from caliper.core.part_stock import _classify
+
+        assert _classify(status, path, size, mode, PartingConfig()) == expected

@@ -118,6 +118,40 @@ def _parse_ls_files_modes(text: str) -> dict[str, str]:
     return modes
 
 
+# Glob precedence, most-specific-first. Each entry is (PartingConfig field name,
+# resulting bucket). ``generated`` leads; the greedy generic ``config`` sits low so
+# the specific buckets (ci_cd, infra, schema_contracts, supply_chain) win first;
+# the architectural code tiers are last before the ``logic`` residual. This order
+# IS the product — changing it changes classifications, so it is asserted by tests.
+_GLOB_PRECEDENCE: tuple[tuple[str, ChangeType], ...] = (
+    ("generated_globs", ChangeType.generated),
+    ("security_policy_globs", ChangeType.security_policy),
+    ("supply_chain_globs", ChangeType.supply_chain),
+    ("ci_cd_globs", ChangeType.ci_cd),
+    ("schema_contracts_globs", ChangeType.schema_contracts),
+    ("test_globs", ChangeType.test),
+    ("documentation_globs", ChangeType.documentation),
+    ("config_globs", ChangeType.config),
+    ("infra_globs", ChangeType.infra),
+    ("data_globs", ChangeType.data),
+    ("frontend_globs", ChangeType.frontend),
+    ("business_globs", ChangeType.business),
+)
+
+
+def _classify_by_globs(path: str, cfg: PartingConfig) -> ChangeType:
+    """Apply the ordered glob precedence to a path; ``logic`` if nothing matches.
+
+    Pure path heuristics only — no structural facts and no override table (those
+    are decided by ``_classify`` before this runs). ``logic`` is the honest
+    "untiered code" residual, not a failure.
+    """
+    for field, bucket in _GLOB_PRECEDENCE:
+        if _match_globs(path, getattr(cfg, field)):
+            return bucket
+    return ChangeType.logic
+
+
 def _classify(
     status: str,
     new_path: str,
@@ -127,9 +161,12 @@ def _classify(
 ) -> ChangeType:
     """Classify one record from diff status, size, mode bits, and path globs only.
 
-    Precedence (deterministic): delete, then move, then binary (binary content,
-    symlink, gitlink, or type-change), then generated/config/test globs, else
-    logic. The pure ``part()`` later re-emits an over-delta move as ``logic``.
+    Precedence (deterministic): structural facts first — delete, then move, then
+    binary (binary content, symlink, gitlink, or type-change) — and these are
+    never overridable. Then the ordered glob heuristics in ``_GLOB_PRECEDENCE``,
+    falling to ``logic`` (untiered residual). The human override table is applied
+    by the caller before the glob heuristics (it cannot reclassify structural
+    facts). The pure ``part()`` later re-emits an over-delta move as ``logic``.
     """
     code = status[0]
     if code == "D":
@@ -142,13 +179,7 @@ def _classify(
         or mode in (_SYMLINK_MODE, _GITLINK_MODE)
     ):
         return ChangeType.binary
-    if _match_globs(new_path, cfg.generated_globs):
-        return ChangeType.generated
-    if _match_globs(new_path, cfg.config_globs):
-        return ChangeType.config
-    if _match_globs(new_path, cfg.test_globs):
-        return ChangeType.test
-    return ChangeType.logic
+    return _classify_by_globs(new_path, cfg)
 
 
 def _parse_name_status(text: str) -> list[tuple[str, str, str | None]]:
