@@ -151,7 +151,7 @@ _DEFAULT_SEVERITY_FLOOR: dict[str, str] = {
     "delete": "nit",
 }
 
-# Bucket -> Tier 0 gauge routing (analyzer category names, run scoped to the part).
+# Bucket -> Screen gauge routing (analyzer category names, run scoped to the part).
 # Research-fed default; reuses existing analyzers, never new scanners.
 _DEFAULT_BUCKET_GAUGES: dict[str, list[str]] = {
     "generated": [],  # checksum/stamp handled structurally; no analyzers, no LLM
@@ -163,10 +163,10 @@ _DEFAULT_BUCKET_GAUGES: dict[str, list[str]] = {
     "delete": [],  # reference gauge where available (v0 cross-part gap)
 }
 
-# Buckets whose parts get an LLM review (Tier 1). Others are Tier 0 only.
+# Buckets whose parts get a Review pass. Others are Screen only.
 _DEFAULT_LLM_BUCKETS: list[str] = ["logic", "config", "test"]
 
-# Claim category -> compatible Tier 0 finding categories for evidence binding
+# Claim category -> compatible Screen finding categories for evidence binding
 # (research-fed default). A blocking claim needs a binding to keep gate-shaped signal.
 _DEFAULT_CATEGORY_COMPAT: dict[str, list[str]] = {
     "security": ["security", "vulnerability", "malicious", "malware", "supply_chain"],
@@ -182,7 +182,7 @@ class InspectConfig(BaseModel):
     """Configuration for ``caliper inspect`` (per-part review).
 
     Every research-fed default is a knob here so a finding can replace it without
-    restructuring. The adjudicator (Tier 2) is pure and reads only this config.
+    restructuring. The adjudicator is pure and reads only this config.
     """
 
     token_budget: int = 8000  # lower-parts context budget (research-fed)
@@ -200,7 +200,7 @@ class InspectConfig(BaseModel):
     category_compat: dict[str, list[str]] = Field(
         default_factory=lambda: dict(_DEFAULT_CATEGORY_COMPAT)
     )
-    # Fail-closed default: a Tier 0 gauge that cannot run is a hard error. Relax
+    # Fail-closed default: a Screen gauge that cannot run is a hard error. Relax
     # only for local dev where scanner binaries are absent.
     allow_missing_gauges: bool = False
 
@@ -224,7 +224,7 @@ class GaugeConfig(BaseModel):
     # Backtest gates.
     recall_floor: float = 0.7  # must catch at least this fraction of historical hits
     precision_fp_ceiling: float = 0.05  # max false-positive rate on the clean corpus
-    runtime_budget_ms: int = 2000  # Tier 0 time budget for a single gauge
+    runtime_budget_ms: int = 2000  # Screen time budget for a single gauge
     # propose default.
     top_default: int = 10
     # LLM drafting backend (the only LLM step) + lineage stamps.

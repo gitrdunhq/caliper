@@ -1,9 +1,9 @@
-"""The tool crib — the promotion gate and registry of promoted Tier 0 gauges.
+"""The tool crib — the promotion gate and registry of promoted Screen gauges.
 
 # tested-by: tests/unit/test_gauge_promotion.py
 
 This module holds the single load-bearing safety boundary of the flywheel: a gauge
-is active in Tier 0 only if a ``Promotion`` exists for it, and the ONLY function
+is active in Screen only if a ``Promotion`` exists for it, and the ONLY function
 that writes a Promotion is :func:`promote`, which requires a passing backtest and an
 explicit human promoter. There is no path from an LLM draft to an active gauge that
 skips both — ``propose`` (the LLM step) and ``backtest`` never write here.
@@ -63,7 +63,7 @@ def promote(
 
 
 def load_promotions(crib_dir: Path) -> list[Promotion]:
-    """Load all promotions (the active Tier 0 gauges derived via the flywheel)."""
+    """Load all promotions (the active Screen gauges derived via the flywheel)."""
     crib = Path(crib_dir)
     if not crib.exists():
         return []

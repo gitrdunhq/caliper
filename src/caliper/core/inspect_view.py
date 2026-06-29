@@ -3,10 +3,12 @@
 # tested-by: tests/unit/test_inspect_view.py
 
 Builds the inputs the inspection needs from the stock, without re-parsing diffs
-elsewhere: the hunk line map (file -> changed new-side line numbers) the Tier 2
-anchor rule needs, the changed-line bytes the cache key hashes, and the unified
-diff text the Tier 1 prompt shows. All git runs through ``ToolRunnerPort`` and is
-fail-closed (a git failure is a hard error, never a partial view).
+elsewhere: the hunk line map (file -> changed new-side line numbers) the Adjudicate
+anchor rule needs, the changed-line text (file -> joined added-line content) the
+anchor rule checks ``anchor_quote`` against, the changed-line bytes the cache key
+hashes, and the unified diff text the Review prompt shows. All git runs through
+``ToolRunnerPort`` and is fail-closed (a git failure is a hard error, never a
+partial view).
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ class PartView:
     """The review view for one part: anchors, cache material, and prompt material."""
 
     changed_lines: dict[str, set[int]] = field(default_factory=dict)
+    changed_text: dict[str, str] = field(default_factory=dict)
     changed_bytes: bytes = b""
     diff_text: str = ""
 
@@ -100,12 +103,17 @@ def build_view(
     )
     parsed = parse_unified_diff(diff_text)
     changed_lines: dict[str, set[int]] = {}
+    changed_text: dict[str, str] = {}
     chunks: list[bytes] = []
     for f in sorted(parsed):
         nums = sorted(n for n, _ in parsed[f])
         changed_lines[f] = set(nums)
+        changed_text[f] = "\n".join(content for _, content in sorted(parsed[f]))
         for n, content in sorted(parsed[f]):
             chunks.append(f"{f}:{n}:".encode() + content.encode("utf-8", "replace") + b"\n")
     return PartView(
-        changed_lines=changed_lines, changed_bytes=b"".join(chunks), diff_text=diff_text
+        changed_lines=changed_lines,
+        changed_text=changed_text,
+        changed_bytes=b"".join(chunks),
+        diff_text=diff_text,
     )

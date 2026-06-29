@@ -59,12 +59,12 @@ REPO_SNAPSHOTS: Registry[RepoSnapshotPort] = Registry("repo_snapshot")
 # be auto-discovered into the automatic review pipeline. It runs only when the
 # developer invokes `caliper part`. See caliper.plugins._parting.
 PARTING: Registry[AnalyzerPort] = Registry("parting")
-# Inspect (caliper inspect) — Tier 1 LLM review backends. The LLM lives ONLY behind
-# this seam; the deterministic tiers (Tier 0 gauges, Tier 2 adjudicator) must never
+# Inspect (caliper inspect) — Review backends. The LLM lives ONLY behind
+# this seam; the deterministic tiers (Screen gauges, Adjudicate) must never
 # import the concrete backends (plugins/_inspect_llm.py) or the runner. A structural
 # test enforces that isolation.
 INSPECT_BACKENDS: Registry[LLMPort] = Registry("inspect_backend")
-# Gauge (caliper gauge) — Tier 1 of the flywheel: LLM backends that DRAFT candidate
+# Gauge (caliper gauge) — the Review step of the flywheel: LLM backends that DRAFT candidate
 # gauges. The LLM drafts but never promotes; drafts are gated by the deterministic
 # backtest and explicit human promotion. Isolated like INSPECT_BACKENDS.
 GAUGE_DRAFTERS: Registry[GaugeDraftPort] = Registry("gauge_drafter")

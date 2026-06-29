@@ -1,4 +1,4 @@
-"""Tier 1 runner — drives the sealed LLM review and the cache.
+"""Review runner — drives the sealed LLM review and the cache.
 
 # tested-by: tests/unit/test_inspect_runner.py
 
@@ -8,8 +8,8 @@ within the token budget), consults the cache, and returns raw claims for the pur
 adjudicator. It is fail-soft: if the backend is unavailable it returns no claims
 and marks the review skipped — it never invents claims to fill a gap.
 
-The deterministic tiers (Tier 0 gauges, Tier 2 adjudicator) must not import this
-module (enforced by ``tests/unit/test_inspect_isolation.py``).
+The deterministic tiers (Screen gauges, Adjudicate) must not import this module
+(enforced by ``tests/unit/test_inspect_isolation.py``).
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ _CHARS_PER_TOKEN = 4
 
 
 @dataclass(frozen=True)
-class Tier1Output:
+class ReviewOutput:
     """Raw (un-adjudicated) claims plus whether the LLM review ran."""
 
     raw_claims: list[dict] = field(default_factory=list)
@@ -62,7 +62,7 @@ def render_prompt(part: Part, view: PartView, lower_context: str, cfg: InspectCo
     )
 
 
-def run_tier1(
+def run_review(
     part: Part,
     view: PartView,
     lower_context: str,
@@ -71,35 +71,36 @@ def run_tier1(
     cache: InspectCache | None = None,
     backend: LLMPort | None = None,
     enabled: bool = True,
-) -> Tier1Output:
-    """Run the Tier 1 review for *part*. Cached on the part's content hash.
+) -> ReviewOutput:
+    """Run the LLM review for *part*. Cached on the rendered prompt's content hash.
 
     Returns raw claims (validated only by the adjudicator). Skips (fail-soft) when
     disabled, when the bucket gets no LLM, or when the backend is unavailable.
     """
     if not enabled:
-        return Tier1Output(skipped_llm=True, note="LLM review disabled (--no-llm)")
+        return ReviewOutput(skipped_llm=True, note="LLM review disabled (--no-llm)")
     if part.bucket.value not in cfg.llm_buckets:
-        return Tier1Output(skipped_llm=True, note=f"bucket {part.bucket.value} gets no LLM review")
+        return ReviewOutput(skipped_llm=True, note=f"bucket {part.bucket.value} gets no LLM review")
 
-    key = content_key(part.files, view.changed_bytes, cfg.model_id, cfg.prompt_version)
+    prompt = render_prompt(part, view, lower_context, cfg)
+    key = content_key(part.files, prompt, cfg.model_id, cfg.prompt_version)
     if cache is not None:
         cached = cache.get(key)
         if cached is not None:
-            return Tier1Output(raw_claims=cached, skipped_llm=False, note="cache hit")
+            return ReviewOutput(raw_claims=cached, skipped_llm=False, note="cache hit")
 
     backend = backend or resolve_backend(cfg)
     review = LLMReview(
         part_id=part.id,
         bucket=part.bucket.value,
-        prompt=render_prompt(part, view, lower_context, cfg),
+        prompt=prompt,
         model_id=cfg.model_id,
         prompt_version=cfg.prompt_version,
     )
     result = backend.review(review)
     if not result.available:
         # Fail-soft: no claims invented; the report notes the skip.
-        return Tier1Output(skipped_llm=True, note=result.note or "LLM unavailable")
+        return ReviewOutput(skipped_llm=True, note=result.note or "LLM unavailable")
     if cache is not None:
         cache.put(key, result.raw_claims)
-    return Tier1Output(raw_claims=result.raw_claims, skipped_llm=False, note=result.note)
+    return ReviewOutput(raw_claims=result.raw_claims, skipped_llm=False, note=result.note)

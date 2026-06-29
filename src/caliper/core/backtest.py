@@ -11,7 +11,7 @@ four measures to become promotable:
 - **precision** — fire on the clean corpus below the ``precision_fp_ceiling`` false-
   positive rate (an over-broad nitpick fails here);
 - **determinism** — same findings across two runs and across input ordering;
-- **performance** — run within the Tier 0 time budget.
+- **performance** — run within the Screen time budget.
 
 The gauge runner is injected so this logic is testable without a real engine and so
 ``backtest`` itself stays free of the LLM. The PASS/FAIL is deterministic; only the

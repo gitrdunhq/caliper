@@ -1,4 +1,4 @@
-"""LLMPort — the sealed seam for the Tier 1 LLM review.
+"""LLMPort — the sealed seam for the Review.
 
 # tested-by: tests/unit/test_inspect_runner.py
 
@@ -9,7 +9,7 @@ registry and calls :meth:`LLMPort.review`. Backends are swappable and fakeable.
 
 This module defines only the *interface* (no model call). The concrete backends
 live in the isolated ``caliper.plugins._inspect_llm`` module; the deterministic
-tiers (Tier 0 gauges, Tier 2 adjudicator) must not import that path.
+tiers (Screen gauges, Adjudicate) must not import that path.
 """
 
 from __future__ import annotations
@@ -34,8 +34,8 @@ class LLMResult:
     """The output of a review — raw claims (not yet adjudicated) or unavailability.
 
     ``raw_claims`` are the model's emissions as plain dicts; they are validated and
-    filtered only by the pure adjudicator. ``available=False`` means Tier 1 was
-    skipped (fail-soft): the report shows Tier 0 results and notes the skip; no
+    filtered only by the pure adjudicator. ``available=False`` means Review was
+    skipped (fail-soft): the report shows Screen results and notes the skip; no
     claims are invented to fill the gap.
     """
 

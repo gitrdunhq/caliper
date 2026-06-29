@@ -427,15 +427,15 @@ class CutList(BaseModel):
 # Inspect (caliper inspect) — per-part review models
 #
 # `caliper part` cuts a stock into parts; `caliper inspect` reviews each part in
-# three tiers: Tier 0 deterministic gauges, Tier 1 advisory LLM claims, Tier 2 a
-# pure adjudicator that filters claims. The LLM never produces a verdict; only the
-# deterministic adjudicator's survivors reach a human. Advisory and manual: never
-# gates a build, never enters the decision audit lake.
+# three tiers: Screen (deterministic gauges), Review (advisory LLM claims), and
+# Adjudicate (a pure function that filters claims). The LLM never produces a
+# verdict; only the deterministic adjudicator's survivors reach a human. Advisory
+# and manual: never gates a build, never enters the decision audit lake.
 # ---------------------------------------------------------------------------
 
 
 class Severity(enum.StrEnum):
-    """Claim severity. ``blocking`` requires a deterministic Tier 0 witness."""
+    """Claim severity. ``blocking`` requires a deterministic Screen witness."""
 
     blocking = "blocking"
     major = "major"
@@ -454,6 +454,14 @@ class Category(enum.StrEnum):
     style = "style"
 
 
+class Confidence(enum.StrEnum):
+    """Model self-reported confidence in a claim. Display/ranking only — never gates."""
+
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
 # Severity ordering for the floor and dedup rules (higher = more severe).
 SEVERITY_RANK: dict[Severity, int] = {
     Severity.nit: 0,
@@ -464,11 +472,18 @@ SEVERITY_RANK: dict[Severity, int] = {
 
 
 class Claim(BaseModel):
-    """One structured finding emitted by the LLM (Tier 1). Never a verdict.
+    """One structured finding emitted by the LLM (Review). Never a verdict.
 
     The LLM must emit exactly this structure; freeform prose is rejected by the
     adjudicator's parse rule, not salvaged. ``evidence_ref`` is set deterministically
-    by Tier 2 evidence-binding (the model is never asked to know rule ids).
+    by Adjudicate evidence-binding (the model is never asked to know rule ids).
+
+    ``anchor_quote`` is the anti-hallucination keystone: a verbatim copy of the
+    flagged source line(s). The anchor rule requires it to be a literal substring of
+    the part's changed text before trusting ``line_range``. All three of
+    ``anchor_quote``/``confidence``/``reasoning`` are optional so older cached claims
+    still parse; ``confidence``/``reasoning`` are advisory (display + flywheel), never
+    gating, and never part of the dedup identity.
     """
 
     model_config = _MODEL_CONFIG
@@ -478,12 +493,15 @@ class Claim(BaseModel):
     severity: Severity
     category: Category
     assertion: str
+    anchor_quote: str = ""  # verbatim source the claim flags; checked by the anchor rule
+    confidence: Confidence | None = None  # model self-report; display/ranking only
+    reasoning: str = ""  # why; captured for audit + flywheel, never gates
     suggested_fix: str | None = None
-    evidence_ref: str | None = None  # id of a Tier 0 finding, set by binding
+    evidence_ref: str | None = None  # id of a Screen finding, set by binding
 
 
 class GaugeFinding(BaseModel):
-    """A single Tier 0 finding, each with a stable id a claim can bind to."""
+    """A single Screen finding, each with a stable id a claim can bind to."""
 
     model_config = _MODEL_CONFIG
 
@@ -497,7 +515,7 @@ class GaugeFinding(BaseModel):
 
 
 class GaugeResult(BaseModel):
-    """The verdict of one Tier 0 gauge over a part's file set."""
+    """The verdict of one Screen gauge over a part's file set."""
 
     model_config = _MODEL_CONFIG
 
@@ -512,12 +530,13 @@ class DroppedClaim(BaseModel):
     model_config = _MODEL_CONFIG
 
     claim: dict  # the raw claim as received (may be malformed)
-    rule: str  # "parse" | "scope" | "anchor" | "category" | "floor" | "dedup"
+    # firing rule that killed/changed it:
+    rule: str  # "parse"|"scope"|"anchor"|"substantiation"|"category"|"floor"|"collapse"|"dedup"
     reason: str = ""
 
 
 class InspectionReport(BaseModel):
-    """Per-part (or integration) output: Tier 0 verdicts + adjudicated claims."""
+    """Per-part (or integration) output: Screen verdicts + adjudicated claims."""
 
     model_config = _MODEL_CONFIG
 
@@ -535,7 +554,7 @@ class InspectionReport(BaseModel):
 #
 # Advisory claims accumulate in the claims ledger; recurring clusters are drafted
 # by the LLM into candidate gauges; a deterministic backtest gates them; a human
-# promotes survivors into the Tier 0 tool crib. The LLM drafts but never promotes:
+# promotes survivors into the Screen tool crib. The LLM drafts but never promotes:
 # a gauge is active only if a Promotion exists for it. The ledger is advisory data,
 # never the decision audit lake.
 # ---------------------------------------------------------------------------

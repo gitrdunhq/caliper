@@ -3,7 +3,7 @@
 # tested-by: tests/unit/test_gauge_status.py
 
 The point of the whole arc, measured: as recurring patterns become gauges, the
-LLM's claims become substantiated (or never reach Tier 1), and its advisory output
+LLM's claims become substantiated (or never reach Review), and its advisory output
 trends toward only the genuinely novel. Pure and deterministic over the ledger.
 """
 

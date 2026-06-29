@@ -1,4 +1,4 @@
-"""Tests for the Tier 1 runner — cache reproducibility + fail-soft LLM.
+"""Tests for the Review runner — cache reproducibility + fail-soft LLM.
 
 # tested-by: tests/unit/test_inspect_runner.py
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 # Register the isolated backends (the CLI does this in production; core may not).
 import caliper.plugins._inspect_llm  # noqa: E402,F401
 from caliper.core.inspect_cache import InspectCache
-from caliper.core.inspect_runner import run_tier1
+from caliper.core.inspect_runner import run_review
 from caliper.core.inspect_view import PartView
 from caliper.core.llm_port import LLMResult, LLMReview
 from caliper.core.models import ChangeType, Kerf, Part
@@ -41,7 +41,7 @@ class CountingBackend:
 
 
 def test_no_llm_disabled_skips() -> None:
-    out = run_tier1(_part(), PartView(), "", InspectConfig(), enabled=False)
+    out = run_review(_part(), PartView(), "", InspectConfig(), enabled=False)
     assert out.skipped_llm is True
     assert out.raw_claims == []
 
@@ -54,13 +54,13 @@ def test_bucket_without_llm_skips() -> None:
         size=1,
         opened_by=Kerf(fired_rule="R1"),
     )
-    out = run_tier1(part, PartView(), "", InspectConfig())
+    out = run_review(part, PartView(), "", InspectConfig())
     assert out.skipped_llm is True
 
 
 def test_unavailable_backend_is_fail_soft_no_invented_claims() -> None:
     backend = CountingBackend([], available=False)
-    out = run_tier1(_part(), PartView(changed_bytes=b"x"), "", InspectConfig(), backend=backend)
+    out = run_review(_part(), PartView(changed_bytes=b"x"), "", InspectConfig(), backend=backend)
     assert out.skipped_llm is True
     assert out.raw_claims == []
 
@@ -79,11 +79,11 @@ def test_cache_hit_returns_identical_claims_without_calling_port(tmp_path) -> No
     cache = InspectCache(tmp_path / "c")
     view = PartView(changed_lines={"a.py": {1, 2}}, changed_bytes=b"abc")
 
-    first = run_tier1(_part(), view, "", InspectConfig(), cache=cache, backend=backend)
+    first = run_review(_part(), view, "", InspectConfig(), cache=cache, backend=backend)
     assert first.raw_claims == claims and backend.calls == 1
 
     # same part hash -> cache hit, port NOT called again
-    second = run_tier1(_part(), view, "", InspectConfig(), cache=cache, backend=backend)
+    second = run_review(_part(), view, "", InspectConfig(), cache=cache, backend=backend)
     assert second.raw_claims == claims and backend.calls == 1
 
 
@@ -100,19 +100,15 @@ def test_changed_part_misses_cache(tmp_path) -> None:
     backend = CountingBackend(claims)
     cache = InspectCache(tmp_path / "c")
 
-    run_tier1(
-        _part(), PartView(changed_bytes=b"v1"), "", InspectConfig(), cache=cache, backend=backend
-    )
+    run_review(_part(), PartView(diff_text="v1"), "", InspectConfig(), cache=cache, backend=backend)
     assert backend.calls == 1
-    # different content bytes -> different key -> miss -> port called again
-    run_tier1(
-        _part(), PartView(changed_bytes=b"v2"), "", InspectConfig(), cache=cache, backend=backend
-    )
+    # different rendered prompt (diff text) -> different key -> miss -> port called again
+    run_review(_part(), PartView(diff_text="v2"), "", InspectConfig(), cache=cache, backend=backend)
     assert backend.calls == 2
 
 
 def test_null_backend_resolves_and_is_unavailable() -> None:
     """The default 'null' backend resolves from the isolated registry and fails soft."""
-    out = run_tier1(_part(), PartView(changed_bytes=b"x"), "", InspectConfig(backend="null"))
+    out = run_review(_part(), PartView(changed_bytes=b"x"), "", InspectConfig(backend="null"))
     assert out.skipped_llm is True
     assert out.raw_claims == []

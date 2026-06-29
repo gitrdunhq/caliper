@@ -3,7 +3,7 @@
 # tested-by: tests/integration/test_gauge_cli.py
 
 Maintainer-driven curation that turns recurring advisory claims into permanent
-deterministic Tier 0 gauges. ``propose`` is the only step that uses the LLM (it
+deterministic Screen gauges. ``propose`` is the only step that uses the LLM (it
 drafts candidates); ``backtest`` and ``promote`` are LLM-free and deterministic.
 ``promote`` refuses without a passing backtest and an explicit ``--by``: the LLM
 drafts, but a human promotes.
@@ -191,7 +191,7 @@ def status_cmd(ledger_path: str | None, repo: str) -> None:
     click.echo(f"  claims in ledger      : {stats.total_claims}")
     click.echo(f"  distinct clusters     : {stats.total_clusters}")
     click.echo(
-        f"  substantiation rate   : {stats.substantiation_rate:.1%}  (claims with a Tier 0 witness)"
+        f"  substantiation rate   : {stats.substantiation_rate:.1%}  (claims with a Screen witness)"
     )
     click.echo(
         f"  advisory recurrence   : {stats.advisory_recurrence_rate:.1%}  (recurring = open gaps)"
