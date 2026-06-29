@@ -129,6 +129,16 @@ def test_backup_bookmark_is_the_final_gate_step() -> None:
     op_idx = next(i for i, c in enumerate(runner.calls) if c[1] == "op")
     st_idx = next(i for i, c in enumerate(runner.calls) if c[1] == "st")
     assert st_idx < op_idx < bookmark_idx
+    # the backup is anchored on the RESOLVED BASE (not @) so the rebuilt parts are
+    # exactly the linear chain `backup+::@`.
+    assert runner.calls[-1] == [
+        "jj",
+        "bookmark",
+        "create",
+        "caliper-part-backup-20260629T0000",
+        "-r",
+        "baseid",
+    ]
 
 
 # ---------------------------------------------------------------------------

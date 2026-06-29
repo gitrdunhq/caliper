@@ -169,9 +169,12 @@ def run_gate(
         .strip()
     )
 
-    # 8. The only state change: an additive, immutable backup bookmark on the tip.
+    # 8. The only state change: an additive backup bookmark anchored on the
+    # resolved BASE. The restack rebuilds the parts as children of base, so the
+    # rebuilt stack is exactly the linear chain `backup+::@`. Full rollback is via
+    # `jj op restore <rescue_op_id>`; the original commits remain in the op log.
     backup = f"caliper-part-backup-{timestamp}"
-    _jj(runner, root, ["bookmark", "create", backup, "-r", "@"])
+    _jj(runner, root, ["bookmark", "create", backup, "-r", resolved["base"]])
 
     return GateResult(
         backup_bookmark=backup,
