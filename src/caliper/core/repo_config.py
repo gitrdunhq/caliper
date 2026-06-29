@@ -122,21 +122,33 @@ class PartingConfig(BaseModel):
 
 # Bucket -> admissible claim categories (research-fed default; rule 4). Empty list
 # means "drop all claims" for that bucket. A move part admits only behavioral-change.
+_ALL_CATEGORIES: list[str] = [
+    "correctness",
+    "security",
+    "behavioral-change",
+    "maintainability",
+    "performance",
+    "style",
+]
 _DEFAULT_ALLOWED_CATEGORIES: dict[str, list[str]] = {
     "generated": [],
     "binary": [],
     "move": ["behavioral-change"],
     "config": ["correctness", "security", "maintainability", "style"],
     "test": ["correctness", "maintainability", "style"],
-    "logic": [
-        "correctness",
-        "security",
-        "behavioral-change",
-        "maintainability",
-        "performance",
-        "style",
-    ],
+    "logic": list(_ALL_CATEGORIES),
     "delete": ["correctness", "behavioral-change"],
+    # Architectural tiers (code) — inherit the full logic category set.
+    "frontend": list(_ALL_CATEGORIES),
+    "business": list(_ALL_CATEGORIES),
+    "data": list(_ALL_CATEGORIES),
+    "infra": list(_ALL_CATEGORIES),
+    # Content intent (non-code).
+    "documentation": ["correctness", "maintainability", "style"],
+    "supply_chain": ["security", "correctness", "behavioral-change"],
+    "ci_cd": ["correctness", "security", "maintainability"],
+    "security_policy": ["security", "correctness", "behavioral-change"],
+    "schema_contracts": ["correctness", "behavioral-change", "security"],
 }
 
 # Bucket -> minimum admissible severity (rule 5). Default "nit" keeps everything;
@@ -149,6 +161,15 @@ _DEFAULT_SEVERITY_FLOOR: dict[str, str] = {
     "test": "nit",
     "logic": "nit",
     "delete": "nit",
+    "frontend": "nit",
+    "business": "nit",
+    "data": "nit",
+    "infra": "nit",
+    "documentation": "nit",
+    "supply_chain": "nit",
+    "ci_cd": "nit",
+    "security_policy": "nit",
+    "schema_contracts": "nit",
 }
 
 # Bucket -> Screen gauge routing (analyzer category names, run scoped to the part).
@@ -161,10 +182,33 @@ _DEFAULT_BUCKET_GAUGES: dict[str, list[str]] = {
     "test": ["quality"],
     "logic": ["code", "quality", "supply_chain"],  # full set + LLM
     "delete": [],  # reference gauge where available (v0 cross-part gap)
+    # Architectural tiers (code).
+    "frontend": ["code", "quality"],
+    "business": ["code", "quality", "supply_chain"],
+    "data": ["code", "quality"],
+    "infra": ["infra", "quality"],
+    # Content intent (non-code).
+    "documentation": ["quality"],
+    "supply_chain": ["supply_chain"],
+    "ci_cd": ["infra", "quality"],
+    "security_policy": ["code", "quality"],
+    "schema_contracts": ["code", "quality"],
 }
 
-# Buckets whose parts get a Review pass. Others are Screen only.
-_DEFAULT_LLM_BUCKETS: list[str] = ["logic", "config", "test"]
+# Buckets whose parts get a Review pass. Others are Screen only. The code tiers
+# (and the contract/policy buckets) earn an LLM pass; pure non-code data buckets
+# (supply_chain manifests, ci_cd, documentation) stay Screen-only.
+_DEFAULT_LLM_BUCKETS: list[str] = [
+    "logic",
+    "config",
+    "test",
+    "frontend",
+    "business",
+    "data",
+    "infra",
+    "security_policy",
+    "schema_contracts",
+]
 
 # Claim category -> compatible Screen finding categories for evidence binding
 # (research-fed default). A blocking claim needs a binding to keep gate-shaped signal.

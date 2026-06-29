@@ -42,13 +42,30 @@ from caliper.core.models import (
 from caliper.core.repo_config import PartingConfig
 
 # The canonical bucket order, bottom of stack first. Moves are the foundation
-# (they land first); deletes land last; generated and binary are isolated. v1's
-# R3 (layer) will reorder *within* the logic bucket using the dependency graph.
+# (they land first); deletes land last; generated and binary are isolated. The
+# architectural tiers land low (they tend to be the load-bearing change), then
+# the non-code intent buckets, then the untiered ``logic`` residual, tests, and
+# deletes. EVERY ``ChangeType`` must appear here exactly once — ``part()`` does
+# ``by_bucket[eff]`` and a missing key is a KeyError, not a silent skip. v1's R3
+# (layer) will reorder *within* a tier using the dependency graph.
 _BUCKET_ORDER: tuple[ChangeType, ...] = (
     ChangeType.move,
+    # Architectural tiers (code), foundation-first.
+    ChangeType.infra,
+    ChangeType.data,
+    ChangeType.frontend,
+    ChangeType.business,
+    # Content intent (non-code).
+    ChangeType.supply_chain,
+    ChangeType.schema_contracts,
+    ChangeType.ci_cd,
+    ChangeType.security_policy,
+    ChangeType.config,
+    ChangeType.documentation,
+    # Isolated structural/generated buckets.
     ChangeType.generated,
     ChangeType.binary,
-    ChangeType.config,
+    # Untiered residual, then tests, then deletes last.
     ChangeType.logic,
     ChangeType.test,
     ChangeType.delete,
