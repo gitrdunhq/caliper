@@ -116,6 +116,21 @@ def test_gate_resolves_revsets_to_explicit_commit_ids() -> None:
     }
 
 
+def test_backup_bookmark_is_the_final_gate_step() -> None:
+    """The backup bookmark (the only state change) is created LAST — after every
+    read-only precondition check and the rescue-point capture — so a failure at
+    any earlier check leaves no state change."""
+    runner = FakeJJ()
+    _gate(runner)
+    # the bookmark create is the very last command the gate runs
+    assert runner.calls[-1][0] == "jj" and runner.calls[-1][1] == "bookmark"
+    # and it is preceded by the rescue-point capture (jj op log) and the checks
+    bookmark_idx = next(i for i, c in enumerate(runner.calls) if c[1] == "bookmark")
+    op_idx = next(i for i, c in enumerate(runner.calls) if c[1] == "op")
+    st_idx = next(i for i, c in enumerate(runner.calls) if c[1] == "st")
+    assert st_idx < op_idx < bookmark_idx
+
+
 # ---------------------------------------------------------------------------
 # Abort cases — each leaves NO state change (no backup bookmark)
 # ---------------------------------------------------------------------------

@@ -139,11 +139,20 @@ def test_cut_list_identical_across_targets(colocated_repo, tmp_path) -> None:
     assert (out_a / "restack.sh").read_text() != (out_b / "restack.sh").read_text()
 
 
-def test_backup_bookmark_created_by_gate(colocated_repo, tmp_path) -> None:
+def test_backup_bookmark_created_by_gate_before_script(colocated_repo, tmp_path) -> None:
+    """Gate success => the backup bookmark exists immediately after `caliper part`
+    (before any restack execution), and the emitted script does NOT create it —
+    proving it was the gate, created before script emission."""
     repo, base, head, env = colocated_repo
-    assert _invoke(repo, base, head, tmp_path / "o", "stack").exit_code == 0
+    out = tmp_path / "o"
+    assert _invoke(repo, base, head, out, "stack").exit_code == 0
+    # backup exists right after the CLI returns, with no restack executed yet
     bookmarks = _run(["jj", "bookmark", "list"], repo, env)
     assert "caliper-part-backup-" in bookmarks
+    # the script never creates/moves the backup (only references it in a comment)
+    for line in (out / "restack.sh").read_text().splitlines():
+        if not line.lstrip().startswith("#"):
+            assert "caliper-part-backup-" not in line
 
 
 def test_restack_reconstructs_head_then_rolls_back(colocated_repo, tmp_path) -> None:
@@ -169,6 +178,175 @@ def test_restack_reconstructs_head_then_rolls_back(colocated_repo, tmp_path) -> 
     # Fully reversible: restore to the pre-execution operation.
     _run(["jj", "op", "restore", pre_op], repo, env)
     assert "caliper-part-1" not in _run(["jj", "bookmark", "list"], repo, env)
+
+
+# ---------------------------------------------------------------------------
+# Rename round-trip hardening — path-granular restore is most fragile for
+# renames (restore old+new path, delete old). Assert the rebuilt top equals
+# head BYTE-FOR-BYTE, not merely that the file set matches.
+# ---------------------------------------------------------------------------
+
+
+def _env(tmp_path: Path, name: str) -> dict:
+    cfg = tmp_path / f"{name}-jjconfig.toml"
+    cfg.write_text('[user]\nname = "t"\nemail = "t@t"\n')
+    return {
+        **os.environ,
+        "JJ_CONFIG": str(cfg),
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@t",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@t",
+    }
+
+
+def _write(root: Path, rel: str, content: str) -> None:
+    p = root / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content)
+
+
+def _build_colocated(
+    tmp_path: Path,
+    name: str,
+    base_files: dict[str, str],
+    *,
+    renames: list[tuple[str, str]] = (),
+    head_writes: dict[str, str] | None = None,
+    deletes: list[str] = (),
+):
+    """Build a colocated jj+git repo with a base commit and a head commit."""
+    w = tmp_path / name
+    w.mkdir()
+    env = _env(tmp_path, name)
+    _run(["git", "init", "-q", "."], w, env)
+    _run(["git", "config", "user.email", "t@t"], w, env)
+    _run(["git", "config", "user.name", "t"], w, env)
+    for rel, content in base_files.items():
+        _write(w, rel, content)
+    _run(["git", "add", "-A"], w, env)
+    _run(["git", "commit", "-qm", "base"], w, env)
+    base = _run(["git", "rev-parse", "HEAD"], w, env).strip()
+
+    for old, new in renames:
+        (w / new).parent.mkdir(parents=True, exist_ok=True)
+        _run(["git", "mv", old, new], w, env)
+    for rel, content in (head_writes or {}).items():
+        _write(w, rel, content)
+    for d in deletes:
+        _run(["git", "rm", "-q", d], w, env)
+    _run(["git", "add", "-A"], w, env)
+    _run(["git", "commit", "-qm", "head"], w, env)
+    head = _run(["git", "rev-parse", "HEAD"], w, env).strip()
+
+    _run(["jj", "git", "init", "--colocate", "."], w, env)
+    return w, base, head, env
+
+
+def _exec_restack(repo: Path, out: Path, env: dict) -> str:
+    """Run the emitted restack.sh and return the commit id of the rebuilt top (@)."""
+    proc = subprocess.run(
+        ["bash", str(out / "restack.sh")], cwd=repo, env=env, capture_output=True, text=True
+    )
+    assert proc.returncode == 0, f"{proc.stdout}\n{proc.stderr}"
+    return _run(["jj", "log", "-r", "@", "--no-graph", "-T", "commit_id"], repo, env).strip()
+
+
+def _trees_identical(repo: Path, env: dict, a: str, b: str) -> bool:
+    """True when commits *a* and *b* have byte-identical trees (`git diff --quiet`)."""
+    return subprocess.run(["git", "diff", "--quiet", a, b], cwd=repo, env=env).returncode == 0
+
+
+def _files_in(cut: dict, bucket: str | None = None) -> list[str]:
+    return [f for p in cut["parts"] if bucket is None or p["bucket"] == bucket for f in p["files"]]
+
+
+def test_pure_rename_with_referencing_edit_rebuilds_byte_for_byte(tmp_path) -> None:
+    """Fixture A: pure rename in one part, a logic edit referencing it in another."""
+    repo, base, head, env = _build_colocated(
+        tmp_path,
+        "renameA",
+        base_files={
+            "core/module.py": "def greet():\n    return 'hi'\n",
+            "main.py": "from core.module import greet\n\nprint(greet())\n",
+        },
+        renames=[("core/module.py", "core/renamed.py")],  # pure rename (content identical)
+        head_writes={"main.py": "from core.renamed import greet\n\nprint(greet())\n"},  # logic edit
+    )
+    out = tmp_path / "o"
+    assert _invoke(repo, base, head, out, "stack").exit_code == 0
+    cut = json.loads((out / "cutlist.json").read_text())
+
+    # rename counted once under the new path; old path absent everywhere
+    assert "core/renamed.py" in _files_in(cut)
+    assert "core/module.py" not in _files_in(cut)
+    # new path in a MOVE part; the referencing edit in a LOGIC part
+    assert "core/renamed.py" in _files_in(cut, "move")
+    assert "main.py" in _files_in(cut, "logic")
+
+    new_top = _exec_restack(repo, out, env)
+    assert _trees_identical(repo, env, head, new_top), "rebuilt top diverges from head"
+
+
+def test_rename_with_subthreshold_delta_rebuilds_byte_for_byte(tmp_path) -> None:
+    """Fixture B: rename WITH a content delta below the move-ambiguity threshold."""
+    repo, base, head, env = _build_colocated(
+        tmp_path,
+        "renameB",
+        base_files={"lib/old.py": "a\nb\nc\nd\ne\nf\ng\nh\n", "x.py": "x\n"},
+        renames=[("lib/old.py", "lib/new.py")],
+        head_writes={
+            "lib/new.py": "a\nb\nc\nd\ne\nf\ng\nh\ni\n"
+        },  # +1 line: small delta, stays move
+    )
+    out = tmp_path / "o"
+    assert _invoke(repo, base, head, out, "stack").exit_code == 0
+    cut = json.loads((out / "cutlist.json").read_text())
+
+    assert "lib/new.py" in _files_in(cut)
+    assert "lib/old.py" not in _files_in(cut)
+    # still classified as a move (delta below move_ambiguity_size, default 50)
+    assert "lib/new.py" in _files_in(cut, "move")
+
+    new_top = _exec_restack(repo, out, env)
+    assert _trees_identical(repo, env, head, new_top), "rebuilt top diverges from head"
+
+
+def test_parts_form_linear_chain_no_empty_no_conflict(colocated_repo, tmp_path) -> None:
+    """Acceptance test 17: after parting, the parts are exactly the linear chain
+    with no fork, no empty commit, no conflicted commit, and the gate-resolved
+    revset commit ids appear in provenance.
+
+    Spec phrases the chain as ``backup+::@``. This implementation rebuilds the
+    stack on ``base`` (the backup bookmark anchors the original tip for rollback),
+    so the equivalent pinned range is ``base..@`` — asserted below.
+    """
+    repo, base, head, env = colocated_repo
+    out = tmp_path / "o"
+    assert _invoke(repo, base, head, out, "stack").exit_code == 0
+    cut = json.loads((out / "cutlist.json").read_text())
+    nparts = len(cut["parts"])
+
+    # Gate-resolved revset commit ids are pinned into provenance.
+    rr = cut["provenance"]["resolved_revsets"]
+    assert rr["base"] == base and rr["head"] == head
+    assert all(rr[k] for k in ("base", "head", "@", "trunk"))
+
+    _exec_restack(repo, out, env)
+
+    rng = f"{base}..@"
+
+    def _count(revset: str) -> int:
+        out_s = _run(
+            ["jj", "log", "-r", revset, "--no-graph", "-T", 'commit_id ++ "\n"'], repo, env
+        )
+        return len([ln for ln in out_s.splitlines() if ln.strip()])
+
+    assert _count(rng) == nparts  # the parts ARE the chain
+    assert _count(f"heads({rng})") == 1  # single head: no fork
+    assert _count(f"roots({rng})") == 1  # single root: linear chain
+    assert _count(f"({rng}) & empty()") == 0  # no empty commit
+    assert _count(f"({rng}) & conflicts()") == 0  # no conflicted commit
 
 
 def test_gate_aborts_on_stray_working_copy_file(colocated_repo, tmp_path) -> None:
