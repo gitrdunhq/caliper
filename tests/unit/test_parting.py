@@ -199,6 +199,56 @@ def test_documentation_grouped_under_cap_not_oversized() -> None:
 
 
 # ---------------------------------------------------------------------------
+# No cap (default): one commit per labelled bucket; the cap is opt-in
+# ---------------------------------------------------------------------------
+
+
+def test_default_config_has_no_size_cap() -> None:
+    """The default is uncapped: a cut is one commit per bucket unless a cap is
+    explicitly opted into (the within-bucket size split is a refinement)."""
+    assert PartingConfig().size_cap is None
+
+
+def test_no_cap_collapses_each_bucket_to_one_part() -> None:
+    """With no cap, a bucket is a single part no matter how big — the diff cuts
+    into one commit per labelled bucket, not by line count."""
+    records = [
+        Record(file=f"svc/m{i}.py", change_type=ChangeType.business, size=1000) for i in range(6)
+    ]
+    cut = part(records, PartingConfig())  # default => size_cap is None
+
+    biz = _by_bucket(cut, ChangeType.business)
+    assert len(biz) == 1, "no cap => the whole bucket is a single part"
+    assert biz[0].size == 6000
+    assert biz[0].oversized is False, "uncapped parts are never flagged oversized"
+    assert cut.size_cap is None
+
+
+def test_no_cap_documentation_never_oversized() -> None:
+    """A grouped bucket (documentation) is never flagged oversized when uncapped."""
+    records = [
+        Record(file=f"docs/d{i}.md", change_type=ChangeType.documentation, size=500)
+        for i in range(4)
+    ]
+    cut = part(records, PartingConfig())  # uncapped
+
+    doc_parts = _by_bucket(cut, ChangeType.documentation)
+    assert len(doc_parts) == 1
+    assert doc_parts[0].oversized is False
+
+
+def test_opting_into_cap_restores_within_bucket_split() -> None:
+    """Passing an explicit size cap brings back R4 within-bucket splitting."""
+    records = [
+        Record(file=f"svc/m{i}.py", change_type=ChangeType.business, size=100) for i in range(6)
+    ]
+    cut = part(records, PartingConfig(size_cap=250))
+
+    biz = _by_bucket(cut, ChangeType.business)
+    assert len(biz) > 1, "an explicit cap splits the bucket by size"
+
+
+# ---------------------------------------------------------------------------
 # Bucket-order completeness — the load-bearing invariant for the taxonomy
 # ---------------------------------------------------------------------------
 
