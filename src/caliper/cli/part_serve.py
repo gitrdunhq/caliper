@@ -333,6 +333,13 @@ def render_report(cut: dict, overrides: list[dict] | None = None) -> str:
     base = str(prov.get("base_sha", ""))[:9] or "—"
     head = str(prov.get("head_sha", ""))[:9] or "—"
 
+    # Surface the cut's shape so a no-cap result reads as intentional (one part
+    # per labelled bucket), not as a runaway split. ``size_cap is None`` is the
+    # default — splitting is along buckets of concern only.
+    bucket_count = len({str(p.get("bucket", "?")) for p in parts})
+    size_cap = cut.get("size_cap")
+    cap_str = "none (1 part/bucket)" if size_cap is None else str(size_cap)
+
     cards: list[str] = []
     for i, part in enumerate(parts, start=1):
         bucket = str(part.get("bucket", "?"))
@@ -403,7 +410,7 @@ footer{{color:var(--muted);font-size:12px;margin-top:28px;}}
 </style></head><body>
 <header>
   <h1>caliper cut list</h1>
-  <div class="sub">{stats.get("part_count", len(parts))} parts · {stats.get("file_count", "?")} files · {base} → {head}</div>
+  <div class="sub">{stats.get("part_count", len(parts))} parts across {bucket_count} bucket{"s" if bucket_count != 1 else ""} · {stats.get("file_count", "?")} files · cap {cap_str} · {base} → {head}</div>
 </header>
 <div class="toolbar"><button class="repart" type="button" onclick="repart()">re-part</button>
   <span class="sub">reclassify any file to write a version-controlled override into <code>.caliper.yaml</code></span></div>

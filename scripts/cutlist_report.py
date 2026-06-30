@@ -204,7 +204,7 @@ chips.forEach(c => c.addEventListener('click', () => {
 """
 
 
-def _part_html(idx: int, part: dict, summary: dict, cap: int) -> str:
+def _part_html(idx: int, part: dict, summary: dict, cap: int | None) -> str:
     pid = part.get("id", "?")
     bucket = part.get("bucket", "?")
     size = part.get("size", 0)
@@ -212,7 +212,9 @@ def _part_html(idx: int, part: dict, summary: dict, cap: int) -> str:
     oversized = part.get("oversized")
     rule = part.get("opened_by", {}).get("fired_rule", "—")
     hue = _BUCKET_HUE.get(bucket, 215)
+    # No cap => never a "fill" against a limit; the meter stays empty.
     pct = min(100, round(size / cap * 100)) if cap else 0
+    cap_display = "none" if cap is None else cap
 
     gauge_html = ""
     if summary.get("has"):
@@ -240,7 +242,7 @@ def _part_html(idx: int, part: dict, summary: dict, cap: int) -> str:
   </div>
   <div class="meter {"over" if oversized else ""}"><i style="width:{pct}%"></i></div>
   <div class="meta-row">
-    <span><b>{size}</b> size <span class="dim">/ cap {cap}</span></span>
+    <span><b>{size}</b> size <span class="dim">/ cap {cap_display}</span></span>
     <span><b>{len(files)}</b> file{"s" if len(files) != 1 else ""}</span>
     {'<span style="color:var(--fail)"><b>oversized</b></span>' if oversized else ""}
   </div>
@@ -255,7 +257,11 @@ def _part_html(idx: int, part: dict, summary: dict, cap: int) -> str:
 def render(cutlist: dict, reports: dict[str, dict], label: str, generated_at: str) -> str:
     prov = cutlist.get("provenance", {})
     stats = cutlist.get("stats", {})
-    cap = cutlist.get("size_cap", 0) or 1
+    # None => uncapped (one part per labelled bucket); show that honestly rather
+    # than a misleading "1". A set cap is the per-bucket line-length limit. Keep
+    # the raw numeric/None for the gauge math; render "none" only for display.
+    cap = cutlist.get("size_cap")
+    cap_display = "none" if cap is None else cap
     parts = cutlist.get("parts", [])
     buckets = sorted({p.get("bucket", "?") for p in parts})
 
@@ -268,7 +274,7 @@ def render(cutlist: dict, reports: dict[str, dict], label: str, generated_at: st
         ("good", stats.get("part_count", len(parts)), "parts"),
         ("", stats.get("file_count", sum(len(p.get("files", [])) for p in parts)), "files"),
         ("", f'{stats.get("size_p50", "—")}/{stats.get("size_p90", "—")}', "size p50/p90"),
-        ("", cap, "size cap"),
+        ("", cap_display, "size cap"),
     ]
     if has_inspect:
         cards.append(("bad" if total_fail else "good", total_fail, "failed gauges"))
