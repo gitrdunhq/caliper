@@ -231,7 +231,11 @@ def part(
         if not base or not head:
             raise click.UsageError("--base and --head are required with --serve")
         from caliper.cli.part_serve import DEFAULT_PORT, serve_part
+        from caliper.cli.part_suggest import suggester_from_env
 
+        suggest_env = dict(os.environ)
+        if suggest_model:
+            suggest_env["CALIPER_SUGGESTER_MODEL"] = suggest_model
         serve_part(
             Path(repo).resolve(),
             base,
@@ -239,6 +243,7 @@ def part(
             port=port or DEFAULT_PORT,
             size_cap=size_cap,
             override_store=pr_override_store,
+            suggester=suggester_from_env(suggest_env, force=suggest_flag),
         )
         return
 

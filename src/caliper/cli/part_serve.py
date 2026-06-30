@@ -48,6 +48,7 @@ from caliper.core.repo_config import OverrideRule, PartingConfig, load_repo_conf
 
 if TYPE_CHECKING:
     from caliper.core.models import CutList
+    from caliper.core.tier_suggester import TierSuggesterPort
 
 logger = structlog.get_logger()
 
@@ -120,6 +121,7 @@ class _SessionLike(Protocol):
     def repart_dict(self) -> dict: ...
     def reclassify(self, *, target: str, bucket: str, note: str = "") -> dict: ...
     def overrides(self) -> list[dict]: ...
+    def suggest_dict(self) -> dict: ...
 
 
 def _apply_size_cap(cfg: PartingConfig, size_cap: int | None) -> PartingConfig:
@@ -160,11 +162,15 @@ class PartingSession:
         *,
         size_cap: int | None = None,
         override_store: Path | None = None,
+        suggester: TierSuggesterPort | None = None,
     ) -> None:
         self.repo_path = repo_path
         self.base = base
         self.head = head
         self.size_cap = size_cap  # CLI --size-cap override; None => use the repo config
+        # Advisory tier suggester (off the decision path). None disables /suggest; the
+        # button then reports "no model configured". Fail-soft end to end.
+        self._suggester = suggester
         # Where reviewer reclassifications are persisted. For --pr this is a durable
         # sidecar dir OUTSIDE the throwaway clone, so overrides survive the clone
         # wipe; for a normal repo it is None and writes land in the repo's own config.
@@ -240,6 +246,27 @@ class PartingSession:
         """The active (merged) override table, for the report's badge panel."""
         return [o.model_dump(mode="json") for o in self._effective_cfg().overrides]
 
+    def suggest_dict(self) -> dict:
+        """Advisory glob proposals for the current cut's 'logic' residual.
+
+        Off the decision path: the model only authors globs; the deterministic core
+        boundary validates them and a reviewer accepts one by POSTing /reclassify with
+        the suggested glob+bucket. Returns ``{"suggestions": []}`` when no model is
+        configured or the residual is empty — the cut is never touched here.
+        """
+        if self._suggester is None:
+            return {"suggestions": [], "configured": False}
+        from caliper.cli.part_suggest import suggest_overrides
+
+        with self._lock:
+            cut = self.cut()
+            existing = self._effective_cfg().overrides
+        rules = suggest_overrides(cut, self._suggester, existing_overrides=existing)
+        return {
+            "suggestions": [r.model_dump(mode="json") for r in rules],
+            "configured": True,
+        }
+
 
 # --------------------------------------------------------------------------- #
 # HTML — live reclassify report
@@ -250,7 +277,10 @@ _UNTIERED = "logic"
 
 # Buckets a reviewer may assign. Structural facts (move/delete/binary) come from
 # git, not reclassification, so they are excluded; the rest of ChangeType is
-# offered, ordered tiers → intent → residual for a sensible dropdown.
+# offered, ordered tiers → intent → residual for a sensible dropdown. This is the
+# human dropdown — a superset of the model's legal output (core SELECTABLE_TIERS:
+# same membership minus 'logic', which a human may pick to *un*-tier). The membership
+# tie is drift-guarded in tests; the order here is curated for UX, not enum order.
 _SELECTABLE_BUCKETS: tuple[str, ...] = (
     "frontend",
     "business",
@@ -383,6 +413,13 @@ h1{{font-size:20px;margin:0 0 4px;}} h2{{font-size:13px;text-transform:uppercase
 .toolbar{{display:flex;gap:10px;align-items:center;margin:16px 0;}}
 button.repart{{background:var(--accent);color:#fff;border:0;border-radius:8px;
   padding:9px 16px;font-size:14px;cursor:pointer;}}
+button.suggest{{background:var(--surface2);color:var(--text);border:1px solid var(--border);
+  border-radius:8px;padding:9px 16px;font-size:14px;cursor:pointer;}}
+.suggestions{{margin:12px 0;}} .suggestions:empty{{display:none;}}
+.chip{{display:inline-flex;gap:4px;align-items:center;background:color-mix(in srgb,var(--accent) 12%,var(--surface2));
+  border:1px solid var(--accent);border-radius:999px;padding:4px 12px;margin:3px;font-size:12px;
+  color:var(--text);cursor:pointer;}}
+.chip:hover{{background:color-mix(in srgb,var(--accent) 24%,var(--surface2));}}
 .overrides{{background:var(--surface);border:1px solid var(--border);border-radius:10px;
   padding:12px 14px;margin:12px 0;}}
 .overrides.empty{{color:var(--muted);font-size:13px;}}
@@ -413,8 +450,10 @@ footer{{color:var(--muted);font-size:12px;margin-top:28px;}}
   <div class="sub">{stats.get("part_count", len(parts))} parts across {bucket_count} bucket{"s" if bucket_count != 1 else ""} · {stats.get("file_count", "?")} files · cap {cap_str} · {base} → {head}</div>
 </header>
 <div class="toolbar"><button class="repart" type="button" onclick="repart()">re-part</button>
+  <button class="suggest" type="button" onclick="suggest()">✨ suggest tiers</button>
   <span class="sub">reclassify any file to write a version-controlled override into <code>.caliper.yaml</code></span></div>
 {ov_panel}
+<div id="suggestions" class="suggestions"></div>
 {"".join(cards)}
 <footer>config digest <code>{html.escape(digest)}</code> · loopback sidecar · caliper part --serve</footer>
 <script>
@@ -425,6 +464,34 @@ async function post(url, body) {{
   return r.json();
 }}
 function repart() {{ post('/repart').then(()=>location.reload()).catch(e=>alert('re-part failed: '+e.message)); }}
+async function suggest() {{
+  const box = document.getElementById('suggestions');
+  box.textContent = 'asking the model…';
+  let data;
+  try {{ data = await post('/suggest'); }}
+  catch(e) {{ box.textContent = 'suggest failed: ' + e.message; return; }}
+  box.textContent = '';
+  if (data.configured === false) {{
+    box.textContent = 'no model configured (set CALIPER_SUGGESTER_MODEL + a base URL)'; return;
+  }}
+  const rules = data.suggestions || [];
+  if (!rules.length) {{ box.textContent = 'no tier suggestions for the residual'; return; }}
+  const h = document.createElement('h2'); h.textContent = 'suggested tiers — click a chip to accept';
+  box.appendChild(h);
+  rules.forEach(rule => {{
+    const chip = document.createElement('button');
+    chip.className = 'chip'; chip.type = 'button';
+    const code = document.createElement('code'); code.textContent = rule.glob;
+    const b = document.createElement('b'); b.textContent = rule.bucket;
+    chip.append(code, document.createTextNode(' → '), b);
+    chip.addEventListener('click', () => {{
+      post('/reclassify', {{glob: rule.glob, bucket: rule.bucket}})
+        .then(()=>location.reload())
+        .catch(e=>alert('accept failed: '+e.message));
+    }});
+    box.appendChild(chip);
+  }});
+}}
 document.querySelectorAll('li.file').forEach(li => {{
   const glob = li.querySelector('.glob');
   li.querySelector('.broaden').addEventListener('click', () => {{ glob.value = glob.dataset.suggest; }});
@@ -489,6 +556,11 @@ def dispatch(session: _SessionLike, method: str, path: str, body: bytes) -> Resp
         return _json(cut)
     if method == "POST" and path == "/repart":
         return _json(session.repart_dict())
+    if method == "POST" and path == "/suggest":
+        # Advisory: ask the local model for tier globs on the 'logic' residual. The
+        # reviewer accepts one by POSTing /reclassify with the suggested glob+bucket;
+        # nothing is written here. Fail-soft — the session swallows model errors to [].
+        return _json(session.suggest_dict())
     return _json({"error": "not found"}, 404)
 
 
@@ -556,10 +628,16 @@ def serve_part(
     port: int = DEFAULT_PORT,
     size_cap: int | None = None,
     override_store: Path | None = None,
+    suggester: TierSuggesterPort | None = None,
 ) -> None:
     """Run the sidecar on loopback. Blocks until interrupted (presentation tier)."""
     session = PartingSession(
-        repo_path, base, head, size_cap=size_cap, override_store=override_store
+        repo_path,
+        base,
+        head,
+        size_cap=size_cap,
+        override_store=override_store,
+        suggester=suggester,
     )
     server, bound = _bind_server(_make_handler(session), port)
     url = f"http://{HOST}:{bound}"

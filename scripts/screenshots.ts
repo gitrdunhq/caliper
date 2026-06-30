@@ -40,6 +40,32 @@ async function main() {
   await mpage.goto(URL, { waitUntil: "networkidle" });
   await shot(mpage, "part-serve-mobile");
 
+  // --- advisory suggester UI ---
+  // Mock POST /suggest so the gate captures the chip rendering without a live model
+  // (Ollama/OMLX may not be running in CI). The accept path reuses /reclassify, which
+  // the round trip below already exercises against the real sidecar.
+  const suggestCtx = await browser.newContext({ viewport: DESKTOP });
+  await suggestCtx.route("**/suggest", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        configured: true,
+        suggestions: [
+          { glob: "**/lib/lambda/**", bucket: "business", note: "" },
+          { glob: "**/cdk.json", bucket: "config", note: "" },
+        ],
+      }),
+    }),
+  );
+  const spage = await suggestCtx.newPage();
+  await spage.goto(URL, { waitUntil: "networkidle" });
+  await spage.locator("button.suggest").click();
+  await spage.waitForSelector("#suggestions .chip");
+  const chipCount = await spage.locator("#suggestions .chip").count();
+  console.log(`  suggest chips rendered: ${chipCount}`);
+  await shot(spage, "part-serve-desktop-suggest");
+
   // --- round trip: reclassify the first untiered file via the UI ---
   const untieredFile = page.locator("article.part.untiered li.file").first();
   const count = await untieredFile.count();

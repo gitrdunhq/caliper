@@ -137,6 +137,9 @@ class FakeSession:
         self.reclassified: list[tuple[str, str]] = []
         self.reparted = 0
         self.raise_on_reclassify: Exception | None = None
+        self.suggestions: list[dict] = []
+        self.suggest_configured = True
+        self.suggest_calls = 0
 
     def cut_dict(self) -> dict:
         return _FAKE_CUT
@@ -153,6 +156,10 @@ class FakeSession:
 
     def overrides(self) -> list[dict]:
         return []
+
+    def suggest_dict(self) -> dict:
+        self.suggest_calls += 1
+        return {"suggestions": self.suggestions, "configured": self.suggest_configured}
 
 
 def _post(session: FakeSession, path: str, payload: dict):
@@ -214,6 +221,29 @@ class TestDispatch:
         resp = dispatch(session, "POST", "/repart", b"")
         assert resp.status == 200
         assert session.reparted == 1
+
+    def test_suggest_returns_session_suggestions(self) -> None:
+        session = FakeSession()
+        session.suggestions = [{"glob": "**/lib/lambda/**", "bucket": "business", "note": ""}]
+        resp = dispatch(session, "POST", "/suggest", b"")
+        assert resp.status == 200
+        assert session.suggest_calls == 1
+        body = _body(resp)
+        assert body["configured"] is True
+        assert body["suggestions"][0]["glob"] == "**/lib/lambda/**"
+
+    def test_suggest_unconfigured_reports_false(self) -> None:
+        session = FakeSession()
+        session.suggest_configured = False
+        body = _body(dispatch(session, "POST", "/suggest", b""))
+        assert body["configured"] is False
+        assert body["suggestions"] == []
+
+    def test_index_renders_suggest_button(self) -> None:
+        # The toolbar offers the advisory pass and a target for its chips.
+        resp = dispatch(FakeSession(), "GET", "/", b"")
+        assert b"suggest tiers" in resp.body
+        assert b'id="suggestions"' in resp.body
 
     def test_unknown_route_is_404(self) -> None:
         resp = dispatch(FakeSession(), "GET", "/nope", b"")
@@ -425,3 +455,91 @@ class TestConcurrency:
 
         assert calls["n"] == 1, "the cut is computed once even under a concurrent first hit"
         assert all(r is sentinel for r in results)
+
+
+class TestSessionSuggest:
+    """PartingSession.suggest_dict wires the cut's residual to the suggester boundary."""
+
+    def _cutlist(self):
+        from caliper.core.models import ChangeType, CutList, CutStats, Kerf, Part, Provenance
+
+        def part(bucket: ChangeType, files: list[str]) -> Part:
+            return Part(
+                id=f"{bucket}-{len(files)}",
+                files=sorted(files),
+                bucket=bucket,
+                size=len(files) * 10,
+                opened_by=Kerf(fired_rule="bucket-end"),
+            )
+
+        parts = [
+            part(ChangeType.infra, ["svc/lib/infra-utils/builder.ts"]),
+            part(ChangeType.logic, ["svc/lib/lambda/handler.ts", "svc/cdk.json"]),
+        ]
+        return CutList(
+            parts=parts,
+            size_cap=None,
+            provenance=Provenance(
+                caliper_version="0",
+                base_sha="b",
+                head_sha="h",
+                rename_threshold=50,
+                config_digest="d",
+            ),
+            stats=CutStats(
+                part_count=len(parts), file_count=3, size_p50=0, size_p90=0, move_logic_pure=True
+            ),
+        )
+
+    def test_no_suggester_reports_unconfigured(self, tmp_path: Path) -> None:
+        session = part_serve.PartingSession(tmp_path, "base", "head")
+        assert session.suggest_dict() == {"suggestions": [], "configured": False}
+
+    def test_runs_suggester_over_residual(self, tmp_path: Path) -> None:
+        from caliper.core.tier_suggester import SuggestedRule, SuggestRequest
+
+        class _Stub:
+            def __init__(self) -> None:
+                self.seen: SuggestRequest | None = None
+
+            def suggest(self, request: SuggestRequest) -> list[SuggestedRule]:
+                self.seen = request
+                return [
+                    SuggestedRule(glob="**/lib/lambda/**", bucket="business"),
+                    SuggestedRule(glob="**/cdk.json", bucket="config"),
+                ]
+
+        stub = _Stub()
+        session = part_serve.PartingSession(tmp_path, "base", "head", suggester=stub)
+        session._cut = self._cutlist()
+        out = session.suggest_dict()
+        assert out["configured"] is True
+        assert {s["glob"] for s in out["suggestions"]} == {"**/lib/lambda/**", "**/cdk.json"}
+        # Only the residual is shown to the model — never an already-tiered file.
+        assert stub.seen is not None
+        assert "svc/lib/infra-utils/builder.ts" not in {f.path for f in stub.seen.residual}
+
+    def test_subset_guard_applies_in_session(self, tmp_path: Path) -> None:
+        # `**/*.ts` would also steal the already-infra builder.ts -> dropped by the boundary.
+        from caliper.core.tier_suggester import SuggestedRule, SuggestRequest
+
+        class _Thief:
+            def suggest(self, request: SuggestRequest) -> list[SuggestedRule]:
+                return [SuggestedRule(glob="**/*.ts", bucket="business")]
+
+        session = part_serve.PartingSession(tmp_path, "base", "head", suggester=_Thief())
+        session._cut = self._cutlist()
+        assert session.suggest_dict()["suggestions"] == []
+
+
+class TestSelectableBucketsDriftGuard:
+    """The human dropdown and the model's legal output set must not drift apart."""
+
+    def test_dropdown_is_model_tiers_plus_logic(self) -> None:
+        from caliper.cli.part_serve import _SELECTABLE_BUCKETS
+        from caliper.core.tier_suggester import SELECTABLE_TIERS
+
+        # Same membership as the model's tiers, plus 'logic' (a human may un-tier).
+        assert set(_SELECTABLE_BUCKETS) == set(SELECTABLE_TIERS) | {"logic"}
+        # Structural facts come from git, never reclassification.
+        assert {"move", "delete", "binary"}.isdisjoint(_SELECTABLE_BUCKETS)
