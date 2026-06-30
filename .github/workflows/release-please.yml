@@ -27,6 +27,16 @@ jobs:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
+          # A non-default token is REQUIRED for the pipeline to self-drive. The
+          # default GITHUB_TOKEN cannot trigger downstream workflows (GitHub's
+          # recursion guard), so release-please's PR pushes never fired Foreman's
+          # `Gate` check (auto-merge blocked indefinitely) and its post-merge push
+          # to main never triggered this Release run again (verify-key/publish
+          # skipped). A PAT or GitHub App token attributes those events to a real
+          # write identity, so Gate runs without manual approval and publish fires.
+          # Falls back to GITHUB_TOKEN when the secret is absent so the workflow
+          # never hard-fails — it just reverts to the manual-nudge behaviour.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
@@ -42,7 +52,9 @@ jobs:
             gh pr merge "$PR_NUM" --auto --rebase || true
           fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Same token as above: the merge must be attributed to a non-bot identity
+          # so the resulting push to main triggers the publish path of this workflow.
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
 
   verify-key:
