@@ -20,6 +20,7 @@ hard ``PrResolveError``.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 from dataclasses import dataclass
@@ -44,6 +45,23 @@ _HEAD_BRANCH_RE = re.compile(r"HEAD branch:\s*(?P<branch>\S+)")
 
 class PrResolveError(Exception):
     """A required step in PR resolution failed (clone/fetch/merge-base/etc)."""
+
+
+def default_part_workdir() -> Path:
+    """Centralized, repo-independent home for throwaway PR clones + durable
+    override sidecars — so they no longer litter each repo's ``.temp/part-pr``.
+
+    XDG-style (mirrors the code-graph cache): ``CALIPER_STATE_DIR`` wins, else
+    ``$XDG_CONFIG_HOME/caliper/state``, else ``~/.config/caliper/state``. The
+    ``part-pr`` subdir keeps the durable override store outside any one checkout,
+    so it survives ``git clean``, repo deletion, and re-clones.
+    """
+    override = os.environ.get("CALIPER_STATE_DIR")
+    if override:
+        return Path(override).expanduser() / "part-pr"
+    cfg = os.environ.get("XDG_CONFIG_HOME")
+    base = Path(cfg) if cfg else Path.home() / ".config"
+    return base / "caliper" / "state" / "part-pr"
 
 
 @dataclass(frozen=True)
@@ -171,12 +189,15 @@ def resolve_pr(
     runner = runner or SubprocessToolRunner()
     workdir_root = Path(workdir_root)
     workdir_root.mkdir(parents=True, exist_ok=True)
-    clone_dir = workdir_root / f"{pr_ref.repo}-pr{pr_ref.number}"
-    out_dir = workdir_root / f"{pr_ref.repo}-pr{pr_ref.number}-out"
+    # Owner-keyed so a centralized (cross-repo) workdir never collides two repos
+    # that share a name; see PrRef.workdir_slug.
+    key = pr_ref.workdir_slug
+    clone_dir = workdir_root / key
+    out_dir = workdir_root / f"{key}-out"
     # Durable reclassify store: a sibling of the clone (never inside it), so the
     # clean-slate wipe below leaves it alone and reviewer overrides persist across
     # runs. The sidecar serves overrides from here, not the throwaway clone.
-    override_store = workdir_root / f"{pr_ref.repo}-pr{pr_ref.number}-overrides"
+    override_store = workdir_root / f"{key}-overrides"
     n = pr_ref.number
 
     # Clean slate every run: a stale/dirty/partial clone from a prior run would

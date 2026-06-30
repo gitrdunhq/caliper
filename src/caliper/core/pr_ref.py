@@ -41,6 +41,17 @@ class PrRef(BaseModel):
     def clone_url(self) -> str:
         return f"https://github.com/{self.owner}/{self.repo}.git"
 
+    @property
+    def workdir_slug(self) -> str:
+        """Filesystem-safe, owner-keyed identity for the throwaway clone dir.
+
+        The PR workdir is centralized (shared across every repo), so the key must
+        carry the owner — otherwise ``orgA/foo`` and ``orgB/foo`` would collide on
+        one clone dir. Any non-portable character is flattened to ``-``.
+        """
+        safe = lambda s: re.sub(r"[^A-Za-z0-9._-]", "-", s)  # noqa: E731
+        return f"{safe(self.owner)}-{safe(self.repo)}-pr{self.number}"
+
 
 def _strip_git_suffix(repo: str) -> str:
     return repo[:-4] if repo.endswith(".git") else repo

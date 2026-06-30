@@ -25,6 +25,24 @@ def test_full_url() -> None:
     assert ref.url == "https://github.com/owner/repo/pull/123"
 
 
+def test_workdir_slug_is_owner_keyed() -> None:
+    # The clone dir lives in a centralized, cross-repo workdir now, so the key
+    # must include the owner — otherwise orgA/foo and orgB/foo collide.
+    a = PrRef(owner="orgA", repo="foo", number=7)
+    b = PrRef(owner="orgB", repo="foo", number=7)
+    assert a.workdir_slug == "orgA-foo-pr7"
+    assert b.workdir_slug == "orgB-foo-pr7"
+    assert a.workdir_slug != b.workdir_slug
+
+
+def test_workdir_slug_sanitizes_unsafe_chars() -> None:
+    # Defensive: no path separators or odd chars leak into a directory name.
+    ref = PrRef(owner="o/../x", repo="re po", number=3)
+    assert "/" not in ref.workdir_slug
+    assert " " not in ref.workdir_slug
+    assert ref.workdir_slug.endswith("-pr3")
+
+
 def test_url_with_trailing_path() -> None:
     # GitHub appends /files, /commits, #discussion etc — still a PR #9.
     ref = parse_pr_ref("https://github.com/o/r/pull/9/files")
