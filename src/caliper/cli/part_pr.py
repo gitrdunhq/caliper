@@ -36,7 +36,9 @@ logger = structlog.get_logger(__name__)
 _CLONE_TIMEOUT = 300
 _FETCH_TIMEOUT = 120
 _QUICK_TIMEOUT = 30
-_ORIGIN_RE = re.compile(r"github\.com[:/](?P<slug>.+?)(?:\.git)?$")
+# Accept github.com AND GitHub Enterprise hosts (github.acme.com, ghe.*.github.*):
+# any host containing "github", then owner/repo as the final two path segments.
+_ORIGIN_RE = re.compile(r"(?:[\w.-]*github[\w.-]*)[:/](?P<slug>[^/]+/[^/]+?)(?:\.git)?/?$")
 _HEAD_BRANCH_RE = re.compile(r"HEAD branch:\s*(?P<branch>\S+)")
 
 
