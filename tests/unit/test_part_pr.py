@@ -94,6 +94,7 @@ def test_resolve_clones_and_resolves(tmp_path: Path) -> None:
     assert res.head == _HEAD
     assert res.repo_path == tmp_path / "repo-pr5"
     assert res.out_dir == tmp_path / "repo-pr5-out"
+    assert res.override_store == tmp_path / "repo-pr5-overrides"
     assert res.slug == "owner/repo"
     assert res.number == 5
 
@@ -126,6 +127,19 @@ def test_wipes_stale_output_dir(tmp_path: Path) -> None:
     res = resolve_pr(_ref(), runner=FakeRunner(), workdir_root=tmp_path)
     assert res.out_dir == stale_out
     assert not stale_out.exists()  # wiped; part_cmd recreates it before writing
+
+
+def test_override_store_survives_clean_slate(tmp_path: Path) -> None:
+    # The durable reclassify store is OUTSIDE the clone, so a re-run's clean-slate
+    # wipe must leave a reviewer's persisted overrides intact (the sev-5 fix).
+    store = tmp_path / "repo-pr5-overrides"
+    store.mkdir(parents=True)
+    (store / ".caliper.yaml").write_text(
+        "parting:\n  overrides:\n    - {glob: 'x', bucket: data}\n"
+    )
+    res = resolve_pr(_ref(), runner=FakeRunner(), workdir_root=tmp_path)
+    assert res.override_store == store
+    assert (store / ".caliper.yaml").exists()  # NOT wiped
 
 
 def test_failure_cleans_up_partial_clone(tmp_path: Path) -> None:

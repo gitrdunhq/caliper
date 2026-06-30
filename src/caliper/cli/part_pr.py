@@ -55,6 +55,7 @@ class ResolvedPr:
     number: int
     workdir: Path
     out_dir: Path  # managed output dir (restack.sh / cutlist.json), wiped each run
+    override_store: Path  # durable reclassify store, OUTSIDE the clone, NOT wiped
 
 
 def _run(
@@ -170,6 +171,10 @@ def resolve_pr(
     workdir_root.mkdir(parents=True, exist_ok=True)
     clone_dir = workdir_root / f"{pr_ref.repo}-pr{pr_ref.number}"
     out_dir = workdir_root / f"{pr_ref.repo}-pr{pr_ref.number}-out"
+    # Durable reclassify store: a sibling of the clone (never inside it), so the
+    # clean-slate wipe below leaves it alone and reviewer overrides persist across
+    # runs. The sidecar serves overrides from here, not the throwaway clone.
+    override_store = workdir_root / f"{pr_ref.repo}-pr{pr_ref.number}-overrides"
     n = pr_ref.number
 
     # Clean slate every run: a stale/dirty/partial clone from a prior run would
@@ -283,4 +288,5 @@ def resolve_pr(
         number=n,
         workdir=workdir_root,
         out_dir=out_dir,
+        override_store=override_store,
     )

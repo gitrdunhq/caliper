@@ -151,6 +151,9 @@ def part(
         click.echo(_render_cutlist(cut, backup_bookmark=None, rescue_op_id=None))
         return
 
+    # None unless --pr supplies a durable per-PR store; a normal repo's overrides
+    # land in its own committed .caliper.yaml.
+    pr_override_store: Path | None = None
     if pr_url:
         if base or head:
             raise click.UsageError("--pr is mutually exclusive with --base/--head")
@@ -169,6 +172,9 @@ def part(
             raise click.ClickException(f"could not resolve PR: {exc}") from exc
         repo = str(resolved.repo_path)
         base, head = resolved.base, resolved.head
+        # Reviewer reclassifications under --serve persist to this durable store
+        # OUTSIDE the throwaway clone, so they survive the next run's clean-slate.
+        pr_override_store = resolved.override_store
         if out is None:
             # Managed output dir, wiped + recreated each run by resolve_pr so a
             # re-run redoes from a clean slate (no stale restack.sh/cutlist.json).
@@ -183,7 +189,14 @@ def part(
             raise click.UsageError("--base and --head are required with --serve")
         from caliper.cli.part_serve import DEFAULT_PORT, serve_part
 
-        serve_part(Path(repo).resolve(), base, head, port=port or DEFAULT_PORT, size_cap=size_cap)
+        serve_part(
+            Path(repo).resolve(),
+            base,
+            head,
+            port=port or DEFAULT_PORT,
+            size_cap=size_cap,
+            override_store=pr_override_store,
+        )
         return
 
     if not base or not head:

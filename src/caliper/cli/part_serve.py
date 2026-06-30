@@ -43,7 +43,7 @@ import structlog
 import yaml
 
 from caliper.core.registries import PARTING
-from caliper.core.repo_config import PartingConfig, load_repo_config
+from caliper.core.repo_config import OverrideRule, PartingConfig, load_repo_config
 
 if TYPE_CHECKING:
     from caliper.core.models import CutList
@@ -102,6 +102,9 @@ def write_override(repo_path: Path, *, glob: str, bucket: str, note: str = "") -
     # unknown bucket, or a duplicate glob, so disk is never left in a bad state.
     PartingConfig.model_validate(parting)
 
+    # The store may be a brand-new sidecar dir (the --pr override store), so create
+    # its parent before the first write rather than assuming it already exists.
+    config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(yaml.safe_dump(data, sort_keys=False))
     logger.info("parting_override_written", glob=glob, bucket=bucket, path=str(config_path))
 
@@ -125,20 +128,67 @@ def _apply_size_cap(cfg: PartingConfig, size_cap: int | None) -> PartingConfig:
     return cfg.model_copy(update={"size_cap": size_cap})
 
 
+def _merge_overrides(base: list[OverrideRule], extra: list[OverrideRule]) -> list[OverrideRule]:
+    """Layer ``extra`` (the reviewer's sidecar store) over ``base`` (the repo's
+    committed overrides), keyed by glob — the sidecar wins per glob, base order is
+    preserved, and new sidecar rules are appended. Deduping by glob keeps the
+    result valid (PartingConfig rejects duplicate globs)."""
+    by_glob = {r.glob: r for r in base}
+    for r in extra:
+        by_glob[r.glob] = r
+    ordered: list[OverrideRule] = []
+    seen: set[str] = set()
+    for r in base:
+        ordered.append(by_glob[r.glob])
+        seen.add(r.glob)
+    for r in extra:
+        if r.glob not in seen:
+            ordered.append(r)
+            seen.add(r.glob)
+    return ordered
+
+
 class PartingSession:
     """Holds the parting target and re-parts on demand, reloading config each time."""
 
     def __init__(
-        self, repo_path: Path, base: str, head: str, *, size_cap: int | None = None
+        self,
+        repo_path: Path,
+        base: str,
+        head: str,
+        *,
+        size_cap: int | None = None,
+        override_store: Path | None = None,
     ) -> None:
         self.repo_path = repo_path
         self.base = base
         self.head = head
         self.size_cap = size_cap  # CLI --size-cap override; None => use the repo config
+        # Where reviewer reclassifications are persisted. For --pr this is a durable
+        # sidecar dir OUTSIDE the throwaway clone, so overrides survive the clone
+        # wipe; for a normal repo it is None and writes land in the repo's own config.
+        self.override_store = override_store
         self._cut: CutList | None = None
 
+    @property
+    def _write_target(self) -> Path:
+        """Directory whose .caliper.yaml receives reviewer overrides."""
+        return self.override_store if self.override_store is not None else self.repo_path
+
+    def _effective_cfg(self) -> PartingConfig:
+        """The repo's parting config with the durable sidecar overrides layered on
+        top and the CLI --size-cap applied — the single source of truth for both the
+        cut and the badge panel."""
+        cfg = load_repo_config(self.repo_path).parting
+        if self.override_store is not None and (self.override_store / _CONFIG_FILENAME).exists():
+            extra = load_repo_config(self.override_store).parting.overrides
+            if extra:
+                merged = _merge_overrides(cfg.overrides, extra)
+                cfg = cfg.model_copy(update={"overrides": merged})
+        return _apply_size_cap(cfg, self.size_cap)
+
     def _cut_now(self) -> CutList:
-        cfg = _apply_size_cap(load_repo_config(self.repo_path).parting, self.size_cap)
+        cfg = self._effective_cfg()
         # Import triggers the parting plugin's @PARTING.register side effect.
         import caliper.plugins._parting  # noqa: F401
 
@@ -171,13 +221,14 @@ class PartingSession:
         return self.repart().model_dump(mode="json")
 
     def reclassify(self, *, target: str, bucket: str, note: str = "") -> dict:
-        write_override(self.repo_path, glob=target, bucket=bucket, note=note)
+        # Write to the durable store (sidecar for --pr, else the repo's own config)
+        # so a throwaway PR clone never swallows the reviewer's reclassification.
+        write_override(self._write_target, glob=target, bucket=bucket, note=note)
         return self.repart_dict()
 
     def overrides(self) -> list[dict]:
-        """The active override table, for the report's badge panel."""
-        cfg = load_repo_config(self.repo_path).parting
-        return [o.model_dump(mode="json") for o in cfg.overrides]
+        """The active (merged) override table, for the report's badge panel."""
+        return [o.model_dump(mode="json") for o in self._effective_cfg().overrides]
 
 
 # --------------------------------------------------------------------------- #
@@ -487,9 +538,12 @@ def serve_part(
     *,
     port: int = DEFAULT_PORT,
     size_cap: int | None = None,
+    override_store: Path | None = None,
 ) -> None:
     """Run the sidecar on loopback. Blocks until interrupted (presentation tier)."""
-    session = PartingSession(repo_path, base, head, size_cap=size_cap)
+    session = PartingSession(
+        repo_path, base, head, size_cap=size_cap, override_store=override_store
+    )
     server, bound = _bind_server(_make_handler(session), port)
     url = f"http://{HOST}:{bound}"
     if bound != port:
@@ -501,6 +555,7 @@ def serve_part(
         base=base,
         head=head,
         size_cap=size_cap,
+        override_store=str(override_store) if override_store else None,
         url=url,
     )
     try:
