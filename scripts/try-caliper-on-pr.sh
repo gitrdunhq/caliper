@@ -110,7 +110,12 @@ BASE_SHA="$(git merge-base "origin/${BASE_BRANCH}" "$HEAD_SHA")"
 echo ">> PR #$PR_NUM  base=$BASE_SHA  head=$HEAD_SHA  (base branch: $BASE_BRANCH)"
 
 # Put the working tree at the PR head so the Screen analyzers scan the PR's real files.
-git checkout -q --detach "$HEAD_SHA"
+# A reused clone can carry tracked modifications from a prior run (e.g. a build that
+# rewrote a lockfile) that would block the detach with "local changes would be
+# overwritten". This is a throwaway analysis clone we never push, so reset to a clean
+# tree first and force the checkout — no weird states from a previous run.
+git reset -q --hard
+git checkout -qf --detach "$HEAD_SHA"
 
 mkdir -p "$OUT"
 
