@@ -225,6 +225,38 @@ class TestDispatch:
         assert resp.status == 200
 
 
+# --------------------------------------------------------------------------- #
+# _bind_server — preferred port, else the next free dev port (real sockets)
+# --------------------------------------------------------------------------- #
+
+
+class TestBindServer:
+    def test_uses_preferred_when_free(self) -> None:
+        server, port = part_serve._bind_server(part_serve._make_handler(FakeSession()), 12733)
+        try:
+            assert port == 12733
+        finally:
+            server.server_close()
+
+    def test_falls_back_when_preferred_is_taken(self) -> None:
+        import socket
+
+        # Hold the preferred port open so the bind must move to another in-range one.
+        blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        blocker.bind((part_serve.HOST, 0))  # let the OS pick a real, busy port
+        blocker.listen(1)
+        taken = blocker.getsockname()[1]
+        try:
+            server, port = part_serve._bind_server(part_serve._make_handler(FakeSession()), taken)
+            try:
+                assert port != taken
+                assert port in part_serve._DEV_PORTS
+            finally:
+                server.server_close()
+        finally:
+            blocker.close()
+
+
 class TestRenderReport:
     """The report renderer is a pure function — no starlette, runs everywhere."""
 
