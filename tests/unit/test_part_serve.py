@@ -291,6 +291,22 @@ class TestRenderReport:
         assert "src/app.py" in out
         assert "deadbeefcafe" in out  # config digest stamped
 
+    def test_header_summarizes_buckets_and_cap(self) -> None:
+        # A no-cap cut must read as intentional ("1 part/bucket"), not broken.
+        from caliper.cli.part_serve import render_report
+
+        uncapped = {**_FAKE_CUT, "size_cap": None}
+        out = render_report(uncapped)
+        assert "1 bucket" in out  # one labelled bucket of concern
+        assert "cap none (1 part/bucket)" in out
+
+    def test_header_shows_numeric_cap_when_set(self) -> None:
+        from caliper.cli.part_serve import render_report
+
+        out = render_report(_FAKE_CUT)  # size_cap=400
+        assert "cap 400" in out
+        assert "1 part/bucket" not in out
+
     def test_offers_every_selectable_bucket(self) -> None:
         from caliper.cli.part_serve import _SELECTABLE_BUCKETS, render_report
 
