@@ -19,8 +19,13 @@ CONTAINER_COMMAND := $(notdir $(CONTAINER_ENGINE))
 CONTAINER_RUN_SECURITY := $(if $(filter podman,$(CONTAINER_COMMAND)),--security-opt apparmor=unconfined,--security-opt seccomp=unconfined)
 TEST_BUILD_COMMAND ?= $(if $(filter docker,$(CONTAINER_COMMAND)),$(CONTAINER_ENGINE) buildx build --allow security.insecure --load,$(CONTAINER_ENGINE) build --security-opt apparmor=unconfined)
 PROD_BUILD_COMMAND ?= $(if $(filter docker,$(CONTAINER_COMMAND)),$(CONTAINER_ENGINE) buildx build --allow security.insecure --load,$(CONTAINER_ENGINE) build --security-opt apparmor=unconfined)
-TEST_PLATFORM ?= linux/amd64
-TEST_IMAGE ?= caliper-test:amd64
+# Test image is multi-arch (Dockerfile.test FROM is a manifest-index digest), so the
+# test platform defaults to the HOST arch: native arm64 on Apple Silicon (no qemu, no
+# pyarrow segfault), native amd64 on the CI host. Override with TEST_PLATFORM=linux/amd64
+# (or `make test-amd64`) for an explicit emulated CI-parity run.
+HOST_ARCH := $(shell uname -m | sed -e 's/aarch64/arm64/' -e 's/x86_64/amd64/')
+TEST_PLATFORM ?= linux/$(HOST_ARCH)
+TEST_IMAGE ?= caliper-test:$(HOST_ARCH)
 PROD_PLATFORM ?= linux/amd64
 PROD_IMAGE ?= caliper:amd64
 
@@ -37,7 +42,9 @@ test:
 		$(TEST_IMAGE) \
 		/opt/test-venv/bin/python -m pytest tests/ -v
 
-test-amd64: test
+# Explicit emulated CI-parity run (amd64 even on an arm64 host).
+test-amd64:
+	@$(MAKE) test TEST_PLATFORM=linux/amd64 TEST_IMAGE=caliper-test:amd64
 
 prod-build:
 	@$(PROD_BUILD_COMMAND) --platform $(PROD_PLATFORM) -f Dockerfile -t $(PROD_IMAGE) .

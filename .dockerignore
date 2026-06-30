@@ -1,14 +1,86 @@
+# .dockerignore — kept in sync with .gitignore (match dockerignore to gitignore).
+#
+# IMPORTANT semantic difference: unlike .gitignore, a bare `*.egg-info/` or
+# `__pycache__/` here matches ONLY the context root, NOT every depth. Git treats
+# the same patterns as "match at any depth". That mismatch is why src/eedom/
+# (stale __pycache__ bytecode) and src/eedom.egg-info/ were being copied into the
+# test image and tripping tests/unit/test_source_tree_guard.py. The fix: prefix
+# depth-anywhere patterns with `**/` so they mirror .gitignore.
+#
+# Patterns that are root-anchored in .gitignore (they contain a `/`) stay
+# root-anchored here. `package.json`/`package-lock.json` are scoped to the root on
+# purpose: the e2e fixtures under tests/e2e/fixtures/ carry force-tracked
+# package.json inputs that the scanners must see, so they must NOT be excluded.
+
+# VCS + container scratch (never part of a build)
 .git/
-.venv/
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-__pycache__/
-*.py[cod]
-*.egg-info/
-.DS_Store
 cdk.out/
-dist/
-build/
-.coverage
-htmlcov/
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.egg-info/
+**/*.egg
+**/dist/
+**/build/
+**/.venv/
+
+# Testing & coverage
+**/.pytest_cache/
+**/htmlcov/
+**/.coverage
+**/.mypy_cache/
+
+# Linting & formatting
+**/.ruff_cache/
+
+# Environment & secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# macOS
+**/.DS_Store
+**/.AppleDouble
+**/.LSOverride
+
+# WFC pipeline state
+**/.runs/
+**/.temp/
+**/.wfc/
+
+# Serena tooling
+**/.serena/
+
+# Browser-gate screenshot artifacts (scripts/screenshots.ts output)
+**/screenshots/
+
+# Node (used only for tooling, not runtime) — root only (fixtures keep theirs)
+**/node_modules/
+package.json
+package-lock.json
+
+# Runtime artifacts (generated, not committed)
+**/evidence/
+**/diagrams/
+**/*.svg
+!assets/*.svg
+**/*.zip
+.caliper/reports/
+.caliper/code_graph.sqlite
+.claude/worktrees/
+**/.worktrees/
+
+# Local infrastructure (never commit)
+.dogfood/
+.dogood/
+docs/pitch-page/
+**/.scratch/
+
+# Sandbox container-test scratch (CA-injected build workaround — env-specific)
+Dockerfile.ci-test
+Dockerfile.test.ci
+**/cabuild/
+egress-gateway-ca-*.crt
+swp-ca-*.crt
