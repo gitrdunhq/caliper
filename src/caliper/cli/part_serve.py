@@ -55,6 +55,10 @@ logger = structlog.get_logger()
 # webhook (12800) and postgres (12432).
 HOST = "127.0.0.1"
 DEFAULT_PORT = 12700
+# Fallback search space when the preferred port is busy. Dev ports only
+# (CLAUDE.md: 12000–13000, never common ports) so the sidecar always lands in
+# the sanctioned range no matter which one it ends up on.
+_DEV_PORTS = range(12000, 13000)
 
 _CONFIG_FILENAME = ".caliper.yaml"
 
@@ -430,12 +434,40 @@ def _make_handler(session: _SessionLike) -> type[http.server.BaseHTTPRequestHand
     return _Handler
 
 
+def _bind_server(
+    handler_cls: type[http.server.BaseHTTPRequestHandler], preferred: int
+) -> tuple[http.server.ThreadingHTTPServer, int]:
+    """Bind on ``preferred``; if it's taken, fall back to the next free dev port.
+
+    The only effect is the successful bind it returns — there is no
+    bind-then-rebind race (we keep the first socket that binds). Tries the
+    requested port first, then scans the 12000–13000 dev range so a busy 12700
+    never kills the sidecar. Raises ``OSError`` only if the whole range is busy.
+    """
+    last_exc: OSError | None = None
+    seen: set[int] = set()
+    for port in (preferred, *_DEV_PORTS):
+        if port in seen:
+            continue
+        seen.add(port)
+        try:
+            return http.server.ThreadingHTTPServer((HOST, port), handler_cls), port
+        except OSError as exc:  # EADDRINUSE (and friends) — try the next candidate
+            last_exc = exc
+    raise OSError(
+        f"no free port: {preferred} and the whole {_DEV_PORTS.start}-{_DEV_PORTS.stop - 1} "
+        "dev range are all in use"
+    ) from last_exc
+
+
 def serve_part(repo_path: Path, base: str, head: str, *, port: int = DEFAULT_PORT) -> None:
     """Run the sidecar on loopback. Blocks until interrupted (presentation tier)."""
     session = PartingSession(repo_path, base, head)
-    server = http.server.ThreadingHTTPServer((HOST, port), _make_handler(session))
-    url = f"http://{HOST}:{port}"
-    logger.info("part_serve_starting", host=HOST, port=port, base=base, head=head, url=url)
+    server, bound = _bind_server(_make_handler(session), port)
+    url = f"http://{HOST}:{bound}"
+    if bound != port:
+        logger.warning("part_serve_port_busy", requested=port, using=bound, url=url)
+    logger.info("part_serve_starting", host=HOST, port=bound, base=base, head=head, url=url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:  # Ctrl-C is the intended way to stop the sidecar
