@@ -134,6 +134,90 @@ def test_delete_part_flagged_in_script() -> None:
     assert "DELETE: review for cross-part deletion safety" in _render(PartTarget.stack)
 
 
+def test_peel_messages_are_conventional_commits() -> None:
+    """Commit subjects follow conventional-commits, mapped from the bucket — not
+    the old ``caliper part N/M: <bucket> <hash>`` trashola."""
+    script = _render(PartTarget.stack)
+    assert "chore(generated): generated and vendored artifacts" in script
+    assert "feat(logic): untiered changes (needs a tier)" in script
+    assert "chore(remove): remove files" in script  # the delete bucket
+    # the old hash-in-subject format is gone
+    assert "caliper part 1/" not in script
+
+
+def test_part_id_provenance_moves_to_a_trailer() -> None:
+    """The raw part hash never pollutes the subject; it lives in a Caliper-Part trailer."""
+    script = _render(PartTarget.stack)
+    assert "Caliper-Part:" in script
+    # every conventional subject line is hash-free
+    for line in script.splitlines():
+        if line.startswith("jj describe -r @ -m "):
+            subject = line.split("-m ", 1)[1].strip("'\"").splitlines()[0]
+            assert "part-" not in subject, subject
+
+
+def test_injected_subject_overrides_the_deterministic_one(tmp_path) -> None:
+    """An advisory describer subject, when supplied for a part, replaces the
+    deterministic ``_peel_subject`` line — both in the commit and the header."""
+    cut = _cutlist()
+    pid = cut.parts[0].id
+    custom = "feat(infra): add canary automation stacksets and cloudwatch alarms"
+    script = render_restack_script(
+        cut,
+        base_rev="baseid",
+        head_rev="headid",
+        old_paths={"new.py": "old.py"},
+        backup_bookmark="bk",
+        rescue_op_id="op1",
+        jj_version="jj 0.99.0",
+        target=PartTarget.stack,
+        can_reconstruct=True,
+        subjects={pid: custom},
+    )
+    _assert_bash_parses(script, tmp_path)
+    assert custom in script
+
+
+def test_missing_subject_falls_back_to_deterministic(tmp_path) -> None:
+    """Parts absent from the subjects map keep their deterministic conventional
+    subject — the injection is per-part and fail-soft."""
+    cut = _cutlist()
+    script = render_restack_script(
+        cut,
+        base_rev="baseid",
+        head_rev="headid",
+        old_paths={"new.py": "old.py"},
+        backup_bookmark="bk",
+        rescue_op_id="op1",
+        jj_version="jj 0.99.0",
+        target=PartTarget.stack,
+        can_reconstruct=True,
+        subjects={},  # nothing injected -> every part stays deterministic
+    )
+    _assert_bash_parses(script, tmp_path)
+    assert "chore(generated): generated and vendored artifacts" in script
+    assert "chore(remove): remove files" in script
+
+
+def test_subjects_none_is_the_default_pure_render() -> None:
+    """``subjects=None`` (the default) is byte-identical to omitting it — the
+    describer is strictly additive over the deterministic render."""
+    cut = _cutlist()
+    common = dict(
+        base_rev="baseid",
+        head_rev="headid",
+        old_paths={"new.py": "old.py"},
+        backup_bookmark="bk",
+        rescue_op_id="op1",
+        jj_version="jj 0.99.0",
+        target=PartTarget.stack,
+        can_reconstruct=True,
+    )
+    assert render_restack_script(cut, **common) == render_restack_script(
+        cut, **common, subjects=None
+    )
+
+
 def test_script_never_creates_the_backup_bookmark() -> None:
     """The backup bookmark is the gate's job (created before the script is emitted);
     the script must never create or move it — only the rollback header references it."""

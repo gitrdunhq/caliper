@@ -14,6 +14,7 @@ by ``caliper review`` / Foreman / the webhook and never gates a build.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -106,6 +107,19 @@ def _cutlist_json(cut: CutList) -> str:
 @click.option(
     "--port", type=int, default=None, help="Port for --serve (default 12700, loopback only)."
 )
+@click.option(
+    "--describe/--no-describe",
+    "describe_flag",
+    default=None,
+    help="Advisory: name each commit with a local model (fail-soft to deterministic). "
+    "Default follows env (CALIPER_DESCRIBER_MODEL + base URL).",
+)
+@click.option(
+    "--describe-model",
+    "describe_model",
+    default=None,
+    help="Model id for --describe (e.g. gemma4:e4b, llama3.2:3b); overrides env.",
+)
 def part(
     base: str | None,
     head: str | None,
@@ -117,6 +131,8 @@ def part(
     force: bool,
     serve: bool,
     port: int | None,
+    describe_flag: bool | None,
+    describe_model: str | None,
 ) -> None:
     """Propose an ordered cut list for a diff and emit a jj restack script."""
     if explain:
@@ -173,6 +189,17 @@ def part(
     # 3. Probe the installed jj for non-interactive path restore (do not assume).
     can_reconstruct, jj_version = probe_path_capability(str(repo_path))
 
+    # 3b. Advisory describer (imperative shell): name each commit with a local model,
+    # fail-soft to the deterministic subject. Env-driven and OUTSIDE config_digest, so
+    # it never touches the cut — only the human-readable subject line.
+    from caliper.cli.part_describe import describe_parts, describer_from_env
+
+    describe_env = dict(os.environ)
+    if describe_model:
+        describe_env["CALIPER_DESCRIBER_MODEL"] = describe_model
+    describer = describer_from_env(describe_env, force=describe_flag)
+    subjects = describe_parts(cut, describer)
+
     # 4. Emit the restack script, pinning the gate's resolved base/head ids.
     script = render_restack_script(
         cut,
@@ -185,6 +212,7 @@ def part(
         target=cfg.target,
         validate_command=cfg.validate_command,
         can_reconstruct=can_reconstruct,
+        subjects=subjects,
     )
 
     out_dir = Path(out) if out else repo_path
@@ -199,3 +227,8 @@ def part(
         _render_cutlist(cut, backup_bookmark=gate.backup_bookmark, rescue_op_id=gate.rescue_op_id)
     )
     click.echo(f"restack script written to {script_path}")
+    if subjects:
+        click.echo(
+            f"described {len(subjects)}/{len(cut.parts)} commit subjects with a local model "
+            "(advisory; deterministic fallback for the rest)"
+        )

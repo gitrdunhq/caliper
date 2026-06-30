@@ -166,6 +166,20 @@ the browser → `write_override` appends/updates a `parting.overrides` entry and
 re-parts. starlette is imported lazily (caliper[copilot] extra) so the pure
 `write_override` stays importable/tested without it. Browser gate: `scripts/screenshots.ts`.
 
+**Advisory commit describer** (`--describe/--no-describe`, `--describe-model`): an
+optional pass that names each commit subject with a local OpenAI-compatible model
+(Ollama/OMLX/llama.cpp, resolved from `CALIPER_DESCRIBER_MODEL` + a base URL via
+`cli/part_describe.py`). The model writes ONLY the prose tail; caliper prepends the
+deterministic `type(scope): ` prefix (`core/part_script.py:_peel_prefix`, the half
+release-please reads for semver), so format-leakage is structurally impossible.
+Functional-core/imperative-shell: the network call lives in the shell
+(`data/openai_describer.py`, the only network code, fail-soft → `None` → deterministic
+fallback), and the pure `render_restack_script` takes a plain `{part.id: subject}`
+map. Describer config is env/CLI-driven and deliberately OUTSIDE `PartingConfig`, so
+it never enters `config_digest` — the cut, classification, and provenance stay 100%
+deterministic and LLM-free. `core/commit_describer.py` `normalize_subject` strips any
+echoed prefix/quotes and enforces the 72-char cap at the boundary (DPS-102).
+
 ## Dev Ports
 
 Port range 12000-13000 only. Never use common ports.
