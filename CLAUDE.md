@@ -166,6 +166,17 @@ the browser → `write_override` appends/updates a `parting.overrides` entry and
 re-parts. starlette is imported lazily (caliper[copilot] extra) so the pure
 `write_override` stays importable/tested without it. Browser gate: `scripts/screenshots.ts`.
 
+**PR input** (`caliper part --pr <url|number>`, `cli/part_pr.py`): feed a GitHub PR
+URL or bare number instead of `--base/--head`. Pure parse in the functional core
+(`core/pr_ref.py` `parse_pr_ref` → typed `PrRef`); the imperative shell
+(`cli/part_pr.py` `resolve_pr`, all git/gh/jj IO through the `ToolRunnerPort` seam)
+always clones the PR into `.temp/part-pr/<repo>-pr<N>/` — never the user's repo —
+neutralizes jj immutability in that throwaway clone (a pushed PR's commits are
+immutable; the gate would otherwise refuse), and resolves `base = merge-base(base,
+head)`. Self-healing: a stale clone is wiped to a clean slate at the start of every
+run and a partial clone is removed on failure (`_safe_rmtree`, containment-checked),
+so a crashed run never poisons the next. Mutually exclusive with `--base/--head`.
+
 **Advisory commit describer** (`--describe/--no-describe`, `--describe-model`): an
 optional pass that names each commit subject with a local OpenAI-compatible model
 (Ollama/OMLX/llama.cpp, resolved from `CALIPER_DESCRIBER_MODEL` + a base URL via

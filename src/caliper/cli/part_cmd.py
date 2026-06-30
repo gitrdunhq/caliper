@@ -77,6 +77,13 @@ def _cutlist_json(cut: CutList) -> str:
 @click.command(name="part")
 @click.option("--base", default=None, help="Base revision (stock = --base..--head).")
 @click.option("--head", default=None, help="Head revision.")
+@click.option(
+    "--pr",
+    "pr_url",
+    default=None,
+    help="GitHub PR URL or number; clones the PR into .temp/part-pr/ and parts "
+    "base..head (mutually exclusive with --base/--head).",
+)
 @click.option("--repo", "repo", type=click.Path(exists=True), default=".", help="Repository root.")
 @click.option(
     "--target",
@@ -123,6 +130,7 @@ def _cutlist_json(cut: CutList) -> str:
 def part(
     base: str | None,
     head: str | None,
+    pr_url: str | None,
     repo: str,
     target: str | None,
     size_cap: int | None,
@@ -139,6 +147,32 @@ def part(
         cut = CutList.model_validate_json(Path(explain).read_text())
         click.echo(_render_cutlist(cut, backup_bookmark=None, rescue_op_id=None))
         return
+
+    if pr_url:
+        if base or head:
+            raise click.UsageError("--pr is mutually exclusive with --base/--head")
+        from caliper.cli.part_pr import PrResolveError, detect_origin_slug, resolve_pr
+        from caliper.core.pr_ref import parse_pr_ref
+
+        repo_root = Path(repo).resolve()
+        try:
+            pr_ref = parse_pr_ref(pr_url, default_slug=detect_origin_slug(repo_root))
+        except ValueError as exc:
+            raise click.UsageError(str(exc)) from exc
+        workdir_root = repo_root / ".temp" / "part-pr"
+        try:
+            resolved = resolve_pr(pr_ref, workdir_root=workdir_root)
+        except PrResolveError as exc:
+            raise click.ClickException(f"could not resolve PR: {exc}") from exc
+        repo = str(resolved.repo_path)
+        base, head = resolved.base, resolved.head
+        if out is None:
+            # Outputs live outside the clone so re-runs (which wipe the clone) keep them.
+            out = str(resolved.workdir / f"{pr_ref.repo}-pr{pr_ref.number}-out")
+        click.echo(
+            f">> {resolved.slug}#{resolved.number}  "
+            f"base={base[:12]}  head={head[:12]}  (clone: {resolved.repo_path})"
+        )
 
     if serve:
         if not base or not head:
