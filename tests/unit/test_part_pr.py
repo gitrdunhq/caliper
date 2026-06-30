@@ -93,6 +93,7 @@ def test_resolve_clones_and_resolves(tmp_path: Path) -> None:
     assert res.base == _BASE
     assert res.head == _HEAD
     assert res.repo_path == tmp_path / "repo-pr5"
+    assert res.out_dir == tmp_path / "repo-pr5-out"
     assert res.slug == "owner/repo"
     assert res.number == 5
 
@@ -113,6 +114,18 @@ def test_wipes_stale_clone(tmp_path: Path) -> None:
     resolve_pr(_ref(), runner=runner, workdir_root=tmp_path)
     assert not (stale / "stale.txt").exists()
     assert any(c[0] == "git" and "clone" in c for c in runner.calls)
+
+
+def test_wipes_stale_output_dir(tmp_path: Path) -> None:
+    # "run part again" = redo from scratch: a prior run's restack.sh/cutlist.json
+    # in the managed -out dir must be cleared so nothing stale survives.
+    stale_out = tmp_path / "repo-pr5-out"
+    stale_out.mkdir(parents=True)
+    (stale_out / "restack.sh").write_text("# old cut")
+    (stale_out / "cutlist.json").write_text("{}")
+    res = resolve_pr(_ref(), runner=FakeRunner(), workdir_root=tmp_path)
+    assert res.out_dir == stale_out
+    assert not stale_out.exists()  # wiped; part_cmd recreates it before writing
 
 
 def test_failure_cleans_up_partial_clone(tmp_path: Path) -> None:
