@@ -13,7 +13,8 @@ already-resolved stock and ``part()`` asserts its own output covers that stock
 exactly before returning.
 
 Ruleset, applied in this fixed order (the order is the product — do not reorder):
-  R1  generated isolation        all ``generated`` -> one part; all ``binary`` -> one part
+  R1  generated isolation        all ``generated`` -> one part; all ``binary`` -> one part;
+                                 all ``documentation`` -> one cap-exempt part (oversized flagged)
   R2  move/logic separation      ``move`` never shares a part with ``logic``; moves to the bottom
   R4  size cap                   accrete within a bucket until the cap; oversized singles flagged
 
@@ -72,7 +73,15 @@ _BUCKET_ORDER: tuple[ChangeType, ...] = (
 )
 
 # Buckets isolated into a single part by R1 and never subject to the size cap.
+# They are always ``oversized=False`` — generated/binary noise carries no review
+# cost the cap exists to bound, so flagging it would be dishonest.
 _ISOLATED_BUCKETS: frozenset[ChangeType] = frozenset({ChangeType.generated, ChangeType.binary})
+
+# Buckets grouped into a single part like the isolated ones, but cap-exempt
+# rather than cap-ignorant: a reviewer reads docs top-to-bottom as one unit, so
+# they are never size-split — yet when the group genuinely exceeds the cap it is
+# flagged ``oversized=True`` (unlike _ISOLATED_BUCKETS), keeping the promise honest.
+_GROUPED_BUCKETS: frozenset[ChangeType] = frozenset({ChangeType.documentation})
 
 
 class PartingError(ValueError):
@@ -131,9 +140,12 @@ def _build_part(bucket: ChangeType, recs: list[Record], rule: str, *, oversized:
 def _part_bucket(bucket: ChangeType, recs: list[Record], cfg: PartingConfig) -> list[Part]:
     """Cut one bucket's records into parts per the ruleset.
 
-    Isolated buckets (generated, binary) become a single R1 part. Every other
-    bucket accretes by the size cap (R4): the first part fires R2 for moves and
-    ``bucket-end`` otherwise; cap-induced and oversized continuations fire R4.
+    Isolated buckets (generated, binary) become a single R1 part, never flagged
+    oversized. Grouped buckets (documentation) also become a single R1 part but
+    are cap-exempt with an honest oversized flag when the group exceeds the cap.
+    Every other bucket accretes by the size cap (R4): the first part fires R2 for
+    moves and ``bucket-end`` otherwise; cap-induced and oversized continuations
+    fire R4.
     """
     recs = sorted(recs, key=lambda r: r.file)
     if not recs:
@@ -141,6 +153,12 @@ def _part_bucket(bucket: ChangeType, recs: list[Record], cfg: PartingConfig) -> 
 
     if bucket in _ISOLATED_BUCKETS:
         return [_build_part(bucket, recs, "R1", oversized=False)]
+
+    if bucket in _GROUPED_BUCKETS:
+        # Grouped into one part (never size-split), but cap-exempt with an honest
+        # oversized flag when the group as a whole exceeds the cap.
+        group_size = sum((r.size or 0) for r in recs)
+        return [_build_part(bucket, recs, "R1", oversized=group_size > cfg.size_cap)]
 
     first_rule = "R2" if bucket == ChangeType.move else "bucket-end"
     cap = cfg.size_cap

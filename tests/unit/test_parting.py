@@ -163,6 +163,42 @@ def test_oversized_flag_surfaces_in_serialized_output() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Documentation grouping — one part, cap-exempt, honest oversized flag
+# ---------------------------------------------------------------------------
+
+
+def test_documentation_grouped_into_single_part_over_cap() -> None:
+    """Docs are grouped like generated/binary but stay cap-exempt: six 100-line
+    docs with cap 250 land in ONE part (not size-split) and the part is flagged
+    oversized=True because the group honestly exceeds the cap."""
+    records = [
+        Record(file=f"docs/d{i}.md", change_type=ChangeType.documentation, size=100)
+        for i in range(6)
+    ]
+    cut = part(records, PartingConfig(size_cap=250))
+
+    doc_parts = _by_bucket(cut, ChangeType.documentation)
+    assert len(doc_parts) == 1, "documentation must group into a single part, never size-split"
+    assert doc_parts[0].files == [f"docs/d{i}.md" for i in range(6)]
+    assert doc_parts[0].size == 600
+    assert doc_parts[0].oversized is True, "a docs group over the cap is honestly flagged oversized"
+
+
+def test_documentation_grouped_under_cap_not_oversized() -> None:
+    """A docs group whose total fits the cap is one part and NOT flagged oversized."""
+    records = [
+        Record(file="README.md", change_type=ChangeType.documentation, size=40),
+        Record(file="docs/guide.md", change_type=ChangeType.documentation, size=50),
+    ]
+    cut = part(records, PartingConfig(size_cap=250))
+
+    doc_parts = _by_bucket(cut, ChangeType.documentation)
+    assert len(doc_parts) == 1
+    assert doc_parts[0].files == ["README.md", "docs/guide.md"]
+    assert doc_parts[0].oversized is False
+
+
+# ---------------------------------------------------------------------------
 # Bucket-order completeness — the load-bearing invariant for the taxonomy
 # ---------------------------------------------------------------------------
 
@@ -207,7 +243,11 @@ def test_new_taxonomy_buckets_partition_cleanly() -> None:
 # Property tests (8-13)
 # ---------------------------------------------------------------------------
 
+# Buckets never subject to the size cap: generated/binary are isolated and
+# always oversized=False; documentation is grouped but honestly flagged when the
+# group exceeds the cap.
 _NON_CAPPED_BUCKETS = {ChangeType.generated, ChangeType.binary}
+_GROUPED_CAP_EXEMPT = {ChangeType.documentation}
 
 
 @st.composite
@@ -267,6 +307,11 @@ class TestProperties:
         cut = part(records, PartingConfig(size_cap=cap))
         for p in cut.parts:
             if p.bucket in _NON_CAPPED_BUCKETS:
+                continue
+            if p.bucket in _GROUPED_CAP_EXEMPT:
+                # Grouped (never split): a single part may exceed the cap, but
+                # only if it is honestly flagged oversized.
+                assert p.size <= cap or p.oversized
                 continue
             assert p.size <= cap or (p.oversized and len(p.files) == 1)
 

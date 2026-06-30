@@ -147,6 +147,13 @@ overridable) → **override table** → ordered glob heuristics (`_GLOB_PRECEDEN
 most-specific-first) → `logic`. `_BUCKET_ORDER` in `core/parting.py` MUST contain
 every `ChangeType` or `part()` KeyErrors.
 
+**Bucket grouping rules** (`core/parting.py` `_part_bucket`): `generated`/`binary`
+(`_ISOLATED_BUCKETS`) collapse into one part and are never cap-checked (always
+`oversized=False`). `documentation` (`_GROUPED_BUCKETS`) also collapses into one
+part — a reviewer reads docs as a single unit — but stays cap-exempt with an honest
+`oversized=True` when the grouped size exceeds the cap. Every other bucket accretes
+by the size cap (R4).
+
 **Override table** (`parting.overrides` in `.caliper.yaml`): a version-controlled
 `OverrideRule {glob, bucket, note}` list. First matching glob wins; duplicate globs
 and structural buckets are rejected at load. It is hashed into `config_digest`, so
