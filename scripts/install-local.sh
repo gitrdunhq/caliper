@@ -26,8 +26,9 @@ restore() { cp "$BACKUP" "$PYPROJECT"; rm -f "$BACKUP"; }
 trap restore EXIT
 
 # Base version, with any pre-existing local segment stripped so we never stack
-# +dev.+dev across runs.
-BASE_VERSION="$(grep -m1 '^version = ' "$PYPROJECT" | sed -E 's/^version = "([^"]+)".*/\1/')"
+# +dev.+dev across runs. Read it from inside the [project] table only, so a
+# `version = ` line in some other table (e.g. a tool config) can't be picked up.
+BASE_VERSION="$(awk '/^\[project\]/{p=1;next} /^\[/{p=0} p && /^version = /{gsub(/^version = "|".*/,""); print; exit}' "$PYPROJECT")"
 BASE_VERSION="${BASE_VERSION%%+*}"
 
 SHORT_SHA="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo nogit)"
@@ -35,7 +36,10 @@ BUILD_ID="$(date +%Y%m%dT%H%M%S).g${SHORT_SHA}"
 DEV_VERSION="${BASE_VERSION}+dev.${BUILD_ID}"
 
 # Portable in-place edit (works on BSD/macOS and GNU sed via the .bak form).
-sed -i.bak -E "s/^version = \"[^\"]+\"/version = \"${DEV_VERSION}\"/" "$PYPROJECT"
+# Anchored to the [project] table (range ends at the next `[` header) so a
+# `version = ` in any other table is never touched; `|` delimiter avoids clashing
+# with the dotted local segment.
+sed -i.bak -E "/^\[project\]/,/^\[/ s|^version = \"[^\"]+\"|version = \"${DEV_VERSION}\"|" "$PYPROJECT"
 rm -f "${PYPROJECT}.bak"
 
 echo ">> building + installing caliper ${DEV_VERSION}"

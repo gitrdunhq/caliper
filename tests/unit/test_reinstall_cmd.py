@@ -118,6 +118,41 @@ class TestValidateCaliperRepo:
             validate_caliper_repo(tmp_path)
 
 
+class TestPyprojectValidation:
+    """Validation parses TOML, not substrings — quoting/spacing must not fool it,
+    and a `name` in some *other* table must never pass the caliper gate."""
+
+    def test_accepts_single_quoted_name(self, tmp_path: Path) -> None:
+        (tmp_path / "pyproject.toml").write_text(
+            "[project]\nname = 'caliper'\nversion = '0.2.26'\n", encoding="utf-8"
+        )
+        (tmp_path / "scripts").mkdir()
+        (tmp_path / "scripts" / "install-local.sh").write_text("#!/usr/bin/env bash\n")
+        assert validate_caliper_repo(tmp_path).name == "install-local.sh"
+
+    def test_accepts_extra_spacing(self, tmp_path: Path) -> None:
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname   =    "caliper"\nversion = "0.2.26"\n', encoding="utf-8"
+        )
+        (tmp_path / "scripts").mkdir()
+        (tmp_path / "scripts" / "install-local.sh").write_text("#!/usr/bin/env bash\n")
+        assert validate_caliper_repo(tmp_path).name == "install-local.sh"
+
+    def test_rejects_caliper_name_only_in_other_table(self, tmp_path: Path) -> None:
+        # The substring check would falsely pass here; tomllib reads project.name.
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "not-caliper"\nversion = "1.0"\n' '[tool.foo]\nname = "caliper"\n',
+            encoding="utf-8",
+        )
+        with pytest.raises(ReinstallError, match="not the caliper project"):
+            validate_caliper_repo(tmp_path)
+
+    def test_rejects_unparseable_toml(self, tmp_path: Path) -> None:
+        (tmp_path / "pyproject.toml").write_text("this = = not toml\n", encoding="utf-8")
+        with pytest.raises(ReinstallError):
+            validate_caliper_repo(tmp_path)
+
+
 class TestProperties:
     def test_determinism(self, tmp_path: Path) -> None:
         # INVARIANT: same checkout + same args -> identical tool-call sequence.

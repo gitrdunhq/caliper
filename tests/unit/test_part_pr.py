@@ -176,6 +176,34 @@ def test_detect_origin_slug(tmp_path: Path) -> None:
     assert detect_origin_slug(tmp_path, FakeRunner()) == "owner/repo"
 
 
+class _OriginRunner(FakeRunner):
+    """FakeRunner with a configurable origin URL, to exercise host shapes."""
+
+    def __init__(self, url: str) -> None:
+        super().__init__()
+        self._url = url
+
+    def run(self, inv: ToolInvocation) -> ToolResult:
+        if inv.cmd[0] == "git" and "get-url" in inv.cmd:
+            self.calls.append(inv.cmd)
+            return ToolResult(exit_code=0, stdout=self._url + "\n", stderr="")
+        return super().run(inv)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "git@github.acme.com:owner/repo.git",
+        "https://github.acme.com/owner/repo.git",
+        "ssh://git@ghe.internal.github.example/owner/repo.git",
+        "https://github.com/owner/repo",
+    ],
+)
+def test_detect_origin_slug_accepts_enterprise_hosts(tmp_path: Path, url: str) -> None:
+    # GitHub Enterprise hosts must resolve the same owner/repo slug as github.com.
+    assert detect_origin_slug(tmp_path, _OriginRunner(url)) == "owner/repo"
+
+
 class TestProperties:
     def test_determinism(self, tmp_path: Path) -> None:
         a = resolve_pr(_ref(number=2), runner=FakeRunner(), workdir_root=tmp_path)

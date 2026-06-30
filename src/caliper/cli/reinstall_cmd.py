@@ -20,6 +20,7 @@ real install.
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import click
@@ -68,8 +69,14 @@ def validate_caliper_repo(repo_root: Path) -> Path:
     pyproject = repo_root / "pyproject.toml"
     if not pyproject.is_file():
         raise ReinstallError(f"{repo_root} is not a caliper checkout (no pyproject.toml)")
-    text = pyproject.read_text(encoding="utf-8")
-    if 'name = "caliper"' not in text:
+    # Parse the TOML rather than substring-matching: quoting/spacing variants
+    # (`name = 'caliper'`) and a stray `name = "caliper"` in some other table must
+    # not fool the gate — only `[project].name` decides.
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as exc:
+        raise ReinstallError(f"{repo_root}/pyproject.toml is not valid TOML: {exc}") from exc
+    if data.get("project", {}).get("name") != "caliper":
         raise ReinstallError(f"{repo_root}/pyproject.toml is not the caliper project")
     script = repo_root / _INSTALL_SCRIPT
     if not script.is_file():
@@ -122,6 +129,10 @@ def reinstall(
 )
 def reinstall_cmd(repo: str | None) -> None:
     """Rebuild + reinstall caliper from local source with a fresh build id (dev)."""
+    # A clean build + install runs for a couple of minutes with no output until
+    # the script returns (the runner seam captures stdout rather than streaming),
+    # so announce it up front — otherwise it reads as hung.
+    click.echo("rebuilding + reinstalling caliper from local source (this can take a few minutes)…")
     try:
         output = reinstall(repo)
     except ReinstallError as exc:
