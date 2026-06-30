@@ -351,3 +351,61 @@ class TestLoopbackOnly:
 
     def test_default_port_in_dev_range(self) -> None:
         assert 12000 <= part_serve.DEFAULT_PORT <= 13000
+
+
+class TestMergeOverrides:
+    """Sidecar overrides layer over the repo's committed ones, deduped by glob."""
+
+    def test_sidecar_wins_per_glob_and_order_preserved(self) -> None:
+        from caliper.cli.part_serve import _merge_overrides
+        from caliper.core.repo_config import OverrideRule
+
+        base = [
+            OverrideRule(glob="a/**", bucket="business"),
+            OverrideRule(glob="b/**", bucket="data"),
+        ]
+        extra = [
+            OverrideRule(glob="b/**", bucket="frontend"),  # re-targets b
+            OverrideRule(glob="c/**", bucket="infra"),  # new
+        ]
+        merged = _merge_overrides(base, extra)
+
+        assert [r.glob for r in merged] == ["a/**", "b/**", "c/**"]  # base order, new appended
+        assert {r.glob: r.bucket.value for r in merged}["b/**"] == "frontend"  # sidecar wins
+        # no duplicate globs => still a valid PartingConfig override list
+        assert len({r.glob for r in merged}) == len(merged)
+
+
+class TestConcurrency:
+    """Isolation SAFETY: ThreadingHTTPServer fans requests across threads."""
+
+    def test_concurrent_first_cut_computes_once(self) -> None:
+        import threading
+        import time
+
+        session = part_serve.PartingSession(Path("/repo"), "base", "head")
+        calls = {"n": 0}
+        sentinel = object()
+
+        def fake_cut_now():
+            calls["n"] += 1
+            time.sleep(0.05)  # widen the race window
+            return sentinel
+
+        session._cut_now = fake_cut_now  # type: ignore[method-assign]
+
+        results: list = []
+        barrier = threading.Barrier(8)
+
+        def worker() -> None:
+            barrier.wait()
+            results.append(session.cut())
+
+        threads = [threading.Thread(target=worker) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert calls["n"] == 1, "the cut is computed once even under a concurrent first hit"
+        assert all(r is sentinel for r in results)

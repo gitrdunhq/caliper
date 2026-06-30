@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import html
 import http.server
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
@@ -169,6 +170,10 @@ class PartingSession:
         # wipe; for a normal repo it is None and writes land in the repo's own config.
         self.override_store = override_store
         self._cut: CutList | None = None
+        # ThreadingHTTPServer serves each request on its own thread; the lock keeps
+        # two concurrent requests from both running _cut_now (duplicate git IO) or
+        # racing on the cached cut. RLock so a locked reclassify can call repart.
+        self._lock = threading.RLock()
 
     @property
     def _write_target(self) -> Path:
@@ -206,13 +211,15 @@ class PartingSession:
         return cut
 
     def cut(self) -> CutList:
-        if self._cut is None:
-            self._cut = self._cut_now()
-        return self._cut
+        with self._lock:
+            if self._cut is None:
+                self._cut = self._cut_now()
+            return self._cut
 
     def repart(self) -> CutList:
-        self._cut = self._cut_now()
-        return self._cut
+        with self._lock:
+            self._cut = self._cut_now()
+            return self._cut
 
     def cut_dict(self) -> dict:
         return self.cut().model_dump(mode="json")
@@ -223,8 +230,11 @@ class PartingSession:
     def reclassify(self, *, target: str, bucket: str, note: str = "") -> dict:
         # Write to the durable store (sidecar for --pr, else the repo's own config)
         # so a throwaway PR clone never swallows the reviewer's reclassification.
-        write_override(self._write_target, glob=target, bucket=bucket, note=note)
-        return self.repart_dict()
+        # Hold the lock across write+repart so concurrent reclassifies don't
+        # interleave the .caliper.yaml write with another request's re-part.
+        with self._lock:
+            write_override(self._write_target, glob=target, bucket=bucket, note=note)
+            return self.repart_dict()
 
     def overrides(self) -> list[dict]:
         """The active (merged) override table, for the report's badge panel."""
