@@ -8,8 +8,10 @@ Two seams are tested independently:
   git, no server: a tmp repo dir is enough. This is the feedback loop's only
   mutation, so it carries the Idempotency property (applying the same override
   twice is the same as once).
-* ``build_part_serve_app`` — the Starlette routes, driven by a fake session so
-  the HTTP layer is tested without a real repo / git / re-part.
+* ``dispatch`` — the pure request router (functional core), driven by a fake
+  session so the HTTP layer is tested without a real repo / git / re-part and
+  without binding a socket. The transport is stdlib ``http.server`` — no
+  starlette/uvicorn, so the sidecar works from any install (no extra).
 
 Property domains (DPS-12):
   Idempotency   INVARIANT  applying the same override twice == once
@@ -20,11 +22,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import orjson
 import pytest
 import yaml
 
 from caliper.cli import part_serve
-from caliper.cli.part_serve import build_part_serve_app, write_override
+from caliper.cli.part_serve import dispatch, write_override
 from caliper.core.repo_config import load_repo_config
 
 # --------------------------------------------------------------------------- #
@@ -100,7 +103,7 @@ class TestWriteOverride:
 
 
 # --------------------------------------------------------------------------- #
-# Starlette routes — driven by a fake session (no git, no real re-part)
+# dispatch — the pure router, driven by a fake session (no git, no socket)
 # --------------------------------------------------------------------------- #
 
 _FAKE_CUT = {
@@ -152,67 +155,74 @@ class FakeSession:
         return []
 
 
-@pytest.fixture
-def client_and_session():
-    # starlette ships only with caliper[copilot]; the app tests skip without it,
-    # while the write_override + loopback tests run regardless (no starlette needed).
-    testclient = pytest.importorskip(
-        "starlette.testclient", reason="starlette not installed (caliper[copilot])"
-    )
-    session = FakeSession()
-    app = build_part_serve_app(session)
-    return testclient.TestClient(app), session
+def _post(session: FakeSession, path: str, payload: dict):
+    return dispatch(session, "POST", path, orjson.dumps(payload))
 
 
-class TestPartServeApp:
-    def test_index_renders_html(self, client_and_session) -> None:
-        client, _ = client_and_session
-        resp = client.get("/")
-        assert resp.status_code == 200
-        assert "text/html" in resp.headers["content-type"]
-        assert "logic" in resp.text  # the part bucket is rendered
+def _body(resp) -> dict:
+    return orjson.loads(resp.body)
 
-    def test_cutlist_returns_json(self, client_and_session) -> None:
-        client, _ = client_and_session
-        resp = client.get("/cutlist")
-        assert resp.status_code == 200
-        assert resp.json()["parts"][0]["id"] == "p1"
 
-    def test_reclassify_writes_override_and_returns_cut(self, client_and_session) -> None:
-        client, session = client_and_session
-        resp = client.post("/reclassify", json={"file": "src/app.py", "bucket": "business"})
-        assert resp.status_code == 200
+class TestDispatch:
+    def test_index_renders_html(self) -> None:
+        resp = dispatch(FakeSession(), "GET", "/", b"")
+        assert resp.status == 200
+        assert "text/html" in resp.content_type
+        assert b"logic" in resp.body  # the part bucket is rendered
+
+    def test_cutlist_returns_json(self) -> None:
+        resp = dispatch(FakeSession(), "GET", "/cutlist", b"")
+        assert resp.status == 200
+        assert _body(resp)["parts"][0]["id"] == "p1"
+
+    def test_reclassify_writes_override_and_returns_cut(self) -> None:
+        session = FakeSession()
+        resp = _post(session, "/reclassify", {"file": "src/app.py", "bucket": "business"})
+        assert resp.status == 200
         assert session.reclassified == [("src/app.py", "business")]
-        assert resp.json()["parts"][0]["bucket"] == "logic"
+        assert _body(resp)["parts"][0]["bucket"] == "logic"
 
-    def test_reclassify_accepts_glob(self, client_and_session) -> None:
-        client, session = client_and_session
-        client.post("/reclassify", json={"glob": "src/**", "bucket": "frontend"})
+    def test_reclassify_accepts_glob(self) -> None:
+        session = FakeSession()
+        _post(session, "/reclassify", {"glob": "src/**", "bucket": "frontend"})
         assert session.reclassified == [("src/**", "frontend")]
 
-    def test_reclassify_missing_bucket_is_400(self, client_and_session) -> None:
-        client, session = client_and_session
-        resp = client.post("/reclassify", json={"file": "src/app.py"})
-        assert resp.status_code == 400
+    def test_reclassify_missing_bucket_is_400(self) -> None:
+        session = FakeSession()
+        resp = _post(session, "/reclassify", {"file": "src/app.py"})
+        assert resp.status == 400
         assert session.reclassified == []
 
-    def test_reclassify_missing_target_is_400(self, client_and_session) -> None:
-        client, _ = client_and_session
-        resp = client.post("/reclassify", json={"bucket": "frontend"})
-        assert resp.status_code == 400
+    def test_reclassify_missing_target_is_400(self) -> None:
+        resp = _post(FakeSession(), "/reclassify", {"bucket": "frontend"})
+        assert resp.status == 400
 
-    def test_reclassify_validation_error_is_400(self, client_and_session) -> None:
-        client, session = client_and_session
+    def test_reclassify_invalid_json_is_400(self) -> None:
+        resp = dispatch(FakeSession(), "POST", "/reclassify", b"not json{")
+        assert resp.status == 400
+        assert "invalid JSON" in _body(resp)["error"]
+
+    def test_reclassify_validation_error_is_400(self) -> None:
+        session = FakeSession()
         session.raise_on_reclassify = ValueError("override bucket 'delete' is structural")
-        resp = client.post("/reclassify", json={"file": "x", "bucket": "delete"})
-        assert resp.status_code == 400
-        assert "structural" in resp.json()["error"]
+        resp = _post(session, "/reclassify", {"file": "x", "bucket": "delete"})
+        assert resp.status == 400
+        assert "structural" in _body(resp)["error"]
 
-    def test_repart_triggers_repart(self, client_and_session) -> None:
-        client, session = client_and_session
-        resp = client.post("/repart")
-        assert resp.status_code == 200
+    def test_repart_triggers_repart(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/repart", b"")
+        assert resp.status == 200
         assert session.reparted == 1
+
+    def test_unknown_route_is_404(self) -> None:
+        resp = dispatch(FakeSession(), "GET", "/nope", b"")
+        assert resp.status == 404
+
+    def test_query_string_is_ignored_by_handler(self) -> None:
+        # The handler strips the query string before dispatch; dispatch matches the bare path.
+        resp = dispatch(FakeSession(), "GET", "/cutlist", b"")
+        assert resp.status == 200
 
 
 class TestRenderReport:

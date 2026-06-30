@@ -15,8 +15,12 @@ Design:
   into ``.caliper.yaml``, validated through ``PartingConfig`` before it touches
   disk so a bad bucket never corrupts the file.
 * ``PartingSession`` holds the repo/base/head and owns the re-part (git IO).
-* ``build_part_serve_app`` is a thin Starlette adapter over a session — testable
-  with a fake session, no git required.
+* ``dispatch`` is the pure request router (functional core) over a session —
+  testable with a fake session, no git and no socket required.
+
+Transport is **stdlib ``http.server`` only** — no uvicorn/starlette, so the
+sidecar works from any install (it does not need the ``caliper[copilot]`` extra).
+The ``BaseHTTPRequestHandler`` is the thin imperative shell around ``dispatch``.
 
 Loopback only: the server binds ``127.0.0.1`` so the unauthenticated write
 endpoint is never exposed off-host. ``.caliper.yaml`` is a committed file here, so
@@ -29,9 +33,12 @@ writing it is intended — not a dirty-tree violation.
 from __future__ import annotations
 
 import html
+import http.server
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
+import orjson
 import structlog
 import yaml
 
@@ -39,8 +46,6 @@ from caliper.core.registries import PARTING
 from caliper.core.repo_config import PartingConfig, load_repo_config
 
 if TYPE_CHECKING:
-    from starlette.applications import Starlette
-
     from caliper.core.models import CutList
 
 logger = structlog.get_logger()
@@ -343,74 +348,98 @@ document.querySelectorAll('li.file').forEach(li => {{
 
 
 # --------------------------------------------------------------------------- #
-# Starlette app — thin adapter over a session
+# HTTP transport — stdlib only (zero extra deps; works from any install)
 # --------------------------------------------------------------------------- #
+#
+# The sidecar is loopback, single-reviewer, short-lived — it has no business
+# pulling in uvicorn/starlette (the caliper[copilot] extra). The whole transport
+# is Python's stdlib http.server. Routing is the pure `dispatch()` below
+# (functional core) so it is exercised without ever binding a socket; the
+# BaseHTTPRequestHandler is the thin imperative shell around it.
 
 
-def _require_starlette() -> Any:
-    """Import starlette lazily so the pure write-back stays importable without it."""
-    try:
-        import starlette.applications
-        import starlette.requests  # noqa: F401
-        import starlette.responses
-        import starlette.routing
+@dataclass(frozen=True)
+class Response:
+    """A rendered HTTP response: status + content type + raw body bytes."""
 
-        return starlette
-    except ImportError as exc:  # pragma: no cover - exercised only without the extra
-        raise ImportError(
-            "starlette is required for `caliper part --serve`. Install it via caliper[copilot]."
-        ) from exc
+    status: int
+    content_type: str
+    body: bytes
 
 
-def build_part_serve_app(session: _SessionLike) -> Starlette:
-    """Construct the Starlette app over *session*. No git here — testable directly."""
-    starlette = _require_starlette()
-    responses = starlette.responses
+def _json(payload: object, status: int = 200) -> Response:
+    return Response(status, "application/json", orjson.dumps(payload))
 
-    async def index(_request: Any) -> Any:
-        return responses.HTMLResponse(render_report(session.cut_dict(), session.overrides()))
 
-    async def cutlist(_request: Any) -> Any:
-        return responses.JSONResponse(session.cut_dict())
-
-    async def reclassify(request: Any) -> Any:
+def dispatch(session: _SessionLike, method: str, path: str, body: bytes) -> Response:
+    """Route one request against *session*. Pure: no IO, no socket — fully testable."""
+    if method == "GET" and path == "/":
+        html_doc = render_report(session.cut_dict(), session.overrides())
+        return Response(200, "text/html; charset=utf-8", html_doc.encode("utf-8"))
+    if method == "GET" and path == "/cutlist":
+        return _json(session.cut_dict())
+    if method == "POST" and path == "/reclassify":
         try:
-            body = await request.json()
-        except Exception:
-            return responses.JSONResponse({"error": "invalid JSON body"}, status_code=400)
-        target = body.get("glob") or body.get("file")
-        bucket = body.get("bucket")
+            payload = orjson.loads(body or b"")
+        except orjson.JSONDecodeError:
+            return _json({"error": "invalid JSON body"}, 400)
+        if not isinstance(payload, dict):
+            return _json({"error": "invalid JSON body"}, 400)
+        target = payload.get("glob") or payload.get("file")
+        bucket = payload.get("bucket")
         if not target or not bucket:
-            return responses.JSONResponse(
-                {"error": "both a target (file or glob) and a bucket are required"},
-                status_code=400,
-            )
+            return _json({"error": "both a target (file or glob) and a bucket are required"}, 400)
         try:
-            cut = session.reclassify(target=target, bucket=bucket, note=body.get("note", ""))
+            cut = session.reclassify(target=target, bucket=bucket, note=payload.get("note", ""))
         except Exception as exc:  # validation / write errors are reviewer-facing, not 500s
             logger.info("parting_reclassify_rejected", error=str(exc))
-            return responses.JSONResponse({"error": str(exc)}, status_code=400)
-        return responses.JSONResponse(cut)
+            return _json({"error": str(exc)}, 400)
+        return _json(cut)
+    if method == "POST" and path == "/repart":
+        return _json(session.repart_dict())
+    return _json({"error": "not found"}, 404)
 
-    async def repart(_request: Any) -> Any:
-        return responses.JSONResponse(session.repart_dict())
 
-    route = starlette.routing.Route
-    return starlette.applications.Starlette(
-        routes=[
-            route("/", index, methods=["GET"]),
-            route("/cutlist", cutlist, methods=["GET"]),
-            route("/reclassify", reclassify, methods=["POST"]),
-            route("/repart", repart, methods=["POST"]),
-        ]
-    )
+def _make_handler(session: _SessionLike) -> type[http.server.BaseHTTPRequestHandler]:
+    """Build a request handler bound to *session* (closure, no mutable class state)."""
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def _serve(self, method: str) -> None:
+            length = int(self.headers.get("Content-Length") or 0)
+            payload = self.rfile.read(length) if length > 0 else b""
+            path = self.path.split("?", 1)[0]  # ignore any query string
+            resp = dispatch(session, method, path, payload)
+            self.send_response(resp.status)
+            self.send_header("Content-Type", resp.content_type)
+            self.send_header("Content-Length", str(len(resp.body)))
+            self.end_headers()
+            self.wfile.write(resp.body)
+
+        def do_GET(self) -> None:  # noqa: N802 - stdlib dispatch name
+            self._serve("GET")
+
+        def do_POST(self) -> None:  # noqa: N802 - stdlib dispatch name
+            self._serve("POST")
+
+        def log_message(self, fmt: str, *args: object) -> None:
+            # Route http.server's stderr access log through structlog (debug only).
+            logger.debug("part_serve_request", request=fmt % args)
+
+    return _Handler
 
 
 def serve_part(repo_path: Path, base: str, head: str, *, port: int = DEFAULT_PORT) -> None:
     """Run the sidecar on loopback. Blocks until interrupted (presentation tier)."""
-    import uvicorn
-
     session = PartingSession(repo_path, base, head)
-    app = build_part_serve_app(session)
-    logger.info("part_serve_starting", host=HOST, port=port, base=base, head=head)
-    uvicorn.run(app, host=HOST, port=port, log_level="warning")
+    server = http.server.ThreadingHTTPServer((HOST, port), _make_handler(session))
+    url = f"http://{HOST}:{port}"
+    logger.info("part_serve_starting", host=HOST, port=port, base=base, head=head, url=url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:  # Ctrl-C is the intended way to stop the sidecar
+        pass
+    finally:
+        server.server_close()
+        logger.info("part_serve_stopped", url=url)
