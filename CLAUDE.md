@@ -147,12 +147,19 @@ overridable) → **override table** → ordered glob heuristics (`_GLOB_PRECEDEN
 most-specific-first) → `logic`. `_BUCKET_ORDER` in `core/parting.py` MUST contain
 every `ChangeType` or `part()` KeyErrors.
 
+**Size cap is opt-in** (`PartingConfig.size_cap: int | None`, default `None`): the
+default cut is **one commit per labelled bucket** — the split is along buckets of
+concern, never chopped by line count. A reviewer who wants finer parts sets
+`--size-cap N` (or `parting.size_cap`); only then does the R4 within-bucket
+accretion split a bucket once its accumulated size exceeds `N`. With no cap a
+non-isolated bucket is always a single part with `oversized=False`.
+
 **Bucket grouping rules** (`core/parting.py` `_part_bucket`): `generated`/`binary`
 (`_ISOLATED_BUCKETS`) collapse into one part and are never cap-checked (always
 `oversized=False`). `documentation` (`_GROUPED_BUCKETS`) also collapses into one
-part — a reviewer reads docs as a single unit — but stays cap-exempt with an honest
-`oversized=True` when the grouped size exceeds the cap. Every other bucket accretes
-by the size cap (R4).
+part — a reviewer reads docs as a single unit — cap-exempt but, when a cap is set,
+honestly `oversized=True` if the grouped size exceeds it. Every other bucket is one
+part by default and accretes by the size cap (R4) only when a cap is set.
 
 **Override table** (`parting.overrides` in `.caliper.yaml`): a version-controlled
 `OverrideRule {glob, bucket, note}` list. First matching glob wins; duplicate globs
