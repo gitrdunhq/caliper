@@ -207,6 +207,28 @@ it never enters `config_digest` — the cut, classification, and provenance stay
 deterministic and LLM-free. `core/commit_describer.py` `normalize_subject` strips any
 echoed prefix/quotes and enforces the 72-char cap at the boundary (DPS-102).
 
+**Advisory tier suggester** (`--suggest/--no-suggest`, `--suggest-model`,
+`--suggest-apply`): an optional "Sorting Hat" pass that asks a local
+OpenAI-compatible model to propose `parting.overrides` globs for the untiered
+`logic` residual — the code caliper honestly refused to tier. The model is OFF the
+decision path (scanners/OPA/detectors are the decision path) and only ever authors
+glob strings; the deterministic boundary decides what survives. Functional-core/
+imperative-shell: `core/tier_suggester.py` is the pure boundary — `SELECTABLE_TIERS`
+(every `ChangeType` tier except structural facts and `logic`), the typed
+request/rule, `TierSuggesterPort`/`NullSuggester`, and `validate_suggestions` with
+the **subset guard** (a suggested glob may only tier files that are *currently*
+`logic`, never steal an already-tiered one), dedupe, existing-glob drop, and a
+25-rule cap. `data/openai_suggester.py` is the only network code (fail-soft → `[]`
+on any transport/parse error; pins the legal bucket enum into the system prompt;
+tolerates ``` fences). `cli/part_suggest.py` is the env-driven edge
+(`suggester_from_env` falls back to `CALIPER_DESCRIBER_MODEL` + the shared base URL;
+`suggest_overrides` pulls residual/tiered straight from the cut). Suggester config
+is env/CLI-driven and deliberately OUTSIDE `PartingConfig`, so it never enters
+`config_digest` — only the globs a human accepts into `.caliper.yaml` change
+provenance. Under `--serve`, a "✨ suggest tiers" button (`POST /suggest`) renders
+each proposal as an accept chip that reuses `/reclassify`. Print-only by default;
+`--suggest-apply` writes the accepted globs and re-parts.
+
 ## Dev Ports
 
 Port range 12000-13000 only. Never use common ports.
