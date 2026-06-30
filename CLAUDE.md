@@ -180,12 +180,18 @@ socket; the `BaseHTTPRequestHandler` is the thin shell. Browser gate:
 URL or bare number instead of `--base/--head`. Pure parse in the functional core
 (`core/pr_ref.py` `parse_pr_ref` → typed `PrRef`); the imperative shell
 (`cli/part_pr.py` `resolve_pr`, all git/gh/jj IO through the `ToolRunnerPort` seam)
-always clones the PR into `.temp/part-pr/<repo>-pr<N>/` — never the user's repo —
-neutralizes jj immutability in that throwaway clone (a pushed PR's commits are
-immutable; the gate would otherwise refuse), and resolves `base = merge-base(base,
-head)`. Self-healing: a stale clone is wiped to a clean slate at the start of every
-run and a partial clone is removed on failure (`_safe_rmtree`, containment-checked),
-so a crashed run never poisons the next. Mutually exclusive with `--base/--head`.
+always clones the PR into a **centralized, repo-independent workdir** — never the
+user's repo — keyed by `<owner>-<repo>-pr<N>` (`PrRef.workdir_slug`, owner-keyed so
+two repos sharing a name never collide). The workdir root is XDG-resolved by
+`default_part_workdir()`: `CALIPER_STATE_DIR` wins, else
+`$XDG_CONFIG_HOME/caliper/state/part-pr`, else `~/.config/caliper/state/part-pr` —
+so the throwaway clone and the durable override sidecar live outside any checkout's
+`.temp/` and survive `git clean`, repo deletion, and re-clone. It neutralizes jj
+immutability in that throwaway clone (a pushed PR's commits are immutable; the gate
+would otherwise refuse), and resolves `base = merge-base(base, head)`. Self-healing:
+a stale clone is wiped to a clean slate at the start of every run and a partial
+clone is removed on failure (`_safe_rmtree`, containment-checked), so a crashed run
+never poisons the next. Mutually exclusive with `--base/--head`.
 
 **Advisory commit describer** (`--describe/--no-describe`, `--describe-model`): an
 optional pass that names each commit subject with a local OpenAI-compatible model

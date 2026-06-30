@@ -92,9 +92,9 @@ def test_resolve_clones_and_resolves(tmp_path: Path) -> None:
     assert isinstance(res, ResolvedPr)
     assert res.base == _BASE
     assert res.head == _HEAD
-    assert res.repo_path == tmp_path / "repo-pr5"
-    assert res.out_dir == tmp_path / "repo-pr5-out"
-    assert res.override_store == tmp_path / "repo-pr5-overrides"
+    assert res.repo_path == tmp_path / "owner-repo-pr5"
+    assert res.out_dir == tmp_path / "owner-repo-pr5-out"
+    assert res.override_store == tmp_path / "owner-repo-pr5-overrides"
     assert res.slug == "owner/repo"
     assert res.number == 5
 
@@ -108,7 +108,7 @@ def test_resolve_clones_and_resolves(tmp_path: Path) -> None:
 
 def test_wipes_stale_clone(tmp_path: Path) -> None:
     # A leftover clone from a prior run must be wiped to a clean slate.
-    stale = tmp_path / "repo-pr5"
+    stale = tmp_path / "owner-repo-pr5"
     stale.mkdir(parents=True)
     (stale / "stale.txt").write_text("old")
     runner = FakeRunner()
@@ -120,7 +120,7 @@ def test_wipes_stale_clone(tmp_path: Path) -> None:
 def test_wipes_stale_output_dir(tmp_path: Path) -> None:
     # "run part again" = redo from scratch: a prior run's restack.sh/cutlist.json
     # in the managed -out dir must be cleared so nothing stale survives.
-    stale_out = tmp_path / "repo-pr5-out"
+    stale_out = tmp_path / "owner-repo-pr5-out"
     stale_out.mkdir(parents=True)
     (stale_out / "restack.sh").write_text("# old cut")
     (stale_out / "cutlist.json").write_text("{}")
@@ -132,7 +132,7 @@ def test_wipes_stale_output_dir(tmp_path: Path) -> None:
 def test_override_store_survives_clean_slate(tmp_path: Path) -> None:
     # The durable reclassify store is OUTSIDE the clone, so a re-run's clean-slate
     # wipe must leave a reviewer's persisted overrides intact (the sev-5 fix).
-    store = tmp_path / "repo-pr5-overrides"
+    store = tmp_path / "owner-repo-pr5-overrides"
     store.mkdir(parents=True)
     (store / ".caliper.yaml").write_text(
         "parting:\n  overrides:\n    - {glob: 'x', bucket: data}\n"
@@ -148,7 +148,7 @@ def test_failure_cleans_up_partial_clone(tmp_path: Path) -> None:
     runner = FakeRunner(gh_ok=False, base_branch="")
     with pytest.raises(PrResolveError):
         resolve_pr(_ref(owner="o", repo="r", number=1), runner=runner, workdir_root=tmp_path)
-    assert not (tmp_path / "r-pr1").exists()
+    assert not (tmp_path / "o-r-pr1").exists()
 
 
 def test_refuses_to_remove_outside_workdir(tmp_path: Path) -> None:
@@ -202,6 +202,49 @@ class _OriginRunner(FakeRunner):
 def test_detect_origin_slug_accepts_enterprise_hosts(tmp_path: Path, url: str) -> None:
     # GitHub Enterprise hosts must resolve the same owner/repo slug as github.com.
     assert detect_origin_slug(tmp_path, _OriginRunner(url)) == "owner/repo"
+
+
+def test_clone_keyed_by_owner_avoids_collision(tmp_path: Path) -> None:
+    # Two different orgs, same repo name + PR number, one shared workdir: the
+    # owner key must keep their clones apart (the centralized-store hazard).
+    a = resolve_pr(
+        _ref(owner="orgA", repo="svc", number=9), runner=FakeRunner(), workdir_root=tmp_path
+    )
+    b = resolve_pr(
+        _ref(owner="orgB", repo="svc", number=9), runner=FakeRunner(), workdir_root=tmp_path
+    )
+    assert a.repo_path != b.repo_path
+    assert a.repo_path == tmp_path / "orgA-svc-pr9"
+    assert b.repo_path == tmp_path / "orgB-svc-pr9"
+
+
+class TestDefaultPartWorkdir:
+    """The PR workdir is centralized (XDG), not littered in each repo's .temp/."""
+
+    def test_uses_xdg_config_home(self, tmp_path: Path, monkeypatch) -> None:
+        from caliper.cli.part_pr import default_part_workdir
+
+        monkeypatch.delenv("CALIPER_STATE_DIR", raising=False)
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        assert default_part_workdir() == tmp_path / "cfg" / "caliper" / "state" / "part-pr"
+
+    def test_env_override_wins(self, tmp_path: Path, monkeypatch) -> None:
+        from caliper.cli.part_pr import default_part_workdir
+
+        monkeypatch.setenv("CALIPER_STATE_DIR", str(tmp_path / "custom"))
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        assert default_part_workdir() == tmp_path / "custom" / "part-pr"
+
+    def test_falls_back_to_home_config(self, tmp_path: Path, monkeypatch) -> None:
+        from caliper.cli.part_pr import default_part_workdir
+
+        monkeypatch.delenv("CALIPER_STATE_DIR", raising=False)
+        monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
+        assert (
+            default_part_workdir()
+            == tmp_path / "home" / ".config" / "caliper" / "state" / "part-pr"
+        )
 
 
 class TestProperties:

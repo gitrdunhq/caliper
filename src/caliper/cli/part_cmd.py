@@ -84,7 +84,8 @@ def _cutlist_json(cut: CutList) -> str:
     "--pr",
     "pr_url",
     default=None,
-    help="GitHub PR URL or number; clones the PR into .temp/part-pr/ and parts "
+    help="GitHub PR URL or number; clones the PR into a centralized workdir "
+    "(~/.config/caliper/state/part-pr, override via CALIPER_STATE_DIR) and parts "
     "base..head (mutually exclusive with --base/--head).",
 )
 @click.option("--repo", "repo", type=click.Path(exists=True), default=".", help="Repository root.")
@@ -157,7 +158,12 @@ def part(
     if pr_url:
         if base or head:
             raise click.UsageError("--pr is mutually exclusive with --base/--head")
-        from caliper.cli.part_pr import PrResolveError, detect_origin_slug, resolve_pr
+        from caliper.cli.part_pr import (
+            PrResolveError,
+            default_part_workdir,
+            detect_origin_slug,
+            resolve_pr,
+        )
         from caliper.core.pr_ref import parse_pr_ref
 
         repo_root = Path(repo).resolve()
@@ -165,7 +171,10 @@ def part(
             pr_ref = parse_pr_ref(pr_url, default_slug=detect_origin_slug(repo_root))
         except ValueError as exc:
             raise click.UsageError(str(exc)) from exc
-        workdir_root = repo_root / ".temp" / "part-pr"
+        # Centralized, repo-independent workdir (XDG) — the throwaway clone and the
+        # durable override sidecar live outside any checkout's .temp/, so they
+        # survive git clean / re-clone and never collide across repos.
+        workdir_root = default_part_workdir()
         try:
             resolved = resolve_pr(pr_ref, workdir_root=workdir_root)
         except PrResolveError as exc:
