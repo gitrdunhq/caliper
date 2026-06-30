@@ -440,7 +440,7 @@ class CutList(BaseModel):
 
     parts: list[Part]
     ambiguities: list[Ambiguity] = Field(default_factory=list)
-    size_cap: int
+    size_cap: int | None = None  # None => uncapped: one part per labelled bucket
     provenance: Provenance
     stats: CutStats
 

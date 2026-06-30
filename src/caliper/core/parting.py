@@ -156,11 +156,16 @@ def _part_bucket(bucket: ChangeType, recs: list[Record], cfg: PartingConfig) -> 
 
     if bucket in _GROUPED_BUCKETS:
         # Grouped into one part (never size-split), but cap-exempt with an honest
-        # oversized flag when the group as a whole exceeds the cap.
+        # oversized flag when the group as a whole exceeds the cap (uncapped: never).
         group_size = sum((r.size or 0) for r in recs)
-        return [_build_part(bucket, recs, "R1", oversized=group_size > cfg.size_cap)]
+        oversized = cfg.size_cap is not None and group_size > cfg.size_cap
+        return [_build_part(bucket, recs, "R1", oversized=oversized)]
 
     first_rule = "R2" if bucket == ChangeType.move else "bucket-end"
+    if cfg.size_cap is None:
+        # No cap (the default): one commit per labelled bucket. The within-bucket
+        # size split (R4) is an opt-in refinement, not the default behaviour.
+        return [_build_part(bucket, recs, first_rule, oversized=False)]
     cap = cfg.size_cap
     parts: list[Part] = []
     current: list[Record] = []

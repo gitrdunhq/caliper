@@ -39,9 +39,12 @@ def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: 
         lines.append("ROLLBACK — the rollback header was emitted with the original restack.sh")
     lines.append("")
     p = cut.provenance
+    bucket_count = len({part.bucket for part in cut.parts})
+    cap_str = "none (1 part/bucket)" if cut.size_cap is None else str(cut.size_cap)
     lines.append(
-        f"cut list — {cut.stats.part_count} parts, {cut.stats.file_count} files, "
-        f"cap {cut.size_cap} (size p50={cut.stats.size_p50} p90={cut.stats.size_p90})"
+        f"cut list — {cut.stats.part_count} parts across {bucket_count} buckets, "
+        f"{cut.stats.file_count} files, cap {cap_str} "
+        f"(size p50={cut.stats.size_p50} p90={cut.stats.size_p90})"
     )
     lines.append(
         f"provenance: caliper {p.caliper_version or '?'}  base={p.base_sha or '?'}  "
