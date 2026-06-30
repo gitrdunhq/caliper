@@ -163,8 +163,11 @@ otherwise deterministic classifier — no ML.
 **`caliper part --serve [--port N]`** (`cli/part_serve.py`): a loopback sidecar
 (127.0.0.1:12700) serving the live cut report. A reviewer reclassifies a file from
 the browser → `write_override` appends/updates a `parting.overrides` entry and
-re-parts. starlette is imported lazily (caliper[copilot] extra) so the pure
-`write_override` stays importable/tested without it. Browser gate: `scripts/screenshots.ts`.
+re-parts. The transport is **stdlib `http.server` only** — no uvicorn/starlette, so
+it runs from any install (no `caliper[copilot]` extra). Routing is the pure
+`dispatch(session, method, path, body)` (functional core), tested without binding a
+socket; the `BaseHTTPRequestHandler` is the thin shell. Browser gate:
+`scripts/screenshots.ts`.
 
 **PR input** (`caliper part --pr <url|number>`, `cli/part_pr.py`): feed a GitHub PR
 URL or bare number instead of `--base/--head`. Pure parse in the functional core
