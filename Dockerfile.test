@@ -2,12 +2,20 @@
 # Test image — installs caliper from source with dev deps.
 # Unlike the runtime Dockerfile, this always reflects the current checkout.
 #
-# Build:  make test-amd64
-# Run:    podman run --rm --platform linux/amd64 --security-opt apparmor=unconfined caliper-test:amd64 python3 -m pytest tests/ -v
+# Build:  bash scripts/build-test.sh           # native host arch (arm64 on Apple Silicon)
+#         make test                            # linux/amd64 (CI parity)
+# Run:    bash scripts/build-test.sh -- tests/unit/ -q
+#
+# Arch-agnostic: the FROM and uv pins below are MULTI-ARCH INDEX digests (immutable
+# AND per-platform), and jj is selected by the builder's automatic TARGETARCH arg.
+# So `--platform linux/arm64` yields a native arm64 image (no qemu, no pyarrow
+# segfault on Apple Silicon) and `linux/amd64` stays byte-identical to CI — from one
+# Dockerfile. Regenerate the index digests with scripts/resolve-base-digests.sh.
 
-# docker-library/python revision:
-# 3362634339580d3232e65a66dd5a36c47ae7ff14
-FROM docker.io/library/python@sha256:d384a24aebd583543abb00fa47b2a434ec3a96559c6f244cc3cfcbe9e136a798
+# docker-library/python revision 3362634339580d3232e65a66dd5a36c47ae7ff14,
+# python 3.12.13-slim-bookworm. Pinned to the MULTI-ARCH INDEX digest (not a
+# single-arch image digest) so --platform selects the native sub-image.
+FROM docker.io/library/python@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b
 
 LABEL org.opencontainers.image.base.revision="3362634339580d3232e65a66dd5a36c47ae7ff14" \
       org.opencontainers.image.uv.revision="0e961dd9a2bb6f73493d9e8398b725ad2d3b3837"
@@ -19,16 +27,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # jj (Jujutsu) — required so the real-jj parting e2e (tests/integration/
-# test_part_e2e.py) actually runs in CI instead of silently skipping. Pinned to
-# the version validated on host, checksum-verified. linux/amd64 (the test image).
+# test_part_e2e.py) actually runs in CI instead of silently skipping. Arch-templated:
+# TARGETARCH is set automatically by the builder from --platform (amd64|arm64); the
+# matching musl tarball is downloaded and checksum-verified. Both checksums pinned.
+ARG TARGETARCH
 ARG JJ_VERSION=0.42.0
-ARG JJ_SHA256=2d91e81d649e617a81608e7401ad1106029c15ece01ac928c4a351abef42be6a
-RUN curl -sSfL -o /tmp/jj.tgz \
-      "https://github.com/jj-vcs/jj/releases/download/v${JJ_VERSION}/jj-v${JJ_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
-    && echo "${JJ_SHA256}  /tmp/jj.tgz" | sha256sum -c - \
-    && tar -xzf /tmp/jj.tgz -C /usr/local/bin --strip-components=1 ./jj \
-    && rm /tmp/jj.tgz \
-    && jj --version
+ARG JJ_SHA256_AMD64=2d91e81d649e617a81608e7401ad1106029c15ece01ac928c4a351abef42be6a
+ARG JJ_SHA256_ARM64=bc962ac57ec264541a62ed8492f080898380a277222b115e1ed96163196e6fc8
+RUN set -eu; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) jj_arch=x86_64;  jj_sha="${JJ_SHA256_AMD64}" ;; \
+      arm64) jj_arch=aarch64; jj_sha="${JJ_SHA256_ARM64}" ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -sSfL -o /tmp/jj.tgz \
+      "https://github.com/jj-vcs/jj/releases/download/v${JJ_VERSION}/jj-v${JJ_VERSION}-${jj_arch}-unknown-linux-musl.tar.gz"; \
+    echo "${jj_sha}  /tmp/jj.tgz" | sha256sum -c -; \
+    tar -xzf /tmp/jj.tgz -C /usr/local/bin --strip-components=1 ./jj; \
+    rm /tmp/jj.tgz; \
+    jj --version
 
 # Venv lives outside /workspace so the host's ro mount can't shadow it.
 ENV UV_PROJECT_ENVIRONMENT=/opt/test-venv \
