@@ -26,7 +26,7 @@ from caliper.core.part_gate import PartingGateError, run_gate
 from caliper.core.part_script import probe_path_capability, render_restack_script, rollback_header
 from caliper.core.parting import PartingError
 from caliper.core.registries import PARTING
-from caliper.core.repo_config import load_repo_config
+from caliper.core.repo_config import OverrideRule, load_repo_config
 
 
 def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: str | None) -> str:
@@ -75,6 +75,17 @@ def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: 
 
 def _cutlist_json(cut: CutList) -> str:
     return orjson.dumps(cut.model_dump(mode="json"), option=orjson.OPT_INDENT_2).decode()
+
+
+def _overrides_yaml(rules: list[OverrideRule]) -> str:
+    """Paste-ready ``parting.overrides`` block for the suggested rules (print mode)."""
+    lines = ["parting:", "  overrides:"]
+    for r in rules:
+        lines.append(f"    - glob: {r.glob!r}")
+        lines.append(f"      bucket: {r.bucket.value}")
+        if r.note:
+            lines.append(f"      note: {r.note!r}")
+    return "\n".join(lines)
 
 
 @click.command(name="part")
@@ -131,6 +142,26 @@ def _cutlist_json(cut: CutList) -> str:
     default=None,
     help="Model id for --describe (e.g. gemma4:e4b, llama3.2:3b); overrides env.",
 )
+@click.option(
+    "--suggest/--no-suggest",
+    "suggest_flag",
+    default=None,
+    help="Advisory: ask a local model to propose tier override globs for the untiered "
+    "'logic' residual (fail-soft, off the decision path). Default follows env "
+    "(CALIPER_SUGGESTER_MODEL + base URL).",
+)
+@click.option(
+    "--suggest-model",
+    "suggest_model",
+    default=None,
+    help="Model id for --suggest (e.g. llama3.1); overrides env. Falls back to --describe-model.",
+)
+@click.option(
+    "--suggest-apply",
+    is_flag=True,
+    default=False,
+    help="Write the suggested overrides into .caliper.yaml and re-part (default: print only).",
+)
 def part(
     base: str | None,
     head: str | None,
@@ -145,6 +176,9 @@ def part(
     port: int | None,
     describe_flag: bool | None,
     describe_model: str | None,
+    suggest_flag: bool | None,
+    suggest_model: str | None,
+    suggest_apply: bool,
 ) -> None:
     """Propose an ordered cut list for a diff and emit a jj restack script."""
     if explain:
@@ -245,6 +279,47 @@ def part(
             )
         }
     )
+
+    # 2b. Advisory tier suggester (imperative shell): ask a local model to propose
+    # override globs for the 'logic' residual. Env-driven and OUTSIDE config_digest;
+    # the model only authors globs — the deterministic boundary validates them and only
+    # the globs a human accepts (here via --suggest-apply) ever enter the cut.
+    from caliper.cli.part_serve import write_override
+    from caliper.cli.part_suggest import suggest_overrides, suggester_from_env
+
+    suggest_env = dict(os.environ)
+    if suggest_model:
+        suggest_env["CALIPER_SUGGESTER_MODEL"] = suggest_model
+    suggester = suggester_from_env(suggest_env, force=suggest_flag)
+    proposed = suggest_overrides(cut, suggester, existing_overrides=cfg.overrides)
+    if proposed:
+        click.echo(f"\ntier suggestions for the 'logic' residual ({len(proposed)}):")
+        click.echo(_overrides_yaml(proposed))
+        if suggest_apply:
+            write_target = pr_override_store or repo_path
+            for r in proposed:
+                write_override(write_target, glob=r.glob, bucket=r.bucket.value, note=r.note)
+            # Re-part with the accepted globs layered in-memory (independent of where the
+            # file landed), so the rendered cut reflects them deterministically.
+            cfg = cfg.model_copy(update={"overrides": [*cfg.overrides, *proposed]})
+            try:
+                outcome = PARTING.create("parting").cut(repo_path, base, head, cfg)
+            except PartingError as exc:
+                raise click.ClickException(str(exc)) from exc
+            cut = outcome.cutlist.model_copy(
+                update={
+                    "provenance": outcome.cutlist.provenance.model_copy(
+                        update={"resolved_revsets": gate.resolved_revsets}
+                    )
+                }
+            )
+            click.echo(
+                f"applied {len(proposed)} override(s) to {write_target}/.caliper.yaml; re-parted"
+            )
+        else:
+            click.echo("(re-run with --suggest-apply to write these and re-part)")
+    elif suggest_flag is True or suggest_apply:
+        click.echo("\nno tier suggestions (residual empty or model unavailable)")
 
     # 3. Probe the installed jj for non-interactive path restore (do not assume).
     can_reconstruct, jj_version = probe_path_capability(str(repo_path))
