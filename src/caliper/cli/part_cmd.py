@@ -167,8 +167,9 @@ def part(
         repo = str(resolved.repo_path)
         base, head = resolved.base, resolved.head
         if out is None:
-            # Outputs live outside the clone so re-runs (which wipe the clone) keep them.
-            out = str(resolved.workdir / f"{pr_ref.repo}-pr{pr_ref.number}-out")
+            # Managed output dir, wiped + recreated each run by resolve_pr so a
+            # re-run redoes from a clean slate (no stale restack.sh/cutlist.json).
+            out = str(resolved.out_dir)
         click.echo(
             f">> {resolved.slug}#{resolved.number}  "
             f"base={base[:12]}  head={head[:12]}  (clone: {resolved.repo_path})"

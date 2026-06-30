@@ -54,6 +54,7 @@ class ResolvedPr:
     slug: str
     number: int
     workdir: Path
+    out_dir: Path  # managed output dir (restack.sh / cutlist.json), wiped each run
 
 
 def _run(
@@ -162,11 +163,15 @@ def resolve_pr(
     workdir_root = Path(workdir_root)
     workdir_root.mkdir(parents=True, exist_ok=True)
     clone_dir = workdir_root / f"{pr_ref.repo}-pr{pr_ref.number}"
+    out_dir = workdir_root / f"{pr_ref.repo}-pr{pr_ref.number}-out"
     n = pr_ref.number
 
     # Clean slate every run: a stale/dirty/partial clone from a prior run would
-    # trip the parting gate (dirty tree) or resolve against stale refs.
+    # trip the parting gate (dirty tree) or resolve against stale refs. Wipe the
+    # managed output dir too so a re-run never leaves stale restack.sh/cutlist.json
+    # from a different cut lying around — "run part again" means redo from scratch.
     _safe_rmtree(clone_dir, workdir_root)
+    _safe_rmtree(out_dir, workdir_root)
 
     try:
         logger.info("part_pr.clone", url=pr_ref.clone_url, dest=str(clone_dir))
@@ -264,4 +269,5 @@ def resolve_pr(
         slug=pr_ref.slug,
         number=n,
         workdir=workdir_root,
+        out_dir=out_dir,
     )
