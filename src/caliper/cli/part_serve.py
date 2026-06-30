@@ -118,22 +118,42 @@ class _SessionLike(Protocol):
     def overrides(self) -> list[dict]: ...
 
 
+def _apply_size_cap(cfg: PartingConfig, size_cap: int | None) -> PartingConfig:
+    """Apply a CLI --size-cap override onto the loaded config (pure). None = leave as-is."""
+    if size_cap is None:
+        return cfg
+    return cfg.model_copy(update={"size_cap": size_cap})
+
+
 class PartingSession:
     """Holds the parting target and re-parts on demand, reloading config each time."""
 
-    def __init__(self, repo_path: Path, base: str, head: str) -> None:
+    def __init__(
+        self, repo_path: Path, base: str, head: str, *, size_cap: int | None = None
+    ) -> None:
         self.repo_path = repo_path
         self.base = base
         self.head = head
+        self.size_cap = size_cap  # CLI --size-cap override; None => use the repo config
         self._cut: CutList | None = None
 
     def _cut_now(self) -> CutList:
-        cfg = load_repo_config(self.repo_path).parting
+        cfg = _apply_size_cap(load_repo_config(self.repo_path).parting, self.size_cap)
         # Import triggers the parting plugin's @PARTING.register side effect.
         import caliper.plugins._parting  # noqa: F401
 
         outcome = PARTING.create("parting").cut(self.repo_path, self.base, self.head, cfg)
-        return outcome.cutlist
+        cut = outcome.cutlist
+        # Surface what cut was actually produced — the effective cap (so a --size-cap
+        # that isn't taking effect is visible) and the resulting part/file counts.
+        logger.info(
+            "part_serve_cut",
+            size_cap=cfg.size_cap,
+            parts=cut.stats.part_count,
+            files=cut.stats.file_count,
+            overrides=len(cfg.overrides),
+        )
+        return cut
 
     def cut(self) -> CutList:
         if self._cut is None:
@@ -460,14 +480,29 @@ def _bind_server(
     ) from last_exc
 
 
-def serve_part(repo_path: Path, base: str, head: str, *, port: int = DEFAULT_PORT) -> None:
+def serve_part(
+    repo_path: Path,
+    base: str,
+    head: str,
+    *,
+    port: int = DEFAULT_PORT,
+    size_cap: int | None = None,
+) -> None:
     """Run the sidecar on loopback. Blocks until interrupted (presentation tier)."""
-    session = PartingSession(repo_path, base, head)
+    session = PartingSession(repo_path, base, head, size_cap=size_cap)
     server, bound = _bind_server(_make_handler(session), port)
     url = f"http://{HOST}:{bound}"
     if bound != port:
         logger.warning("part_serve_port_busy", requested=port, using=bound, url=url)
-    logger.info("part_serve_starting", host=HOST, port=bound, base=base, head=head, url=url)
+    logger.info(
+        "part_serve_starting",
+        host=HOST,
+        port=bound,
+        base=base,
+        head=head,
+        size_cap=size_cap,
+        url=url,
+    )
     try:
         server.serve_forever()
     except KeyboardInterrupt:  # Ctrl-C is the intended way to stop the sidecar

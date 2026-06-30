@@ -102,14 +102,20 @@ def detect_origin_slug(repo_path: Path, runner: ToolRunnerPort | None = None) ->
     return m["slug"] if m else None
 
 
-def _safe_rmtree(path: Path, workdir_root: Path) -> None:
-    """Remove ``path`` only if it is inside ``workdir_root`` (never escape .temp)."""
+def _safe_rmtree(path: Path, workdir_root: Path) -> bool:
+    """Remove ``path`` if it is inside ``workdir_root`` (never escape .temp).
+
+    Returns True if something was actually removed, False if it wasn't there —
+    so callers can log an honest clean-slate report.
+    """
     path = path.resolve()
     root = workdir_root.resolve()
     if path == root or root not in path.parents:
         raise PrResolveError(f"refusing to remove {path} — outside the parting workdir")
     if path.exists():
         shutil.rmtree(path)
+        return True
+    return False
 
 
 def _base_branch(runner: ToolRunnerPort, clone_dir: Path, pr_ref: PrRef) -> str:
@@ -170,8 +176,15 @@ def resolve_pr(
     # trip the parting gate (dirty tree) or resolve against stale refs. Wipe the
     # managed output dir too so a re-run never leaves stale restack.sh/cutlist.json
     # from a different cut lying around — "run part again" means redo from scratch.
-    _safe_rmtree(clone_dir, workdir_root)
-    _safe_rmtree(out_dir, workdir_root)
+    removed_clone = _safe_rmtree(clone_dir, workdir_root)
+    removed_out = _safe_rmtree(out_dir, workdir_root)
+    logger.info(
+        "part_pr.clean_slate",
+        clone=str(clone_dir),
+        clone_removed=removed_clone,
+        out_dir=str(out_dir),
+        out_removed=removed_out,
+    )
 
     try:
         logger.info("part_pr.clone", url=pr_ref.clone_url, dest=str(clone_dir))

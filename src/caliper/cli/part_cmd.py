@@ -180,7 +180,7 @@ def part(
             raise click.UsageError("--base and --head are required with --serve")
         from caliper.cli.part_serve import DEFAULT_PORT, serve_part
 
-        serve_part(Path(repo).resolve(), base, head, port=port or DEFAULT_PORT)
+        serve_part(Path(repo).resolve(), base, head, port=port or DEFAULT_PORT, size_cap=size_cap)
         return
 
     if not base or not head:

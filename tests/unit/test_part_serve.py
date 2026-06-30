@@ -257,6 +257,29 @@ class TestBindServer:
             blocker.close()
 
 
+class TestApplySizeCap:
+    """The --size-cap override must reach the served cut (regression: it was dropped)."""
+
+    def test_override_replaces_config_cap(self) -> None:
+        from caliper.cli.part_serve import _apply_size_cap
+        from caliper.core.repo_config import PartingConfig
+
+        base = PartingConfig()
+        assert _apply_size_cap(base, 100000).size_cap == 100000
+
+    def test_none_leaves_config_cap_untouched(self) -> None:
+        from caliper.cli.part_serve import _apply_size_cap
+        from caliper.core.repo_config import PartingConfig
+
+        base = PartingConfig()
+        assert _apply_size_cap(base, None).size_cap == base.size_cap
+
+    def test_session_stores_the_override(self) -> None:
+        # The session must carry the override so each re-part applies it.
+        session = part_serve.PartingSession(Path("/repo"), "base", "head", size_cap=100000)
+        assert session.size_cap == 100000
+
+
 class TestRenderReport:
     """The report renderer is a pure function — no starlette, runs everywhere."""
 
