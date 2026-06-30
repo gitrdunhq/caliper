@@ -66,13 +66,81 @@ def probe_path_capability(repo_path: str, runner: ToolRunnerPort | None = None) 
     return can, version
 
 
-def _peel_message(index: int, total: int, part) -> str:
-    note = ""
+# Conventional-commit (type, scope) per bucket. scope="" → bare type (e.g. "docs:").
+# Code tiers default to feat; the author refines to fix/refactor before publishing.
+_CONVENTIONAL: dict[ChangeType, tuple[str, str]] = {
+    ChangeType.frontend: ("feat", "frontend"),
+    ChangeType.business: ("feat", "business"),
+    ChangeType.data: ("feat", "data"),
+    ChangeType.infra: ("feat", "infra"),
+    ChangeType.logic: ("feat", "logic"),
+    ChangeType.schema_contracts: ("feat", "schema"),
+    ChangeType.documentation: ("docs", ""),
+    ChangeType.test: ("test", ""),
+    ChangeType.ci_cd: ("ci", ""),
+    ChangeType.supply_chain: ("chore", "deps"),
+    ChangeType.config: ("chore", "config"),
+    ChangeType.security_policy: ("chore", "security"),
+    ChangeType.generated: ("chore", "generated"),
+    ChangeType.move: ("chore", "move"),
+    ChangeType.delete: ("chore", "remove"),
+    ChangeType.binary: ("chore", "assets"),
+}
+
+# Deterministic per-bucket summary — a placeholder describing the bucket, not the
+# change intent (which only the author knows). Refine before publishing.
+_SUMMARY: dict[ChangeType, str] = {
+    ChangeType.frontend: "frontend changes",
+    ChangeType.business: "business logic",
+    ChangeType.data: "data layer",
+    ChangeType.infra: "infrastructure",
+    ChangeType.logic: "untiered changes (needs a tier)",
+    ChangeType.schema_contracts: "schema and contracts",
+    ChangeType.documentation: "documentation",
+    ChangeType.test: "tests",
+    ChangeType.ci_cd: "CI/CD pipeline",
+    ChangeType.supply_chain: "dependency manifests",
+    ChangeType.config: "configuration",
+    ChangeType.security_policy: "security policy",
+    ChangeType.generated: "generated and vendored artifacts",
+    ChangeType.move: "move and rename files",
+    ChangeType.delete: "remove files",
+    ChangeType.binary: "binary assets",
+}
+
+
+def _peel_prefix(part) -> str:
+    """The deterministic ``type(scope): `` head for a part, derived from its bucket.
+
+    This is the half release-please reads for semver — it never depends on a model.
+    An advisory describer only ever writes the prose tail that follows it.
+    """
+    typ, scope = _CONVENTIONAL.get(part.bucket, ("chore", ""))
+    head = f"{typ}({scope})" if scope else typ
+    return f"{head}: "
+
+
+def _peel_subject(part) -> str:
+    """The single-line conventional-commit subject for a part (no hash, no index)."""
+    return _peel_prefix(part) + _SUMMARY.get(part.bucket, str(part.bucket))
+
+
+def _subject_for(part, subjects: dict[str, str] | None) -> str:
+    """The subject for a part: an injected advisory describer line if present,
+    else the deterministic ``_peel_subject``. Fail-soft and per-part."""
+    return (subjects or {}).get(part.id) or _peel_subject(part)
+
+
+def _peel_message(index: int, total: int, part, subject: str) -> str:
+    """Full commit message: the resolved subject (advisory or deterministic), then a
+    body carrying any review note and a machine-readable provenance trailer."""
+    body: list[str] = []
     if part.oversized:
-        note = " OVERSIZED: over the size cap and cannot be split further in v0"
+        body.append("OVERSIZED: over the size cap and cannot be split further in v0")
     elif part.bucket == ChangeType.delete:
-        note = " DELETE: review for cross-part deletion safety (v0 has no graph for this)"
-    return f"caliper part {index}/{total}: {part.bucket} {part.id}{note}"
+        body.append("DELETE: review for cross-part deletion safety (v0 has no graph for this)")
+    body.append(f"Caliper-Part: {index}/{total} {part.bucket} {part.id}")
+    return subject + "\n\n" + "\n".join(body)
 
 
 def _restore_paths(part, old_paths: dict[str, str]) -> list[str]:
@@ -97,11 +165,17 @@ def render_restack_script(
     old_paths: dict[str, str] | None = None,
     validate_command: str = "",
     can_reconstruct: bool,
+    subjects: dict[str, str] | None = None,
 ) -> str:
     """Render ``restack.sh`` for *cutlist*. Pure: same inputs -> same bytes.
 
     ``--target series`` changes only this script (one tip bookmark instead of one
     bookmark per part) — never the cut list, which is identical between targets.
+
+    ``subjects`` maps ``part.id`` -> an advisory describer subject line. When a part
+    has an entry its commit subject uses it; otherwise the deterministic
+    ``_peel_subject`` stands. ``None`` (the default) is byte-identical to an empty
+    map — the describer is strictly additive and never alters the cut.
     """
     old_paths = old_paths or {}
     n = len(cutlist.parts)
@@ -135,7 +209,7 @@ def render_restack_script(
         )
         lines.append("")
         for i, part in enumerate(cutlist.parts, start=1):
-            lines.append(f"# --- {_peel_message(i, n, part)} ---")
+            lines.append(f"# --- part {i}/{n}: {_subject_for(part, subjects)} ---")
             for f in _restore_paths(part, old_paths):
                 lines.append(f"#   {f}")
             lines.append("")
@@ -146,9 +220,10 @@ def render_restack_script(
     lines.append(f"jj new {shlex.quote(base_rev)} -m 'caliper part: reconstruct stock on base'")
     lines.append("")
     for i, part in enumerate(cutlist.parts, start=1):
-        msg = _peel_message(i, n, part)
+        subject = _subject_for(part, subjects)
+        msg = _peel_message(i, n, part, subject)
         quoted = " ".join(shlex.quote(p) for p in _restore_paths(part, old_paths))
-        lines.append(f"# --- {msg} ---")
+        lines.append(f"# --- part {i}/{n}: {subject} ---")
         lines.append(f"jj restore --from {shlex.quote(head_rev)} {quoted}")
         if validate_command:
             lines.append("# validate (advisory; side effects outside rollback):")
