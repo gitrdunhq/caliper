@@ -93,6 +93,68 @@ class TestSinglePluginWithFindings:
         assert loc["region"]["startLine"] == 42
 
 
+class TestPluginFindingObjects:
+    """Findings can be typed ``PluginFinding`` models, not just raw dicts — the
+    SARIF renderer must coerce them (the dogfood `.get()` AttributeError)."""
+
+    def _result(self) -> PluginResult:
+        from caliper.core.plugin import PluginFinding
+
+        return PluginResult(
+            plugin_name="osv",
+            findings=[
+                PluginFinding(
+                    id="CVE-2024-0001",
+                    severity="HIGH",
+                    message="Vulnerable dependency",
+                    file="requirements.txt",
+                    line=7,
+                    rule_id="CVE-2024-0001",
+                    metadata={
+                        "scribe": {
+                            "enclosing_symbol": "deps",
+                            "sources": ["code_graph"],
+                        }
+                    },
+                )
+            ],
+        )
+
+    def test_renders_typed_finding_without_error(self) -> None:
+        out = to_sarif([self._result()])
+        result = out["runs"][0]["results"][0]
+        assert result["ruleId"] == "CVE-2024-0001"
+        assert result["level"] == "error"  # HIGH -> error
+        assert result["message"]["text"] == "Vulnerable dependency"
+
+    def test_typed_finding_location(self) -> None:
+        out = to_sarif([self._result()])
+        loc = out["runs"][0]["results"][0]["locations"][0]["physicalLocation"]
+        assert loc["artifactLocation"]["uri"] == "requirements.txt"
+        assert loc["region"]["startLine"] == 7
+
+    def test_typed_finding_scribe_survives(self) -> None:
+        # model_dump keeps metadata NESTED, so the scribe packet is preserved
+        # (to_dict() would flatten it to top level and _scribe would miss it).
+        out = to_sarif([self._result()])
+        result = out["runs"][0]["results"][0]
+        assert result["properties"]["scribe"]["enclosing_symbol"] == "deps"
+
+    def test_mixed_dict_and_typed_findings(self) -> None:
+        from caliper.core.plugin import PluginFinding
+
+        mixed = PluginResult(
+            plugin_name="mix",
+            findings=[
+                {"rule_id": "r1", "file": "a.py", "start_line": 1, "severity": "INFO"},
+                PluginFinding(id="r2", severity="LOW", message="m", file="b.py", line=2),
+            ],
+        )
+        out = to_sarif([mixed])
+        rule_ids = {r["ruleId"] for r in out["runs"][0]["results"]}
+        assert rule_ids == {"r1", "r2"}
+
+
 class TestScribeNoteProperties:
     """Detect-then-scribe packets (ADR-006) surface in the SARIF property bag."""
 
