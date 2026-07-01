@@ -38,10 +38,10 @@ htmlcov/
 # Browser-gate screenshot artifacts (scripts/screenshots.ts output)
 screenshots/
 
-# Node (used only for tooling, not runtime)
+# Node (build toolchain for the `caliper part` web frontend, scripts/part_ui/
+# and scripts/screenshots.ts — package.json + lockfile ARE committed for
+# reproducible builds; only the installed tree is ignored)
 node_modules/
-package.json
-package-lock.json
 
 # Runtime artifacts (generated, not committed)
 evidence/
@@ -66,3 +66,4 @@ Dockerfile.test.ci
 cabuild/
 egress-gateway-ca-*.crt
 swp-ca-*.crt
+.tokensave
