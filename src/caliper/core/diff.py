@@ -144,6 +144,11 @@ def _parse_package_json_deps(content: str) -> dict[str, str | None]:
         data = json.loads(content)
     except (json.JSONDecodeError, ValueError):
         return _parse_package_json_fragment(content)
+    if not isinstance(data, dict):
+        # Valid JSON but not a JSON *object* (bare number, string, list, bool,
+        # or null) — fall back to the fragment scan instead of crashing with
+        # AttributeError on ``data.get(...)`` below.
+        return _parse_package_json_fragment(content)
     result: dict[str, str | None] = {}
     for section in ("dependencies", "devDependencies", "optionalDependencies"):
         deps = data.get(section)

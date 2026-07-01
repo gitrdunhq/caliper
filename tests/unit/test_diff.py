@@ -1,8 +1,31 @@
-"""Tests for caliper.core.diff — dependency diff detection."""
+"""Tests for caliper.core.diff — dependency diff detection.
+
+Property domains (DPS-12):
+  Determinism   INVARIANT   same requirement/pyproject/package.json line/content
+                             always parses to the same result
+  (fail-open)   SAFETY      malformed/truncated input never raises — the diff
+                             pipeline must degrade to "no dependency change found"
+                             rather than crash the whole review
+"""
 
 from __future__ import annotations
 
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
+from caliper.core.diff import (
+    DependencyDiffDetector,
+    _parse_package_json_deps,
+    _parse_pyproject_deps,
+    _parse_requirement_line,
+)
 from caliper.core.models import OperatingMode, RequestType
+from tests.unit._strategies import (
+    garbage_text,
+    malformed_requirement_line,
+    valid_requirement_line,
+    whitespace_and_control_text,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures: sample diff texts
@@ -81,7 +104,6 @@ class TestDetectChangedFiles:
     """Tests for DependencyDiffDetector.detect_changed_files."""
 
     def test_finds_requirements_txt(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         result = detector.detect_changed_files(DIFF_WITH_REQUIREMENTS)
@@ -89,7 +111,6 @@ class TestDetectChangedFiles:
         assert "requirements.txt" in result
 
     def test_finds_pyproject_toml(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         result = detector.detect_changed_files(DIFF_WITH_PYPROJECT)
@@ -97,7 +118,6 @@ class TestDetectChangedFiles:
         assert "pyproject.toml" in result
 
     def test_finds_pipfile(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         result = detector.detect_changed_files(DIFF_WITH_PIPFILE)
@@ -105,7 +125,6 @@ class TestDetectChangedFiles:
         assert "Pipfile" in result
 
     def test_returns_empty_for_non_dependency_files(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         result = detector.detect_changed_files(DIFF_NO_DEPENDENCY_FILES)
@@ -113,7 +132,6 @@ class TestDetectChangedFiles:
         assert result == []
 
     def test_returns_only_dependency_files_from_mixed_diff(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         result = detector.detect_changed_files(DIFF_MULTIPLE_FILES)
@@ -132,7 +150,6 @@ class TestParseRequirementsDiff:
     """Tests for DependencyDiffDetector.parse_requirements_diff."""
 
     def test_new_package_added(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "flask==2.3.0\nclick>=8.0\n"
@@ -147,7 +164,6 @@ class TestParseRequirementsDiff:
         assert added[0]["old_version"] is None
 
     def test_package_upgraded(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "requests==2.28.0\n"
@@ -162,7 +178,6 @@ class TestParseRequirementsDiff:
         assert upgraded[0]["new_version"] == "2.31.0"
 
     def test_package_downgraded(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "requests==2.31.0\n"
@@ -176,7 +191,6 @@ class TestParseRequirementsDiff:
         assert downgraded[0]["new_version"] == "2.28.0"
 
     def test_package_removed(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "flask==2.3.0\nrequests==2.31.0\n"
@@ -191,7 +205,6 @@ class TestParseRequirementsDiff:
         assert removed[0]["new_version"] is None
 
     def test_comment_only_change_ignored(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "# old comment\nflask==2.3.0\n"
@@ -202,7 +215,6 @@ class TestParseRequirementsDiff:
         assert changes == []
 
     def test_whitespace_only_change_ignored(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = "flask==2.3.0\n\n"
@@ -213,7 +225,6 @@ class TestParseRequirementsDiff:
         assert changes == []
 
     def test_extras_handled(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = ""
@@ -226,7 +237,6 @@ class TestParseRequirementsDiff:
         assert added[0]["package"] == "requests"
 
     def test_range_specifier(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = ""
@@ -249,7 +259,6 @@ class TestParsePyprojectDiff:
     """Tests for DependencyDiffDetector.parse_pyproject_diff."""
 
     def test_dependency_added(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         deps_one = '[project]\nname = "myapp"\ndependencies = [\n    "flask>=2.3",\n]\n'
@@ -268,7 +277,6 @@ class TestParsePyprojectDiff:
         assert added[0]["new_version"] == "0.27"
 
     def test_dependency_removed(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         deps_one = '[project]\nname = "myapp"\ndependencies = [\n    "flask>=2.3",\n]\n'
@@ -286,7 +294,6 @@ class TestParsePyprojectDiff:
         assert removed[0]["package"] == "httpx"
 
     def test_dependency_upgraded(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         before = '[project]\nname = "myapp"\ndependencies = [\n    "flask>=2.3",\n]\n'
@@ -310,7 +317,6 @@ class TestCreateRequests:
     """Tests for DependencyDiffDetector.create_requests."""
 
     def test_added_creates_new_package_request(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         changes = [
@@ -337,7 +343,6 @@ class TestCreateRequests:
         assert requests[0].current_version is None
 
     def test_upgraded_creates_upgrade_request_with_current_version(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         changes = [
@@ -365,7 +370,6 @@ class TestCreateRequests:
         assert requests[0].operating_mode == OperatingMode.advise
 
     def test_downgraded_creates_upgrade_request(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         changes = [
@@ -390,7 +394,6 @@ class TestCreateRequests:
         assert requests[0].current_version == "3.0.0"
 
     def test_removed_generates_no_request(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         changes = [
@@ -413,7 +416,6 @@ class TestCreateRequests:
         assert len(requests) == 0
 
     def test_mixed_changes_filter_removals(self) -> None:
-        from caliper.core.diff import DependencyDiffDetector
 
         detector = DependencyDiffDetector()
         changes = [
@@ -439,3 +441,81 @@ class TestCreateRequests:
         types = {r.request_type for r in requests}
         assert RequestType.new_package in types
         assert RequestType.upgrade in types
+
+
+# ---------------------------------------------------------------------------
+# Property-based tests (DPS-12)
+# ---------------------------------------------------------------------------
+
+
+class TestProperties:
+    """Hypothesis coverage for the diff line/content parsing boundary."""
+
+    @given(line=valid_requirement_line())
+    @settings(max_examples=200)
+    def test_valid_requirement_line_determinism(self, line: str) -> None:
+        """Same well-formed requirement line always parses identically."""
+        first = _parse_requirement_line(line)
+        second = _parse_requirement_line(line)
+        assert first == second
+
+    @given(
+        line=st.one_of(garbage_text(), malformed_requirement_line(), whitespace_and_control_text())
+    )
+    @settings(max_examples=300)
+    def test_requirement_line_never_raises(self, line: str) -> None:
+        """Malformed/garbage requirement-line text never raises — it parses or is None."""
+        result = _parse_requirement_line(line)
+        assert result is None or isinstance(result, tuple)
+
+    @given(
+        line=st.one_of(garbage_text(), malformed_requirement_line(), whitespace_and_control_text())
+    )
+    @settings(max_examples=300)
+    def test_requirement_line_parsing_is_deterministic(self, line: str) -> None:
+        """Determinism holds even for the malformed/garbage cases, not just valid ones."""
+        assert _parse_requirement_line(line) == _parse_requirement_line(line)
+
+    @given(content=st.one_of(garbage_text(max_size=500), whitespace_and_control_text(max_size=200)))
+    @settings(max_examples=200)
+    def test_pyproject_parsing_never_raises(self, content: str) -> None:
+        """Arbitrary text as pyproject.toml content must degrade to {} , never raise."""
+        result = _parse_pyproject_deps(content)
+        assert isinstance(result, dict)
+
+    @given(content=st.one_of(garbage_text(max_size=500), whitespace_and_control_text(max_size=200)))
+    @settings(max_examples=200)
+    def test_package_json_parsing_never_raises(self, content: str) -> None:
+        """Arbitrary text as package.json content must degrade to {}, never raise.
+
+        Regression coverage for a real bug: valid-JSON-but-non-object content
+        (e.g. a bare number like "6") used to reach ``data.get(...)`` on a
+        non-dict and crash with AttributeError instead of falling back to the
+        fragment scan.
+        """
+        result = _parse_package_json_deps(content)
+        assert isinstance(result, dict)
+
+    @given(
+        content=st.one_of(
+            st.integers().map(str),
+            st.floats(allow_nan=False, allow_infinity=False).map(str),
+            st.booleans().map(lambda b: "true" if b else "false"),
+            st.just("null"),
+            st.lists(st.integers(), max_size=5).map(str),
+        )
+    )
+    @settings(max_examples=200)
+    def test_package_json_non_object_json_never_raises(self, content: str) -> None:
+        """Valid JSON scalars/arrays (not objects) must not crash ``.get()`` lookups."""
+        result = _parse_package_json_deps(content)
+        assert result == {}
+
+    @given(before=garbage_text(max_size=200), after=garbage_text(max_size=200))
+    @settings(max_examples=100)
+    def test_full_diff_pipeline_never_raises_on_garbage(self, before: str, after: str) -> None:
+        """The whole DependencyDiffDetector surface must fail open on garbage content."""
+        detector = DependencyDiffDetector()
+        assert isinstance(detector.parse_requirements_diff(before, after), list)
+        assert isinstance(detector.parse_pyproject_diff(before, after), list)
+        assert isinstance(detector.parse_package_json_diff(before, after), list)

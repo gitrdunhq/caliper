@@ -40,7 +40,15 @@ def parse_sbom_packages(sbom: dict) -> dict[str, PackageInfo]:
 
     packages: dict[str, PackageInfo] = {}
 
-    for component in sbom.get("components", []):
+    components = sbom.get("components", [])
+    if not isinstance(components, list):
+        # A dict with a malformed "components" field (int, str, bool, None,
+        # ...) — degrade gracefully instead of crashing with TypeError on the
+        # `for component in components` below (str/dict are iterable but
+        # produce nonsense; anything else isn't iterable at all).
+        components = []
+
+    for component in components:
         if not isinstance(component, dict):
             continue
         name = component.get("name", "")

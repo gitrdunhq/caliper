@@ -1,4 +1,11 @@
-"""Tests for caliper.core.ignore — .caliperignore loading and path filtering."""
+"""Tests for caliper.core.ignore — .caliperignore loading and path filtering.
+
+Property domains (DPS-12):
+  Determinism   INVARIANT     same (path, patterns) always returns the same bool
+  Boundedness   PERFORMANCE   path-traversal-shaped input (``../../etc/passwd``)
+                               is handled in bounded time — no infinite loop —
+                               and never raises
+"""
 
 # tested-by: tests/unit/test_ignore.py
 
@@ -7,8 +14,15 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from caliper.core.ignore import DEFAULT_PATTERNS, load_ignore_patterns, should_ignore
+from tests.unit._strategies import (
+    any_path_like_text,
+    path_traversal_shaped,
+    plausible_relative_path,
+)
 
 # ---------------------------------------------------------------------------
 # load_ignore_patterns
@@ -254,3 +268,52 @@ class TestExpandedDefaultPatterns:
     )
     def test_pattern_in_defaults(self, pattern: str) -> None:
         assert pattern in DEFAULT_PATTERNS
+
+
+# ---------------------------------------------------------------------------
+# Property-based tests (DPS-12)
+# ---------------------------------------------------------------------------
+
+
+class TestProperties:
+    """Hypothesis coverage for the path-filtering boundary."""
+
+    @given(
+        path=st.one_of(plausible_relative_path(), path_traversal_shaped(), any_path_like_text()),
+        patterns=st.lists(st.text(max_size=20), max_size=8),
+    )
+    @settings(max_examples=300)
+    def test_should_ignore_never_raises(self, path: str, patterns: list[str]) -> None:
+        """should_ignore must handle any (path, patterns) pair without exception."""
+        result = should_ignore(path, patterns)
+        assert isinstance(result, bool)
+
+    @given(
+        path=st.one_of(plausible_relative_path(), path_traversal_shaped(), any_path_like_text()),
+        patterns=st.lists(st.text(max_size=20), max_size=8),
+    )
+    @settings(max_examples=300)
+    def test_should_ignore_determinism(self, path: str, patterns: list[str]) -> None:
+        """Same (path, patterns) pair always returns the same bool."""
+        first = should_ignore(path, patterns)
+        second = should_ignore(path, patterns)
+        assert first == second
+
+    @given(path=path_traversal_shaped())
+    @settings(max_examples=300)
+    def test_path_traversal_shaped_input_is_bounded_and_safe(self, path: str) -> None:
+        """``../../etc/passwd``-style traversal input never loops or raises.
+
+        Against DEFAULT_PATTERNS and an empty pattern list — neither should
+        ever take a pathological amount of time or blow up on backslash /
+        leading-slash / repeated-traversal variants.
+        """
+        assert isinstance(should_ignore(path, []), bool)
+        assert isinstance(should_ignore(path, DEFAULT_PATTERNS), bool)
+
+    @given(depth=st.integers(min_value=0, max_value=500))
+    @settings(max_examples=50)
+    def test_deep_traversal_depth_is_bounded(self, depth: int) -> None:
+        """An absurdly deep ``../../../…`` chain still resolves in bounded time."""
+        path = "/".join([".."] * depth) + "/etc/passwd"
+        assert isinstance(should_ignore(path, DEFAULT_PATTERNS), bool)
