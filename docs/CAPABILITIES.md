@@ -8,13 +8,13 @@
   LAST VERIFIED: 2026-07-01
   VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
   plugin (20 ScannerPlugin subclasses total); 21 detectors in src/caliper/detectors/;
-  61 semgrep rule ids in policies/semgrep/.
+  67 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
-19 scanner plugins, 21 deterministic detectors, 61 custom semgrep rules, 12 code graph
+19 scanner plugins, 21 deterministic detectors, 67 custom semgrep rules, 12 code graph
 checks, 15 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
@@ -24,7 +24,7 @@ supply-chain version-bump narrative is advisory metadata only).
 |--------|-------|
 | Scanner plugins | 19 (5 categories) + OPA policy plugin |
 | Deterministic detectors | 21 (CAL-001..CAL-021) |
-| Custom semgrep rules | 61 (11 rule files) |
+| Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 12 |
 | OPA Rego policy rules | 15 (7 deny, 8 warn) |
 | NL query templates | 12 |
@@ -70,7 +70,7 @@ wired separately — it consumes every other plugin's findings and runs last
 
 | Plugin | File | Detects |
 |--------|------|---------|
-| semgrep | `plugins/semgrep.py` | AST code pattern matching. Dynamic ruleset selection by file extension (Python, TS, JS, Go, Ruby, Java, Terraform, K8s, Shell, Docker, Swift). 61 custom org rules (see below). Supports pinned local rule snapshots. |
+| semgrep | `plugins/semgrep.py` | AST code pattern matching. Dynamic ruleset selection by file extension (Python, TS, JS, Go, Ruby, Java, Terraform, K8s, Shell, Docker, Swift). 67 custom org rules (see below). Supports pinned local rule snapshots. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyright (faster, stricter) when available, falls back to mypy. Error + warning severity only. |
 | swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.caliper/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
@@ -95,7 +95,7 @@ wired separately — it consumes every other plugin's findings and runs last
 
 ---
 
-## Custom Semgrep Rules (61 rules, 11 files)
+## Custom Semgrep Rules (67 rules, 11 files)
 
 All in `policies/semgrep/`.
 
@@ -108,12 +108,15 @@ All in `policies/semgrep/`.
 - `org.security.path-no-resolve-check` — path used without resolve/traversal check
 - `org.security.hardcoded-secret-default` — hardcoded secret as a default value
 
-### resource-safety.yaml (9)
+### resource-safety.yaml (15)
 - `org.resource.file-read-all-python` / `file-read-all-js` — unbounded file read
 - `org.resource.temp-dir-persistent-python` / `temp-dir-persistent-js` — temp dir never cleaned up
 - `org.resource.fire-and-forget-task-python` / `fire-and-forget-promise-js` — unawaited task/promise
 - `org.resource.lock-held-during-io-python` — I/O while holding a lock
 - `org.resource.unbounded-append-in-loop-python` / `unbounded-append-in-loop-js` — unbounded growth in a loop
+- `org.resource.await-in-consumer-loop-python` / `await-in-consumer-loop-js` — sequential await inside a consumer loop
+- `org.resource.unbounded-channel-python` / `unbounded-channel-js` — unbounded queue/channel with no backpressure
+- `org.resource.unchecked-thread-safety-python` / `unchecked-thread-safety-js` — shared state mutated without a lock
 
 ### org-code-smells.yaml (12)
 - `org.python.no-bare-except-pass` — bare except: pass
@@ -387,7 +390,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 
 | Capability | SonarQube | caliper |
 |------------|-----------|-------|
-| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 61 custom rules + 21 deterministic detectors |
+| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 67 custom rules + 21 deterministic detectors |
 | Stylistic code smells | Hundreds of built-in rules | Not primary focus |
 | Structural code smells | Limited | 12 graph checks (dead code, god functions, SRP, layer violations, circular deps, deep inheritance, stubs) |
 | Complexity | Cyclomatic + cognitive | Cyclomatic (Lizard) + MI (Radon) — parity |
