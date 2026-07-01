@@ -179,7 +179,20 @@ client-side `--explain` viewer for a loaded `cutlist.json` round out CLI parity.
 The transport is **stdlib `http.server` only** — no uvicorn/starlette, so it runs
 from any install (no `caliper[copilot]` extra). Routing is the pure
 `dispatch(session, method, path, body)` (functional core), tested without binding a
-socket; the `BaseHTTPRequestHandler` is the thin shell. `PartingSession` holds all
+socket; the `BaseHTTPRequestHandler` is the thin shell.
+
+**Optional read-only LAN view** (`--lan <ip> --cert <path> --key <path>`): binds a
+**second**, TLS-wrapped server (mkcert-issued cert/key) on a LAN-routable
+host/IP, on a separate port (`12701` by default). Its handler
+(`_make_readonly_handler`) implements only `do_GET` — `BaseHTTPRequestHandler`
+answers any other verb with a bare 501, so every mutating route (`/reclassify`,
+`/repart`, `/range`, `/pr`, `/suggest/apply`, `/restack`, `/apply`, `/rollback` —
+all POST-only in `dispatch`) is structurally unreachable from the LAN server. The
+primary server keeps binding `127.0.0.1` unchanged; both share one
+`PartingSession`. All three flags are required together (`serve_part` and the CLI
+both validate this).
+
+`PartingSession` holds all
 mutable state (target, settings, last generated run, one-shot apply token) behind
 a single `RLock`. Browser gate: `scripts/screenshots.ts`.
 
@@ -278,7 +291,8 @@ each proposal as an accept chip that reuses `/reclassify`. Print-only by default
 
 Port range 12000-13000 only. Never use common ports.
 - PostgreSQL: 12432
-- `caliper part --serve` sidecar: 12700 (loopback only)
+- `caliper part --serve` sidecar: 12700 (loopback only by default)
+- `caliper part --serve --lan` optional read-only LAN view: 12701 (TLS, mkcert-issued cert/key required; mutating routes stay loopback-only)
 - Webhook server: 12800
 
 ## Testing

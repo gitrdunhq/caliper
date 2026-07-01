@@ -26,9 +26,17 @@ Transport is **stdlib ``http.server`` only** — no uvicorn/starlette, so the
 sidecar works from any install (it does not need the ``caliper[copilot]`` extra).
 The ``BaseHTTPRequestHandler`` is the thin imperative shell around ``dispatch``.
 
-Loopback only: the server binds ``127.0.0.1`` so the unauthenticated write
-endpoint is never exposed off-host. ``.caliper.yaml`` is a committed file here, so
-writing it is intended — not a dirty-tree violation.
+Loopback only by default: the primary server binds ``127.0.0.1`` so the
+unauthenticated write endpoints are never exposed off-host. ``.caliper.yaml`` is
+a committed file here, so writing it is intended — not a dirty-tree violation.
+
+Optional LAN view (``--lan``/``--cert``/``--key``): ``serve_part`` can additionally
+bind a **second**, TLS-wrapped (mkcert-issued cert/key), **read-only** server on a
+LAN-routable host/IP so a reviewer can browse the cut list from another device.
+That server's handler only implements ``do_GET`` — ``BaseHTTPRequestHandler``
+answers any other verb with a bare 501, so mutation stays reachable only through
+the loopback server. Nothing about the primary server's bind or auth model
+changes; the two servers share one ``PartingSession`` under its existing lock.
 """
 
 from __future__ import annotations
@@ -37,6 +45,7 @@ import hmac
 import http.server
 import os
 import secrets
+import ssl
 import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -64,6 +73,10 @@ logger = structlog.get_logger()
 # webhook (12800) and postgres (12432).
 HOST = "127.0.0.1"
 DEFAULT_PORT = 12700
+# The optional read-only LAN view binds a separate port from the primary
+# loopback server (never the same port on the same host — 0.0.0.0 and
+# 127.0.0.1 binds to the same port can race/collide on some platforms).
+DEFAULT_LAN_PORT = 12701
 # Fallback search space when the preferred port is busy. Dev ports only
 # (CLAUDE.md: 12000–13000, never common ports) so the sidecar always lands in
 # the sanctioned range no matter which one it ends up on.
@@ -906,8 +919,41 @@ def _make_handler(
     return _Handler
 
 
+def _make_readonly_handler(
+    session: _SessionLike, assets: Assets | None = None
+) -> type[http.server.BaseHTTPRequestHandler]:
+    """Build a GET-only handler for the optional LAN view server.
+
+    Deliberately implements only ``do_GET`` — ``BaseHTTPRequestHandler`` answers
+    any other verb with a bare 501 Unsupported, so every mutating route
+    (``/reclassify``, ``/repart``, ``/range``, ``/pr``, ``/suggest/apply``,
+    ``/restack``, ``/apply``, ``/rollback`` — all POST-only in ``dispatch``) is
+    unreachable through this handler without touching ``dispatch`` itself. The
+    handful of GET routes it does reach (``/``, ``/assets/*``, ``/cutlist``,
+    ``/restack.sh``) are all read-only.
+    """
+
+    class _ReadOnlyHandler(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_GET(self) -> None:  # noqa: N802 - stdlib dispatch name
+            path = self.path.split("?", 1)[0]  # ignore any query string
+            headers = {k.lower(): v for k, v in self.headers.items()}
+            resp = dispatch(session, "GET", path, b"", assets, headers)
+            self.send_response(resp.status)
+            self.send_header("Content-Type", resp.content_type)
+            self.send_header("Content-Length", str(len(resp.body)))
+            self.end_headers()
+            self.wfile.write(resp.body)
+
+        def log_message(self, fmt: str, *args: object) -> None:
+            logger.debug("part_serve_lan_request", request=fmt % args)
+
+    return _ReadOnlyHandler
+
+
 def _bind_server(
-    handler_cls: type[http.server.BaseHTTPRequestHandler], preferred: int
+    handler_cls: type[http.server.BaseHTTPRequestHandler], preferred: int, host: str = HOST
 ) -> tuple[http.server.ThreadingHTTPServer, int]:
     """Bind on ``preferred``; if it's taken, fall back to the next free dev port.
 
@@ -923,13 +969,19 @@ def _bind_server(
             continue
         seen.add(port)
         try:
-            return http.server.ThreadingHTTPServer((HOST, port), handler_cls), port
+            return http.server.ThreadingHTTPServer((host, port), handler_cls), port
         except OSError as exc:  # EADDRINUSE (and friends) — try the next candidate
             last_exc = exc
     raise OSError(
         f"no free port: {preferred} and the whole {_DEV_PORTS.start}-{_DEV_PORTS.stop - 1} "
         "dev range are all in use"
     ) from last_exc
+
+
+def _tls_context(cert: Path, key: Path) -> ssl.SSLContext:
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(certfile=str(cert), keyfile=str(key))
+    return ctx
 
 
 def serve_part(
@@ -942,8 +994,25 @@ def serve_part(
     override_store: Path | None = None,
     suggester: TierSuggesterPort | None = None,
     out_dir: Path | None = None,
+    lan_host: str | None = None,
+    lan_port: int = DEFAULT_LAN_PORT,
+    tls_cert: Path | None = None,
+    tls_key: Path | None = None,
 ) -> None:
-    """Run the sidecar on loopback. Blocks until interrupted (presentation tier)."""
+    """Run the sidecar on loopback. Blocks until interrupted (presentation tier).
+
+    ``lan_host`` optionally starts a **second**, TLS-wrapped, read-only server
+    (see ``_make_readonly_handler``) on a LAN-routable host/IP — e.g. for a
+    reviewer to browse the cut list from another device via an mkcert-issued
+    cert. Requires ``tls_cert``/``tls_key``. The primary loopback server (and
+    every mutating endpoint) is unaffected: its bind, auth, and CSRF model stay
+    exactly as they are today.
+    """
+    if lan_host and not (tls_cert and tls_key):
+        raise ValueError("lan_host requires both tls_cert and tls_key (mkcert-issued)")
+    if not lan_host and (tls_cert or tls_key):
+        raise ValueError("tls_cert/tls_key only apply to lan_host — set lan_host too")
+
     session = PartingSession(
         repo_path,
         base,
@@ -971,6 +1040,29 @@ def serve_part(
         override_store=str(override_store) if override_store else None,
         url=url,
     )
+
+    lan_server: http.server.ThreadingHTTPServer | None = None
+    lan_thread: threading.Thread | None = None
+    lan_url: str | None = None
+    if lan_host:
+        assert tls_cert is not None and tls_key is not None  # validated above
+        lan_server, lan_bound = _bind_server(
+            _make_readonly_handler(session, assets), lan_port, host=lan_host
+        )
+        lan_server.socket = _tls_context(tls_cert, tls_key).wrap_socket(
+            lan_server.socket, server_side=True
+        )
+        lan_url = f"https://{lan_host}:{lan_bound}"
+        logger.info(
+            "part_serve_lan_starting",
+            host=lan_host,
+            port=lan_bound,
+            url=lan_url,
+            mode="read-only",
+        )
+        lan_thread = threading.Thread(target=lan_server.serve_forever, daemon=True)
+        lan_thread.start()
+
     try:
         server.serve_forever()
     except KeyboardInterrupt:  # Ctrl-C is the intended way to stop the sidecar
@@ -978,3 +1070,7 @@ def serve_part(
     finally:
         server.server_close()
         logger.info("part_serve_stopped", url=url)
+        if lan_server is not None:
+            lan_server.shutdown()
+            lan_server.server_close()
+            logger.info("part_serve_lan_stopped", url=lan_url)

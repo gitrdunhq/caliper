@@ -127,6 +127,35 @@ def _overrides_yaml(rules: list[OverrideRule]) -> str:
     "--port", type=int, default=None, help="Port for --serve (default 12700, loopback only)."
 )
 @click.option(
+    "--lan",
+    "lan_host",
+    default=None,
+    help="With --serve, also bind a read-only view server to this LAN IP (e.g. "
+    "192.168.1.50) so another device can browse the cut list. Mutating routes "
+    "(/apply, /reclassify, /repart, /restack, /pr, /range, /suggest/apply, "
+    "/rollback) stay loopback-only regardless. Requires --cert/--key.",
+)
+@click.option(
+    "--lan-port",
+    type=int,
+    default=None,
+    help="Port for --lan (default 12701; always separate from --port).",
+)
+@click.option(
+    "--cert",
+    "tls_cert",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="TLS cert for --lan (e.g. `mkcert 192.168.1.50` output).",
+)
+@click.option(
+    "--key",
+    "tls_key",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="TLS key for --lan (e.g. `mkcert 192.168.1.50` output).",
+)
+@click.option(
     "--describe/--no-describe",
     "describe_flag",
     default=None,
@@ -171,6 +200,10 @@ def part(
     force: bool,
     serve: bool,
     port: int | None,
+    lan_host: str | None,
+    lan_port: int | None,
+    tls_cert: str | None,
+    tls_key: str | None,
     describe_flag: bool | None,
     describe_model: str | None,
     suggest_flag: bool | None,
@@ -178,6 +211,13 @@ def part(
     suggest_apply: bool,
 ) -> None:
     """Propose an ordered cut list for a diff and emit a jj restack script."""
+    if lan_host and not serve:
+        raise click.UsageError("--lan only applies with --serve")
+    if lan_host and not (tls_cert and tls_key):
+        raise click.UsageError("--lan requires both --cert and --key (mkcert-issued)")
+    if (tls_cert or tls_key) and not lan_host:
+        raise click.UsageError("--cert/--key only apply with --lan")
+
     if explain:
         cut = CutList.model_validate_json(Path(explain).read_text())
         click.echo(_render_cutlist(cut, backup_bookmark=None, rescue_op_id=None))
@@ -227,7 +267,7 @@ def part(
     if serve:
         # base/head are optional for --serve (P2 live targeting): with neither set
         # the SPA opens on the empty-state targeting prompt (POST /range or /pr).
-        from caliper.cli.part_serve import DEFAULT_PORT, serve_part
+        from caliper.cli.part_serve import DEFAULT_LAN_PORT, DEFAULT_PORT, serve_part
 
         suggest_env = dict(os.environ)
         if suggest_model:
@@ -241,6 +281,10 @@ def part(
             override_store=pr_override_store,
             suggester=suggester_from_env(suggest_env, force=suggest_flag),
             out_dir=Path(out) if out else None,
+            lan_host=lan_host,
+            lan_port=lan_port or DEFAULT_LAN_PORT,
+            tls_cert=Path(tls_cert) if tls_cert else None,
+            tls_key=Path(tls_key) if tls_key else None,
         )
         return
 
