@@ -417,6 +417,49 @@ Nothing blocks the build unless OPA says so. Every external call has a timeout. 
 | `FOREMAN_POLICY_VERSION` | `1.0.0` | Shown in PR comments |
 | `FOREMAN_MAX_COMMENT_LENGTH` | `3900` | Max PR comment chars |
 
+### Running without a database (scanner-only mode)
+
+The full `evaluate` pipeline persists every decision to PostgreSQL for the
+audit/evidence trail, but the database is never a hard dependency — scanning
+and policy evaluation both run without it.
+
+**`NullRepository` fallback.** When `CALIPER_DB_DSN` is unset, the connection
+attempt fails, or repository init raises, `build_decision_repository()`
+(`src/caliper/composition/bootstrap.py`) falls back to `NullRepository`
+(`src/caliper/data/db.py`) — a no-op repository whose `save_*` methods
+silently succeed without writing anything. Scanning, OPA policy evaluation,
+and the PR comment/memo still run exactly as they would with a live
+database; the only thing you lose is the persisted decision history and the
+Parquet audit trail (see [Fail-Open Philosophy](#fail-open-philosophy) and
+[Evidence & Audit Trail](#evidence--audit-trail) above — this is the same
+`NullRepository` referenced there).
+
+**`caliper review` — the standalone scanner-only command.** `caliper review`
+(see [Review a repo](#review-a-repo-native) above) never touches a database
+at all: it bootstraps through `bootstrap_review()`, which is explicitly
+DB-free and doesn't even require `CaliperSettings` to load successfully. It
+runs the plugin registry directly — `--all`/`--category`/`--scanners`/
+`--disable`/`--enable` select which plugins run, `--scope repo|diff|folder`
+controls what gets scanned, and `--format markdown|sarif|json` prints to
+stdout (or `--output <path>`) — and reports a plugin-severity verdict with
+no OPA gate and no persisted decision. This is what `make dogfood` and
+plugin-only CI jobs use.
+
+**Piping JSON out of a no-DB job.** `caliper review --format json` already
+prints to stdout when `--output` is omitted, so it composes naturally with
+`jq` or any downstream tool in a scanner-only, no-DB CI job. The full
+`evaluate` command's `--output-json` option, by contrast, currently only
+writes to a file path (it's a plain `click.Path()`) — there's no stdout
+(`-`) convention for it yet. A stdout mode (`--output-json -`) is in
+progress; once it lands, a scanner-only CI job that wants the full policy
+decision (not just plugin findings) will be able to pipe it straight out the
+same way, without a database or an intermediate file.
+
+**Single source of truth for this config.** `db_dsn`, timeouts, evidence
+path, and enabled scanners are all defined once in `CaliperSettings`
+(`src/caliper/core/config.py`) — see the [Configuration
+Reference](docs/CAPABILITIES.md#configuration-reference) for the full table.
+
 ---
 
 ## Repo-Level Configuration
