@@ -56,7 +56,7 @@ def _write_output(path: str, content: str) -> None:
 
 
 _ALLOWED_TEAMS: frozenset[str] = frozenset(
-    {"backend", "frontend", "platform", "infra", "security", "data"}
+    {"backend", "frontend", "platform", "infra", "security", "data", "unknown"}
 )
 
 
@@ -189,17 +189,19 @@ _register_subcommands()
 @click.option("--diff", required=True, type=str, help="Path to diff file, or '-' for stdin.")
 @click.option(
     "--pr-url",
-    required=True,
+    required=False,
+    default=None,
     type=str,
     callback=_validate_pr_url,
-    help="PR URL for context and comments.",
+    help="PR URL for context and comments. Optional; omit for local/non-PR runs.",
 )
 @click.option(
     "--team",
-    required=True,
+    required=False,
+    default="unknown",
     type=str,
     callback=_validate_team,
-    help="Team name submitting the request.",
+    help='Team name submitting the request. Defaults to "unknown" when omitted.',
 )
 @click.option(
     "--operating-mode",
@@ -209,14 +211,18 @@ _register_subcommands()
 )
 @click.option(
     "--output-json",
-    type=click.Path(),
+    type=str,
     default=None,
-    help="Write machine-readable decision JSON to this path.",
+    help=(
+        "Write machine-readable decision JSON to this path, or '-' to write "
+        "to stdout (memo text is redirected to stderr in that mode so stdout "
+        "stays clean, parseable JSON)."
+    ),
 )
 def evaluate(
     repo_path: str,
     diff: str,
-    pr_url: str,
+    pr_url: str | None,
     team: str,
     operating_mode: str,
     output_json: str | None,
@@ -252,18 +258,25 @@ def evaluate(
             repo_path=Path(repo_path),
         )
 
+        stdout_json = output_json == "-"
+
         if not decisions:
-            click.echo("No dependency changes detected.")
+            click.echo("No dependency changes detected.", err=stdout_json)
             sys.exit(0)
 
         for decision in decisions:
-            click.echo(decision.memo_text or "")
+            click.echo(decision.memo_text or "", err=stdout_json)
 
         if output_json and decisions:
             last = decisions[-1]
-            p = Path(output_json)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_bytes(orjson.dumps(last.model_dump(mode="json"), option=orjson.OPT_INDENT_2))
+            payload = orjson.dumps(last.model_dump(mode="json"), option=orjson.OPT_INDENT_2)
+            if stdout_json:
+                sys.stdout.buffer.write(payload)
+                sys.stdout.buffer.write(b"\n")
+            else:
+                p = Path(output_json)
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_bytes(payload)
 
         sys.exit(0)
 

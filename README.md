@@ -142,6 +142,17 @@ uv run python -m caliper.cli.main evaluate \
   --team myteam --operating-mode advise
 ```
 
+`--pr-url` and `--team` are optional — omit them for local/non-PR runs; `--team`
+defaults to `"unknown"` when not given. `--output-json` accepts `-` to stream the
+decision JSON to stdout instead of a file; in that mode memo text is written to
+stderr so stdout stays clean, parseable JSON (handy for piping into `jq`):
+
+```bash
+uv run python -m caliper.cli.main evaluate \
+  --repo-path . --diff changes.diff --operating-mode monitor \
+  --output-json - | jq .
+```
+
 ### Run via container
 
 ```bash
