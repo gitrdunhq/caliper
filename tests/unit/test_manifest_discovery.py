@@ -1,17 +1,28 @@
 """Tests for caliper.core.manifest_discovery — PackageUnit + discover_packages().
 
 TDD red-green: every test was written before the implementation.
+
+Property domains (DPS-12):
+  (fail-open)     SAFETY   almost-but-not-quite manifest filenames never crash
+                            discovery
+  Non-repudiation INVARIANT a discovered unit's manifest filename is always an
+                            exact MANIFEST_MAP key with the matching ecosystem
+                            — no near-miss filename is ever misclassified
 """
 
 # tested-by: tests/unit/test_manifest_discovery.py
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 
 import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
-from caliper.core.manifest_discovery import PackageUnit, discover_packages
+from caliper.core.manifest_discovery import MANIFEST_MAP, PackageUnit, discover_packages
+from tests.unit._strategies import filesystem_safe_filename, near_miss_manifest_filename
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -498,3 +509,76 @@ class TestSymlinkPathTraversal:
 
         assert len(units) == 1
         assert units[0].manifest == repo_root / "package.json"
+
+
+# ---------------------------------------------------------------------------
+# Property-based tests (DPS-12)
+# ---------------------------------------------------------------------------
+
+
+class TestProperties:
+    """Hypothesis coverage for the manifest-discovery boundary.
+
+    Uses a hand-rolled ``tempfile.TemporaryDirectory`` per example rather than
+    the ``tmp_path`` fixture: ``tmp_path`` is created once per test *function*
+    invocation, not once per Hypothesis example, so reusing it here would leak
+    files written by one example into the next.
+    """
+
+    @given(
+        filenames=st.lists(
+            st.one_of(near_miss_manifest_filename(), filesystem_safe_filename()),
+            min_size=1,
+            max_size=8,
+            unique=True,
+        )
+    )
+    @settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+    def test_near_miss_filenames_never_crash_and_never_misclassify(
+        self, filenames: list[str]
+    ) -> None:
+        """Almost-but-not-quite manifest filenames never crash discovery.
+
+        Every returned unit's manifest filename must be an *exact* MANIFEST_MAP
+        key with the correspondingly correct ecosystem — a near-miss filename
+        (wrong case, extra suffix/prefix, truncated) must never be discovered
+        as if it were the real manifest.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in filenames:
+                (root / name).write_text("")
+
+            result = discover_packages(root)
+
+            assert isinstance(result, list)
+            written = set(filenames)
+            for unit in result:
+                assert unit.manifest.name in MANIFEST_MAP, (
+                    f"{unit.manifest.name!r} was discovered but is not an exact "
+                    "MANIFEST_MAP key — a near-miss filename was misclassified"
+                )
+                assert unit.manifest.name in written
+                assert unit.ecosystem == MANIFEST_MAP[unit.manifest.name]
+
+    @given(filenames=st.lists(near_miss_manifest_filename(), min_size=1, max_size=6, unique=True))
+    @settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+    def test_pure_near_miss_set_yields_no_units_unless_exact_match(
+        self, filenames: list[str]
+    ) -> None:
+        """A directory containing ONLY near-miss names discovers nothing extra.
+
+        Any unit that *does* appear must be because the mutation happened to
+        degenerate into an exact MANIFEST_MAP key (e.g. lower-casing an
+        already-lowercase name) — never a genuine misclassification.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in filenames:
+                (root / name).write_text("")
+
+            result = discover_packages(root)
+
+            discovered_names = {unit.manifest.name for unit in result}
+            assert discovered_names <= set(filenames)
+            assert discovered_names <= MANIFEST_MAP.keys()
