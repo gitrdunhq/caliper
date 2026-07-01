@@ -2,12 +2,13 @@
 
 # tested-by: tests/unit/test_part_serve.py
 
-A second presentation-tier entry point (parallel to ``part_cmd``): it serves the
-live cut list as HTML on loopback, and lets a reviewer reclassify a file from the
-browser. A reclassification writes a version-controlled glob→bucket override into
-``.caliper.yaml`` and re-parts — no ML, no verdict. The override table is the one
-human decision point in the otherwise deterministic classifier (see
-``OverrideRule`` / ``_classify``).
+A second presentation-tier entry point (parallel to ``part_cmd``): it serves a
+TypeScript SPA (``scripts/part_ui/`` -> committed bundle under
+``part_ui_dist/``) that renders the live cut list and lets a reviewer
+reclassify a file from the browser. A reclassification writes a
+version-controlled glob→bucket override into ``.caliper.yaml`` and re-parts —
+no ML, no verdict. The override table is the one human decision point in the
+otherwise deterministic classifier (see ``OverrideRule`` / ``_classify``).
 
 Design:
 
@@ -16,7 +17,10 @@ Design:
   disk so a bad bucket never corrupts the file.
 * ``PartingSession`` holds the repo/base/head and owns the re-part (git IO).
 * ``dispatch`` is the pure request router (functional core) over a session —
-  testable with a fake session, no git and no socket required.
+  testable with a fake session and a hand-built ``Assets`` fixture, no git, no
+  filesystem, and no socket required.
+* ``load_assets`` is the one piece of filesystem IO — reading the committed SPA
+  bundle off disk — kept out of ``dispatch`` so the router stays pure.
 
 Transport is **stdlib ``http.server`` only** — no uvicorn/starlette, so the
 sidecar works from any install (it does not need the ``caliper[copilot]`` extra).
@@ -27,15 +31,16 @@ endpoint is never exposed off-host. ``.caliper.yaml`` is a committed file here, 
 writing it is intended — not a dirty-tree violation.
 """
 
-# ruff: noqa: E501 — the inline CSS/HTML/JS in render_report is intentionally long
-# (mirrors scripts/cutlist_report.py); reflowing template lines hurts readability.
-
 from __future__ import annotations
 
-import html
+import hmac
 import http.server
+import os
+import secrets
 import threading
+from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
@@ -47,8 +52,10 @@ from caliper.core.registries import PARTING
 from caliper.core.repo_config import OverrideRule, PartingConfig, load_repo_config
 
 if TYPE_CHECKING:
+    from caliper.cli.part_pipeline import PartRunResult
     from caliper.core.models import CutList
     from caliper.core.tier_suggester import TierSuggesterPort
+    from caliper.core.tool_runner import ToolRunnerPort
 
 logger = structlog.get_logger()
 
@@ -122,6 +129,16 @@ class _SessionLike(Protocol):
     def reclassify(self, *, target: str, bucket: str, note: str = "") -> dict: ...
     def overrides(self) -> list[dict]: ...
     def suggest_dict(self) -> dict: ...
+    def suggest_apply(self, rules: list[dict]) -> dict: ...
+    def retarget(self, *, base: str, head: str) -> dict: ...
+    def set_target_pr(self, ref: str) -> dict: ...
+    def set_size_cap(self, size_cap: int | None) -> dict: ...
+    def generate(
+        self, *, describe: bool = False, force: bool = False, target: str | None = None
+    ) -> dict: ...
+    def restack_script(self) -> str | None: ...
+    def apply(self, token: str) -> dict: ...
+    def rollback(self) -> dict: ...
 
 
 def _apply_size_cap(cfg: PartingConfig, size_cap: int | None) -> PartingConfig:
@@ -157,12 +174,14 @@ class PartingSession:
     def __init__(
         self,
         repo_path: Path,
-        base: str,
-        head: str,
+        base: str | None,
+        head: str | None,
         *,
         size_cap: int | None = None,
         override_store: Path | None = None,
         suggester: TierSuggesterPort | None = None,
+        out_dir: Path | None = None,
+        runner: ToolRunnerPort | None = None,
     ) -> None:
         self.repo_path = repo_path
         self.base = base
@@ -175,11 +194,26 @@ class PartingSession:
         # sidecar dir OUTSIDE the throwaway clone, so overrides survive the clone
         # wipe; for a normal repo it is None and writes land in the repo's own config.
         self.override_store = override_store
+        # Where /restack writes restack.sh + cutlist.json. For --pr this is the
+        # managed per-PR out dir (set on set_target_pr, mirroring override_store);
+        # for a normal repo it is None and artifacts land in the repo root, same
+        # default as the CLI's `--out`-less run.
+        self.out_dir = out_dir
+        # Injected for tests; None means apply()/rollback() build a real
+        # SubprocessToolRunner lazily, mirroring run_part()'s own default.
+        self._runner = runner
         self._cut: CutList | None = None
+        self._last_run: PartRunResult | None = None
+        self._apply_token: str | None = None
         # ThreadingHTTPServer serves each request on its own thread; the lock keeps
         # two concurrent requests from both running _cut_now (duplicate git IO) or
         # racing on the cached cut. RLock so a locked reclassify can call repart.
         self._lock = threading.RLock()
+
+    @property
+    def targeted(self) -> bool:
+        """Whether a range or PR has been targeted yet (vs. the empty-start state)."""
+        return bool(self.base and self.head)
 
     @property
     def _write_target(self) -> Path:
@@ -228,10 +262,98 @@ class PartingSession:
             return self._cut
 
     def cut_dict(self) -> dict:
+        if not self.targeted:
+            return {"targeted": False}
         return self.cut().model_dump(mode="json")
 
     def repart_dict(self) -> dict:
+        if not self.targeted:
+            return {"targeted": False}
         return self.repart().model_dump(mode="json")
+
+    def retarget(self, *, base: str, head: str) -> dict:
+        """Point the session at a new base..head range in the current repo.
+
+        Used by POST /range for the live-targeting empty-state prompt (P2) —
+        distinct from set_target_pr, which also relocates repo_path to a
+        throwaway clone.
+
+        A bad revset must not wedge the session: GET /cutlist has no
+        try/except around it (it's read-only, expected to always succeed once
+        targeted), so a failed cut here that left ``base``/``head`` pointed at
+        the bad values would crash every subsequent read until the reviewer
+        guessed a valid range. Roll back on failure instead.
+        """
+        with self._lock:
+            prev_base, prev_head, prev_cut = self.base, self.head, self._cut
+            self.base = base
+            self.head = head
+            self._cut = None
+            try:
+                return self.repart_dict()
+            except Exception:
+                self.base, self.head, self._cut = prev_base, prev_head, prev_cut
+                raise
+
+    def set_size_cap(self, size_cap: int | None) -> dict:
+        """Live-adjust the size cap and re-part — mirrors the CLI's --size-cap
+        override (P3). Same rollback-on-failure shape as retarget/set_target_pr."""
+        with self._lock:
+            prev_size_cap, prev_cut = self.size_cap, self._cut
+            self.size_cap = size_cap
+            self._cut = None
+            try:
+                return self.repart_dict()
+            except Exception:
+                self.size_cap, self._cut = prev_size_cap, prev_cut
+                raise
+
+    def set_target_pr(self, ref: str) -> dict:
+        """Resolve a PR URL/number, clone it into the centralized XDG workdir,
+        and point the session at its base..head — mirrors part_cmd.py's --pr
+        handling so the web path behaves identically to the CLI."""
+        from caliper.cli.part_pr import (
+            PrResolveError,
+            default_part_workdir,
+            detect_origin_slug,
+            resolve_pr,
+        )
+        from caliper.core.pr_ref import parse_pr_ref
+
+        with self._lock:
+            pr_ref = parse_pr_ref(ref, default_slug=detect_origin_slug(self.repo_path))
+            try:
+                resolved = resolve_pr(pr_ref, workdir_root=default_part_workdir())
+            except PrResolveError as exc:
+                raise ValueError(f"could not resolve PR: {exc}") from exc
+            prev = (
+                self.repo_path,
+                self.base,
+                self.head,
+                self.override_store,
+                self.out_dir,
+                self._cut,
+            )
+            self.repo_path = resolved.repo_path
+            self.base = resolved.base
+            self.head = resolved.head
+            self.override_store = resolved.override_store
+            self.out_dir = resolved.out_dir
+            self._cut = None
+            try:
+                result = self.repart_dict()
+            except Exception:
+                (
+                    self.repo_path,
+                    self.base,
+                    self.head,
+                    self.override_store,
+                    self.out_dir,
+                    self._cut,
+                ) = prev
+                raise
+            result["pr"] = {"slug": resolved.slug, "number": resolved.number}
+            return result
 
     def reclassify(self, *, target: str, bucket: str, note: str = "") -> dict:
         # Write to the durable store (sidecar for --pr, else the repo's own config)
@@ -240,6 +362,24 @@ class PartingSession:
         # interleave the .caliper.yaml write with another request's re-part.
         with self._lock:
             write_override(self._write_target, glob=target, bucket=bucket, note=note)
+            return self.repart_dict()
+
+    def suggest_apply(self, rules: list[dict]) -> dict:
+        """Bulk-accept: write every rule then re-part once (the "accept all" path).
+
+        Mirrors ``part_cmd.py``'s ``--suggest-apply`` — each rule lands in the
+        durable store individually (same idempotent write as a single
+        reclassify), then one re-part reflects the whole batch. Held under the
+        lock so a concurrent request never observes a partially-applied batch.
+        """
+        with self._lock:
+            for rule in rules:
+                write_override(
+                    self._write_target,
+                    glob=rule["glob"],
+                    bucket=rule["bucket"],
+                    note=rule.get("note", ""),
+                )
             return self.repart_dict()
 
     def overrides(self) -> list[dict]:
@@ -254,8 +394,8 @@ class PartingSession:
         the suggested glob+bucket. Returns ``{"suggestions": []}`` when no model is
         configured or the residual is empty — the cut is never touched here.
         """
-        if self._suggester is None:
-            return {"suggestions": [], "configured": False}
+        if self._suggester is None or not self.targeted:
+            return {"suggestions": [], "configured": self._suggester is not None}
         from caliper.cli.part_suggest import suggest_overrides
 
         with self._lock:
@@ -267,13 +407,126 @@ class PartingSession:
             "configured": True,
         }
 
+    def generate(
+        self, *, describe: bool = False, force: bool = False, target: str | None = None
+    ) -> dict:
+        """Run the full parting pipeline (gate -> cut -> probe -> describe ->
+        script) and cache the result + a fresh apply token — the web analog of
+        the CLI's ``part`` (minus ``--suggest-apply``, handled separately via
+        POST /suggest/apply). Raises ``ValueError`` on an untargeted session or
+        a gate/parting failure; the dispatch layer turns that into a 400.
+        """
+        if not self.targeted:
+            raise ValueError("no base/head targeted yet — POST /range or /pr first")
+
+        from caliper.cli.part_describe import describer_from_env
+        from caliper.cli.part_pipeline import run_part
+        from caliper.core.models import PartTarget
+        from caliper.core.part_gate import PartingGateError
+        from caliper.core.parting import PartingError
+
+        describer = describer_from_env(dict(os.environ), force=describe) if describe else None
+        with self._lock:
+            cfg = self._effective_cfg()
+            if target is not None:
+                cfg = cfg.model_copy(update={"target": PartTarget(target)})
+            timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%f")
+            try:
+                result = run_part(
+                    self.repo_path,
+                    self.base,
+                    self.head,
+                    cfg,
+                    timestamp=timestamp,
+                    force=force,
+                    describer=describer,
+                    suggester=self._suggester,
+                    override_write_target=self.override_store,
+                    out_dir=self.out_dir or self.repo_path,
+                )
+            except (PartingGateError, PartingError) as exc:
+                raise ValueError(str(exc)) from exc
+            self._last_run = result
+            self._apply_token = secrets.token_urlsafe(16)
+            payload = result.model_dump(mode="json")
+            payload["apply_token"] = self._apply_token
+            return payload
+
+    def restack_script(self) -> str | None:
+        """The last generated restack.sh text, or None before the first /restack."""
+        return self._last_run.script_text if self._last_run is not None else None
+
+    def apply(self, token: str) -> dict:
+        """Execute the last-generated restack.sh (the jj surgery) via
+        ToolRunnerPort. Requires the CSRF token minted by the most recent
+        generate() call — checked with hmac.compare_digest (timing-safe) and
+        consumed on use (success or failure) so it can never be replayed.
+        Raises ValueError on a stale/missing token or an ungenerated script;
+        the dispatch layer turns that into a 400.
+        """
+        from caliper.core.subprocess_runner import SubprocessToolRunner
+        from caliper.core.tool_runner import ToolInvocation
+
+        with self._lock:
+            if self._apply_token is None or not hmac.compare_digest(token, self._apply_token):
+                raise ValueError("invalid or expired apply token — POST /restack again")
+            last_run = self._last_run
+            if last_run is None or last_run.restack_path is None:
+                raise ValueError("no restack script to apply — POST /restack first")
+            self._apply_token = None
+            runner = self._runner or SubprocessToolRunner()
+            # restack_path may be relative to the server process's cwd (e.g. a
+            # relative --out), not to repo_path — resolve before handing it to
+            # a subprocess run with cwd=repo_path, or a relative --out 404s.
+            script_path = str(Path(last_run.restack_path).resolve())
+            result = runner.run(
+                ToolInvocation(
+                    cmd=["bash", script_path],
+                    cwd=str(self.repo_path),
+                    timeout=300,
+                )
+            )
+            return {
+                "ok": result.exit_code == 0,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "rollback": {
+                    "backup_bookmark": last_run.backup_bookmark,
+                    "rescue_op_id": last_run.rescue_op_id,
+                },
+            }
+
+    def rollback(self) -> dict:
+        """Undo everything since the gate's rescue op via `jj op restore
+        <rescue_op_id>` — the escape hatch surfaced in the rollback header.
+        Available any time after a /restack (not gated on apply having run),
+        since the reviewer may have applied by hand outside the browser.
+        """
+        from caliper.core.subprocess_runner import SubprocessToolRunner
+        from caliper.core.tool_runner import ToolInvocation
+
+        with self._lock:
+            last_run = self._last_run
+            if last_run is None:
+                raise ValueError("nothing to roll back — POST /restack first")
+            runner = self._runner or SubprocessToolRunner()
+            result = runner.run(
+                ToolInvocation(
+                    cmd=["jj", "op", "restore", last_run.rescue_op_id],
+                    cwd=str(self.repo_path),
+                    timeout=60,
+                )
+            )
+            return {
+                "ok": result.exit_code == 0,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+            }
+
 
 # --------------------------------------------------------------------------- #
 # HTML — live reclassify report
 # --------------------------------------------------------------------------- #
-
-# The bucket the residual lands in — rendered with a distinct "needs a tier" cue.
-_UNTIERED = "logic"
 
 # Buckets a reviewer may assign. Structural facts (move/delete/binary) come from
 # git, not reclassification, so they are excluded; the rest of ChangeType is
@@ -281,6 +534,13 @@ _UNTIERED = "logic"
 # human dropdown — a superset of the model's legal output (core SELECTABLE_TIERS:
 # same membership minus 'logic', which a human may pick to *un*-tier). The membership
 # tie is drift-guarded in tests; the order here is curated for UX, not enum order.
+#
+# Mirrored in scripts/part_ui/types.ts as SELECTABLE_BUCKETS (same membership
+# and order) — the TS SPA renders the reclassify dropdown from that copy, not
+# from an endpoint, so the two lists are kept in sync by hand until a drift
+# test lands. Per-bucket accent hues live in scripts/part_ui/styles.css
+# ([data-bucket] -> --bucket-hue), not here — this module owns the bucket
+# *list*, not presentation.
 _SELECTABLE_BUCKETS: tuple[str, ...] = (
     "frontend",
     "business",
@@ -297,213 +557,38 @@ _SELECTABLE_BUCKETS: tuple[str, ...] = (
     "logic",
 )
 
-# Per-bucket accent hue (HSL hue; CSS supplies sat/lum). Unknown → slate fallback.
-_BUCKET_HUE: dict[str, int] = {
-    "frontend": 280,
-    "business": 213,
-    "data": 190,
-    "infra": 25,
-    "documentation": 150,
-    "supply_chain": 320,
-    "ci_cd": 90,
-    "security_policy": 0,
-    "config": 198,
-    "schema_contracts": 260,
-    "test": 152,
-    "generated": 38,
-    "logic": 45,
-    "binary": 220,
-    "move": 220,
-    "delete": 0,
-}
+
+# --------------------------------------------------------------------------- #
+# Assets — the committed TypeScript SPA bundle (scripts/part_ui -> build.ts)
+# --------------------------------------------------------------------------- #
+
+_ASSETS_DIRNAME = "part_ui_dist"
 
 
-def _suggest_glob(path: str) -> str:
-    """Suggest a broadening glob for *path*: ``<dir>/**`` if nested, else the path."""
-    if "/" in path:
-        return path.rsplit("/", 1)[0] + "/**"
-    return path
+@dataclass(frozen=True)
+class Assets:
+    """The built SPA bundle: the HTML shell plus its JS/CSS, as raw bytes."""
+
+    index_html: bytes
+    js: bytes
+    css: bytes
 
 
-def _bucket_options(selected: str) -> str:
-    """``<option>`` list for the reclassify dropdown, marking *selected*."""
-    out = []
-    for b in _SELECTABLE_BUCKETS:
-        mark = " selected" if b == selected else ""
-        out.append(f'<option value="{b}"{mark}>{b}</option>')
-    return "".join(out)
+def load_assets(assets_dir: Path | None = None) -> Assets:
+    """Read the committed bundle off disk (imperative shell — the only IO here).
 
-
-def _file_row(path: str, current_bucket: str) -> str:
-    """One reclassifiable file: path, a glob input (pre-filled), and a bucket select."""
-    esc = html.escape(path)
-    suggest = html.escape(_suggest_glob(path))
-    return (
-        f'<li class="file"><code class="path">{esc}</code>'
-        f'<input class="glob" value="{esc}" data-suggest="{suggest}" '
-        f'title="glob to write (a file path matches itself); use the ⤢ button to broaden">'
-        f'<button class="broaden" type="button" title="broaden to {suggest}">⤢</button>'
-        f'<select class="bucket">{_bucket_options(current_bucket)}</select>'
-        f'<button class="save" type="button">reclassify</button></li>'
-    )
-
-
-def render_report(cut: dict, overrides: list[dict] | None = None) -> str:
-    """Render the live reclassify report as a self-contained HTML page.
-
-    Defensive on shape (every field via ``.get``) so a partial cut still renders.
-    The page is dependency-free: inline CSS + vanilla JS that POSTs to
-    ``/reclassify`` and ``/repart`` and reloads on success.
+    Defaults to ``part_ui_dist/`` next to this module, i.e. the bundle
+    ``scripts/part_ui/build.ts`` writes to
+    ``src/caliper/cli/part_ui_dist/``. Raises ``FileNotFoundError`` if the
+    bundle hasn't been built — callers must fail loudly (see ``dispatch``'s
+    500 on a missing ``assets``), never fall back to serving nothing.
     """
-    overrides = overrides or []
-    prov = cut.get("provenance", {})
-    stats = cut.get("stats", {})
-    parts = cut.get("parts", [])
-    digest = str(prov.get("config_digest", ""))[:12] or "—"
-    base = str(prov.get("base_sha", ""))[:9] or "—"
-    head = str(prov.get("head_sha", ""))[:9] or "—"
-
-    # Surface the cut's shape so a no-cap result reads as intentional (one part
-    # per labelled bucket), not as a runaway split. ``size_cap is None`` is the
-    # default — splitting is along buckets of concern only.
-    bucket_count = len({str(p.get("bucket", "?")) for p in parts})
-    size_cap = cut.get("size_cap")
-    cap_str = "none (1 part/bucket)" if size_cap is None else str(size_cap)
-
-    cards: list[str] = []
-    for i, part in enumerate(parts, start=1):
-        bucket = str(part.get("bucket", "?"))
-        files = part.get("files", [])
-        hue = _BUCKET_HUE.get(bucket, 220)
-        untiered = bucket == _UNTIERED
-        flag = '<span class="untiered-tag">needs a tier</span>' if untiered else ""
-        rows = "".join(_file_row(str(f), bucket) for f in files)
-        cards.append(
-            f'<article class="part{" untiered" if untiered else ""}" style="--hue:{hue}">'
-            f'<h3><span class="idx">{i}</span>'
-            f'<span class="badge">{html.escape(bucket)}</span>{flag}'
-            f'<small>{len(files)} file{"s" if len(files) != 1 else ""} · size {part.get("size", 0)}'
-            f'{" · oversized" if part.get("oversized") else ""}</small></h3>'
-            f'<ul class="files">{rows}</ul></article>'
-        )
-
-    if overrides:
-        badges = "".join(
-            f'<span class="ov"><code>{html.escape(str(o.get("glob", "")))}</code>'
-            f'→ <b>{html.escape(str(o.get("bucket", "")))}</b></span>'
-            for o in overrides
-        )
-        ov_panel = f'<div class="overrides"><h2>active overrides</h2>{badges}</div>'
-    else:
-        ov_panel = '<div class="overrides empty">no overrides yet — reclassify a file below</div>'
-
-    return f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>caliper part · {base}→{head}</title>
-<style>
-:root{{--bg:#0d1117;--surface:#161b22;--surface2:#1c2330;--border:#30363d;
-  --text:#e6edf3;--muted:#8b949e;--accent:#2f81f7;--warn:#d29922;}}
-*{{box-sizing:border-box;}}
-body{{font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  margin:0;background:var(--bg);color:var(--text);padding:24px;max-width:1100px;margin:0 auto;}}
-h1{{font-size:20px;margin:0 0 4px;}} h2{{font-size:13px;text-transform:uppercase;
-  letter-spacing:.05em;color:var(--muted);margin:0 0 8px;}}
-.sub{{color:var(--muted);font-size:13px;}}
-.toolbar{{display:flex;gap:10px;align-items:center;margin:16px 0;}}
-button.repart{{background:var(--accent);color:#fff;border:0;border-radius:8px;
-  padding:9px 16px;font-size:14px;cursor:pointer;}}
-button.suggest{{background:var(--surface2);color:var(--text);border:1px solid var(--border);
-  border-radius:8px;padding:9px 16px;font-size:14px;cursor:pointer;}}
-.suggestions{{margin:12px 0;}} .suggestions:empty{{display:none;}}
-.chip{{display:inline-flex;gap:4px;align-items:center;background:color-mix(in srgb,var(--accent) 12%,var(--surface2));
-  border:1px solid var(--accent);border-radius:999px;padding:4px 12px;margin:3px;font-size:12px;
-  color:var(--text);cursor:pointer;}}
-.chip:hover{{background:color-mix(in srgb,var(--accent) 24%,var(--surface2));}}
-.overrides{{background:var(--surface);border:1px solid var(--border);border-radius:10px;
-  padding:12px 14px;margin:12px 0;}}
-.overrides.empty{{color:var(--muted);font-size:13px;}}
-.ov{{display:inline-flex;gap:4px;align-items:center;background:var(--surface2);
-  border:1px solid var(--border);border-radius:999px;padding:3px 10px;margin:3px;font-size:12px;}}
-.part{{background:var(--surface);border:1px solid var(--border);
-  border-left:4px solid hsl(var(--hue) 70% 55%);border-radius:10px;padding:14px 16px;margin:12px 0;}}
-.part.untiered{{border-left-color:var(--warn);background:color-mix(in srgb,var(--warn) 7%,var(--surface));}}
-.part h3{{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}}
-.idx{{color:var(--muted);font-variant-numeric:tabular-nums;}}
-.badge{{background:hsl(var(--hue) 70% 50%);color:#fff;padding:2px 9px;border-radius:999px;font-size:12px;}}
-.untiered-tag{{background:var(--warn);color:#1c1300;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;}}
-small{{color:var(--muted);font-weight:400;}}
-ul.files{{list-style:none;margin:0;padding:0;}}
-li.file{{display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--border);flex-wrap:wrap;}}
-li.file:last-child{{border-bottom:0;}}
-.path{{flex:1;min-width:200px;font-family:ui-monospace,monospace;font-size:12.5px;word-break:break-all;}}
-.glob{{width:240px;background:var(--bg);color:var(--text);border:1px solid var(--border);
-  border-radius:6px;padding:5px 8px;font-family:ui-monospace,monospace;font-size:12px;}}
-.bucket{{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12.5px;}}
-.broaden,.save{{background:var(--surface2);color:var(--text);border:1px solid var(--border);
-  border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;}}
-.save{{background:var(--accent);color:#fff;border-color:transparent;}}
-footer{{color:var(--muted);font-size:12px;margin-top:28px;}}
-</style></head><body>
-<header>
-  <h1>caliper cut list</h1>
-  <div class="sub">{stats.get("part_count", len(parts))} parts across {bucket_count} bucket{"s" if bucket_count != 1 else ""} · {stats.get("file_count", "?")} files · cap {cap_str} · {base} → {head}</div>
-</header>
-<div class="toolbar"><button class="repart" type="button" onclick="repart()">re-part</button>
-  <button class="suggest" type="button" onclick="suggest()">✨ suggest tiers</button>
-  <span class="sub">reclassify any file to write a version-controlled override into <code>.caliper.yaml</code></span></div>
-{ov_panel}
-<div id="suggestions" class="suggestions"></div>
-{"".join(cards)}
-<footer>config digest <code>{html.escape(digest)}</code> · loopback sidecar · caliper part --serve</footer>
-<script>
-async function post(url, body) {{
-  const r = await fetch(url, {{method:'POST', headers:{{'Content-Type':'application/json'}},
-    body: body ? JSON.stringify(body) : null}});
-  if (!r.ok) {{ let m=''; try {{ m=(await r.json()).error || ''; }} catch(e){{}} throw new Error(m || ('HTTP '+r.status)); }}
-  return r.json();
-}}
-function repart() {{ post('/repart').then(()=>location.reload()).catch(e=>alert('re-part failed: '+e.message)); }}
-async function suggest() {{
-  const box = document.getElementById('suggestions');
-  box.textContent = 'asking the model…';
-  let data;
-  try {{ data = await post('/suggest'); }}
-  catch(e) {{ box.textContent = 'suggest failed: ' + e.message; return; }}
-  box.textContent = '';
-  if (data.configured === false) {{
-    box.textContent = 'no model configured (set CALIPER_SUGGESTER_MODEL + a base URL)'; return;
-  }}
-  const rules = data.suggestions || [];
-  if (!rules.length) {{ box.textContent = 'no tier suggestions for the residual'; return; }}
-  const h = document.createElement('h2'); h.textContent = 'suggested tiers — click a chip to accept';
-  box.appendChild(h);
-  rules.forEach(rule => {{
-    const chip = document.createElement('button');
-    chip.className = 'chip'; chip.type = 'button';
-    const code = document.createElement('code'); code.textContent = rule.glob;
-    const b = document.createElement('b'); b.textContent = rule.bucket;
-    chip.append(code, document.createTextNode(' → '), b);
-    chip.addEventListener('click', () => {{
-      post('/reclassify', {{glob: rule.glob, bucket: rule.bucket}})
-        .then(()=>location.reload())
-        .catch(e=>alert('accept failed: '+e.message));
-    }});
-    box.appendChild(chip);
-  }});
-}}
-document.querySelectorAll('li.file').forEach(li => {{
-  const glob = li.querySelector('.glob');
-  li.querySelector('.broaden').addEventListener('click', () => {{ glob.value = glob.dataset.suggest; }});
-  li.querySelector('.save').addEventListener('click', () => {{
-    const bucket = li.querySelector('.bucket').value;
-    post('/reclassify', {{glob: glob.value, bucket}})
-      .then(()=>location.reload())
-      .catch(e=>alert('reclassify failed: '+e.message));
-  }});
-}});
-</script>
-</body></html>"""
+    directory = assets_dir if assets_dir is not None else Path(__file__).parent / _ASSETS_DIRNAME
+    return Assets(
+        index_html=(directory / "index.html").read_bytes(),
+        js=(directory / "part_ui.js").read_bytes(),
+        css=(directory / "part_ui.css").read_bytes(),
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -530,13 +615,86 @@ def _json(payload: object, status: int = 200) -> Response:
     return Response(status, "application/json", orjson.dumps(payload))
 
 
-def dispatch(session: _SessionLike, method: str, path: str, body: bytes) -> Response:
-    """Route one request against *session*. Pure: no IO, no socket — fully testable."""
+def _with_overrides(session: _SessionLike, cut: dict) -> dict:
+    """Merge the session's current override list into a cut payload.
+
+    Every route that returns a cut (not just GET /cutlist) must carry this —
+    the SPA's overrides panel re-renders from whatever the *last* response
+    said, and a reclassify/repart/suggest-apply response that omitted the key
+    made a successful write look like it silently did nothing.
+
+    The untargeted sentinel (``{"targeted": False}``, no range/PR set yet)
+    passes through bare — there is no cut to attach overrides to.
+    """
+    if cut.get("targeted") is False:
+        return cut
+    return {**cut, "overrides": session.overrides()}
+
+
+_LOOPBACK_HOSTNAMES = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def _hostname_of(header_value: str) -> str:
+    """Bare hostname from a Host header (``127.0.0.1:12700``) or an Origin
+    header (``http://127.0.0.1:12700``) — strips scheme, port, and path."""
+    value = header_value.split("://", 1)[-1].split("/", 1)[0]
+    if value.startswith("["):  # bracketed IPv6, e.g. "[::1]:12700"
+        return value[1 : value.index("]")]
+    return value.rsplit(":", 1)[0] if ":" in value else value
+
+
+def _is_loopback_request(headers: Mapping[str, str] | None) -> bool:
+    """Whether a request's Host (and, if present, Origin) both name loopback.
+
+    Defense against a browser tab or DNS-rebinding attack POSTing to this
+    loopback-bound sidecar: fails closed (missing/absent headers -> False),
+    matching the plan's "reject requests whose Origin/Host is not loopback."
+    """
+    if headers is None:
+        return False
+    host = headers.get("host")
+    if not host or _hostname_of(host) not in _LOOPBACK_HOSTNAMES:
+        return False
+    origin = headers.get("origin")
+    return origin is None or _hostname_of(origin) in _LOOPBACK_HOSTNAMES
+
+
+def dispatch(
+    session: _SessionLike,
+    method: str,
+    path: str,
+    body: bytes,
+    assets: Assets | None = None,
+    headers: Mapping[str, str] | None = None,
+) -> Response:
+    """Route one request against *session*. Pure: no IO, no socket — fully testable.
+
+    *headers* is a plain lowercased-key mapping (``{"host": ..., "origin": ...}``)
+    threaded in the same way as *assets* — the handler shell reads the real
+    socket headers, dispatch only ever inspects plain data. Only ``/apply``
+    consults it (the loopback/CSRF guard); every other route ignores it, so
+    existing callers that omit it are unaffected.
+
+    *assets* is the committed SPA bundle (``load_assets()``), threaded in as a
+    plain-data argument rather than loaded here — that keeps dispatch itself
+    filesystem-free and testable with a hand-built ``Assets`` fixture. ``None``
+    means the caller hasn't loaded a bundle (e.g. a misconfigured install); the
+    asset routes then fail loudly with 500 rather than serving a blank shell.
+    """
     if method == "GET" and path == "/":
-        html_doc = render_report(session.cut_dict(), session.overrides())
-        return Response(200, "text/html; charset=utf-8", html_doc.encode("utf-8"))
+        if assets is None:
+            return _json({"error": "static assets not loaded"}, 500)
+        return Response(200, "text/html; charset=utf-8", assets.index_html)
+    if method == "GET" and path == "/assets/part_ui.js":
+        if assets is None:
+            return _json({"error": "static assets not loaded"}, 500)
+        return Response(200, "application/javascript; charset=utf-8", assets.js)
+    if method == "GET" and path == "/assets/part_ui.css":
+        if assets is None:
+            return _json({"error": "static assets not loaded"}, 500)
+        return Response(200, "text/css; charset=utf-8", assets.css)
     if method == "GET" and path == "/cutlist":
-        return _json(session.cut_dict())
+        return _json(_with_overrides(session, session.cut_dict()))
     if method == "POST" and path == "/reclassify":
         try:
             payload = orjson.loads(body or b"")
@@ -553,18 +711,149 @@ def dispatch(session: _SessionLike, method: str, path: str, body: bytes) -> Resp
         except Exception as exc:  # validation / write errors are reviewer-facing, not 500s
             logger.info("parting_reclassify_rejected", error=str(exc))
             return _json({"error": str(exc)}, 400)
-        return _json(cut)
+        return _json(_with_overrides(session, cut))
     if method == "POST" and path == "/repart":
-        return _json(session.repart_dict())
+        if body:
+            try:
+                payload = orjson.loads(body)
+            except orjson.JSONDecodeError:
+                return _json({"error": "invalid JSON body"}, 400)
+            if not isinstance(payload, dict):
+                return _json({"error": "invalid JSON body"}, 400)
+            if "size_cap" in payload:
+                size_cap = payload["size_cap"]
+                valid = size_cap is None or (
+                    isinstance(size_cap, int) and not isinstance(size_cap, bool) and size_cap > 0
+                )
+                if not valid:
+                    return _json({"error": "size_cap must be a positive integer or null"}, 400)
+                try:
+                    cut = session.set_size_cap(size_cap)
+                except Exception as exc:  # live setting rejected -> reviewer-facing 400
+                    return _json({"error": str(exc)}, 400)
+                return _json(_with_overrides(session, cut))
+        return _json(_with_overrides(session, session.repart_dict()))
+    if method == "POST" and path == "/range":
+        try:
+            payload = orjson.loads(body or b"")
+        except orjson.JSONDecodeError:
+            return _json({"error": "invalid JSON body"}, 400)
+        if not isinstance(payload, dict):
+            return _json({"error": "invalid JSON body"}, 400)
+        base = payload.get("base")
+        head = payload.get("head")
+        if not base or not head:
+            return _json({"error": "both 'base' and 'head' are required"}, 400)
+        try:
+            cut = session.retarget(base=base, head=head)
+        except Exception as exc:  # bad revsets etc. are reviewer-facing, not 500s
+            logger.info("parting_retarget_rejected", error=str(exc))
+            return _json({"error": str(exc)}, 400)
+        return _json(_with_overrides(session, cut))
+    if method == "POST" and path == "/pr":
+        try:
+            payload = orjson.loads(body or b"")
+        except orjson.JSONDecodeError:
+            return _json({"error": "invalid JSON body"}, 400)
+        if not isinstance(payload, dict):
+            return _json({"error": "invalid JSON body"}, 400)
+        ref = payload.get("ref")
+        if not ref:
+            return _json({"error": "a 'ref' (PR URL or number) is required"}, 400)
+        try:
+            cut = session.set_target_pr(ref)
+        except Exception as exc:  # unresolvable PR / clone failure -> 400, not 500
+            logger.info("parting_pr_target_rejected", error=str(exc))
+            return _json({"error": str(exc)}, 400)
+        return _json(_with_overrides(session, cut))
     if method == "POST" and path == "/suggest":
         # Advisory: ask the local model for tier globs on the 'logic' residual. The
         # reviewer accepts one by POSTing /reclassify with the suggested glob+bucket;
         # nothing is written here. Fail-soft — the session swallows model errors to [].
         return _json(session.suggest_dict())
+    if method == "POST" and path == "/suggest/apply":
+        # Bulk-accept: the "accept all" button writes every proposed rule in one
+        # request instead of one /reclassify round-trip per suggestion.
+        try:
+            payload = orjson.loads(body or b"")
+        except orjson.JSONDecodeError:
+            return _json({"error": "invalid JSON body"}, 400)
+        if not isinstance(payload, dict):
+            return _json({"error": "invalid JSON body"}, 400)
+        rules = payload.get("globs")
+        if not isinstance(rules, list) or not rules:
+            return _json({"error": "a non-empty 'globs' list is required"}, 400)
+        for rule in rules:
+            if not isinstance(rule, dict) or not rule.get("glob") or not rule.get("bucket"):
+                return _json({"error": "each rule needs a 'glob' and a 'bucket'"}, 400)
+        try:
+            cut = session.suggest_apply(rules)
+        except Exception as exc:  # validation / write errors are reviewer-facing, not 500s
+            logger.info("parting_suggest_apply_rejected", error=str(exc))
+            return _json({"error": str(exc)}, 400)
+        return _json(_with_overrides(session, cut))
+    if method == "POST" and path == "/restack":
+        payload: dict = {}
+        if body:
+            try:
+                payload = orjson.loads(body)
+            except orjson.JSONDecodeError:
+                return _json({"error": "invalid JSON body"}, 400)
+            if not isinstance(payload, dict):
+                return _json({"error": "invalid JSON body"}, 400)
+        describe = payload.get("describe", False)
+        force = payload.get("force", False)
+        target = payload.get("target")
+        if not isinstance(describe, bool):
+            return _json({"error": "'describe' must be a boolean"}, 400)
+        if not isinstance(force, bool):
+            return _json({"error": "'force' must be a boolean"}, 400)
+        if target is not None and target not in ("stack", "series"):
+            return _json({"error": "'target' must be 'stack' or 'series'"}, 400)
+        try:
+            result = session.generate(describe=describe, force=force, target=target)
+        except Exception as exc:  # gate failure / untargeted session -> reviewer-facing 400
+            logger.info("parting_restack_rejected", error=str(exc))
+            return _json({"error": str(exc)}, 400)
+        return _json(result)
+    if method == "GET" and path == "/restack.sh":
+        script = session.restack_script()
+        if script is None:
+            return _json({"error": "no restack script generated yet — POST /restack first"}, 404)
+        return Response(200, "text/x-shellscript; charset=utf-8", script.encode())
+    if method == "POST" and path == "/apply":
+        if not _is_loopback_request(headers):
+            return _json({"error": "request is not from loopback"}, 403)
+        payload = {}
+        if body:
+            try:
+                payload = orjson.loads(body)
+            except orjson.JSONDecodeError:
+                return _json({"error": "invalid JSON body"}, 400)
+            if not isinstance(payload, dict):
+                return _json({"error": "invalid JSON body"}, 400)
+        token = payload.get("apply_token")
+        if not isinstance(token, str) or not token:
+            return _json({"error": "'apply_token' is required"}, 400)
+        try:
+            result = session.apply(token)
+        except Exception as exc:  # bad/stale token, ungenerated script -> reviewer-facing 400
+            logger.info("parting_apply_rejected", error=str(exc))
+            return _json({"error": str(exc)}, 400)
+        return _json(result)
+    if method == "POST" and path == "/rollback":
+        try:
+            result = session.rollback()
+        except Exception as exc:  # nothing to roll back yet -> reviewer-facing 400
+            logger.info("parting_rollback_rejected", error=str(exc))
+            return _json({"error": str(exc)}, 400)
+        return _json(result)
     return _json({"error": "not found"}, 404)
 
 
-def _make_handler(session: _SessionLike) -> type[http.server.BaseHTTPRequestHandler]:
+def _make_handler(
+    session: _SessionLike, assets: Assets | None = None
+) -> type[http.server.BaseHTTPRequestHandler]:
     """Build a request handler bound to *session* (closure, no mutable class state)."""
 
     class _Handler(http.server.BaseHTTPRequestHandler):
@@ -574,7 +863,8 @@ def _make_handler(session: _SessionLike) -> type[http.server.BaseHTTPRequestHand
             length = int(self.headers.get("Content-Length") or 0)
             payload = self.rfile.read(length) if length > 0 else b""
             path = self.path.split("?", 1)[0]  # ignore any query string
-            resp = dispatch(session, method, path, payload)
+            headers = {k.lower(): v for k, v in self.headers.items()}
+            resp = dispatch(session, method, path, payload, assets, headers)
             self.send_response(resp.status)
             self.send_header("Content-Type", resp.content_type)
             self.send_header("Content-Length", str(len(resp.body)))
@@ -622,13 +912,14 @@ def _bind_server(
 
 def serve_part(
     repo_path: Path,
-    base: str,
-    head: str,
+    base: str | None,
+    head: str | None,
     *,
     port: int = DEFAULT_PORT,
     size_cap: int | None = None,
     override_store: Path | None = None,
     suggester: TierSuggesterPort | None = None,
+    out_dir: Path | None = None,
 ) -> None:
     """Run the sidecar on loopback. Blocks until interrupted (presentation tier)."""
     session = PartingSession(
@@ -638,8 +929,13 @@ def serve_part(
         size_cap=size_cap,
         override_store=override_store,
         suggester=suggester,
+        out_dir=out_dir,
     )
-    server, bound = _bind_server(_make_handler(session), port)
+    # Load once at startup, not per-request — the bundle is immutable for the
+    # life of the process; a missing bundle fails fast here rather than on the
+    # first browser hit.
+    assets = load_assets()
+    server, bound = _bind_server(_make_handler(session, assets), port)
     url = f"http://{HOST}:{bound}"
     if bound != port:
         logger.warning("part_serve_port_busy", requested=port, using=bound, url=url)

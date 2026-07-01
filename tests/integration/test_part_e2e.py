@@ -470,3 +470,65 @@ def test_serve_override_store_survives_and_relayers(tmp_path) -> None:
     cut = PartingSession(repo, base, head, override_store=store).cut()
     data_files = [f for p in cut.parts if p.bucket.value == "data" for f in p.files]
     assert "svc/a.py" in data_files and "svc/b.py" in data_files
+
+
+def test_serve_session_generate_writes_restack_and_apply_token(tmp_path) -> None:
+    """The web sidecar's generate() runs the real gate + pipeline (P4 parity with
+    the CLI): restack.sh + cutlist.json land in out_dir with a rollback header,
+    and each call mints a fresh apply_token."""
+    from caliper.cli.part_serve import PartingSession
+
+    repo, base, head, _ = _serve_repo(tmp_path, "serve-generate")
+    out_dir = tmp_path / "out"
+    session = PartingSession(repo, base, head, out_dir=out_dir)
+
+    result = session.generate()
+
+    assert result["backup_bookmark"].startswith("caliper-part-backup-")
+    assert result["rescue_op_id"]
+    script = (out_dir / "restack.sh").read_text()
+    assert script == result["script_text"]
+    assert "jj op restore" in script
+    assert (out_dir / "cutlist.json").exists()
+    assert result["apply_token"]
+    assert session.restack_script() == script
+
+    second = session.generate()
+    assert second["apply_token"] != result["apply_token"]
+
+
+def test_serve_session_apply_runs_restack_then_rollback_restores(tmp_path, monkeypatch) -> None:
+    """P5: /apply executes the generated restack.sh for real (bash + jj), then
+    /rollback undoes it via `jj op restore <rescue_op_id>` — the full escape
+    hatch the rollback header promises. The apply token is single-use.
+
+    Uses a *relative* out_dir with the process cwd deliberately different from
+    repo_path (as a relative `--out` would be relative to the invocation
+    directory, not the repo) — regression coverage for apply() resolving
+    restack_path against the wrong root before running `bash <path>`.
+    """
+    from caliper.cli.part_serve import PartingSession
+
+    repo, base, head, env = _serve_repo(tmp_path, "serve-apply")
+    monkeypatch.chdir(tmp_path)
+    out_dir = Path("out")
+    session = PartingSession(repo, base, head, out_dir=out_dir)
+
+    result = session.generate()
+    token = result["apply_token"]
+
+    applied = session.apply(token)
+
+    assert applied["ok"] is True, applied["stderr"]
+    assert applied["rollback"]["rescue_op_id"] == result["rescue_op_id"]
+    # per-part bookmarks exist -> the restack script really ran against jj
+    assert "caliper-part-1" in _run(["jj", "bookmark", "list"], repo, env)
+
+    # single-use: replaying the same token is rejected, never re-applied
+    with pytest.raises(ValueError):
+        session.apply(token)
+
+    rolled_back = session.rollback()
+
+    assert rolled_back["ok"] is True, rolled_back["stderr"]
+    assert "caliper-part-1" not in _run(["jj", "bookmark", "list"], repo, env)
