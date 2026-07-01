@@ -146,3 +146,217 @@ rules:
       or using a streaming approach to prevent OOM on large inputs.
     severity: INFO
     languages: [javascript, typescript]
+
+  # ── Tier 2: concurrency / producer-consumer heuristics ───────────────────────
+
+  - id: org.resource.await-in-consumer-loop-python
+    patterns:
+      - pattern-either:
+          - pattern: |
+              for $ITEM in $QUEUE:
+                  ...
+                  await $CALL(...)
+                  ...
+          - pattern: |
+              while True:
+                  $ITEM = $QUEUE.get()
+                  ...
+                  await $CALL(...)
+                  ...
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
+      - metavariable-regex:
+          metavariable: $QUEUE
+          regex: ".*(?:queue|channel|chan|Queue|Channel).*"
+    paths:
+      exclude:
+        - tests/
+    message: >
+      Sequentially awaiting a per-item call inside a consumer loop serializes
+      throughput — each item's I/O blocks the next from starting. Consider
+      batching items and awaiting them concurrently with asyncio.gather(), or
+      hand items off to a bounded pool of worker coroutines instead of
+      awaiting each one in turn.
+    severity: INFO
+    languages: [python]
+    metadata:
+      fix_suggestion: >
+        Buffer a batch of items and process them concurrently with
+        asyncio.gather(*(handle(i) for i in batch)), or push items onto a
+        bounded asyncio.Queue consumed by a fixed pool of worker coroutines,
+        instead of awaiting each item sequentially inside the loop body.
+
+  - id: org.resource.await-in-consumer-loop-js
+    patterns:
+      - pattern-either:
+          - pattern: |
+              for (const $ITEM of $QUEUE) {
+                ...
+                await $CALL(...);
+                ...
+              }
+          - pattern: |
+              for await (const $ITEM of $QUEUE) {
+                ...
+                await $CALL(...);
+                ...
+              }
+      - metavariable-regex:
+          metavariable: $QUEUE
+          regex: ".*(?:queue|channel|chan|Queue|Channel).*"
+    paths:
+      exclude:
+        - tests/
+        - "*.test.*"
+    message: >
+      Sequentially awaiting a per-item call inside a consumer loop serializes
+      throughput — each item's I/O blocks the next from starting. Consider
+      batching items and awaiting them concurrently with Promise.all(), or
+      hand items off to a bounded worker pool instead of awaiting each one
+      in turn.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      fix_suggestion: >
+        Buffer a batch of items and process them concurrently with
+        Promise.all(batch.map(item => handle(item))), or push items onto a
+        bounded worker pool, instead of awaiting each item sequentially
+        inside the loop body.
+
+  - id: org.resource.unbounded-channel-python
+    patterns:
+      - pattern-either:
+          - pattern: queue.Queue()
+          - pattern: asyncio.Queue()
+    paths:
+      exclude:
+        - tests/
+    message: >
+      Queue constructed with no maxsize bound. Under producer/consumer
+      imbalance the queue can grow without limit and OOM the process.
+      Set an explicit maxsize and handle backpressure (block on put, or
+      drop items) when the queue is full.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      fix_suggestion: >
+        Pass an explicit maxsize= to queue.Queue()/asyncio.Queue() sized to
+        the expected backlog, and handle the resulting full-queue behavior
+        (block on put(), or catch queue.Full and drop/log) at the producer.
+
+  # JS/TS has no stdlib bounded-queue equivalent to flag directly, so this
+  # variant is deliberately narrow: it only fires on `this.<field>.push(...)`
+  # inside a class whose name looks like a queue/channel, and only in files
+  # whose path also looks like a queue/channel implementation — kept this
+  # tight to avoid flagging every array push in application code.
+  - id: org.resource.unbounded-channel-js
+    patterns:
+      - pattern: this.$FIELD.push(...)
+      - pattern-inside: |
+          class $CLASS {
+            ...
+          }
+      - metavariable-regex:
+          metavariable: $CLASS
+          regex: ".*(?:Queue|Channel).*"
+    paths:
+      include:
+        - "**/*queue*"
+        - "**/*channel*"
+      exclude:
+        - tests/
+        - "*.test.*"
+    message: >
+      Custom queue/channel class pushes onto an internal buffer with no
+      visible capacity check. Unbounded growth under producer/consumer
+      imbalance can OOM the process. Add an explicit maxSize check before
+      push() and block or drop the item when full (mirror Node stream
+      backpressure semantics).
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      fix_suggestion: >
+        Check this.<field>.length against an explicit maxSize before
+        push()'ing, and either reject/queue the caller (backpressure) or
+        drop the incoming item when full, instead of growing the buffer
+        unbounded.
+
+  - id: org.resource.unchecked-thread-safety-python
+    patterns:
+      - pattern: |
+          def $FUNC(...):
+              ...
+              $COLLECTION[$KEY] = $VALUE
+              ...
+          ...
+          threading.Thread(target=$FUNC, ...)
+      - pattern-not: |
+          def $FUNC(...):
+              ...
+              with $LOCK:
+                  ...
+                  $COLLECTION[$KEY] = $VALUE
+                  ...
+              ...
+          ...
+          threading.Thread(target=$FUNC, ...)
+    paths:
+      exclude:
+        - tests/
+    message: >
+      $FUNC mutates a shared collection and is run on a separate thread via
+      threading.Thread(target=$FUNC), with no lock visible around the write.
+      Concurrent access from another thread can corrupt the collection or
+      raise a RuntimeError. Guard the mutation with a threading.Lock()/RLock()
+      held only for the duration of the write.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      fix_suggestion: >
+        Wrap the write to the shared collection in a `with lock:` block
+        (a threading.Lock()/RLock() shared with any other code that reads
+        or writes the same collection), held only for the duration of the
+        mutation.
+
+  # JS is single-threaded per tick, so the real analog to unsynchronized
+  # cross-thread mutation is a worker_threads message handler writing
+  # directly into a shared (SharedArrayBuffer-backed) array instead of going
+  # through Atomics — narrowed to that case to avoid flagging ordinary
+  # single-thread event-handler state updates, which are not a race.
+  - id: org.resource.unchecked-thread-safety-js
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $PORT.on("message", ($MSG) => {
+                ...
+                $ARR[$IDX] = $VAL
+                ...
+              })
+          - pattern: |
+              $PORT.on("message", function ($MSG) {
+                ...
+                $ARR[$IDX] = $VAL
+                ...
+              })
+      - metavariable-regex:
+          metavariable: $PORT
+          regex: ".*(?:port|Port|worker|Worker).*"
+    paths:
+      exclude:
+        - tests/
+        - "*.test.*"
+    message: >
+      Direct indexed write into an array from a worker_threads message
+      handler bypasses Atomics. If the array is backed by a
+      SharedArrayBuffer, this is an unsynchronized data race across threads
+      with no memory-ordering guarantee. Use Atomics.store()/Atomics.load(),
+      or postMessage a plain copy, instead of raw indexed writes when the
+      backing buffer may be shared.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      fix_suggestion: >
+        Replace the raw `arr[idx] = val` write with Atomics.store(arr, idx,
+        val) when arr is backed by a SharedArrayBuffer, or postMessage a
+        plain-object copy instead of sharing the buffer across threads.
