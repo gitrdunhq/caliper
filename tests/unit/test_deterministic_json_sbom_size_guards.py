@@ -14,14 +14,12 @@ Fix: Remove "sbom": data from the summary.  Store only the count and a reference
      SyftScanner data-tier class may write the SBOM to the evidence store.
 
 Parent bug: #223 / Epic: #146.
-Status: xfail — full SBOM still stored in summary.
+Status: fixed — SyftPlugin.run() no longer stores the full SBOM in summary.
 """
 
 from __future__ import annotations
 
 import inspect
-
-import pytest
 
 
 def _get_syft_run_source() -> str:
@@ -35,10 +33,6 @@ def _get_syft_run_source() -> str:
     return src
 
 
-@pytest.mark.xfail(
-    reason="deterministic bug detector for #257 — remove full SBOM from summary, then green",
-    strict=False,
-)
 def test_257_syft_summary_does_not_embed_full_sbom() -> None:
     """SyftPlugin.run() must not embed the full SBOM dict in summary[\"sbom\"].
 

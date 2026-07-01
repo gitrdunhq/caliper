@@ -1,9 +1,16 @@
 """Parquet evidence writer — append-only columnar audit log.
 # tested-by: tests/unit/test_parquet_writer.py
 
-Writes review decisions to a single append-only parquet file per
-evidence root. Enables DuckDB-powered analytics and LLM-queryable
-audit history without loading individual JSON files.
+Writes review decisions to a partitioned, append-only Parquet *dataset*
+(a directory of part-files) per evidence root. Enables DuckDB-powered
+analytics and LLM-queryable audit history without loading individual
+JSON files.
+
+Each ``append_decisions()`` call writes exactly one new part-file and
+never reads or rewrites prior part-files — true O(1)-in-existing-size
+append semantics (issue #256 / #222). ``read_decisions()`` is the single
+SSOT read path: it unions every part-file at read time and is the only
+place that should ever call ``pq.read_table`` against this dataset.
 
 Schema is flat + nested: top-level columns for fast filtering,
 list columns for findings and scan results.
@@ -11,7 +18,9 @@ list columns for findings and scan results.
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
+from uuid import uuid4
 
 import structlog
 
@@ -26,7 +35,13 @@ from caliper.core.models import ReviewDecision
 
 logger = structlog.get_logger(__name__)
 
+# Directory name for the append-only decision dataset. Historically this
+# named a single monolithic file; it is now a directory of part-files so
+# that append never has to read (and rewrite) prior history.
 PARQUET_FILENAME = "decisions.parquet"
+
+_PART_PREFIX = "part-"
+_PART_SUFFIX = ".parquet"
 
 
 def _build_schema() -> pa.Schema:
@@ -110,43 +125,77 @@ def decision_to_row(decision: ReviewDecision, run_id: str = "") -> dict:
     }
 
 
+def _part_filename() -> str:
+    """A sortable, collision-free part-file name for one append batch."""
+    return f"{_PART_PREFIX}{time.time_ns():020d}-{uuid4().hex[:8]}{_PART_SUFFIX}"
+
+
 def append_decisions(
     evidence_root: Path,
     decisions: list[ReviewDecision],
     run_id: str = "",
 ) -> Path | None:
-    """Append decisions to the parquet file. Creates it if it doesn't exist.
+    """Append decisions as a new part-file in the decisions dataset directory.
 
-    Returns the parquet file path on success, None on failure.
+    True append semantics: this never reads, loads, or rewrites any
+    previously written part-file — cost is O(len(decisions)), independent
+    of how much history already exists (Boundedness property, #256/#222).
+
+    Returns the dataset directory path on success, None on failure.
     """
     if not decisions:
         return None
 
-    parquet_path = evidence_root / PARQUET_FILENAME
+    parts_dir = evidence_root / PARQUET_FILENAME
 
     try:
-        evidence_root.mkdir(parents=True, exist_ok=True)
+        parts_dir.mkdir(parents=True, exist_ok=True)
 
         schema = _build_schema()
         rows = [decision_to_row(d, run_id) for d in decisions]
         new_table = pa.Table.from_pylist(rows, schema=schema)
 
-        if parquet_path.exists():
-            existing = pq.read_table(parquet_path, schema=schema)
-            combined = pa.concat_tables([existing, new_table])
-        else:
-            combined = new_table
-
-        pq.write_table(combined, parquet_path)
+        part_path = parts_dir / _part_filename()
+        pq.write_table(new_table, part_path)
 
         logger.info(
             "parquet_written",
-            path=str(parquet_path),
+            path=str(part_path),
             new_rows=len(rows),
-            total_rows=combined.num_rows,
         )
-        return parquet_path
+        return parts_dir
 
     except Exception:
         logger.error("parquet_write_failed", exc_info=True)
+        return None
+
+
+def read_decisions(evidence_root: Path) -> pa.Table | None:
+    """Read the full decision audit log for an evidence root.
+
+    The single SSOT read path for the append-only decisions dataset —
+    unions every part-file written by ``append_decisions()``. This is the
+    only place callers should read the dataset from; never call
+    ``pq.read_table`` on individual part-files or the dataset directory
+    directly.
+
+    Fails open: returns None if pyarrow is unavailable, nothing has been
+    appended yet, or any part-file is unreadable/corrupt.
+    """
+    if pq is None:
+        return None
+
+    parts_dir = evidence_root / PARQUET_FILENAME
+    if not parts_dir.is_dir():
+        return None
+
+    part_files = sorted(parts_dir.glob(f"{_PART_PREFIX}*{_PART_SUFFIX}"))
+    if not part_files:
+        return None
+
+    try:
+        tables = [pq.read_table(p) for p in part_files]
+        return pa.concat_tables(tables)
+    except Exception:
+        logger.error("parquet_read_failed", path=str(parts_dir), exc_info=True)
         return None

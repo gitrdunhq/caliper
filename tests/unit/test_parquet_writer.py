@@ -30,6 +30,7 @@ from caliper.data.parquet_writer import (
     _build_schema,
     append_decisions,
     decision_to_row,
+    read_decisions,
 )
 
 SCHEMA = _build_schema()
@@ -351,15 +352,16 @@ class TestDecisionToRow:
 
 class TestAppendDecisions:
     def test_append_creates_new_file(self, tmp_path: Path) -> None:
-        """When no parquet file exists, append creates it with 1 row."""
+        """When no decisions dataset exists, append creates it with 1 row."""
         dec = _decision()
         result = append_decisions(tmp_path, [dec], run_id="run-1")
 
         assert result is not None
         assert result.name == "decisions.parquet"
         assert result.exists()
+        assert result.is_dir()
 
-        table = pq.read_table(result)
+        table = read_decisions(tmp_path)
         assert table.num_rows == 1
 
     def test_append_appends_to_existing(self, tmp_path: Path) -> None:
@@ -370,8 +372,7 @@ class TestAppendDecisions:
         append_decisions(tmp_path, [dec1], run_id="run-1")
         append_decisions(tmp_path, [dec2], run_id="run-2")
 
-        parquet_path = tmp_path / "decisions.parquet"
-        table = pq.read_table(parquet_path)
+        table = read_decisions(tmp_path)
         assert table.num_rows == 2
 
     def test_append_empty_list_returns_none(self, tmp_path: Path) -> None:
@@ -391,7 +392,7 @@ class TestAppendDecisions:
         result = append_decisions(tmp_path, decs, run_id="run-1")
 
         assert result is not None
-        table = pq.read_table(result)
+        table = read_decisions(tmp_path)
         assert table.num_rows == 3
 
     def test_parquet_readable_by_duckdb(self, tmp_path: Path) -> None:
@@ -405,8 +406,7 @@ class TestAppendDecisions:
 
         append_decisions(tmp_path, [dec1, dec2], run_id="run-analytics")
 
-        parquet_path = tmp_path / "decisions.parquet"
-        table = pq.read_table(parquet_path)
+        table = read_decisions(tmp_path)
 
         assert table.num_rows == 2
 
@@ -422,23 +422,46 @@ class TestAppendDecisions:
         run_ids = table.column("run_id").to_pylist()
         assert all(r == "run-analytics" for r in run_ids)
 
-    def test_append_survives_corrupt_existing(self, tmp_path: Path) -> None:
-        """If the existing parquet is corrupt, append fails open (returns None, no crash)."""
-        parquet_path = tmp_path / "decisions.parquet"
+    def test_append_survives_prior_corrupt_part(self, tmp_path: Path) -> None:
+        """A corrupted earlier part-file must never block a later append.
 
-        # Write valid parquet first
+        True append semantics mean append_decisions() never reads (or even
+        looks at) prior part-files, so a corrupt sibling part cannot fail —
+        or slow down — a later append call.
+        """
+        parts_dir = tmp_path / "decisions.parquet"
+
         dec = _decision()
         append_decisions(tmp_path, [dec], run_id="run-1")
-        assert parquet_path.exists()
+        assert parts_dir.exists()
 
-        # Corrupt the file by overwriting with garbage bytes
-        parquet_path.write_bytes(b"this is not a valid parquet file at all\x00\xff\xfe")
+        # Corrupt a "previous" part file directly.
+        (parts_dir / "part-corrupt.parquet").write_bytes(
+            b"this is not a valid parquet file at all\x00\xff\xfe"
+        )
 
-        # Append should fail open — no exception, returns None
+        # A new append must still succeed — it never touches existing parts.
         dec2 = _decision(package_name="httpx")
         result = append_decisions(tmp_path, [dec2], run_id="run-2")
 
-        assert result is None  # fail-open: no crash, no side effects
+        assert result is not None
+        assert result == parts_dir
+
+    def test_read_decisions_fails_open_on_corrupt_part(self, tmp_path: Path) -> None:
+        """read_decisions() fails open (returns None, no crash) on a corrupt part."""
+        dec = _decision()
+        append_decisions(tmp_path, [dec], run_id="run-1")
+
+        parts_dir = tmp_path / "decisions.parquet"
+        (parts_dir / "part-corrupt.parquet").write_bytes(
+            b"this is not a valid parquet file at all\x00\xff\xfe"
+        )
+
+        assert read_decisions(tmp_path) is None
+
+    def test_read_decisions_missing_dataset_returns_none(self, tmp_path: Path) -> None:
+        """read_decisions() returns None when nothing has ever been appended."""
+        assert read_decisions(tmp_path) is None
 
     def test_append_creates_parent_directories(self, tmp_path: Path) -> None:
         """append_decisions creates missing parent directories."""
@@ -460,7 +483,7 @@ class TestAppendDecisions:
         dec2 = _decision(package_name="httpx")
         append_decisions(tmp_path, [dec2], run_id="run-2")
 
-        table = pq.read_table(tmp_path / "decisions.parquet")
+        table = read_decisions(tmp_path)
         names = table.column("package_name").to_pylist()
         assert "requests" in names
         assert "httpx" in names
@@ -473,7 +496,7 @@ class TestAppendDecisions:
         append_decisions(tmp_path, [dec1], run_id="run-A")
         append_decisions(tmp_path, [dec2], run_id="run-B")
 
-        table = pq.read_table(tmp_path / "decisions.parquet")
+        table = read_decisions(tmp_path)
         run_ids = set(table.column("run_id").to_pylist())
         assert run_ids == {"run-A", "run-B"}
 

@@ -3,18 +3,14 @@
 
 These tests detect when SBOM payloads are embedded in JSON reports,
 which can cause performance issues and information leakage (#257).
+
+Status: fixed — render_json() sanitizes plugin summaries (drops the "sbom"
+key and any large nested dict/list value) before rendering.
 """
 
 from __future__ import annotations
 
 import json
-
-import pytest
-
-pytestmark = pytest.mark.xfail(
-    reason="deterministic bug detector",
-    strict=False,
-)
 
 
 def test_257_json_reports_do_not_embed_full_sbom_payloads() -> None:
