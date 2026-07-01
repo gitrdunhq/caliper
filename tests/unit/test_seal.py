@@ -118,10 +118,11 @@ class TestVerifyTamperDetection:
         assert any("missing" in e for e in result["errors"])
 
     def test_verify_detects_added_file(self, tmp_path: Path) -> None:
-        """Adding a file after sealing does not break the seal.
+        """Adding a file after sealing must break the seal (#230).
 
-        The seal only covers the artifacts that existed at sealing time.
-        An added file is not in the manifest and is invisible to verify_seal.
+        The seal manifest is a complete inventory of the evidence directory
+        at sealing time — a file added afterward is unaccounted-for evidence
+        and verify_seal must flag it, not silently pass.
         """
         (tmp_path / "file_a.txt").write_text("original content")
         create_seal(tmp_path, "run/001", "abc123", "")
@@ -130,7 +131,8 @@ class TestVerifyTamperDetection:
         (tmp_path / "file_b.txt").write_text("new file — not sealed")
 
         result = verify_seal(tmp_path)
-        assert result["valid"] is True
+        assert result["valid"] is False
+        assert any("unexpected" in e and "file_b.txt" in e for e in result["errors"])
 
     def test_verify_catches_modified_manifest(self, tmp_path: Path) -> None:
         """Manually editing manifest_hash in seal.json → verify fails."""
