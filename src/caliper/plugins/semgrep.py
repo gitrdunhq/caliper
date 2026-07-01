@@ -83,14 +83,20 @@ class SemgrepPlugin(ScannerPlugin):
                 rel_path = str(Path(raw_path).relative_to(repo_path))
             except ValueError:
                 rel_path = raw_path
+            extra = r.get("extra", {})
+            # Prefer opengrep/semgrep's native autofix (`extra.fix`) over the
+            # custom `extra.metadata.fix_suggestion` convention some rule YAMLs
+            # use; fall back to "" so the key always round-trips (#276).
+            fix_suggestion = extra.get("fix") or extra.get("metadata", {}).get("fix_suggestion", "")
             findings.append(
                 {
                     "rule_id": r.get("check_id", "?"),
                     "file": rel_path,
                     "start_line": r.get("start", {}).get("line", 0),
                     "end_line": r.get("end", {}).get("line", 0),
-                    "severity": r.get("extra", {}).get("severity", "WARNING"),
-                    "message": r.get("extra", {}).get("message", ""),
+                    "severity": extra.get("severity", "WARNING"),
+                    "message": extra.get("message", ""),
+                    "fix_suggestion": fix_suggestion,
                 }
             )
         findings.sort(key=lambda f: {"ERROR": 0, "WARNING": 1, "INFO": 2}.get(f["severity"], 3))
