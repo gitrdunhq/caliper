@@ -15,7 +15,7 @@
 
 Caliper — fully deterministic dependency, security, and code review for CI.
 19 scanner plugins, 21 deterministic detectors, 61 custom semgrep rules, 12 code graph
-checks, 10 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
+checks, 11 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
 ## Quick Numbers
@@ -26,7 +26,7 @@ supply-chain version-bump narrative is advisory metadata only).
 | Deterministic detectors | 21 (CAL-001..CAL-021) |
 | Custom semgrep rules | 61 (11 rule files) |
 | Code graph SQL checks | 12 |
-| OPA Rego policy rules | 10 (5 deny, 5 warn) |
+| OPA Rego policy rules | 11 (5 deny, 6 warn) |
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
 | Finding scribes | 4 (enclosing-symbol, code-graph, semgrep opt-in, supply-chain-threat opt-in) |
@@ -238,7 +238,7 @@ All in `plugins/_runners/checks.yaml`. Executed by the blast-radius plugin again
 
 ---
 
-## OPA Policy Rules (10 rules)
+## OPA Policy Rules (11 rules)
 
 File: `policies/policy.rego`. Consumes findings from all plugins.
 
@@ -254,12 +254,15 @@ File: `policies/policy.rego`. Consumes findings from all plugins.
 | Supply-chain note | warn | severity medium + category supply_chain |
 | Dev-scope vulnerability exemption | warn | critical/high vulnerability, pkg.scope == "dev", `rules_enabled.dev_scope_exemption` true, advisory_id not "MAL-"-prefixed |
 | Dev-scope license exemption | warn | forbidden license, pkg.scope == "dev", `rules_enabled.dev_scope_exemption` true |
+| Unmaintained package | warn | days since pkg.last_release_date > max_days_since_release (default 365); fails open when last_release_date absent/null (#346) |
 
 Decision: any deny → reject. No deny + any warn → approve_with_constraints. Else → approve.
 All rules individually toggleable via `config.rules_enabled.*`. `dev_scope_exemption`
 defaults to `false` (opt-in) — when enabled, it downgrades the critical/high-vulnerability
 and forbidden-license deny rules to warn for `pkg.scope == "dev"` packages only; a
-`MAL-`-prefixed advisory always denies regardless (#345).
+`MAL-`-prefixed advisory always denies regardless (#345). `unmaintained_package` also
+defaults to `false` (opt-in) — when enabled, it warns on stale packages using
+`input.pkg.last_release_date` (#346).
 
 ---
 

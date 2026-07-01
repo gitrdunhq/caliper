@@ -552,3 +552,55 @@ test_dev_scope_forbidden_license_downgraded_to_warn if {
 	contains(msg, "GPL-3.0-only")
 	contains(msg, "dev-scope exemption")
 }
+
+# --- T-346: Unmaintained package rule ---
+
+unmaintained_config := object.union(base_config, {"rules_enabled": object.union(
+	base_config.rules_enabled,
+	{"unmaintained_package": true},
+)})
+
+test_stale_package_unmaintained_warn if {
+	stale_package := object.union(base_package, {"last_release_date": "2020-01-01T00:00:00Z"})
+	inp := {
+		"findings": [],
+		"pkg": stale_package,
+		"config": unmaintained_config,
+	}
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "no release")
+}
+
+test_stale_package_unmaintained_disabled_no_warn if {
+	stale_package := object.union(base_package, {"last_release_date": "2020-01-01T00:00:00Z"})
+	inp := {
+		"findings": [],
+		"pkg": stale_package,
+		"config": base_config,
+	}
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+test_fresh_package_unmaintained_no_warn if {
+	fresh_package := object.union(base_package, {"last_release_date": "2099-01-01T00:00:00Z"})
+	inp := {
+		"findings": [],
+		"pkg": fresh_package,
+		"config": unmaintained_config,
+	}
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+test_missing_last_release_date_unmaintained_no_warn if {
+	inp := {
+		"findings": [],
+		"pkg": base_package,
+		"config": unmaintained_config,
+	}
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}

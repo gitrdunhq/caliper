@@ -31,6 +31,7 @@ Each element represents a single finding from a security scanner.
 | `scope` | string | yes | Dependency scope: `"runtime"` or `"dev"` |
 | `environment_sensitivity` | string | yes | Deployment context (e.g. `"internet-facing"`, `"internal"`) |
 | `first_published_date` | string (RFC 3339) | yes | When the package was first published. Used by the package-age rule |
+| `last_release_date` | string (RFC 3339) | conditional | When the package's most recent version was published. Used by the unmaintained-package rule; absent/null fails that rule open |
 | `transitive_dep_count` | integer | yes | Number of transitive dependencies this package pulls in |
 
 ## `input.config` — policy configuration
@@ -40,6 +41,7 @@ Each element represents a single finding from a security scanner.
 | `forbidden_licenses` | array of string | `[]` | SPDX license IDs that are not allowed |
 | `max_transitive_deps` | integer | `200` | Maximum transitive dependency count before a warning fires |
 | `min_package_age_days` | integer | `90` | Minimum age in days a package must have been published |
+| `max_days_since_release` | integer | `365` | Maximum days since `input.pkg.last_release_date` before the unmaintained-package rule warns |
 | `rules_enabled` | object | (see below) | Per-rule toggle; see below |
 
 ### `input.config.rules_enabled`
@@ -55,6 +57,7 @@ Each key toggles a specific policy rule. Set to `false` to disable (or, for
 | `malicious_package` | MAL- prefix advisory deny | `true` |
 | `transitive_count` | Transitive dependency count warn | `true` |
 | `dev_scope_exemption` | Downgrades `critical_vuln`/`forbidden_license` deny to warn when `input.pkg.scope == "dev"`. A `MAL-` prefixed advisory (known-malicious package) always denies regardless of this setting. | `false` |
+| `unmaintained_package` | Warns when `input.pkg.last_release_date` is older than `max_days_since_release`. Fails open (no warn) when `last_release_date` is absent or null. | `false` |
 
 ## Output Shape
 

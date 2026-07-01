@@ -56,6 +56,11 @@ _DEFAULT_RULES_ENABLED: dict[str, bool] = {
     # is opted in without explicitly enabling it. See policies/policy.rego
     # T-345 and _dev_scope_downgraded.
     "dev_scope_exemption": False,
+    # Opt-in: warns when a package has had no release in
+    # input.config.max_days_since_release days (default 365). Default False
+    # -- unmaintained-package signal is advisory, not everyone wants it on.
+    # See policies/policy.rego T-346.
+    "unmaintained_package": False,
 }
 
 _DEFAULT_CONFIG: dict[str, object] = {
