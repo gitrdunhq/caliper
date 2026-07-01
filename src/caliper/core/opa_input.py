@@ -51,6 +51,11 @@ _DEFAULT_RULES_ENABLED: dict[str, bool] = {
     "malicious_package": True,
     "transitive_count": True,
     "supply_chain_diff": True,
+    # Opt-in: downgrades critical_vuln/forbidden_license deny to warn for
+    # dev-scope (input.pkg.scope == "dev") packages. Default False so no one
+    # is opted in without explicitly enabling it. See policies/policy.rego
+    # T-345 and _dev_scope_downgraded.
+    "dev_scope_exemption": False,
 }
 
 _DEFAULT_CONFIG: dict[str, object] = {
