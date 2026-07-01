@@ -1,0 +1,11 @@
+[Unit]
+Description=Caliper GitHub Actions runner health check (calls scripts/runner-healthcheck.sh)
+Documentation=file:scripts/runner-healthcheck.sh
+
+[Service]
+Type=oneshot
+# BEFORE INSTALLING: replace the placeholder path below with the actual
+# absolute path to runner-healthcheck.sh on this machine — systemd unit
+# files are not templated, so this substitution is a one-time manual edit.
+# See the install instructions in scripts/runner-healthcheck.sh for the full command.
+ExecStart=/bin/bash /REPLACE/WITH/ABSOLUTE/PATH/TO/caliper/scripts/runner-healthcheck.sh
