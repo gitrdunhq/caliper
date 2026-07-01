@@ -4,7 +4,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from caliper.core.config import CaliperSettings
 from caliper.core.plugin import PluginResult
+from caliper.plugins import complexity as complexity_mod
 from caliper.plugins.complexity import ComplexityPlugin
 
 
@@ -135,3 +139,35 @@ class TestComplexityRenderTypeCoercion:
         plugin = ComplexityPlugin()
         output = plugin._render_inline(result)
         assert output  # must produce some output rather than crashing
+
+
+class TestComplexityPluginTimeout:
+    """ComplexityPlugin must honor CaliperSettings.scanner_timeout (#432a)."""
+
+    def test_run_passes_scanner_timeout_from_settings(self, monkeypatch, tmp_path: Path) -> None:
+        captured: dict = {}
+
+        def fake_run(files, repo_path, timeout=60):
+            captured["timeout"] = timeout
+            return {"functions": [], "summary": {}}
+
+        monkeypatch.setattr(complexity_mod, "_run", fake_run)
+
+        plugin = ComplexityPlugin(settings=CaliperSettings(scanner_timeout=5))
+        plugin.run(["a.py"], tmp_path)
+
+        assert captured["timeout"] == 5
+
+    def test_run_defaults_to_60_without_settings(self, monkeypatch, tmp_path: Path) -> None:
+        captured: dict = {}
+
+        def fake_run(files, repo_path, timeout=60):
+            captured["timeout"] = timeout
+            return {"functions": [], "summary": {}}
+
+        monkeypatch.setattr(complexity_mod, "_run", fake_run)
+
+        plugin = ComplexityPlugin()
+        plugin.run(["a.py"], tmp_path)
+
+        assert captured["timeout"] == 60

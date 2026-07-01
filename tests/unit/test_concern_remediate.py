@@ -62,6 +62,39 @@ class TestRemediator:
         remediator.close()
 
     @respx.mock
+    def test_remediate_uses_fix_suggestion_from_real_plugin_finding(self, tmp_path: Path) -> None:
+        """fix_suggestion reaches Haiku's prompt from a real PluginFinding.to_dict(),
+        not just a hand-authored test fixture dict (#276)."""
+        from caliper.core.concern_remediate import Remediator
+        from caliper.core.plugin import PluginFinding
+
+        route = respx.post("https://api.anthropic.com/v1/messages").mock(
+            return_value=respx.MockResponse(200, json=_anthropic_response(SAMPLE_HAIKU_PATCH))
+        )
+
+        # This is the shape scanner plugins (e.g. semgrep) actually emit —
+        # fix_suggestion populated from rule metadata, not a test literal.
+        plugin_finding = PluginFinding(
+            id="rule.sql-injection",
+            severity="CRITICAL",
+            message="SQL Injection via file paths in run_checks()",
+            file="src/caliper/plugins/_runners/graph_builder.py",
+            line=144,
+            fix_suggestion="Use parameterized queries instead of string interpolation",
+        )
+
+        remediator = Remediator(api_key="sk-test")
+        result = remediator.remediate_finding(
+            finding=plugin_finding.to_dict(),
+            source_code="placeholders = ','.join(f\"'{f}'\" for f in changed_files)\n",
+        )
+
+        assert result != ""
+        sent_body = route.calls.last.request.content.decode()
+        assert "Use parameterized queries instead of string interpolation" in sent_body
+        remediator.close()
+
+    @respx.mock
     def test_timeout_returns_empty(self) -> None:
         """Timeout returns empty, does not raise."""
         import httpx as _httpx

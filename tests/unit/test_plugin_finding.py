@@ -42,7 +42,20 @@ class TestPluginFindingContract:
         assert f.version == ""
         assert f.fixed_version == ""
         assert f.rule_id == ""
+        assert f.fix_suggestion == ""
         assert f.metadata == {}
+
+    def test_finding_has_fix_suggestion_field(self) -> None:
+        """fix_suggestion carries a rule's remediation text (#276)."""
+        from caliper.core.plugin import PluginFinding
+
+        f = PluginFinding(
+            id="X",
+            severity="high",
+            message="SQL injection",
+            fix_suggestion="Use parameterized queries instead of string interpolation",
+        )
+        assert f.fix_suggestion == "Use parameterized queries instead of string interpolation"
 
     def test_metadata_preserves_unknown_keys(self) -> None:
         from caliper.core.plugin import PluginFinding
@@ -71,6 +84,19 @@ class TestPluginFindingContract:
         assert d["severity"] == "high"
         assert d["file"] == "x.py"
         assert isinstance(d, dict)
+
+    def test_finding_to_dict_includes_fix_suggestion(self) -> None:
+        """to_dict() surfaces fix_suggestion instead of silently dropping it (#276)."""
+        from caliper.core.plugin import PluginFinding
+
+        f = PluginFinding(
+            id="CVE-1",
+            severity="high",
+            message="bad",
+            fix_suggestion="patch it",
+        )
+        d = f.to_dict()
+        assert d["fix_suggestion"] == "patch it"
 
 
 class TestPluginFindingIsFrozenContract:
@@ -178,6 +204,20 @@ class TestNormalizeFindings:
         assert finding.id == ""
         assert finding.file == ""
         assert finding.line == 0
+
+    def test_normalize_treats_fix_suggestion_as_known_key(self) -> None:
+        """fix_suggestion round-trips as a typed field, not into metadata (#276)."""
+        from caliper.core.plugin import normalize_finding
+
+        raw = {
+            "id": "rule.sql-injection",
+            "severity": "critical",
+            "message": "SQL injection",
+            "fix_suggestion": "Use parameterized queries instead of string interpolation",
+        }
+        finding = normalize_finding(raw)
+        assert finding.fix_suggestion == "Use parameterized queries instead of string interpolation"
+        assert "fix_suggestion" not in finding.metadata
 
     def test_normalize_preserves_all_unknown_keys_in_metadata(self) -> None:
         from caliper.core.plugin import normalize_finding
