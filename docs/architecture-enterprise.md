@@ -120,6 +120,9 @@ The sections below detail each gap. The summary:
 | Scanner binaries | Partial | Individual scanner failure is handled; if all fail, no findings are produced |
 | GitHub Actions runner | Yes | No PR reviews posted until runner recovers |
 
+For the `NullRepository` fallback and the DB-free `caliper review` command,
+see README.md's "Running without a database (scanner-only mode)" section.
+
 **Required changes:**
 
 1. **PostgreSQL HA.** Standard Postgres HA: primary + streaming replica with automatic failover (Patroni, or managed Postgres like RDS/CloudSQL). No code changes needed -- `db_dsn` points to the primary, failover is transparent.
