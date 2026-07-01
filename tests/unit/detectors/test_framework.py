@@ -533,6 +533,36 @@ class TestDetectorFindingConversion:
         finding = detector_finding.to_finding()
         assert finding.confidence == 0.95
 
+    def test_to_finding_preserves_file_path(self, detector_finding):
+        """file_path is carried through to the core Finding model (#432b)."""
+        finding = detector_finding.to_finding()
+        assert finding.file_path == "/path/file.py"
+
+    def test_to_finding_preserves_line_number(self, detector_finding):
+        """line_number is carried through to the core Finding model (#432b)."""
+        finding = detector_finding.to_finding()
+        assert finding.line_number == 42
+
+    def test_to_finding_preserves_column(self):
+        """column is carried through to the core Finding model when set (#432b)."""
+        detector_finding = DetectorFinding(
+            detector_id="CAL-001",
+            detector_name="JWT Missing Audience",
+            category=DetectorCategory.security,
+            severity=FindingSeverity.high,
+            file_path="/path/file.py",
+            line_number=42,
+            column=10,
+            message="jwt.encode() missing 'aud' claim",
+        )
+        finding = detector_finding.to_finding()
+        assert finding.column == 10
+
+    def test_to_finding_column_defaults_to_none(self, detector_finding):
+        """column is None when the detector finding did not set one."""
+        finding = detector_finding.to_finding()
+        assert finding.column is None
+
 
 # =============================================================================
 # Suppression Tests (VAL-H2: noqa CAL-XXX comment support)

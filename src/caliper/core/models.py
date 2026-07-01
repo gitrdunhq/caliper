@@ -139,6 +139,9 @@ class Finding(BaseModel):
     advisory_url: str | None = None
     license_id: str | None = None
     confidence: float | None = None
+    file_path: str | None = None
+    line_number: int | None = None
+    column: int | None = None
 
 
 class ScanResult(BaseModel):
