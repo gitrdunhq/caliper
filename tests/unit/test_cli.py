@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -17,6 +18,17 @@ index 000..111 100644
 @@ -1 +1,2 @@
 +print("hello")
 """
+
+
+class _FakeDecision:
+    """Minimal stand-in for ReviewDecision -- exposes memo_text + model_dump."""
+
+    def __init__(self, memo_text: str, payload: dict) -> None:
+        self.memo_text = memo_text
+        self._payload = payload
+
+    def model_dump(self, mode: str = "json") -> dict:
+        return self._payload
 
 
 class TestEvaluateNoDependencyChanges:
@@ -177,6 +189,253 @@ class TestEvaluateAlwaysExitsZero:
         assert result.exit_code == 0
 
 
+class TestEvaluateOptionalFlags:
+    """--pr-url and --team are optional; --team defaults to 'unknown' (#403)."""
+
+    def test_pr_url_omitted_succeeds(self) -> None:
+        """Omitting --pr-url no longer raises BadParameter; the pipeline still runs."""
+        runner = CliRunner()
+        env = {"CALIPER_DB_DSN": "postgresql://test:test@localhost/test"}
+
+        with runner.isolated_filesystem():
+            with open("empty.diff", "w") as f:
+                f.write(DIFF_NO_DEPS)
+
+            result = runner.invoke(
+                cli,
+                [
+                    "evaluate",
+                    "--repo-path",
+                    ".",
+                    "--diff",
+                    "empty.diff",
+                    "--team",
+                    "platform",
+                    "--operating-mode",
+                    "monitor",
+                ],
+                env=env,
+            )
+
+        assert result.exit_code == 0
+        assert "no dependency changes detected" in result.output.lower()
+
+    def test_team_omitted_succeeds(self) -> None:
+        """Omitting --team no longer raises BadParameter; the pipeline still runs."""
+        runner = CliRunner()
+        env = {"CALIPER_DB_DSN": "postgresql://test:test@localhost/test"}
+
+        with runner.isolated_filesystem():
+            with open("empty.diff", "w") as f:
+                f.write(DIFF_NO_DEPS)
+
+            result = runner.invoke(
+                cli,
+                [
+                    "evaluate",
+                    "--repo-path",
+                    ".",
+                    "--diff",
+                    "empty.diff",
+                    "--pr-url",
+                    "https://github.com/org/repo/pull/1",
+                    "--operating-mode",
+                    "monitor",
+                ],
+                env=env,
+            )
+
+        assert result.exit_code == 0
+
+    def test_team_explicit_unknown_succeeds(self) -> None:
+        """Passing --team unknown explicitly is accepted (it is now in _ALLOWED_TEAMS)."""
+        runner = CliRunner()
+        env = {"CALIPER_DB_DSN": "postgresql://test:test@localhost/test"}
+
+        with runner.isolated_filesystem():
+            with open("empty.diff", "w") as f:
+                f.write(DIFF_NO_DEPS)
+
+            result = runner.invoke(
+                cli,
+                [
+                    "evaluate",
+                    "--repo-path",
+                    ".",
+                    "--diff",
+                    "empty.diff",
+                    "--pr-url",
+                    "https://github.com/org/repo/pull/1",
+                    "--team",
+                    "unknown",
+                    "--operating-mode",
+                    "monitor",
+                ],
+                env=env,
+            )
+
+        assert result.exit_code == 0
+
+    def test_pr_url_and_team_defaults_passed_to_pipeline(self) -> None:
+        """Omitted --pr-url/--team flow through as None / 'unknown' to pipeline.evaluate."""
+        runner = CliRunner()
+
+        with (
+            patch("caliper.core.config.CaliperSettings") as mock_settings,
+            patch("caliper.composition.bootstrap.bootstrap", return_value=MagicMock()),
+            patch("caliper.core.pipeline.ReviewPipeline") as mock_pipeline_cls,
+        ):
+            mock_settings.return_value = MagicMock()
+            mock_pipeline_cls.return_value.evaluate.return_value = []
+
+            with runner.isolated_filesystem():
+                with open("empty.diff", "w") as f:
+                    f.write(DIFF_NO_DEPS)
+
+                result = runner.invoke(
+                    cli,
+                    [
+                        "evaluate",
+                        "--repo-path",
+                        ".",
+                        "--diff",
+                        "empty.diff",
+                        "--operating-mode",
+                        "monitor",
+                    ],
+                    env={"CALIPER_DB_DSN": "postgresql://test:test@localhost/test"},
+                )
+
+        assert result.exit_code == 0
+        _, kwargs = mock_pipeline_cls.return_value.evaluate.call_args
+        assert kwargs["pr_url"] is None
+        assert kwargs["team"] == "unknown"
+
+    def test_team_invalid_still_rejected(self) -> None:
+        """Regression: an invalid --team value is still rejected (validator not a no-op)."""
+        runner = CliRunner()
+
+        with runner.isolated_filesystem():
+            with open("empty.diff", "w") as f:
+                f.write(DIFF_NO_DEPS)
+
+            result = runner.invoke(
+                cli,
+                [
+                    "evaluate",
+                    "--repo-path",
+                    ".",
+                    "--diff",
+                    "empty.diff",
+                    "--pr-url",
+                    "https://github.com/org/repo/pull/1",
+                    "--team",
+                    "not-a-real-team",
+                    "--operating-mode",
+                    "monitor",
+                ],
+                input="",
+            )
+
+        assert result.exit_code != 0
+        assert "Team must be one of" in result.output or "Error" in result.output
+
+
+class TestEvaluateOutputJsonStdout:
+    """--output-json - streams JSON to stdout, memo text redirected to stderr (#403)."""
+
+    def test_output_json_dash_writes_json_to_stdout_only(self) -> None:
+        """--output-json - emits parseable JSON on stdout; memo text is NOT in stdout."""
+        runner = CliRunner()
+        fake_decision = _FakeDecision(
+            memo_text="some memo text that must not leak to stdout",
+            payload={"decision": "approve", "id": "abc"},
+        )
+
+        with (
+            patch("caliper.core.config.CaliperSettings") as mock_settings,
+            patch("caliper.composition.bootstrap.bootstrap", return_value=MagicMock()),
+            patch("caliper.core.pipeline.ReviewPipeline") as mock_pipeline_cls,
+        ):
+            mock_settings.return_value = MagicMock()
+            mock_pipeline_cls.return_value.evaluate.return_value = [fake_decision]
+
+            with runner.isolated_filesystem():
+                with open("changes.diff", "w") as f:
+                    f.write(DIFF_NO_DEPS)
+
+                result = runner.invoke(
+                    cli,
+                    [
+                        "evaluate",
+                        "--repo-path",
+                        ".",
+                        "--diff",
+                        "changes.diff",
+                        "--pr-url",
+                        "https://github.com/org/repo/pull/1",
+                        "--team",
+                        "platform",
+                        "--operating-mode",
+                        "monitor",
+                        "--output-json",
+                        "-",
+                    ],
+                    env={"CALIPER_DB_DSN": "postgresql://test:test@localhost/test"},
+                )
+
+        assert result.exit_code == 0
+        parsed = json.loads(result.stdout)
+        assert parsed == {"decision": "approve", "id": "abc"}
+        assert "some memo text" not in result.stdout
+        assert "some memo text" in result.stderr
+
+    def test_output_json_path_keeps_memo_on_stdout_and_writes_file(self) -> None:
+        """A real file path (not '-') keeps the existing behavior: memo on stdout, JSON to file."""
+        runner = CliRunner()
+        fake_decision = _FakeDecision(
+            memo_text="memo goes to stdout as before",
+            payload={"decision": "approve", "id": "xyz"},
+        )
+
+        with (
+            patch("caliper.core.config.CaliperSettings") as mock_settings,
+            patch("caliper.composition.bootstrap.bootstrap", return_value=MagicMock()),
+            patch("caliper.core.pipeline.ReviewPipeline") as mock_pipeline_cls,
+        ):
+            mock_settings.return_value = MagicMock()
+            mock_pipeline_cls.return_value.evaluate.return_value = [fake_decision]
+
+            with runner.isolated_filesystem():
+                with open("changes.diff", "w") as f:
+                    f.write(DIFF_NO_DEPS)
+
+                result = runner.invoke(
+                    cli,
+                    [
+                        "evaluate",
+                        "--repo-path",
+                        ".",
+                        "--diff",
+                        "changes.diff",
+                        "--pr-url",
+                        "https://github.com/org/repo/pull/1",
+                        "--team",
+                        "platform",
+                        "--operating-mode",
+                        "monitor",
+                        "--output-json",
+                        "out.json",
+                    ],
+                    env={"CALIPER_DB_DSN": "postgresql://test:test@localhost/test"},
+                )
+
+                assert result.exit_code == 0
+                assert "memo goes to stdout as before" in result.stdout
+                written = json.loads(Path("out.json").read_text())
+                assert written == {"decision": "approve", "id": "xyz"}
+
+
 class TestReviewWatchFlag:
     """Tests for --watch flag on the review command."""
 
@@ -298,7 +557,6 @@ class TestReviewFormatSarif:
 
     def test_sarif_output_is_valid_json(self) -> None:
         """--format sarif produces parseable JSON on stdout."""
-        import json
 
         runner = CliRunner()
         with runner.isolated_filesystem():
@@ -312,7 +570,6 @@ class TestReviewFormatSarif:
 
     def test_sarif_output_has_version_field(self) -> None:
         """SARIF output contains version == '2.1.0'."""
-        import json
 
         runner = CliRunner()
         with runner.isolated_filesystem():
@@ -326,7 +583,6 @@ class TestReviewFormatSarif:
 
     def test_sarif_output_has_schema_field(self) -> None:
         """SARIF output contains a $schema key pointing to the SARIF 2.1.0 schema."""
-        import json
 
         runner = CliRunner()
         with runner.isolated_filesystem():
@@ -341,7 +597,6 @@ class TestReviewFormatSarif:
 
     def test_sarif_output_has_runs_key(self) -> None:
         """SARIF output contains a 'runs' list."""
-        import json
 
         runner = CliRunner()
         with runner.isolated_filesystem():
@@ -386,7 +641,6 @@ class TestReviewFormatSarif:
 
     def test_sarif_output_file_contains_valid_sarif(self) -> None:
         """The file written by --output contains valid SARIF JSON."""
-        import json
         from pathlib import Path
 
         runner = CliRunner()
