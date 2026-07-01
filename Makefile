@@ -27,20 +27,27 @@ TEST_IMAGE ?= caliper-test:$(HOST_ARCH)
 PROD_PLATFORM ?= linux/amd64
 PROD_IMAGE ?= caliper:amd64
 
-# All container builds route through scripts/build.sh + scripts/build-test.sh —
-# they strip --security=insecure RUN directives for podman (unsupported on Mac)
-# and set up the buildx insecure-entitlement builder for docker. Invoking
-# podman/docker directly against Dockerfile/Dockerfile.test here would
-# reintroduce that divergent, unstripped code path (#448).
+# The build step routes through scripts/build-test.sh, which strips
+# --security=insecure RUN directives for podman (unsupported on Mac) and sets
+# up the buildx insecure-entitlement builder for docker. Invoking podman/docker
+# directly against Dockerfile.test here would reintroduce that divergent,
+# unstripped code path (#448). The run step stays inline so it keeps invoking
+# /opt/test-venv/bin/python directly against the image-built venv (#203).
 test-build:
 	@bash scripts/build-test.sh --build-only $(if $(filter linux/amd64,$(TEST_PLATFORM)),--amd64,--fast)
 
-test:
-	@bash scripts/build-test.sh $(if $(filter linux/amd64,$(TEST_PLATFORM)),--amd64,--fast)
+test: test-build
+	@$(CONTAINER_ENGINE) run --rm \
+		--platform $(TEST_PLATFORM) \
+		$(CONTAINER_RUN_SECURITY) \
+		--env CI \
+		--entrypoint "" \
+		$(TEST_IMAGE) \
+		/opt/test-venv/bin/python -m pytest tests/ -v
 
 # Explicit emulated CI-parity run (amd64 even on an arm64 host).
 test-amd64:
-	@bash scripts/build-test.sh --amd64
+	@$(MAKE) test TEST_PLATFORM=linux/amd64 TEST_IMAGE=caliper-test:amd64
 
 prod-build:
 	@bash scripts/build.sh $(if $(filter linux/amd64,$(PROD_PLATFORM)),amd64,arm64)

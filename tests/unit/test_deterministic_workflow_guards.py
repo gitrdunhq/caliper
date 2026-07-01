@@ -333,20 +333,19 @@ def test_make_test_does_not_bind_mount_over_container_built_uv_environment() -> 
 
 def test_make_prod_build_allows_buildkit_insecure_for_docker_uv_steps() -> None:
     """#229: prod builds must permit Dockerfile uv steps that need insecure BuildKit."""
-    makefile = _read_text("Makefile")
     prod_build_body = _make_target_body("prod-build")
+    build_script = _read_text("scripts/build.sh")
 
     assert "RUN --security=insecure" in _read_text(
         "Dockerfile"
     ), "Dockerfile must declare BuildKit insecure mode on uv RUN steps."
     assert (
-        "PROD_BUILD_COMMAND ?=" in makefile
-    ), "Makefile must centralize prod image build command selection."
-    assert "buildx build --allow security.insecure --load" in makefile, (
-        "Docker prod builds must use buildx with --allow security.insecure when "
+        "bash scripts/build.sh" in prod_build_body
+    ), "prod-build must delegate to scripts/build.sh (#448) — the single source of truth for build-engine flags."
+    assert "--allow security.insecure" in build_script, (
+        "scripts/build.sh must use buildx with --allow security.insecure when "
         "the Dockerfile contains RUN --security=insecure."
     )
-    assert "$(PROD_BUILD_COMMAND)" in prod_build_body, "prod-build must use PROD_BUILD_COMMAND."
 
 
 def test_required_workflows_run_container_tests_and_quality_gates() -> None:
