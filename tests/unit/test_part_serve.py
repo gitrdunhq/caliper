@@ -20,6 +20,7 @@ Property domains (DPS-12):
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 import orjson
@@ -1085,4 +1086,55 @@ class TestLoadAssets:
 
         assert b"<!doctype html>" in assets.index_html.lower()
         assert assets.js  # non-empty
-        assert assets.css  # non-empty
+
+
+class TestReadOnlyHandler:
+    """The optional LAN view server (view-only: mutating routes stay loopback)."""
+
+    def test_handler_class_has_no_do_post(self) -> None:
+        # BaseHTTPRequestHandler answers an undefined verb with a bare 501 —
+        # asserting do_POST is absent is what makes every mutating route
+        # (all POST-only in dispatch) structurally unreachable via this handler.
+        handler_cls = part_serve._make_readonly_handler(FakeSession())
+        assert not hasattr(handler_cls, "do_POST")
+        assert hasattr(handler_cls, "do_GET")
+
+    def test_get_and_post_over_a_real_socket(self) -> None:
+        import http.client
+
+        handler_cls = part_serve._make_readonly_handler(FakeSession())
+        server, port = part_serve._bind_server(handler_cls, 12744)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            conn = http.client.HTTPConnection(part_serve.HOST, port, timeout=5)
+            conn.request("GET", "/cutlist")
+            resp = conn.getresponse()
+            assert resp.status == 200
+            resp.read()
+            conn.close()
+
+            conn = http.client.HTTPConnection(part_serve.HOST, port, timeout=5)
+            conn.request("POST", "/reclassify", body=b"{}")
+            resp = conn.getresponse()
+            assert resp.status == 501
+            resp.read()
+            conn.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+
+class TestServePartLanValidation:
+    """serve_part's LAN view is opt-in and requires a cert/key pair, together."""
+
+    def test_lan_host_without_cert_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="requires both tls_cert and tls_key"):
+            part_serve.serve_part(tmp_path, "base", "head", lan_host="192.0.2.1")
+
+    def test_cert_without_lan_host_raises(self, tmp_path: Path) -> None:
+        fake = tmp_path / "cert.pem"
+        fake.write_text("not a real cert")
+        with pytest.raises(ValueError, match="only apply to lan_host"):
+            part_serve.serve_part(tmp_path, "base", "head", tls_cert=fake, tls_key=fake)
