@@ -12,26 +12,13 @@ import tempfile
 
 import structlog
 
+from caliper.core.opa_input import build_opa_input
 from caliper.core.policy_port import PolicyDecision, PolicyInput
 from caliper.core.tool_runner import ToolInvocation, ToolRunnerPort
 
 log = structlog.get_logger()
 
 _OPA_TIMEOUT = 10
-
-_OPA_DEFAULT_CONFIG = {
-    "forbidden_licenses": [],
-    "max_transitive_deps": 200,
-    "min_package_age_days": 90,
-    "rules_enabled": {
-        "critical_vuln": True,
-        "forbidden_license": True,
-        "package_age": True,
-        "malicious_package": True,
-        "transitive_count": True,
-        "supply_chain_diff": True,
-    },
-}
 
 
 class OpaRegoAdapter:
@@ -96,22 +83,21 @@ class OpaRegoAdapter:
         return self._parse_output(result.stdout)
 
     def _build_opa_input(self, input: PolicyInput) -> dict:
-        findings = [
-            {
-                "id": f.id,
-                "severity": f.severity,
-                "message": f.message,
-            }
-            for f in input.findings
-        ]
-        merged_config = dict(_OPA_DEFAULT_CONFIG)
-        if input.config:
-            merged_config.update(input.config)
-        return {
-            "findings": findings,
-            "pkg": input.packages[0] if input.packages else {},
-            "config": merged_config,
-        }
+        """Delegate to the canonical builder (``caliper.core.opa_input``).
+
+        This is the seam ``core/pipeline.py::_policy_evaluation`` feeds via
+        ``PolicyEnginePort`` — ``input.findings`` is a list of
+        ``PluginFinding`` value objects, not the core ``Finding`` model.
+        ``build_opa_input`` dispatches on the finding's runtime type, so the
+        full category/package_name/version/license_id/advisory_id/
+        source_tool shape reaches OPA here exactly as it does via
+        ``core/policy.py``'s supply-chain-diff / legacy path.
+        """
+        return build_opa_input(
+            findings=list(input.findings),
+            package_metadata=input.packages[0] if input.packages else {},
+            config=dict(input.config) if input.config else None,
+        )
 
     def _parse_output(self, stdout: str) -> PolicyDecision:
         try:
