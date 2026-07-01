@@ -19,14 +19,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import click
-import orjson
 
+from caliper.cli.part_describe import describer_from_env
+from caliper.cli.part_pipeline import run_part
+from caliper.cli.part_suggest import suggester_from_env
 from caliper.core.models import CutList, PartTarget
-from caliper.core.part_gate import PartingGateError, run_gate
-from caliper.core.part_script import probe_path_capability, render_restack_script, rollback_header
+from caliper.core.part_gate import PartingGateError
+from caliper.core.part_script import rollback_header
 from caliper.core.parting import PartingError
-from caliper.core.registries import PARTING
-from caliper.core.repo_config import load_repo_config
+from caliper.core.repo_config import OverrideRule, load_repo_config
 
 
 def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: str | None) -> str:
@@ -39,9 +40,12 @@ def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: 
         lines.append("ROLLBACK — the rollback header was emitted with the original restack.sh")
     lines.append("")
     p = cut.provenance
+    bucket_count = len({part.bucket for part in cut.parts})
+    cap_str = "none (1 part/bucket)" if cut.size_cap is None else str(cut.size_cap)
     lines.append(
-        f"cut list — {cut.stats.part_count} parts, {cut.stats.file_count} files, "
-        f"cap {cut.size_cap} (size p50={cut.stats.size_p50} p90={cut.stats.size_p90})"
+        f"cut list — {cut.stats.part_count} parts across {bucket_count} buckets, "
+        f"{cut.stats.file_count} files, cap {cap_str} "
+        f"(size p50={cut.stats.size_p50} p90={cut.stats.size_p90})"
     )
     lines.append(
         f"provenance: caliper {p.caliper_version or '?'}  base={p.base_sha or '?'}  "
@@ -70,13 +74,28 @@ def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: 
     return "\n".join(lines) + "\n"
 
 
-def _cutlist_json(cut: CutList) -> str:
-    return orjson.dumps(cut.model_dump(mode="json"), option=orjson.OPT_INDENT_2).decode()
+def _overrides_yaml(rules: list[OverrideRule]) -> str:
+    """Paste-ready ``parting.overrides`` block for the suggested rules (print mode)."""
+    lines = ["parting:", "  overrides:"]
+    for r in rules:
+        lines.append(f"    - glob: {r.glob!r}")
+        lines.append(f"      bucket: {r.bucket.value}")
+        if r.note:
+            lines.append(f"      note: {r.note!r}")
+    return "\n".join(lines)
 
 
 @click.command(name="part")
 @click.option("--base", default=None, help="Base revision (stock = --base..--head).")
 @click.option("--head", default=None, help="Head revision.")
+@click.option(
+    "--pr",
+    "pr_url",
+    default=None,
+    help="GitHub PR URL or number; clones the PR into a centralized workdir "
+    "(~/.config/caliper/state/part-pr, override via CALIPER_STATE_DIR) and parts "
+    "base..head (mutually exclusive with --base/--head).",
+)
 @click.option("--repo", "repo", type=click.Path(exists=True), default=".", help="Repository root.")
 @click.option(
     "--target",
@@ -108,6 +127,35 @@ def _cutlist_json(cut: CutList) -> str:
     "--port", type=int, default=None, help="Port for --serve (default 12700, loopback only)."
 )
 @click.option(
+    "--lan",
+    "lan_host",
+    default=None,
+    help="With --serve, also bind a read-only view server to this LAN IP (e.g. "
+    "192.168.1.50) so another device can browse the cut list. Mutating routes "
+    "(/apply, /reclassify, /repart, /restack, /pr, /range, /suggest/apply, "
+    "/rollback) stay loopback-only regardless. Requires --cert/--key.",
+)
+@click.option(
+    "--lan-port",
+    type=int,
+    default=None,
+    help="Port for --lan (default 12701; always separate from --port).",
+)
+@click.option(
+    "--cert",
+    "tls_cert",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="TLS cert for --lan (e.g. `mkcert 192.168.1.50` output).",
+)
+@click.option(
+    "--key",
+    "tls_key",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="TLS key for --lan (e.g. `mkcert 192.168.1.50` output).",
+)
+@click.option(
     "--describe/--no-describe",
     "describe_flag",
     default=None,
@@ -120,9 +168,30 @@ def _cutlist_json(cut: CutList) -> str:
     default=None,
     help="Model id for --describe (e.g. gemma4:e4b, llama3.2:3b); overrides env.",
 )
+@click.option(
+    "--suggest/--no-suggest",
+    "suggest_flag",
+    default=None,
+    help="Advisory: ask a local model to propose tier override globs for the untiered "
+    "'logic' residual (fail-soft, off the decision path). Default follows env "
+    "(CALIPER_SUGGESTER_MODEL + base URL).",
+)
+@click.option(
+    "--suggest-model",
+    "suggest_model",
+    default=None,
+    help="Model id for --suggest (e.g. llama3.1); overrides env. Falls back to --describe-model.",
+)
+@click.option(
+    "--suggest-apply",
+    is_flag=True,
+    default=False,
+    help="Write the suggested overrides into .caliper.yaml and re-part (default: print only).",
+)
 def part(
     base: str | None,
     head: str | None,
+    pr_url: str | None,
     repo: str,
     target: str | None,
     size_cap: int | None,
@@ -131,21 +200,92 @@ def part(
     force: bool,
     serve: bool,
     port: int | None,
+    lan_host: str | None,
+    lan_port: int | None,
+    tls_cert: str | None,
+    tls_key: str | None,
     describe_flag: bool | None,
     describe_model: str | None,
+    suggest_flag: bool | None,
+    suggest_model: str | None,
+    suggest_apply: bool,
 ) -> None:
     """Propose an ordered cut list for a diff and emit a jj restack script."""
+    if lan_host and not serve:
+        raise click.UsageError("--lan only applies with --serve")
+    if lan_host and not (tls_cert and tls_key):
+        raise click.UsageError("--lan requires both --cert and --key (mkcert-issued)")
+    if (tls_cert or tls_key) and not lan_host:
+        raise click.UsageError("--cert/--key only apply with --lan")
+
     if explain:
         cut = CutList.model_validate_json(Path(explain).read_text())
         click.echo(_render_cutlist(cut, backup_bookmark=None, rescue_op_id=None))
         return
 
-    if serve:
-        if not base or not head:
-            raise click.UsageError("--base and --head are required with --serve")
-        from caliper.cli.part_serve import DEFAULT_PORT, serve_part
+    # None unless --pr supplies a durable per-PR store; a normal repo's overrides
+    # land in its own committed .caliper.yaml.
+    pr_override_store: Path | None = None
+    if pr_url:
+        if base or head:
+            raise click.UsageError("--pr is mutually exclusive with --base/--head")
+        from caliper.cli.part_pr import (
+            PrResolveError,
+            default_part_workdir,
+            detect_origin_slug,
+            resolve_pr,
+        )
+        from caliper.core.pr_ref import parse_pr_ref
 
-        serve_part(Path(repo).resolve(), base, head, port=port or DEFAULT_PORT)
+        repo_root = Path(repo).resolve()
+        try:
+            pr_ref = parse_pr_ref(pr_url, default_slug=detect_origin_slug(repo_root))
+        except ValueError as exc:
+            raise click.UsageError(str(exc)) from exc
+        # Centralized, repo-independent workdir (XDG) — the throwaway clone and the
+        # durable override sidecar live outside any checkout's .temp/, so they
+        # survive git clean / re-clone and never collide across repos.
+        workdir_root = default_part_workdir()
+        try:
+            resolved = resolve_pr(pr_ref, workdir_root=workdir_root)
+        except PrResolveError as exc:
+            raise click.ClickException(f"could not resolve PR: {exc}") from exc
+        repo = str(resolved.repo_path)
+        base, head = resolved.base, resolved.head
+        # Reviewer reclassifications under --serve persist to this durable store
+        # OUTSIDE the throwaway clone, so they survive the next run's clean-slate.
+        pr_override_store = resolved.override_store
+        if out is None:
+            # Managed output dir, wiped + recreated each run by resolve_pr so a
+            # re-run redoes from a clean slate (no stale restack.sh/cutlist.json).
+            out = str(resolved.out_dir)
+        click.echo(
+            f">> {resolved.slug}#{resolved.number}  "
+            f"base={base[:12]}  head={head[:12]}  (clone: {resolved.repo_path})"
+        )
+
+    if serve:
+        # base/head are optional for --serve (P2 live targeting): with neither set
+        # the SPA opens on the empty-state targeting prompt (POST /range or /pr).
+        from caliper.cli.part_serve import DEFAULT_LAN_PORT, DEFAULT_PORT, serve_part
+
+        suggest_env = dict(os.environ)
+        if suggest_model:
+            suggest_env["CALIPER_SUGGESTER_MODEL"] = suggest_model
+        serve_part(
+            Path(repo).resolve(),
+            base,
+            head,
+            port=port or DEFAULT_PORT,
+            size_cap=size_cap,
+            override_store=pr_override_store,
+            suggester=suggester_from_env(suggest_env, force=suggest_flag),
+            out_dir=Path(out) if out else None,
+            lan_host=lan_host,
+            lan_port=lan_port or DEFAULT_LAN_PORT,
+            tls_cert=Path(tls_cert) if tls_cert else None,
+            tls_key=Path(tls_key) if tls_key else None,
+        )
         return
 
     if not base or not head:
@@ -158,77 +298,68 @@ def part(
     if target is not None:
         cfg = cfg.model_copy(update={"target": PartTarget(target)})
 
-    # 1. Safety gate — runs before anything is touched; aborts hard on failure.
-    # Microsecond precision so repeated runs in the same second never collide on
-    # the backup bookmark name (jj bookmark create fails on a duplicate).
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%f")
-    try:
-        gate = run_gate(repo_path, base, head, timestamp=timestamp, force=force)
-    except PartingGateError as exc:
-        raise click.ClickException(f"parting precondition failed [{exc.case}]: {exc}") from exc
-    except PartingError as exc:
-        raise click.ClickException(str(exc)) from exc
-
-    # 2. Cut: producer (build_stock) -> consumer (part()). Pin the gate's revsets.
-    # Import triggers the parting plugin's @PARTING.register side effect — it is
-    # underscore-prefixed so autodiscover never pulls it into the review pipeline.
-    import caliper.plugins._parting  # noqa: F401
-
-    try:
-        outcome = PARTING.create("parting").cut(repo_path, base, head, cfg)
-    except PartingError as exc:
-        raise click.ClickException(str(exc)) from exc
-    cut = outcome.cutlist.model_copy(
-        update={
-            "provenance": outcome.cutlist.provenance.model_copy(
-                update={"resolved_revsets": gate.resolved_revsets}
-            )
-        }
-    )
-
-    # 3. Probe the installed jj for non-interactive path restore (do not assume).
-    can_reconstruct, jj_version = probe_path_capability(str(repo_path))
-
-    # 3b. Advisory describer (imperative shell): name each commit with a local model,
-    # fail-soft to the deterministic subject. Env-driven and OUTSIDE config_digest, so
-    # it never touches the cut — only the human-readable subject line.
-    from caliper.cli.part_describe import describe_parts, describer_from_env
+    # Advisory local-model backends: env-driven, OUTSIDE config_digest — they only
+    # author a subject line or propose override globs; the deterministic boundary
+    # (cli/part_pipeline.run_part) decides what survives.
+    suggest_env = dict(os.environ)
+    if suggest_model:
+        suggest_env["CALIPER_SUGGESTER_MODEL"] = suggest_model
+    suggester = suggester_from_env(suggest_env, force=suggest_flag)
 
     describe_env = dict(os.environ)
     if describe_model:
         describe_env["CALIPER_DESCRIBER_MODEL"] = describe_model
     describer = describer_from_env(describe_env, force=describe_flag)
-    subjects = describe_parts(cut, describer)
 
-    # 4. Emit the restack script, pinning the gate's resolved base/head ids.
-    script = render_restack_script(
-        cut,
-        base_rev=gate.resolved_revsets.get("base") or base,
-        head_rev=gate.resolved_revsets.get("head") or head,
-        old_paths=outcome.old_paths,
-        backup_bookmark=gate.backup_bookmark,
-        rescue_op_id=gate.rescue_op_id,
-        jj_version=jj_version or gate.jj_version,
-        target=cfg.target,
-        validate_command=cfg.validate_command,
-        can_reconstruct=can_reconstruct,
-        subjects=subjects,
-    )
-
+    # Microsecond precision so repeated runs in the same second never collide on
+    # the backup bookmark name (jj bookmark create fails on a duplicate).
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%f")
     out_dir = Path(out) if out else repo_path
-    out_dir.mkdir(parents=True, exist_ok=True)
-    script_path = out_dir / "restack.sh"
-    script_path.write_text(script)
-    script_path.chmod(0o755)
-    # JSON persistence is optional (a proposal, not a verdict) but useful for --explain.
-    (out_dir / "cutlist.json").write_text(_cutlist_json(cut))
+    try:
+        result = run_part(
+            repo_path,
+            base,
+            head,
+            cfg,
+            timestamp=timestamp,
+            force=force,
+            describer=describer,
+            suggester=suggester,
+            suggest_apply=suggest_apply,
+            override_write_target=pr_override_store,
+            out_dir=out_dir,
+        )
+    except PartingGateError as exc:
+        raise click.ClickException(f"parting precondition failed [{exc.case}]: {exc}") from exc
+    except PartingError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if result.proposed_overrides:
+        click.echo(
+            f"\ntier suggestions for the 'logic' residual ({len(result.proposed_overrides)}):"
+        )
+        click.echo(_overrides_yaml(result.proposed_overrides))
+        if result.applied_overrides:
+            write_target = pr_override_store or repo_path
+            click.echo(
+                f"applied {len(result.applied_overrides)} override(s) to "
+                f"{write_target}/.caliper.yaml; re-parted"
+            )
+        else:
+            click.echo("(re-run with --suggest-apply to write these and re-part)")
+    elif suggest_flag is True or suggest_apply:
+        click.echo("\nno tier suggestions (residual empty or model unavailable)")
 
     click.echo(
-        _render_cutlist(cut, backup_bookmark=gate.backup_bookmark, rescue_op_id=gate.rescue_op_id)
+        _render_cutlist(
+            result.cutlist,
+            backup_bookmark=result.backup_bookmark,
+            rescue_op_id=result.rescue_op_id,
+        )
     )
-    click.echo(f"restack script written to {script_path}")
-    if subjects:
+    click.echo(f"restack script written to {result.restack_path}")
+    if result.subjects:
         click.echo(
-            f"described {len(subjects)}/{len(cut.parts)} commit subjects with a local model "
-            "(advisory; deterministic fallback for the rest)"
+            f"described {len(result.subjects)}/{len(result.cutlist.parts)} commit subjects "
+            "with a local model (advisory; deterministic fallback for the rest)"
         )

@@ -381,3 +381,154 @@ def test_gate_aborts_on_stray_working_copy_file(colocated_repo, tmp_path) -> Non
     out = result.output.lower()
     assert "precondition failed" in out and ("dirty-tree" in out or "untracked" in out)
     assert "caliper-part-backup-" not in _run(["jj", "bookmark", "list"], repo, env)
+
+
+# ---------------------------------------------------------------------------
+# --serve session (PartingSession) — size cap and the durable override store.
+# These drive the REAL session against a real diff (the unit tests use a fake
+# session), so a silently-dropped cap or a misrouted override write is caught.
+# ---------------------------------------------------------------------------
+
+
+def _serve_repo(tmp_path: Path, name: str):
+    """A repo whose head diff has two big untiered (.py) files plus one doc."""
+    return _build_colocated(
+        tmp_path,
+        name,
+        base_files={"svc/a.py": "x\n", "svc/b.py": "x\n", "README.md": "doc\n"},
+        head_writes={
+            "svc/a.py": "x\n" + "y\n" * 500,
+            "svc/b.py": "x\n" + "z\n" * 500,
+            "README.md": "doc\n" + "more\n" * 500,
+        },
+    )
+
+
+def _bucket_counts(cut) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for p in cut.parts:
+        counts[p.bucket.value] = counts.get(p.bucket.value, 0) + 1
+    return counts
+
+
+def test_serve_session_uncapped_is_one_part_per_bucket(tmp_path) -> None:
+    """The real session with no cap cuts one part per labelled bucket — the big
+    .py files do NOT split even though each is ~500 lines."""
+    from caliper.cli.part_serve import PartingSession
+
+    repo, base, head, _ = _serve_repo(tmp_path, "serve-uncapped")
+    cut = PartingSession(repo, base, head).cut()  # no size_cap => uncapped
+
+    counts = _bucket_counts(cut)
+    assert all(c == 1 for c in counts.values()), counts
+    assert cut.stats.part_count == len(counts)
+    assert cut.size_cap is None
+
+
+def test_serve_session_size_cap_splits_within_bucket(tmp_path) -> None:
+    """Opting into a small cap restores within-bucket splitting in the session."""
+    from caliper.cli.part_serve import PartingSession
+
+    repo, base, head, _ = _serve_repo(tmp_path, "serve-capped")
+    cut = PartingSession(repo, base, head, size_cap=100).cut()
+
+    logic_parts = [p for p in cut.parts if p.bucket.value == "logic"]
+    assert len(logic_parts) > 1, "a small cap splits the untiered .py bucket"
+
+
+def test_serve_reclassify_persists_to_override_store_not_clone(tmp_path) -> None:
+    """sev-5 fix: under --pr the override is written to the durable sidecar store,
+    NOT the throwaway clone's .caliper.yaml, and it moves the file's bucket."""
+    from caliper.cli.part_serve import PartingSession
+
+    repo, base, head, _ = _serve_repo(tmp_path, "serve-store")
+    store = tmp_path / "pr42-overrides"  # sibling of the clone, survives the wipe
+    session = PartingSession(repo, base, head, override_store=store)
+
+    cut = session.reclassify(target="svc/*.py", bucket="business")
+
+    biz = [p for p in cut["parts"] if p["bucket"] == "business"]
+    assert biz, "the reclassified files land in the business bucket"
+    assert any(f.startswith("svc/") for f in biz[0]["files"])
+    # written to the sidecar store, clone's config left untouched
+    assert (store / ".caliper.yaml").exists()
+    assert not (repo / ".caliper.yaml").exists()
+
+
+def test_serve_override_store_survives_and_relayers(tmp_path) -> None:
+    """A new session pointed at an existing store re-applies the override (the
+    durable loop): the file stays in its reassigned bucket across runs."""
+    from caliper.cli.part_serve import PartingSession
+
+    repo, base, head, _ = _serve_repo(tmp_path, "serve-relayer")
+    store = tmp_path / "pr42-overrides"
+    PartingSession(repo, base, head, override_store=store).reclassify(
+        target="svc/*.py", bucket="data"
+    )
+
+    # fresh session (simulates the next `part --pr --serve` run) reads the store
+    cut = PartingSession(repo, base, head, override_store=store).cut()
+    data_files = [f for p in cut.parts if p.bucket.value == "data" for f in p.files]
+    assert "svc/a.py" in data_files and "svc/b.py" in data_files
+
+
+def test_serve_session_generate_writes_restack_and_apply_token(tmp_path) -> None:
+    """The web sidecar's generate() runs the real gate + pipeline (P4 parity with
+    the CLI): restack.sh + cutlist.json land in out_dir with a rollback header,
+    and each call mints a fresh apply_token."""
+    from caliper.cli.part_serve import PartingSession
+
+    repo, base, head, _ = _serve_repo(tmp_path, "serve-generate")
+    out_dir = tmp_path / "out"
+    session = PartingSession(repo, base, head, out_dir=out_dir)
+
+    result = session.generate()
+
+    assert result["backup_bookmark"].startswith("caliper-part-backup-")
+    assert result["rescue_op_id"]
+    script = (out_dir / "restack.sh").read_text()
+    assert script == result["script_text"]
+    assert "jj op restore" in script
+    assert (out_dir / "cutlist.json").exists()
+    assert result["apply_token"]
+    assert session.restack_script() == script
+
+    second = session.generate()
+    assert second["apply_token"] != result["apply_token"]
+
+
+def test_serve_session_apply_runs_restack_then_rollback_restores(tmp_path, monkeypatch) -> None:
+    """P5: /apply executes the generated restack.sh for real (bash + jj), then
+    /rollback undoes it via `jj op restore <rescue_op_id>` — the full escape
+    hatch the rollback header promises. The apply token is single-use.
+
+    Uses a *relative* out_dir with the process cwd deliberately different from
+    repo_path (as a relative `--out` would be relative to the invocation
+    directory, not the repo) — regression coverage for apply() resolving
+    restack_path against the wrong root before running `bash <path>`.
+    """
+    from caliper.cli.part_serve import PartingSession
+
+    repo, base, head, env = _serve_repo(tmp_path, "serve-apply")
+    monkeypatch.chdir(tmp_path)
+    out_dir = Path("out")
+    session = PartingSession(repo, base, head, out_dir=out_dir)
+
+    result = session.generate()
+    token = result["apply_token"]
+
+    applied = session.apply(token)
+
+    assert applied["ok"] is True, applied["stderr"]
+    assert applied["rollback"]["rescue_op_id"] == result["rescue_op_id"]
+    # per-part bookmarks exist -> the restack script really ran against jj
+    assert "caliper-part-1" in _run(["jj", "bookmark", "list"], repo, env)
+
+    # single-use: replaying the same token is rejected, never re-applied
+    with pytest.raises(ValueError):
+        session.apply(token)
+
+    rolled_back = session.rollback()
+
+    assert rolled_back["ok"] is True, rolled_back["stderr"]
+    assert "caliper-part-1" not in _run(["jj", "bookmark", "list"], repo, env)

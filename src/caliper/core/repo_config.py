@@ -252,11 +252,12 @@ class PartingConfig(BaseModel):
     """Configuration for ``caliper part`` (the parting / diff-cutting operation).
 
     All knobs are deterministic inputs to the pure ``part()`` decision and the
-    pinned git diff invocation. The defaults target reviewable parts of roughly
-    50-200 changed lines with a hard cap of 400.
+    pinned git diff invocation. The default is *uncapped*: a cut is one commit per
+    labelled bucket. A ``size_cap`` is opt-in (CLI ``--size-cap`` or config) and
+    only refines a bucket by splitting it into ~50-200 line parts when set.
     """
 
-    size_cap: int = 400
+    size_cap: int | None = None
     target: PartTarget = PartTarget.stack
     # Pinned git diff thresholds — fixed so classification never depends on
     # ambient git config (see core/part_stock.py).

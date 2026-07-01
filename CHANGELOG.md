@@ -7,6 +7,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.27](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.26...caliper-v0.2.27) (2026-06-30)
+
+
+### Bug Fixes
+
+* **ci:** drive release-please with a non-default token to unblock publish ([6891e74](https://github.com/gitrdunhq/caliper/commit/6891e74a8fefa5e02dcfb32b011679313a0b466c))
+* **release:** lock caliper-v* tag scheme via include-component-in-tag ([9aecf65](https://github.com/gitrdunhq/caliper/commit/9aecf651253fd9b1684f4e8537e41b739cf854fb))
+
 ## [0.2.26](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.25...caliper-v0.2.26) (2026-06-30)
 
 

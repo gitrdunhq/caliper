@@ -1,0 +1,98 @@
+{
+  "schema_version": "2.0",
+  "generated": "2026-06-30",
+  "target": "main..feat/part-web-frontend",
+  "focus": ["correctness", "design", "security"],
+  "models": {
+    "reviewer": "haiku",
+    "challenger": "sonnet",
+    "verify": "opus"
+  },
+  "stats": {
+    "raw": 3,
+    "confirmed": 1,
+    "false_positive": 2,
+    "uncertain": 0,
+    "by_severity": {
+      "high": 0,
+      "medium": 1,
+      "low": 0
+    }
+  },
+  "findings": [
+    {
+      "id": "P02-1",
+      "file": "src/caliper/cli/part_serve.py",
+      "line": "274-497",
+      "severity": "medium",
+      "category": "security",
+      "claim": "PartingSession.retarget()/set_size_cap()/set_target_pr() never clear _apply_token or _last_run, so a CSRF token minted by generate() for one target (base..head range, or repo_path under set_target_pr) remains valid for POST /apply after the session is retargeted to a different target.",
+      "evidence": "retarget() (part_serve.py:274-296), set_size_cap() (:298-309), and set_target_pr() (:311-356) each save/restore only their own fields (base/head/_cut, size_cap/_cut, or repo_path/base/head/override_store/out_dir/_cut) around the try/except rollback-on-failure block; none touch self._apply_token or self._last_run. apply() (:459-497) validates the token via hmac.compare_digest(token, self._apply_token) (:471) and, if it matches, resolves last_run.restack_path (from the OLD self._last_run) and runs it with cwd=str(self.repo_path) (the CURRENT, possibly-changed repo_path) via a real subprocess (:481-488). PartingSession is a long-lived singleton per serve_part() invocation (closed over by every request handler), so this is reachable across real requests, not just within one. The set_target_pr case is worst: repo_path is reassigned to a different (possibly throwaway-clone) filesystem location while last_run.restack_path/rescue_op_id/backup_bookmark still describe the OLD repo, so even POST /rollback (jj op restore <old rescue_op_id>) may not recover the new target.",
+      "fix": "In retarget(), set_size_cap(), and set_target_pr(), invalidate any pending apply on a target/config change: capture and null both self._last_run and self._apply_token alongside the other saved fields, restoring all of them together in the except-block on a failed re-part. Add a unit test on the real PartingSession (not FakeSession) asserting apply(old_token) raises ValueError after a retarget/set_target_pr that followed a generate().",
+      "verdict": "CONFIRMED",
+      "verdict_reason": "Opus adjudication independently traced retarget()/set_size_cap()/set_target_pr()/generate()/apply() against the current file and confirmed the gap is real and exploitable within the sidecar's own supported retargeting workflow, but downgraded severity from the challenger's 'high' to 'medium': the endpoint is loopback-only with an Origin/Host check, the one-shot token still defeats the primary cross-origin-CSRF threat model, and exploitation requires a specific same-session sequence (generate → skip apply/rollback → retarget → apply with the stale token) rather than being remotely triggerable. No existing test (tests/unit/test_part_serve.py:574-653, :869-922) exercises retarget-then-apply or asserts token invalidation — FakeSession's apply() only records the token string and models no token/target coupling, so this is a genuine, currently-uncovered gap.",
+      "partition": "P02"
+    }
+  ],
+  "uncertain": [],
+  "partitions": [
+    {
+      "id": "P01",
+      "title": "Pipeline & CLI orchestrator",
+      "files": [
+        "src/caliper/cli/part_pipeline.py",
+        "src/caliper/cli/part_cmd.py",
+        "tests/unit/test_part_pipeline.py"
+      ],
+      "raw_findings": 1,
+      "confirmed": 0
+    },
+    {
+      "id": "P02",
+      "title": "Sidecar backend (dispatch, session, CSRF/apply/rollback)",
+      "files": [
+        "src/caliper/cli/part_serve.py",
+        "tests/unit/test_part_serve.py"
+      ],
+      "raw_findings": 2,
+      "confirmed": 1
+    },
+    {
+      "id": "P03",
+      "title": "Real-jj apply/rollback integration test",
+      "files": [
+        "tests/integration/test_part_e2e.py"
+      ],
+      "raw_findings": 0,
+      "confirmed": 0
+    },
+    {
+      "id": "P04",
+      "title": "TypeScript SPA frontend",
+      "files": [
+        "scripts/part_ui/api.ts",
+        "scripts/part_ui/app.ts",
+        "scripts/part_ui/types.ts",
+        "scripts/part_ui/build.ts",
+        "scripts/part_ui/index.html",
+        "scripts/part_ui/styles.css"
+      ],
+      "raw_findings": 0,
+      "confirmed": 0
+    },
+    {
+      "id": "P05",
+      "title": "Packaging & build tooling",
+      "files": [
+        "scripts/build_part_ui.sh",
+        "scripts/screenshots.ts",
+        "Makefile",
+        "pyproject.toml",
+        ".gitignore",
+        "tsconfig.json"
+      ],
+      "raw_findings": 0,
+      "confirmed": 0
+    }
+  ]
+}

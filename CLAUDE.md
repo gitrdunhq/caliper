@@ -147,12 +147,19 @@ overridable) → **override table** → ordered glob heuristics (`_GLOB_PRECEDEN
 most-specific-first) → `logic`. `_BUCKET_ORDER` in `core/parting.py` MUST contain
 every `ChangeType` or `part()` KeyErrors.
 
+**Size cap is opt-in** (`PartingConfig.size_cap: int | None`, default `None`): the
+default cut is **one commit per labelled bucket** — the split is along buckets of
+concern, never chopped by line count. A reviewer who wants finer parts sets
+`--size-cap N` (or `parting.size_cap`); only then does the R4 within-bucket
+accretion split a bucket once its accumulated size exceeds `N`. With no cap a
+non-isolated bucket is always a single part with `oversized=False`.
+
 **Bucket grouping rules** (`core/parting.py` `_part_bucket`): `generated`/`binary`
 (`_ISOLATED_BUCKETS`) collapse into one part and are never cap-checked (always
 `oversized=False`). `documentation` (`_GROUPED_BUCKETS`) also collapses into one
-part — a reviewer reads docs as a single unit — but stays cap-exempt with an honest
-`oversized=True` when the grouped size exceeds the cap. Every other bucket accretes
-by the size cap (R4).
+part — a reviewer reads docs as a single unit — cap-exempt but, when a cap is set,
+honestly `oversized=True` if the grouped size exceeds it. Every other bucket is one
+part by default and accretes by the size cap (R4) only when a cap is set.
 
 **Override table** (`parting.overrides` in `.caliper.yaml`): a version-controlled
 `OverrideRule {glob, bucket, note}` list. First matching glob wins; duplicate globs
@@ -161,10 +168,88 @@ an override is provenance-tracked. This is the one human decision point in the
 otherwise deterministic classifier — no ML.
 
 **`caliper part --serve [--port N]`** (`cli/part_serve.py`): a loopback sidecar
-(127.0.0.1:12700) serving the live cut report. A reviewer reclassifies a file from
-the browser → `write_override` appends/updates a `parting.overrides` entry and
-re-parts. starlette is imported lazily (caliper[copilot] extra) so the pure
-`write_override` stays importable/tested without it. Browser gate: `scripts/screenshots.ts`.
+(127.0.0.1:12700) serving a full **TypeScript SPA** with CLI/web parity — not just
+the cut report. `--base/--head` is optional at launch; an untargeted session shows
+a targeting prompt (`POST /range` for a literal base/head, `POST /pr` to resolve a
+GitHub PR URL/number via the same `cli/part_pr.py` seam the CLI uses). A reviewer
+reclassifies a file from the browser → `write_override` appends/updates a
+`parting.overrides` entry and re-parts; live `size_cap`/`target` settings
+(`POST /repart`), bulk suggestion accept (`POST /suggest/apply`), and a
+client-side `--explain` viewer for a loaded `cutlist.json` round out CLI parity.
+The transport is **stdlib `http.server` only** — no uvicorn/starlette, so it runs
+from any install (no `caliper[copilot]` extra). Routing is the pure
+`dispatch(session, method, path, body)` (functional core), tested without binding a
+socket; the `BaseHTTPRequestHandler` is the thin shell.
+
+**Optional read-only LAN view** (`--lan <ip> --cert <path> --key <path>`): binds a
+**second**, TLS-wrapped server (mkcert-issued cert/key) on a LAN-routable
+host/IP, on a separate port (`12701` by default). Its handler
+(`_make_readonly_handler`) implements only `do_GET` — `BaseHTTPRequestHandler`
+answers any other verb with a bare 501, so every mutating route (`/reclassify`,
+`/repart`, `/range`, `/pr`, `/suggest/apply`, `/restack`, `/apply`, `/rollback` —
+all POST-only in `dispatch`) is structurally unreachable from the LAN server. The
+primary server keeps binding `127.0.0.1` unchanged; both share one
+`PartingSession`. All three flags are required together (`serve_part` and the CLI
+both validate this).
+
+`PartingSession` holds all
+mutable state (target, settings, last generated run, one-shot apply token) behind
+a single `RLock`. Browser gate: `scripts/screenshots.ts`.
+
+**`core/part_pipeline.run_part`**: the single orchestrator both `cli/part_cmd.py`
+and `cli/part_serve.py` call — `run_gate` → cut (+ pin `resolved_revsets` into
+provenance) → suggest (optional apply, which re-cuts) → `probe_path_capability` →
+`describe_parts` → `render_restack_script` → write `restack.sh` (0755) +
+`cutlist.json` when `out_dir` is set. Returns a typed `PartRunResult` (cutlist,
+script text, backup bookmark, rescue op id, jj version, subjects, applied/proposed
+overrides, artifact paths). Extracting this out of `part_cmd.py` means the CLI and
+the sidecar can never drift on gate→cut→describe→render ordering —
+`tests/integration/test_part_e2e.py` guards the CLI side, `tests/unit/
+test_part_pipeline.py` (fake `ToolRunnerPort`) guards the pipeline itself.
+
+**Execute + rollback (`POST /restack`, `POST /apply`, `POST /rollback`)** — the one
+capability beyond the CLI: `/restack` runs `run_part` and mints a fresh one-shot
+CSRF token (`secrets.token_urlsafe(16)`) alongside the rollback header and
+downloadable `restack.sh`/`cutlist.json`. `/apply` requires that token
+(`hmac.compare_digest`, consumed on first use — replay is rejected) and rejects any
+request whose `Origin`/`Host` is not loopback (`_is_loopback_request`/
+`_hostname_of`), then runs `bash <restack_path>` for real via `ToolRunnerPort`
+(`cwd=repo_path`, 300s timeout) — `restack_path` is resolved to an absolute path
+first, since a relative `--out` is rooted at the server's invocation cwd, not
+`repo_path`. `/rollback` (no token needed — pure escape hatch) runs
+`jj op restore <rescue_op_id>` to undo it. The SPA gates `/apply` behind an in-page
+confirm modal that echoes the backup bookmark before firing.
+
+**Frontend build (`scripts/part_ui/`)**: `types.ts` (boundary model mirrors,
+bucket list drift-guarded against `_SELECTABLE_BUCKETS`), `api.ts` (one typed
+fetch per endpoint), `app.ts` (render + `data-action`-driven event wiring, no
+framework), `styles.css` (the `modern-css` skill conventions — `@layer`,
+`oklch()`/`color-mix()`, logical properties, `@scope`, `:has()`, `subgrid`,
+`prefers-reduced-motion`-gated animation). `build.ts` runs esbuild
+(`bundle`/`minify`/`iife`/`es2022`) into the **committed** bundle
+`src/caliper/cli/part_ui_dist/{index.html,part_ui.js,part_ui.css}` — package data
+(`pyproject.toml` `[tool.hatch.build.targets.wheel] artifacts`), so a built wheel
+serves the SPA with **zero Node at runtime**. `make part-ui`
+(`scripts/build_part_ui.sh`) type-checks and rebuilds the bundle from
+`scripts/part_ui/**`; rerun it (and recommit the bundle) whenever that directory
+changes — nothing rebuilds it automatically.
+
+**PR input** (`caliper part --pr <url|number>`, `cli/part_pr.py`): feed a GitHub PR
+URL or bare number instead of `--base/--head`. Pure parse in the functional core
+(`core/pr_ref.py` `parse_pr_ref` → typed `PrRef`); the imperative shell
+(`cli/part_pr.py` `resolve_pr`, all git/gh/jj IO through the `ToolRunnerPort` seam)
+always clones the PR into a **centralized, repo-independent workdir** — never the
+user's repo — keyed by `<owner>-<repo>-pr<N>` (`PrRef.workdir_slug`, owner-keyed so
+two repos sharing a name never collide). The workdir root is XDG-resolved by
+`default_part_workdir()`: `CALIPER_STATE_DIR` wins, else
+`$XDG_CONFIG_HOME/caliper/state/part-pr`, else `~/.config/caliper/state/part-pr` —
+so the throwaway clone and the durable override sidecar live outside any checkout's
+`.temp/` and survive `git clean`, repo deletion, and re-clone. It neutralizes jj
+immutability in that throwaway clone (a pushed PR's commits are immutable; the gate
+would otherwise refuse), and resolves `base = merge-base(base, head)`. Self-healing:
+a stale clone is wiped to a clean slate at the start of every run and a partial
+clone is removed on failure (`_safe_rmtree`, containment-checked), so a crashed run
+never poisons the next. Mutually exclusive with `--base/--head`.
 
 **Advisory commit describer** (`--describe/--no-describe`, `--describe-model`): an
 optional pass that names each commit subject with a local OpenAI-compatible model
@@ -180,11 +265,34 @@ it never enters `config_digest` — the cut, classification, and provenance stay
 deterministic and LLM-free. `core/commit_describer.py` `normalize_subject` strips any
 echoed prefix/quotes and enforces the 72-char cap at the boundary (DPS-102).
 
+**Advisory tier suggester** (`--suggest/--no-suggest`, `--suggest-model`,
+`--suggest-apply`): an optional "Sorting Hat" pass that asks a local
+OpenAI-compatible model to propose `parting.overrides` globs for the untiered
+`logic` residual — the code caliper honestly refused to tier. The model is OFF the
+decision path (scanners/OPA/detectors are the decision path) and only ever authors
+glob strings; the deterministic boundary decides what survives. Functional-core/
+imperative-shell: `core/tier_suggester.py` is the pure boundary — `SELECTABLE_TIERS`
+(every `ChangeType` tier except structural facts and `logic`), the typed
+request/rule, `TierSuggesterPort`/`NullSuggester`, and `validate_suggestions` with
+the **subset guard** (a suggested glob may only tier files that are *currently*
+`logic`, never steal an already-tiered one), dedupe, existing-glob drop, and a
+25-rule cap. `data/openai_suggester.py` is the only network code (fail-soft → `[]`
+on any transport/parse error; pins the legal bucket enum into the system prompt;
+tolerates ``` fences). `cli/part_suggest.py` is the env-driven edge
+(`suggester_from_env` falls back to `CALIPER_DESCRIBER_MODEL` + the shared base URL;
+`suggest_overrides` pulls residual/tiered straight from the cut). Suggester config
+is env/CLI-driven and deliberately OUTSIDE `PartingConfig`, so it never enters
+`config_digest` — only the globs a human accepts into `.caliper.yaml` change
+provenance. Under `--serve`, a "✨ suggest tiers" button (`POST /suggest`) renders
+each proposal as an accept chip that reuses `/reclassify`. Print-only by default;
+`--suggest-apply` writes the accepted globs and re-parts.
+
 ## Dev Ports
 
 Port range 12000-13000 only. Never use common ports.
 - PostgreSQL: 12432
-- `caliper part --serve` sidecar: 12700 (loopback only)
+- `caliper part --serve` sidecar: 12700 (loopback only by default)
+- `caliper part --serve --lan` optional read-only LAN view: 12701 (TLS, mkcert-issued cert/key required; mutating routes stay loopback-only)
 - Webhook server: 12800
 
 ## Testing

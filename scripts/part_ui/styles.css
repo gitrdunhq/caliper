@@ -1,0 +1,596 @@
+/*
+ * caliper part — SPA styles.
+ *
+ * Follows the `modern-css` skill: cascade layers, @scope, oklch colors,
+ * logical properties, container queries, fluid type, prefers-reduced-motion.
+ * All features used are Baseline (fine for a loopback single-reviewer tool).
+ */
+
+@layer reset, tokens, elements, components, utilities;
+
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+  }
+}
+
+@layer tokens {
+  :root {
+    color-scheme: light dark;
+    --bg: light-dark(#f6f8fa, #0d1117);
+    --surface: light-dark(#ffffff, #161b22);
+    --surface-2: light-dark(#eef1f4, #1c2330);
+    --border: light-dark(#d0d7de, #30363d);
+    --text: light-dark(#1f2328, #e6edf3);
+    --muted: light-dark(#57606a, #8b949e);
+    --warn: oklch(72% 0.15 80);
+    --bucket-hue: 220;
+  }
+
+  /* Per-bucket accent hues — mirrors the retired `_BUCKET_HUE` map in
+     src/caliper/cli/part_serve.py. Python now owns only the bucket list. */
+  [data-bucket="frontend"] { --bucket-hue: 280; }
+  [data-bucket="business"] { --bucket-hue: 213; }
+  [data-bucket="data"] { --bucket-hue: 190; }
+  [data-bucket="infra"] { --bucket-hue: 25; }
+  [data-bucket="documentation"] { --bucket-hue: 150; }
+  [data-bucket="supply_chain"] { --bucket-hue: 320; }
+  [data-bucket="ci_cd"] { --bucket-hue: 90; }
+  [data-bucket="security_policy"] { --bucket-hue: 0; }
+  [data-bucket="config"] { --bucket-hue: 198; }
+  [data-bucket="schema_contracts"] { --bucket-hue: 260; }
+  [data-bucket="test"] { --bucket-hue: 152; }
+  [data-bucket="generated"] { --bucket-hue: 38; }
+  [data-bucket="logic"] { --bucket-hue: 45; }
+  [data-bucket="binary"] { --bucket-hue: 220; }
+  [data-bucket="move"] { --bucket-hue: 220; }
+  [data-bucket="delete"] { --bucket-hue: 0; }
+}
+
+@layer elements {
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: clamp(0.9rem, 0.86rem + 0.2cqi, 1rem);
+    line-height: 1.5;
+    background: var(--bg);
+    color: var(--text);
+    padding-block: 24px;
+    padding-inline: 24px;
+  }
+
+  h1 {
+    font-size: clamp(1.15rem, 1.05rem + 0.4cqi, 1.4rem);
+    margin-block: 0 4px;
+    text-wrap: balance;
+  }
+
+  h2 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-block: 0 8px;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  small {
+    color: var(--muted);
+    font-weight: 400;
+  }
+}
+
+@layer components {
+  #app {
+    container-type: inline-size;
+    max-inline-size: 1100px;
+    margin-inline: auto;
+  }
+
+  .cut-header .sub {
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+
+  .empty-state {
+    color: var(--muted);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding-block: 24px;
+    padding-inline: 20px;
+    text-align: center;
+  }
+
+  .overrides {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding-block: 12px;
+    padding-inline: 14px;
+    margin-block: 12px;
+
+    &.empty {
+      color: var(--muted);
+      font-size: 0.8125rem;
+    }
+  }
+
+  .ov {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding-block: 3px;
+    padding-inline: 10px;
+    margin: 3px;
+    font-size: 0.75rem;
+  }
+
+  @scope (.cut-card) to (.file-row .glob) {
+    :scope {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-inline-start: 4px solid oklch(65% 0.14 var(--bucket-hue));
+      border-radius: 10px;
+      padding-block: 14px;
+      padding-inline: 16px;
+      margin-block: 12px;
+      container-type: inline-size;
+
+      /* Relational, not JS-toggled: a card is flagged the moment it hosts a
+         "needs a tier" badge, no separate .untiered class to keep in sync. */
+      &:has(.untiered-tag) {
+        border-inline-start-color: var(--warn);
+        background: color-mix(in oklch, var(--warn) 7%, var(--surface));
+      }
+
+      h3 {
+        margin-block: 0 10px;
+        font-size: clamp(0.95rem, 0.9rem + 0.2cqi, 1.05rem);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .idx {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .badge {
+        background: oklch(58% 0.14 var(--bucket-hue));
+        color: white;
+        padding-block: 2px;
+        padding-inline: 9px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+      }
+
+      .untiered-tag {
+        background: var(--warn);
+        color: oklch(20% 0.02 80);
+        padding-block: 2px;
+        padding-inline: 8px;
+        border-radius: 999px;
+        font-size: 0.6875rem;
+        font-weight: 700;
+      }
+
+      ul.files {
+        display: grid;
+        grid-template-columns: 1fr auto auto auto auto;
+        align-items: center;
+        column-gap: 8px;
+        row-gap: 4px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+
+        /* Nested (not a separate top-level rule): a rule written outside this
+           @scope block would carry lower specificity than the :scope-prefixed
+           selector above and silently lose the cascade despite the query
+           matching. Nesting keeps the same specificity and wins by source order. */
+        @container (width < 480px) {
+          grid-template-columns: 1fr;
+        }
+      }
+    }
+  }
+
+  /* Every row's cells align to the parent .files grid's tracks via subgrid, so
+     path/glob/broaden/bucket/save line up across every card without either
+     side hardcoding pixel widths. */
+  li.file-row {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: center;
+    padding-block: 5px;
+    border-block-end: 1px dashed var(--border);
+
+    &:last-child {
+      border-block-end: 0;
+    }
+
+    &:has(.glob:invalid) {
+      border-inline-start: 3px solid var(--warn);
+      padding-inline-start: 6px;
+    }
+  }
+
+  .path {
+    min-inline-size: 160px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.78125rem;
+    word-break: break-all;
+  }
+
+  input.glob,
+  select.bucket-select {
+    font: inherit;
+    font-size: 0.78125rem;
+    padding-block: 3px;
+    padding-inline: 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    min-inline-size: 0;
+  }
+
+  input.glob:invalid {
+    border-color: var(--warn);
+    outline: none;
+  }
+
+  .btn,
+  .btn-sm {
+    font: inherit;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+
+    &:hover {
+      background: oklch(from var(--surface-2) calc(l - 0.05) c h);
+    }
+  }
+
+  .btn {
+    padding-block: 6px;
+    padding-inline: 14px;
+    font-size: 0.8125rem;
+  }
+
+  .btn-sm {
+    padding-block: 2px;
+    padding-inline: 8px;
+    font-size: 0.75rem;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-block: 12px;
+  }
+
+  .target-panel {
+    margin-block: 12px;
+  }
+
+  .target-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-block-start: 10px;
+    max-inline-size: 480px;
+  }
+
+  .target-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  input.field {
+    font: inherit;
+    font-size: 0.8125rem;
+    padding-block: 5px;
+    padding-inline: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    flex: 1 1 140px;
+    min-inline-size: 0;
+  }
+
+  .size-cap-control {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+
+    .size-cap-input {
+      max-inline-size: 100px;
+      flex: 0 1 auto;
+    }
+  }
+
+  .file-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  .explain-banner {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    background: var(--surface-2);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding-block: 10px;
+    padding-inline: 14px;
+    margin-block-end: 12px;
+    font-size: 0.8125rem;
+    color: var(--muted);
+
+    code {
+      color: var(--text);
+    }
+  }
+
+  .files-readonly {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .file-row-ro {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding-block: 4px;
+    border-block-end: 1px dashed var(--border);
+
+    &:last-child {
+      border-block-end: 0;
+    }
+  }
+
+  .suggestions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  ul.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .chip {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding-block: 4px;
+    padding-inline: 10px;
+    font-size: 0.75rem;
+  }
+
+  .error-banner {
+    background: color-mix(in oklch, var(--warn) 15%, var(--surface));
+    border: 1px solid var(--warn);
+    border-radius: 8px;
+    padding-block: 8px;
+    padding-inline: 12px;
+    margin-block: 12px;
+    font-size: 0.8125rem;
+  }
+
+  .restack-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding-block: 14px;
+    padding-inline: 16px;
+    margin-block: 16px;
+  }
+
+  .restack-form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 0.8125rem;
+
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+  }
+
+  .rollback-header {
+    background: color-mix(in oklch, var(--warn) 12%, var(--surface));
+    border: 1px solid var(--warn);
+    border-radius: 8px;
+    padding-block: 10px;
+    padding-inline: 12px;
+    margin-block: 12px;
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .restack-downloads {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-block-end: 8px;
+  }
+
+  .restack-script-viewer {
+    .script-text {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding-block: 10px;
+      padding-inline: 12px;
+      font-size: 0.75rem;
+      max-block-size: 320px;
+      overflow: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .apply-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-block-start: 12px;
+    padding-block-start: 12px;
+    border-block-start: 1px dashed var(--border);
+  }
+
+  .apply-result {
+    inline-size: 100%;
+    border-radius: 8px;
+    padding-block: 8px;
+    padding-inline: 12px;
+    font-size: 0.8125rem;
+
+    p {
+      margin: 0 0 6px;
+      font-weight: 600;
+    }
+
+    &.ok {
+      background: color-mix(in oklch, oklch(70% 0.15 150) 12%, var(--surface));
+      border: 1px solid oklch(70% 0.15 150);
+    }
+
+    &.fail {
+      background: color-mix(in oklch, var(--warn) 15%, var(--surface));
+      border: 1px solid var(--warn);
+    }
+  }
+
+  .apply-output {
+    background: var(--surface-2);
+    border-radius: 6px;
+    padding-block: 6px;
+    padding-inline: 8px;
+    font-size: 0.75rem;
+    max-block-size: 200px;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+
+    &.apply-stderr {
+      color: light-dark(oklch(45% 0.18 25), oklch(78% 0.15 25));
+    }
+  }
+
+  .apply-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in oklch, black 45%, transparent);
+    z-index: 10;
+  }
+
+  .apply-confirm {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding-block: 20px;
+    padding-inline: 24px;
+    max-inline-size: 420px;
+    inline-size: min(90vi, 420px);
+    box-shadow: 0 8px 30px color-mix(in oklch, black 30%, transparent);
+
+    h3 {
+      margin-block: 0 8px;
+    }
+  }
+
+  .apply-confirm-actions {
+    display: flex;
+    gap: 10px;
+    margin-block-start: 14px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .apply-confirm-overlay {
+      animation: apply-confirm-fade-in 0.15s ease;
+    }
+  }
+
+  @keyframes apply-confirm-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* li.file-row is unscoped (declared outside the @scope block above), so an
+     absolute-threshold override here carries the same specificity and wins by
+     source order — no nesting needed. Its `grid-template-columns: subgrid`
+     just inherits whatever ul.files sets, so it tracks the 1fr collapse above
+     automatically once that container query fires. */
+  @container (width < 480px) {
+    li.file-row {
+      row-gap: 4px;
+      padding-block: 8px;
+    }
+  }
+}
+
+@layer utilities {
+  .muted {
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .cut-card {
+      transition: border-color 0.2s ease;
+    }
+  }
+}

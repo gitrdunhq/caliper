@@ -10,7 +10,7 @@ import contextlib
 import json
 from pathlib import Path
 
-from caliper.core.plugin import PluginResult
+from caliper.core.plugin import PluginFinding, PluginResult
 from caliper.core.review_summary import SEVERITY_TO_LEVEL, ReviewSummary, summarize_review
 from caliper.core.version import get_version
 
@@ -22,6 +22,19 @@ _SARIF_SCHEMA = (
 # Severity -> SARIF level uses the canonical map (review_summary), so SARIF, the
 # JSON report, and the verdict all classify severities identically.
 _SEVERITY_TO_LEVEL = SEVERITY_TO_LEVEL
+
+
+def _as_dict(finding: PluginFinding | dict) -> dict:
+    """Coerce a finding to a plain dict for the SARIF helpers.
+
+    Findings can be raw dicts or typed ``PluginFinding`` models (the dogfood
+    AttributeError: the helpers call ``.get()``, which a Pydantic model lacks).
+    Use ``model_dump`` — NOT ``to_dict()`` — so ``metadata`` stays *nested* and
+    ``_scribe`` still finds ``metadata.scribe`` (``to_dict`` flattens it away).
+    """
+    if isinstance(finding, dict):
+        return finding
+    return finding.model_dump()
 
 
 def _rule_id(finding: dict, plugin_name: str) -> str:
@@ -94,7 +107,8 @@ def _plugin_to_run(
         findings = findings[:max_findings]
 
     sarif_results: list[dict] = []
-    for finding in findings:
+    for raw in findings:
+        finding = _as_dict(raw)
         sarif_result: dict = {
             "ruleId": _rule_id(finding, result.plugin_name),
             "level": _level(finding),
