@@ -283,29 +283,44 @@ class PartingSession:
         targeted), so a failed cut here that left ``base``/``head`` pointed at
         the bad values would crash every subsequent read until the reviewer
         guessed a valid range. Roll back on failure instead.
+
+        Also invalidates any pending /restack apply token: a restack.sh
+        generated for the old range must not be executable via /apply once
+        the session points somewhere else (found by adversarial review —
+        docs/reviews/adversarial-2026-06-30.md, P02-1).
         """
         with self._lock:
             prev_base, prev_head, prev_cut = self.base, self.head, self._cut
+            prev_last_run, prev_apply_token = self._last_run, self._apply_token
             self.base = base
             self.head = head
             self._cut = None
+            self._last_run = None
+            self._apply_token = None
             try:
                 return self.repart_dict()
             except Exception:
                 self.base, self.head, self._cut = prev_base, prev_head, prev_cut
+                self._last_run, self._apply_token = prev_last_run, prev_apply_token
                 raise
 
     def set_size_cap(self, size_cap: int | None) -> dict:
         """Live-adjust the size cap and re-part — mirrors the CLI's --size-cap
-        override (P3). Same rollback-on-failure shape as retarget/set_target_pr."""
+        override (P3). Same rollback-on-failure shape as retarget/set_target_pr.
+
+        Also invalidates any pending /restack apply token — see retarget()."""
         with self._lock:
             prev_size_cap, prev_cut = self.size_cap, self._cut
+            prev_last_run, prev_apply_token = self._last_run, self._apply_token
             self.size_cap = size_cap
             self._cut = None
+            self._last_run = None
+            self._apply_token = None
             try:
                 return self.repart_dict()
             except Exception:
                 self.size_cap, self._cut = prev_size_cap, prev_cut
+                self._last_run, self._apply_token = prev_last_run, prev_apply_token
                 raise
 
     def set_target_pr(self, ref: str) -> dict:
@@ -334,12 +349,18 @@ class PartingSession:
                 self.out_dir,
                 self._cut,
             )
+            prev_last_run, prev_apply_token = self._last_run, self._apply_token
             self.repo_path = resolved.repo_path
             self.base = resolved.base
             self.head = resolved.head
             self.override_store = resolved.override_store
             self.out_dir = resolved.out_dir
             self._cut = None
+            # Invalidate any pending /restack apply token — a script/rescue op
+            # minted for the old repo_path must not be executable via /apply
+            # once the session points at a different repo. See retarget().
+            self._last_run = None
+            self._apply_token = None
             try:
                 result = self.repart_dict()
             except Exception:
@@ -351,6 +372,7 @@ class PartingSession:
                     self.out_dir,
                     self._cut,
                 ) = prev
+                self._last_run, self._apply_token = prev_last_run, prev_apply_token
                 raise
             result["pr"] = {"slug": resolved.slug, "number": resolved.number}
             return result
