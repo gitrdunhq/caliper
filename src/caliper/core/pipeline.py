@@ -66,6 +66,14 @@ def _policy_evaluation(
             id=f.advisory_id or "",
             severity=f.severity.value,
             message=f.description,
+            category=f.category.value,
+            package=f.package_name,
+            version=f.version,
+            metadata={
+                "advisory_id": f.advisory_id or "",
+                "source_tool": f.source_tool,
+                **({"license_id": f.license_id} if f.license_id else {}),
+            },
         )
         for f in findings
     ]
