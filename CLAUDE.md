@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the caliper scanner
 
 ## What This Is
 
-Caliper — fully deterministic dependency and code review for CI. 19 scanner plugins (+ OPA policy plugin), 21 deterministic detectors, 61 custom semgrep rules, 12 code graph checks, 10 OPA policy rules, 600+ tests, zero LLM in the decision path.
+Caliper — fully deterministic dependency and code review for CI. 19 scanner plugins (+ OPA policy plugin), 21 deterministic detectors, 61 custom semgrep rules, 12 code graph checks, 12 OPA policy rules, 600+ tests, zero LLM in the decision path.
 
 ## Commands
 
@@ -133,7 +133,7 @@ What the script manages:
 
 ## OPA Policy
 
-10 rules in `policies/policy.rego`. Critical/high vulns deny. Forbidden licenses deny. Package age < 30 days denies. Malicious packages deny (never dev-scope-exempted). Critical/high supply-chain version-bump signals deny. Medium vulns warn. High transitive dep count warns. Medium supply-chain signals warn. Dev-scope exemption (`rules_enabled.dev_scope_exemption`, default off): downgrades the critical/high-vuln and forbidden-license deny rules to warn for `pkg.scope == "dev"` packages.
+11 rules in `policies/policy.rego`. Critical/high vulns deny. Forbidden licenses deny. Package age < 30 days denies. Malicious packages deny (never dev-scope-exempted). Critical/high supply-chain version-bump signals deny. Medium vulns warn. High transitive dep count warns. Medium supply-chain signals warn. Dev-scope exemption (`rules_enabled.dev_scope_exemption`, default off): downgrades the critical/high-vuln and forbidden-license deny rules to warn for `pkg.scope == "dev"` packages. Unmaintained-package exemption (`rules_enabled.unmaintained_package`, default off): warns when `pkg.last_release_date` is older than `max_days_since_release` (default 365 days) — fails open when `last_release_date` is absent/null.
 
 ## Parting Taxonomy & Reclassify Sidecar
 

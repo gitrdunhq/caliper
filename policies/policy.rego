@@ -177,6 +177,27 @@ warn contains msg if {
 	])
 }
 
+# T-346: Unmaintained package — no release in max_days_since_release days.
+# A stale package is a supply-chain risk signal, not an active exploit, so
+# this is warn-only (matches transitive_count / medium supply_chain_diff
+# precedent). Fail-open: if input.pkg.last_release_date is absent or null
+# (e.g. PyPI lookup failed), time.parse_rfc3339_ns errors and this rule
+# instance is simply undefined -- it never fires.
+warn contains msg if {
+	input.config.rules_enabled.unmaintained_package
+	max_days := object.get(input.config, "max_days_since_release", 365)
+	released_ns := time.parse_rfc3339_ns(input.pkg.last_release_date)
+	now_ns := time.now_ns()
+	days_since_release := (now_ns - released_ns) / ((1000 * 1000 * 1000) * 60 * 60 * 24)
+	days_since_release > max_days
+	msg := sprintf("Package %s@%s has had no release in %d days (threshold: %d)", [
+		input.pkg.name,
+		input.pkg.version,
+		days_since_release,
+		max_days,
+	])
+}
+
 # --- decision: computed from deny/warn sets ---
 
 default decision := "approve"

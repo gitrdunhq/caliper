@@ -61,6 +61,11 @@ _DEFAULT_RULES_ENABLED: dict[str, bool] = {
     # catalog). Default False — kev_ids is threat intel the operator must
     # supply, caliper ships no default list. See policies/policy.rego T-344.
     "cisa_kev": False,
+    # Opt-in: warns when a package has had no release in
+    # input.config.max_days_since_release days (default 365). Default False
+    # -- unmaintained-package signal is advisory, not everyone wants it on.
+    # See policies/policy.rego T-346.
+    "unmaintained_package": False,
 }
 
 _DEFAULT_CONFIG: dict[str, object] = {
