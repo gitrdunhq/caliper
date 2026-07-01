@@ -23,6 +23,13 @@ _SARIF_SCHEMA = (
 # JSON report, and the verdict all classify severities identically.
 _SEVERITY_TO_LEVEL = SEVERITY_TO_LEVEL
 
+# Synthetic rule IDs emitted for degraded-plugin conditions (a crashed plugin or a
+# findings cap being hit), NOT real findings. They carry level="error"/"note" so
+# they render visibly in SARIF consumers, but they must never count toward a
+# blocking verdict recount downstream (#211) — a plugin crash is fail-open, not
+# a reason to block a PR.
+SENTINEL_RULE_IDS = frozenset({"caliper-plugin-error", "caliper-truncated"})
+
 
 def _as_dict(finding: PluginFinding | dict) -> dict:
     """Coerce a finding to a plain dict for the SARIF helpers.
