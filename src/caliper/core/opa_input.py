@@ -66,12 +66,22 @@ _DEFAULT_RULES_ENABLED: dict[str, bool] = {
     # -- unmaintained-package signal is advisory, not everyone wants it on.
     # See policies/policy.rego T-346.
     "unmaintained_package": False,
+    # Opt-in: link_type-aware copyleft enforcement. Strong-copyleft licenses
+    # (config.copyleft_strong) deny when link_type is "static" or "unknown"
+    # (the conservative default -- see module docstring in policy.rego T-347)
+    # and warn when "dynamic". Weak-copyleft licenses (config.copyleft_weak)
+    # always warn regardless of link_type. Default False -- copyleft_strong/
+    # copyleft_weak are operator-supplied lists, caliper ships no default.
+    # See policies/policy.rego T-347.
+    "copyleft_propagation": False,
 }
 
 _DEFAULT_CONFIG: dict[str, object] = {
     "forbidden_licenses": [],
     "max_transitive_deps": 200,
     "min_package_age_days": 90,
+    "copyleft_strong": [],
+    "copyleft_weak": [],
     "rules_enabled": dict(_DEFAULT_RULES_ENABLED),
 }
 
@@ -86,6 +96,7 @@ def _row_from_finding(f: Finding) -> dict:
         "version": f.version,
         "advisory_id": f.advisory_id or "",
         "source_tool": f.source_tool,
+        "link_type": f.link_type,
     }
     if f.category == FindingCategory.license and f.license_id:
         entry["license_id"] = f.license_id
@@ -111,6 +122,7 @@ def _row_from_plugin_finding(f: PluginFinding) -> dict:
         "version": f.version,
         "advisory_id": advisory_id,
         "source_tool": finding_get(f, "source_tool", default=""),
+        "link_type": finding_get(f, "link_type", default="unknown"),
     }
     license_id = finding_get(f, "license_id", default="")
     if f.category == FindingCategory.license.value and license_id:

@@ -97,6 +97,7 @@ def _policy_evaluation(
             metadata={
                 "advisory_id": f.advisory_id or "",
                 "source_tool": f.source_tool,
+                "link_type": f.link_type,
                 **({"license_id": f.license_id} if f.license_id else {}),
             },
         )

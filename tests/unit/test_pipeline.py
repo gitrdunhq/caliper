@@ -360,6 +360,86 @@ class TestPolicyEvaluationConstraintsRegression:
 
 
 # ---------------------------------------------------------------------------
+# #347 — link_type must thread from the core Finding model into the
+# PluginFinding.metadata dict _policy_evaluation builds for the OPA input.
+# ---------------------------------------------------------------------------
+
+
+class TestPolicyEvaluationLinkTypeMetadata:
+    def test_link_type_present_in_plugin_finding_metadata(self) -> None:
+        from unittest.mock import MagicMock
+
+        from caliper.core.models import Finding, FindingCategory, FindingSeverity
+        from caliper.core.pipeline import _policy_evaluation
+        from caliper.core.policy_port import PolicyDecision
+
+        finding = Finding(
+            severity=FindingSeverity.high,
+            category=FindingCategory.license,
+            description="GPL-3.0-only detected",
+            source_tool="scancode",
+            package_name="copyleftlib",
+            version="1.0.0",
+            advisory_id="LIC-347",
+            license_id="GPL-3.0-only",
+            link_type="dynamic",
+        )
+
+        fake_engine = MagicMock()
+        fake_engine.evaluate.return_value = PolicyDecision(
+            verdict="approve",
+            deny_reasons=[],
+            warn_reasons=[],
+            triggered_rules=[],
+        )
+        fake_ctx = MagicMock()
+        fake_ctx.policy_engine = fake_engine
+
+        _policy_evaluation(fake_ctx, [finding], {})
+
+        policy_input = fake_engine.evaluate.call_args[0][0]
+        plugin_finding = policy_input.findings[0]
+        assert plugin_finding.metadata["link_type"] == "dynamic"
+
+    def test_link_type_defaults_to_unknown_in_plugin_finding_metadata(self) -> None:
+        """A Finding constructed without an explicit link_type defaults to
+        "unknown" (Finding.link_type default) and that value must still land
+        in PluginFinding.metadata -- link_type is threaded unconditionally,
+        unlike license_id."""
+        from unittest.mock import MagicMock
+
+        from caliper.core.models import Finding, FindingCategory, FindingSeverity
+        from caliper.core.pipeline import _policy_evaluation
+        from caliper.core.policy_port import PolicyDecision
+
+        finding = Finding(
+            severity=FindingSeverity.high,
+            category=FindingCategory.vulnerability,
+            description="RCE",
+            source_tool="osv-scanner",
+            package_name="somepkg",
+            version="1.0.0",
+            advisory_id="CVE-2026-0001",
+        )
+
+        fake_engine = MagicMock()
+        fake_engine.evaluate.return_value = PolicyDecision(
+            verdict="approve",
+            deny_reasons=[],
+            warn_reasons=[],
+            triggered_rules=[],
+        )
+        fake_ctx = MagicMock()
+        fake_ctx.policy_engine = fake_engine
+
+        _policy_evaluation(fake_ctx, [finding], {})
+
+        policy_input = fake_engine.evaluate.call_args[0][0]
+        plugin_finding = policy_input.findings[0]
+        assert plugin_finding.metadata["link_type"] == "unknown"
+
+
+# ---------------------------------------------------------------------------
 # Regression P01-1 — evaluate_sbom must stamp commit_sha onto each request
 # ---------------------------------------------------------------------------
 

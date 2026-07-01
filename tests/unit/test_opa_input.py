@@ -51,6 +51,16 @@ class TestBuildOpaInputFromCoreFindingModel:
         assert "license_id" not in result["findings"][0]
         assert result["findings"][1]["license_id"] == "GPL-3.0"
 
+    def test_link_type_defaults_to_unknown_and_is_always_present(self) -> None:
+        """#347: link_type is unconditional (unlike license_id) -- every row
+        carries it, defaulting to "unknown" when the Finding didn't set one."""
+        result = build_opa_input([_vuln_finding()], {})
+        assert result["findings"][0]["link_type"] == "unknown"
+
+    def test_link_type_explicit_value_passed_through(self) -> None:
+        result = build_opa_input([_vuln_finding(link_type="dynamic")], {})
+        assert result["findings"][0]["link_type"] == "dynamic"
+
 
 class TestBuildOpaInputFromPluginFinding:
     """The LIVE production path — PolicyInput.findings is list[PluginFinding]."""
@@ -104,6 +114,25 @@ class TestBuildOpaInputFromPluginFinding:
         result = build_opa_input([finding], {})
         assert "license_id" not in result["findings"][0]
 
+    def test_link_type_read_from_metadata_defaults_to_unknown(self) -> None:
+        """#347: PluginFinding has no first-class link_type field; it is read
+        from metadata (the finding_get escape hatch), defaulting to
+        "unknown" when metadata doesn't carry it."""
+        finding = PluginFinding(id="CVE-2", severity="high", message="vuln")
+        result = build_opa_input([finding], {})
+        assert result["findings"][0]["link_type"] == "unknown"
+
+    def test_link_type_read_from_metadata_when_present(self) -> None:
+        finding = PluginFinding(
+            id="LIC-2",
+            severity="low",
+            message="GPL-3.0 detected",
+            category="license",
+            metadata={"license_id": "GPL-3.0", "link_type": "static"},
+        )
+        result = build_opa_input([finding], {})
+        assert result["findings"][0]["link_type"] == "static"
+
 
 class TestConfigMerge:
     def test_default_rules_enabled_present_when_config_omitted(self) -> None:
@@ -118,6 +147,23 @@ class TestConfigMerge:
         assert _DEFAULT_RULES_ENABLED["dev_scope_exemption"] is False
         result = build_opa_input([], {})
         assert result["config"]["rules_enabled"]["dev_scope_exemption"] is False
+
+    def test_copyleft_propagation_present_and_defaults_false(self) -> None:
+        """#347: copyleft_propagation must exist and default to False so no
+        one is opted into the link_type-aware copyleft enforcement without
+        explicitly enabling it and supplying copyleft_strong/copyleft_weak."""
+        assert "copyleft_propagation" in _DEFAULT_RULES_ENABLED
+        assert _DEFAULT_RULES_ENABLED["copyleft_propagation"] is False
+        result = build_opa_input([], {})
+        assert result["config"]["rules_enabled"]["copyleft_propagation"] is False
+
+    def test_copyleft_strong_and_weak_default_to_empty_list(self) -> None:
+        """#347: copyleft_strong/copyleft_weak are operator-supplied SPDX ID
+        lists (mirrors forbidden_licenses/kev_ids) -- caliper ships no
+        opinionated default list for either."""
+        result = build_opa_input([], {})
+        assert result["config"]["copyleft_strong"] == []
+        assert result["config"]["copyleft_weak"] == []
 
     def test_cisa_kev_present_and_defaults_false(self) -> None:
         """#344: cisa_kev must exist and default to False so no one is

@@ -364,6 +364,7 @@ class TestFullFieldPassthroughViaLivePipeline:
             version="9.9.9",
             advisory_id="LIC-0001",
             license_id="GPL-3.0",
+            link_type="static",
         )
 
         fake_ctx = SimpleNamespace(policy_engine=adapter)
@@ -378,3 +379,4 @@ class TestFullFieldPassthroughViaLivePipeline:
         assert opa_finding["advisory_id"] == "LIC-0001", opa_finding
         assert opa_finding["license_id"] == "GPL-3.0", opa_finding
         assert opa_finding["source_tool"] == "scancode", opa_finding
+        assert opa_finding["link_type"] == "static", opa_finding
