@@ -1,28 +1,24 @@
 """Deterministic guards for optional extras CI coverage — Issue #246 / Parent #212.
 
-Bug: Dockerfile.test only installs --group dev via 'uv sync'. The copilot and
-parquet extras are not installed, so test_agent_main.py, test_webhook.py, and
-test_parquet_writer.py use pytest.importorskip and silently skip in the default
-test lane — agent/webhook/parquet regressions pass CI unnoticed.
+Bug (FIXED): Dockerfile.test only installed --group dev via 'uv sync' plus a
+hardcoded, drift-prone duplicate 'uv pip install mypy==... pyarrow==...' line.
+The copilot, parquet, db, and watch extras were not installed, so
+test_agent_main.py, test_webhook.py, and test_parquet_writer.py used
+pytest.importorskip and silently skipped in the default test lane —
+agent/webhook/parquet regressions passed CI unnoticed.
 
-These are xfail until Dockerfile.test (or a dedicated CI lane) installs the
-copilot and parquet extras. See issues #212 and #246.
+Fix: Dockerfile.test now installs via 'uv sync --all-extras', which is the
+single-source-of-truth equivalent of pyproject.toml's [project.optional-
+dependencies] groups (db, parquet, copilot, watch) — no hardcoded duplicate
+list. See issues #212 and #246.
+
+These are regression guards — they PASS while the fix is in place and FAIL if
+Dockerfile.test regresses back to installing --group dev only.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-
-import pytest
-
-pytestmark = pytest.mark.xfail(
-    reason=(
-        "deterministic bug detector for #212 — "
-        "Dockerfile.test does not install --extra copilot; "
-        "add the extra to ensure agent/webhook tests cannot silently skip"
-    ),
-    strict=False,
-)
 
 _REPO = Path(__file__).resolve().parents[2]
 
