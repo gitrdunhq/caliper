@@ -113,6 +113,24 @@ class TestSarifToReview:
         assert "1 warning" in review.body
         assert "4" in review.body
 
+    def test_plugin_error_sentinel_does_not_block(self):
+        """A crashed plugin's synthetic 'caliper-plugin-error' result is fail-open
+        (#211) — it must not be recounted into error_count and flip the verdict
+        to REQUEST_CHANGES. Only real findings should block."""
+        sarif = _sarif(
+            [
+                {
+                    "ruleId": "caliper-plugin-error",
+                    "level": "error",
+                    "message": {"text": "plugin osv-scanner crashed: timeout"},
+                }
+            ]
+        )
+        review = sarif_to_review(sarif, diff_files=set())
+
+        assert review.event == "COMMENT"
+        assert review.comments == []
+
     def test_no_locations_skips_inline(self):
         sarif = _sarif(
             [
