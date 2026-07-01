@@ -16,7 +16,7 @@ uv sync --group dev           # install all deps including dev
 docker-compose up -d          # start PostgreSQL on port 12432
 make test                     # run full test suite
 make quality-check            # black + ruff
-opa test policies/            # OPA policy unit tests
+opa test policies/ --ignore '*.yaml' --ignore '*.yml'  # OPA policy unit tests
 ```
 
 First-run sanity check:
@@ -108,7 +108,7 @@ Scanner output must be normalized via `FindingNormalizer` before reaching `core`
 2. Add a test case in `policies/policy_test.rego` — both passing and failing inputs
 3. Update `policies/INPUT_SCHEMA.md` with any new input fields the rule reads
 4. Populate the new field in `ReviewPipeline._build_package_metadata()` in `core/pipeline.py`
-5. Run `opa test policies/` — all tests must pass
+5. Run `opa test policies/ --ignore '*.yaml' --ignore '*.yml'` — all tests must pass
 
 Rules must be written defensively: `input.pkg.field` with `default` assignments so that missing fields produce `needs_review`, not `deny` or silent bypass.
 

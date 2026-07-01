@@ -256,7 +256,7 @@ OPA unavailable       → "needs_review"
 ```
 
 ```bash
-opa test policies/   # 16 tests covering every rule and toggle
+opa test policies/ --ignore '*.yaml' --ignore '*.yml'   # policy tests covering every rule and toggle
 ```
 
 ---
@@ -761,7 +761,7 @@ docker-compose up -d                     # PostgreSQL on port 12432
 uv run pytest tests/ -v                  # 1078 tests
 uv run ruff check src/ tests/            # Lint
 uv run black src/ tests/                 # Format
-opa test policies/                       # 16 OPA policy tests
+opa test policies/ --ignore '*.yaml' --ignore '*.yml'  # OPA policy tests
 bash scripts/verify-scanners.sh          # Check scanner binaries
 
 # Stress test against real PRs

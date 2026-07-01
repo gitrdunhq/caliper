@@ -228,7 +228,11 @@ Release candidate vX.Y.Z-rc.YYYYMMDD.N complete:
 
 ## Verification
 
-For workflow/profile changes, run the focused policy checks first:
+Caliper's tests must run in a container (`make test`) — CI never sets
+`CALIPER_ALLOW_HOST_TESTS`. The command below is a **local-only, human-debugging
+escape hatch** for a fast focused re-run of just the workflow/profile guard
+tests while iterating; it is not a substitute for `make test` and must never be
+copied into a workflow file:
 
 ```bash
 UV_CACHE_DIR=/tmp/uv-cache CALIPER_ALLOW_HOST_TESTS=1 uv run pytest tests/unit/test_github_actions_policy.py tests/unit/test_copilot_agent_profiles.py tests/unit/test_deterministic_workflow_guards.py tests/unit/test_deterministic_release_key_guards.py -v --tb=short

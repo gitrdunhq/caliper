@@ -17,7 +17,7 @@ uv run black src/ tests/               # Format
 make quality-check                     # Format + lint
 make dogfood                           # Self-scan with caliper review
 make preflight                         # Format + lint + test + dogfood
-opa test policies/                     # OPA Rego policy tests
+opa test policies/ --ignore '*.yaml' --ignore '*.yml'  # OPA Rego policy tests (--ignore skips semgrep/swiftlint config YAML)
 ```
 
 **Tests MUST run in a container.** `make test` handles this automatically. Never use `CALIPER_ALLOW_HOST_TESTS=1`.
