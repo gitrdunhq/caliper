@@ -742,8 +742,15 @@ jobs:
           VERDICT="${{ steps.verdict.outputs.verdict }}"
           CRASHED="${{ steps.verdict.outputs.crashed }}"
           ERRORS="${{ steps.verdict.outputs.errors }}"
+          # Only workflow_dispatch carries this input; pull_request/push fall back to
+          # "block" so normal PR/push triggers keep failing closed (#214).
+          ENFORCEMENT_MODE="${{ github.event.inputs.enforcement_mode || 'block' }}"
 
           if [ "$VERDICT" = "blocked" ]; then
-            echo "::error::Foreman fail-closed — verdict: ${VERDICT} (${CRASHED} crashed, ${ERRORS} errors)"
-            exit 1
+            if [ "$ENFORCEMENT_MODE" = "block" ]; then
+              echo "::error::Foreman fail-closed — verdict: ${VERDICT} (${CRASHED} crashed, ${ERRORS} errors)"
+              exit 1
+            else
+              echo "::warning::Foreman verdict: ${VERDICT} (${CRASHED} crashed, ${ERRORS} errors) — not failing the job, enforcement_mode=${ENFORCEMENT_MODE}"
+            fi
           fi
