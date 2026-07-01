@@ -1,10 +1,14 @@
 """Lizard + Radon complexity subprocess runner.
 # tested-by: tests/unit/test_complexity_runner.py
+
+Lizard (CCN/NLOC/Halstead) is the complexity source of record for every
+language caliper scans, JS/TS included: as of 2026 no actively maintained,
+permissively-licensed CLI computes a JS/TS-specific maintainability index.
+Revisit periodically (#441).
 """
 
 from __future__ import annotations
 
-import json
 import math
 import subprocess
 from pathlib import Path
@@ -27,8 +31,6 @@ _SUPPORTED_EXTS = (
     ".swift",
 )
 
-_JS_TS_EXTS = {".js", ".ts", ".jsx", ".tsx"}
-
 
 def _halstead_mi(nloc: int, ccn: int, tokens: int) -> float:
     """Return the Halstead-approximated Maintainability Index clamped to [0, 100]."""
@@ -37,63 +39,6 @@ def _halstead_mi(nloc: int, ccn: int, tokens: int) -> float:
     halstead_volume = safe_tokens * math.log2(max(safe_tokens * 0.5, 2))
     mi = 171.0 - 5.2 * math.log(max(halstead_volume, 1)) - 0.23 * ccn - 16.2 * math.log(safe_nloc)
     return max(0.0, min(100.0, mi))
-
-
-def _apply_escomplex_mi(
-    functions: list[dict],
-    js_ts_files: list[str],
-    repo_path: str,
-    timeout: int,
-) -> None:
-    """Override maintainability_index for JS/TS functions using escomplex.
-
-    Mutates *functions* in-place.  Falls back silently to the existing
-    Halstead approximation when escomplex is not installed or times out,
-    emitting a warning in both cases.
-    """
-    try:
-        result = subprocess.run(
-            ["escomplex", "--format", "json", *js_ts_files],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=repo_path,
-            check=False,
-        )
-        data = json.loads(result.stdout or "{}")
-        # Build a file → MI map from escomplex output
-        mi_by_file: dict[str, float] = {}
-        for report in data.get("reports", []):
-            path = report.get("path", "")
-            mi_val = report.get("maintainability")
-            if path and mi_val is not None:
-                mi_by_file[path] = float(mi_val)
-
-        for fn in functions:
-            file_path = fn.get("file", "")
-            if Path(file_path).suffix in _JS_TS_EXTS and file_path in mi_by_file:
-                mi = max(0.0, min(100.0, mi_by_file[file_path]))
-                grade = "A" if mi >= 20 else ("B" if mi >= 10 else "C")
-                fn["maintainability_index"] = f"{grade} ({mi:.1f})"
-
-    except FileNotFoundError:
-        logger.warning(
-            "complexity.escomplex_not_installed",
-            fallback="halstead_approximation",
-            detail="escomplex not found; install with: npm install -g escomplex-cli",
-        )
-    except subprocess.TimeoutExpired:
-        logger.warning(
-            "complexity.escomplex_timeout",
-            fallback="halstead_approximation",
-        )
-    except (json.JSONDecodeError, ValueError, KeyError):
-        logger.warning(
-            "complexity.escomplex_parse_error",
-            fallback="halstead_approximation",
-        )
-    except Exception:
-        logger.exception("complexity.escomplex_failed")
 
 
 def run_complexity(
@@ -176,15 +121,6 @@ def run_complexity(
         )
         grade = "A" if mi >= 20 else ("B" if mi >= 10 else "C")
         fn["maintainability_index"] = f"{grade} ({mi:.1f})"
-
-    # JS/TS maintainability override is DISABLED: it shelled out to an `escomplex`
-    # binary that does not exist (the npm `escomplex-cli` package is fictional, and
-    # `escomplex` ships no CLI), so this path only ever FileNotFoundError'd and emitted
-    # a misleading install hint. JS/TS now uses the Halstead approximation above, same
-    # as Go/Rust/Java/C/Swift. Re-enable with a real tool per issue #441.
-    # js_ts_files = [f for f in supported if Path(f).suffix in _JS_TS_EXTS]
-    # if js_ts_files:
-    #     _apply_escomplex_mi(functions, js_ts_files, repo_path, timeout)
 
     py_files = [f for f in supported if f.endswith(".py")]
     if py_files:

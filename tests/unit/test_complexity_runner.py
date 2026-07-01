@@ -4,11 +4,7 @@
 
 from __future__ import annotations
 
-import json
-import subprocess
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from caliper.plugins._runners.complexity_runner import (
     _halstead_mi,
@@ -70,42 +66,13 @@ class TestLizardOutputParsing:
 
 
 # ---------------------------------------------------------------------------
-# Helpers for escomplex tests
+# Helpers for JS/TS Halstead-MI tests
 # ---------------------------------------------------------------------------
 
 _LIZARD_CSV_LINE = "10,3,50,2,15,myFunc@10,app.js,1,0,\n"
 
-_ESCOMPLEX_OUTPUT = json.dumps(
-    {
-        "reports": [
-            {
-                "path": "app.js",
-                "maintainability": 72.34,
-            }
-        ]
-    }
-)
-
-_ESCOMPLEX_OUTPUT_TS = json.dumps(
-    {
-        "reports": [
-            {
-                "path": "server.ts",
-                "maintainability": 55.10,
-            }
-        ]
-    }
-)
-
 
 def _lizard_result(stdout: str = _LIZARD_CSV_LINE) -> MagicMock:
-    r = MagicMock()
-    r.stdout = stdout
-    r.returncode = 0
-    return r
-
-
-def _escomplex_result(stdout: str = _ESCOMPLEX_OUTPUT) -> MagicMock:
     r = MagicMock()
     r.stdout = stdout
     r.returncode = 0
@@ -135,52 +102,13 @@ class TestHalsteadMi:
 
 
 # ---------------------------------------------------------------------------
-# JS/TS: escomplex override
+# Per-language MI source: Python uses radon, everything else uses Halstead
 # ---------------------------------------------------------------------------
 
 
-class TestEscomplexOverride:
-    @pytest.mark.skip(reason="escomplex override disabled — JS/TS uses Halstead; see #441")
-    def test_js_mi_comes_from_escomplex_not_approximation(self):
-        """MI for a JS file must use escomplex output, not the Halstead approximation."""
-        lizard_side = [_lizard_result(_LIZARD_CSV_LINE)]
-        escomplex_side = [_escomplex_result(_ESCOMPLEX_OUTPUT)]
-
-        with patch("subprocess.run", side_effect=lizard_side + escomplex_side):
-            result = run_complexity(["app.js"], "/repo")
-
-        fns = result["functions"]
-        assert len(fns) == 1
-        mi_str = fns[0]["maintainability_index"]
-        # escomplex score is 72.34 — must appear in the string
-        assert "72.3" in mi_str
-
-        # Confirm it differs from the pure Halstead approximation
-        fn = fns[0]
-        approx = _halstead_mi(
-            nloc=fn["nloc"], ccn=fn["cyclomatic_complexity"], tokens=fn["token_count"]
-        )
-        approx_str = f"{('A' if approx >= 20 else ('B' if approx >= 10 else 'C'))} ({approx:.1f})"
-        assert (
-            mi_str != approx_str
-        ), "MI string should differ from Halstead approximation when escomplex is available"
-
-    @pytest.mark.skip(reason="escomplex override disabled — JS/TS uses Halstead; see #441")
-    def test_ts_mi_comes_from_escomplex(self):
-        """MI for a TS file also uses escomplex."""
-        lizard_csv = "8,2,40,1,12,handler@5,server.ts,1,0,\n"
-        lizard_side = [_lizard_result(lizard_csv)]
-        escomplex_side = [_escomplex_result(_ESCOMPLEX_OUTPUT_TS)]
-
-        with patch("subprocess.run", side_effect=lizard_side + escomplex_side):
-            result = run_complexity(["server.ts"], "/repo")
-
-        fns = result["functions"]
-        assert len(fns) == 1
-        assert "55.1" in fns[0]["maintainability_index"]
-
-    def test_python_unchanged_uses_radon_not_escomplex(self):
-        """Python files must still use radon, not escomplex."""
+class TestPerLanguageMiSource:
+    def test_python_uses_radon_for_mi(self):
+        """Python files use radon for MI (only two subprocess calls: lizard, radon)."""
         lizard_csv = "12,4,60,3,20,compute@8,utils.py,1,0,\n"
         lizard_side = [_lizard_result(lizard_csv)]
         radon_out = MagicMock()
@@ -193,76 +121,30 @@ class TestEscomplexOverride:
         fns = result["functions"]
         assert len(fns) == 1
         assert fns[0]["maintainability_index"] == "A (87.50)"
-
-        # escomplex must NOT have been called for a .py file
-        calls = [str(c) for c in mock_run.call_args_list]
-        assert not any("escomplex" in c for c in calls)
+        assert mock_run.call_count == 2
 
 
 # ---------------------------------------------------------------------------
-# Fallback: escomplex not installed
+# JS/TS MI always comes from the Halstead approximation (no per-tool fallback
+# branching left to test now that the JS/TS-specific override is gone)
 # ---------------------------------------------------------------------------
 
 
-class TestEscomplexFallback:
-    def test_fallback_to_halstead_when_escomplex_not_installed(self):
-        """When escomplex is not installed, MI falls back to Halstead approximation."""
+class TestJsHalsteadMi:
+    def test_js_file_gets_halstead_mi_grade(self):
+        """MI for a JS file comes from the Halstead approximation."""
         lizard_side = [_lizard_result(_LIZARD_CSV_LINE)]
-        escomplex_not_found = FileNotFoundError("No such file: escomplex")
 
-        with patch("subprocess.run", side_effect=lizard_side + [escomplex_not_found]):
+        with patch("subprocess.run", side_effect=lizard_side):
             result = run_complexity(["app.js"], "/repo")
 
         fns = result["functions"]
         assert len(fns) == 1
         mi_str = fns[0]["maintainability_index"]
 
-        # Should still have a grade prefix (A/B/C) from the Halstead approximation
+        # Should have a grade prefix (A/B/C) from the Halstead approximation
         assert mi_str[0] in ("A", "B", "C")
         assert "(" in mi_str
-
-    @pytest.mark.skip(reason="escomplex override disabled — no escomplex warning emitted; see #441")
-    def test_fallback_warning_logged(self, caplog):
-        """A structlog warning is emitted when escomplex is missing."""
-        lizard_side = [_lizard_result(_LIZARD_CSV_LINE)]
-        escomplex_not_found = FileNotFoundError("No such file: escomplex")
-
-        with patch("subprocess.run", side_effect=lizard_side + [escomplex_not_found]):
-            with patch("caliper.plugins._runners.complexity_runner.logger") as mock_logger:
-                run_complexity(["app.js"], "/repo")
-                mock_logger.warning.assert_called_once()
-                call_kwargs = mock_logger.warning.call_args
-                assert "escomplex" in str(call_kwargs).lower()
-
-    def test_escomplex_timeout_falls_back(self):
-        """escomplex timeout also falls back gracefully to Halstead."""
-        lizard_side = [_lizard_result(_LIZARD_CSV_LINE)]
-
-        with patch(
-            "subprocess.run",
-            side_effect=lizard_side + [subprocess.TimeoutExpired(cmd="escomplex", timeout=60)],
-        ):
-            result = run_complexity(["app.js"], "/repo")
-
-        fns = result["functions"]
-        assert len(fns) == 1
-        mi_str = fns[0]["maintainability_index"]
-        assert mi_str[0] in ("A", "B", "C")
-
-    def test_escomplex_bad_json_falls_back(self):
-        """Malformed escomplex JSON falls back gracefully."""
-        lizard_side = [_lizard_result(_LIZARD_CSV_LINE)]
-        bad_json = MagicMock()
-        bad_json.stdout = "not valid json{"
-        bad_json.returncode = 0
-
-        with patch("subprocess.run", side_effect=lizard_side + [bad_json]):
-            result = run_complexity(["app.js"], "/repo")
-
-        fns = result["functions"]
-        assert len(fns) == 1
-        mi_str = fns[0]["maintainability_index"]
-        assert mi_str[0] in ("A", "B", "C")
 
 
 # ---------------------------------------------------------------------------
