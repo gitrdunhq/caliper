@@ -140,12 +140,77 @@ class FakeSession:
         self.suggestions: list[dict] = []
         self.suggest_configured = True
         self.suggest_calls = 0
+        self.suggest_apply_calls: list[list[dict]] = []
+        self.raise_on_suggest_apply: Exception | None = None
+        # Sentinel, not []: proves a route actually calls session.overrides()
+        # and merges its result, rather than happening to already have an
+        # empty "overrides" key from somewhere else.
+        self._overrides_value: list[dict] = [
+            {"glob": "sentinel/**", "bucket": "config", "note": ""}
+        ]
+        self.untargeted = False
+        self.retargeted_calls: list[tuple[str, str]] = []
+        self.raise_on_retarget: Exception | None = None
+        self.pr_calls: list[str] = []
+        self.raise_on_pr: Exception | None = None
+        self.size_cap_calls: list[int | None] = []
+        self.raise_on_size_cap: Exception | None = None
+        self.generate_calls: list[dict] = []
+        self.raise_on_generate: Exception | None = None
+        self._restack_script: str | None = None
+        self.generate_result: dict = {
+            "cutlist": _FAKE_CUT,
+            "script_text": "#!/usr/bin/env bash\n",
+            "backup_bookmark": "caliper-part-backup-x",
+            "rescue_op_id": "op-1",
+            "jj_version": "0.99.0",
+            "can_reconstruct": True,
+            "subjects": {},
+            "proposed_overrides": [],
+            "applied_overrides": [],
+            "restack_path": "/tmp/restack.sh",
+            "cutlist_path": "/tmp/cutlist.json",
+            "apply_token": "tok-123",
+        }
+        self.apply_calls: list[str] = []
+        self.raise_on_apply: Exception | None = None
+        self.apply_result: dict = {
+            "ok": True,
+            "stdout": "applied\n",
+            "stderr": "",
+            "rollback": {"backup_bookmark": "caliper-part-backup-x", "rescue_op_id": "op-1"},
+        }
+        self.rollback_calls = 0
+        self.raise_on_rollback: Exception | None = None
+        self.rollback_result: dict = {"ok": True, "stdout": "restored\n", "stderr": ""}
 
     def cut_dict(self) -> dict:
+        if self.untargeted:
+            return {"targeted": False}
         return _FAKE_CUT
+
+    def retarget(self, *, base: str, head: str) -> dict:
+        if self.raise_on_retarget is not None:
+            raise self.raise_on_retarget
+        self.retargeted_calls.append((base, head))
+        self.untargeted = False
+        return _FAKE_CUT
+
+    def set_target_pr(self, ref: str) -> dict:
+        if self.raise_on_pr is not None:
+            raise self.raise_on_pr
+        self.pr_calls.append(ref)
+        self.untargeted = False
+        return {**_FAKE_CUT, "pr": {"slug": "acme/widgets", "number": 42}}
 
     def repart_dict(self) -> dict:
         self.reparted += 1
+        return _FAKE_CUT
+
+    def set_size_cap(self, size_cap: int | None) -> dict:
+        if self.raise_on_size_cap is not None:
+            raise self.raise_on_size_cap
+        self.size_cap_calls.append(size_cap)
         return _FAKE_CUT
 
     def reclassify(self, *, target: str, bucket: str, note: str = "") -> dict:
@@ -155,11 +220,42 @@ class FakeSession:
         return _FAKE_CUT
 
     def overrides(self) -> list[dict]:
-        return []
+        return self._overrides_value
 
     def suggest_dict(self) -> dict:
         self.suggest_calls += 1
         return {"suggestions": self.suggestions, "configured": self.suggest_configured}
+
+    def suggest_apply(self, rules: list[dict]) -> dict:
+        if self.raise_on_suggest_apply is not None:
+            raise self.raise_on_suggest_apply
+        self.suggest_apply_calls.append(rules)
+        return _FAKE_CUT
+
+    def generate(self, *, describe: bool = False, force: bool = False, target=None) -> dict:
+        if self.raise_on_generate is not None:
+            raise self.raise_on_generate
+        self.generate_calls.append({"describe": describe, "force": force, "target": target})
+        self._restack_script = self.generate_result["script_text"]
+        return self.generate_result
+
+    def restack_script(self) -> str | None:
+        return self._restack_script
+
+    def apply(self, token: str) -> dict:
+        if self.raise_on_apply is not None:
+            raise self.raise_on_apply
+        self.apply_calls.append(token)
+        return self.apply_result
+
+    def rollback(self) -> dict:
+        if self.raise_on_rollback is not None:
+            raise self.raise_on_rollback
+        self.rollback_calls += 1
+        return self.rollback_result
+
+
+_LOOPBACK_HEADERS = {"host": "127.0.0.1:12700"}
 
 
 def _post(session: FakeSession, path: str, payload: dict):
@@ -170,17 +266,50 @@ def _body(resp) -> dict:
     return orjson.loads(resp.body)
 
 
+def _fake_assets() -> part_serve.Assets:
+    return part_serve.Assets(
+        index_html=b'<!doctype html><html><body><div id="app"></div>'
+        b'<script src="/assets/part_ui.js"></script></body></html>',
+        js=b"console.log('part ui');",
+        css=b":root{color-scheme:light dark;}",
+    )
+
+
 class TestDispatch:
-    def test_index_renders_html(self) -> None:
+    def test_index_without_assets_is_500(self) -> None:
+        # A misconfigured server (bundle not built/loaded) fails loudly rather
+        # than serving a 200 with no shell.
         resp = dispatch(FakeSession(), "GET", "/", b"")
+        assert resp.status == 500
+
+    def test_index_serves_shell_when_assets_loaded(self) -> None:
+        resp = dispatch(FakeSession(), "GET", "/", b"", assets=_fake_assets())
         assert resp.status == 200
         assert "text/html" in resp.content_type
-        assert b"logic" in resp.body  # the part bucket is rendered
+        assert b'id="app"' in resp.body
+        assert b"/assets/part_ui.js" in resp.body
+
+    def test_assets_js_served(self) -> None:
+        resp = dispatch(FakeSession(), "GET", "/assets/part_ui.js", b"", assets=_fake_assets())
+        assert resp.status == 200
+        assert "javascript" in resp.content_type
+        assert resp.body == b"console.log('part ui');"
+
+    def test_assets_css_served(self) -> None:
+        resp = dispatch(FakeSession(), "GET", "/assets/part_ui.css", b"", assets=_fake_assets())
+        assert resp.status == 200
+        assert "text/css" in resp.content_type
+        assert resp.body == b":root{color-scheme:light dark;}"
+
+    def test_assets_route_without_assets_is_500(self) -> None:
+        resp = dispatch(FakeSession(), "GET", "/assets/part_ui.js", b"")
+        assert resp.status == 500
 
     def test_cutlist_returns_json(self) -> None:
         resp = dispatch(FakeSession(), "GET", "/cutlist", b"")
         assert resp.status == 200
         assert _body(resp)["parts"][0]["id"] == "p1"
+        assert _body(resp)["overrides"] == [{"glob": "sentinel/**", "bucket": "config", "note": ""}]
 
     def test_reclassify_writes_override_and_returns_cut(self) -> None:
         session = FakeSession()
@@ -188,6 +317,10 @@ class TestDispatch:
         assert resp.status == 200
         assert session.reclassified == [("src/app.py", "business")]
         assert _body(resp)["parts"][0]["bucket"] == "logic"
+        # The overrides panel must refresh from a reclassify response too, not
+        # only from the initial GET /cutlist — otherwise the SPA shows a stale
+        # "no overrides yet" after a write that plainly succeeded.
+        assert _body(resp)["overrides"] == [{"glob": "sentinel/**", "bucket": "config", "note": ""}]
 
     def test_reclassify_accepts_glob(self) -> None:
         session = FakeSession()
@@ -221,6 +354,48 @@ class TestDispatch:
         resp = dispatch(session, "POST", "/repart", b"")
         assert resp.status == 200
         assert session.reparted == 1
+        assert _body(resp)["overrides"] == [{"glob": "sentinel/**", "bucket": "config", "note": ""}]
+
+    def test_repart_with_size_cap_applies_and_reparts(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/repart", orjson.dumps({"size_cap": 500}))
+        assert resp.status == 200
+        assert session.size_cap_calls == [500]
+        assert session.reparted == 0  # set_size_cap re-parts itself, not repart_dict()
+
+    def test_repart_with_null_size_cap_clears_cap(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/repart", orjson.dumps({"size_cap": None}))
+        assert resp.status == 200
+        assert session.size_cap_calls == [None]
+
+    def test_repart_size_cap_wrong_type_is_400(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/repart", orjson.dumps({"size_cap": "big"}))
+        assert resp.status == 400
+        assert session.size_cap_calls == []
+
+    def test_repart_size_cap_zero_is_400(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/repart", orjson.dumps({"size_cap": 0}))
+        assert resp.status == 400
+
+    def test_repart_size_cap_negative_is_400(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/repart", orjson.dumps({"size_cap": -5}))
+        assert resp.status == 400
+
+    def test_repart_invalid_json_body_is_400(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/repart", b"not json")
+        assert resp.status == 400
+
+    def test_repart_size_cap_session_error_is_400(self) -> None:
+        session = FakeSession()
+        session.raise_on_size_cap = ValueError("bad cap")
+        resp = dispatch(session, "POST", "/repart", orjson.dumps({"size_cap": 10}))
+        assert resp.status == 400
+        assert _body(resp)["error"] == "bad cap"
 
     def test_suggest_returns_session_suggestions(self) -> None:
         session = FakeSession()
@@ -239,11 +414,97 @@ class TestDispatch:
         assert body["configured"] is False
         assert body["suggestions"] == []
 
-    def test_index_renders_suggest_button(self) -> None:
-        # The toolbar offers the advisory pass and a target for its chips.
-        resp = dispatch(FakeSession(), "GET", "/", b"")
-        assert b"suggest tiers" in resp.body
-        assert b'id="suggestions"' in resp.body
+    def test_suggest_apply_writes_all_and_reparts(self) -> None:
+        session = FakeSession()
+        rules = [
+            {"glob": "**/lib/lambda/**", "bucket": "business", "note": "suggested"},
+            {"glob": "**/cdk.json", "bucket": "config"},
+        ]
+        resp = _post(session, "/suggest/apply", {"globs": rules})
+        assert resp.status == 200
+        assert session.suggest_apply_calls == [rules]
+        assert _body(resp)["parts"][0]["id"] == "p1"
+        assert _body(resp)["overrides"] == [{"glob": "sentinel/**", "bucket": "config", "note": ""}]
+
+    def test_suggest_apply_empty_globs_is_400(self) -> None:
+        resp = _post(FakeSession(), "/suggest/apply", {"globs": []})
+        assert resp.status == 400
+
+    def test_suggest_apply_missing_globs_is_400(self) -> None:
+        resp = _post(FakeSession(), "/suggest/apply", {})
+        assert resp.status == 400
+
+    def test_suggest_apply_rule_missing_bucket_is_400(self) -> None:
+        resp = _post(FakeSession(), "/suggest/apply", {"globs": [{"glob": "**/x/**"}]})
+        assert resp.status == 400
+
+    def test_suggest_apply_invalid_json_is_400(self) -> None:
+        resp = dispatch(FakeSession(), "POST", "/suggest/apply", b"not json{")
+        assert resp.status == 400
+
+    def test_suggest_apply_session_error_is_400(self) -> None:
+        session = FakeSession()
+        session.raise_on_suggest_apply = ValueError("bad bucket")
+        resp = _post(session, "/suggest/apply", {"globs": [{"glob": "**/x/**", "bucket": "nope"}]})
+        assert resp.status == 400
+        assert _body(resp)["error"] == "bad bucket"
+
+    def test_cutlist_untargeted_reports_targeted_false(self) -> None:
+        session = FakeSession()
+        session.untargeted = True
+        resp = dispatch(session, "GET", "/cutlist", b"")
+        assert resp.status == 200
+        # The untargeted sentinel must pass through bare — no "overrides" key
+        # merged in, since there is no cut to attach it to yet.
+        assert _body(resp) == {"targeted": False}
+
+    def test_range_retargets_and_returns_cut(self) -> None:
+        session = FakeSession()
+        resp = _post(session, "/range", {"base": "main", "head": "feature/x"})
+        assert resp.status == 200
+        assert session.retargeted_calls == [("main", "feature/x")]
+        assert _body(resp)["parts"][0]["id"] == "p1"
+        assert _body(resp)["overrides"] == [{"glob": "sentinel/**", "bucket": "config", "note": ""}]
+
+    def test_range_missing_base_is_400(self) -> None:
+        resp = _post(FakeSession(), "/range", {"head": "feature/x"})
+        assert resp.status == 400
+        assert "base" in _body(resp)["error"]
+
+    def test_range_missing_head_is_400(self) -> None:
+        resp = _post(FakeSession(), "/range", {"base": "main"})
+        assert resp.status == 400
+
+    def test_range_invalid_json_is_400(self) -> None:
+        resp = dispatch(FakeSession(), "POST", "/range", b"{not json")
+        assert resp.status == 400
+
+    def test_range_session_error_is_400(self) -> None:
+        session = FakeSession()
+        session.raise_on_retarget = ValueError("bad revset")
+        resp = _post(session, "/range", {"base": "main", "head": "nope"})
+        assert resp.status == 400
+        assert _body(resp)["error"] == "bad revset"
+
+    def test_pr_resolves_and_returns_cut(self) -> None:
+        session = FakeSession()
+        resp = _post(session, "/pr", {"ref": "acme/widgets#42"})
+        assert resp.status == 200
+        assert session.pr_calls == ["acme/widgets#42"]
+        assert _body(resp)["parts"][0]["id"] == "p1"
+        assert _body(resp)["pr"] == {"slug": "acme/widgets", "number": 42}
+        assert _body(resp)["overrides"] == [{"glob": "sentinel/**", "bucket": "config", "note": ""}]
+
+    def test_pr_missing_ref_is_400(self) -> None:
+        resp = _post(FakeSession(), "/pr", {})
+        assert resp.status == 400
+
+    def test_pr_session_error_is_400(self) -> None:
+        session = FakeSession()
+        session.raise_on_pr = ValueError("could not resolve PR: not found")
+        resp = _post(session, "/pr", {"ref": "999999"})
+        assert resp.status == 400
+        assert "not found" in _body(resp)["error"]
 
     def test_unknown_route_is_404(self) -> None:
         resp = dispatch(FakeSession(), "GET", "/nope", b"")
@@ -253,6 +514,157 @@ class TestDispatch:
         # The handler strips the query string before dispatch; dispatch matches the bare path.
         resp = dispatch(FakeSession(), "GET", "/cutlist", b"")
         assert resp.status == 200
+
+    def test_restack_generates_and_returns_apply_token(self) -> None:
+        session = FakeSession()
+        resp = _post(session, "/restack", {})
+        assert resp.status == 200
+        assert session.generate_calls == [{"describe": False, "force": False, "target": None}]
+        body = _body(resp)
+        assert body["apply_token"] == "tok-123"
+        assert body["backup_bookmark"] == "caliper-part-backup-x"
+
+    def test_restack_passes_describe_force_target_through(self) -> None:
+        session = FakeSession()
+        resp = _post(session, "/restack", {"describe": True, "force": True, "target": "series"})
+        assert resp.status == 200
+        assert session.generate_calls == [{"describe": True, "force": True, "target": "series"}]
+
+    def test_restack_no_body_defaults_to_false_none(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/restack", b"")
+        assert resp.status == 200
+        assert session.generate_calls == [{"describe": False, "force": False, "target": None}]
+
+    def test_restack_invalid_json_is_400(self) -> None:
+        resp = dispatch(FakeSession(), "POST", "/restack", b"{not json")
+        assert resp.status == 400
+
+    def test_restack_describe_wrong_type_is_400(self) -> None:
+        resp = _post(FakeSession(), "/restack", {"describe": "yes"})
+        assert resp.status == 400
+
+    def test_restack_force_wrong_type_is_400(self) -> None:
+        resp = _post(FakeSession(), "/restack", {"force": "yes"})
+        assert resp.status == 400
+
+    def test_restack_bad_target_is_400(self) -> None:
+        resp = _post(FakeSession(), "/restack", {"target": "bogus"})
+        assert resp.status == 400
+
+    def test_restack_session_error_is_400(self) -> None:
+        session = FakeSession()
+        session.raise_on_generate = ValueError("no base/head targeted yet")
+        resp = _post(session, "/restack", {})
+        assert resp.status == 400
+        assert "targeted" in _body(resp)["error"]
+
+    def test_restack_sh_returns_last_script(self) -> None:
+        session = FakeSession()
+        _post(session, "/restack", {})
+        resp = dispatch(session, "GET", "/restack.sh", b"")
+        assert resp.status == 200
+        assert resp.content_type.startswith("text/x-shellscript")
+        assert resp.body == b"#!/usr/bin/env bash\n"
+
+    def test_restack_sh_before_generate_is_404(self) -> None:
+        resp = dispatch(FakeSession(), "GET", "/restack.sh", b"")
+        assert resp.status == 404
+
+    def test_apply_runs_with_loopback_host_and_token(self) -> None:
+        session = FakeSession()
+        resp = dispatch(
+            session,
+            "POST",
+            "/apply",
+            orjson.dumps({"apply_token": "tok-123"}),
+            headers=_LOOPBACK_HEADERS,
+        )
+        assert resp.status == 200
+        body = orjson.loads(resp.body)
+        assert body["ok"] is True
+        assert body["rollback"]["rescue_op_id"] == "op-1"
+        assert session.apply_calls == ["tok-123"]
+
+    def test_apply_accepts_localhost_host_and_matching_origin(self) -> None:
+        session = FakeSession()
+        resp = dispatch(
+            session,
+            "POST",
+            "/apply",
+            orjson.dumps({"apply_token": "tok-123"}),
+            headers={"host": "localhost:12700", "origin": "http://localhost:12700"},
+        )
+        assert resp.status == 200
+
+    def test_apply_rejects_non_loopback_host(self) -> None:
+        session = FakeSession()
+        resp = dispatch(
+            session,
+            "POST",
+            "/apply",
+            orjson.dumps({"apply_token": "tok-123"}),
+            headers={"host": "evil.example.com"},
+        )
+        assert resp.status == 403
+        assert session.apply_calls == []
+
+    def test_apply_rejects_cross_origin(self) -> None:
+        session = FakeSession()
+        resp = dispatch(
+            session,
+            "POST",
+            "/apply",
+            orjson.dumps({"apply_token": "tok-123"}),
+            headers={"host": "127.0.0.1:12700", "origin": "http://evil.example.com"},
+        )
+        assert resp.status == 403
+        assert session.apply_calls == []
+
+    def test_apply_with_no_headers_is_403(self) -> None:
+        # dispatch() defaults headers to None (existing callers unaffected) — the
+        # guard must fail closed, not treat "no header info" as loopback.
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/apply", orjson.dumps({"apply_token": "tok-123"}))
+        assert resp.status == 403
+        assert session.apply_calls == []
+
+    def test_apply_missing_token_is_400(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/apply", orjson.dumps({}), headers=_LOOPBACK_HEADERS)
+        assert resp.status == 400
+        assert session.apply_calls == []
+
+    def test_apply_invalid_json_is_400(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/apply", b"{not json", headers=_LOOPBACK_HEADERS)
+        assert resp.status == 400
+
+    def test_apply_stale_token_is_400(self) -> None:
+        session = FakeSession()
+        session.raise_on_apply = ValueError("invalid or expired apply token")
+        resp = dispatch(
+            session,
+            "POST",
+            "/apply",
+            orjson.dumps({"apply_token": "stale"}),
+            headers=_LOOPBACK_HEADERS,
+        )
+        assert resp.status == 400
+
+    def test_rollback_runs(self) -> None:
+        session = FakeSession()
+        resp = dispatch(session, "POST", "/rollback", b"")
+        assert resp.status == 200
+        body = orjson.loads(resp.body)
+        assert body["ok"] is True
+        assert session.rollback_calls == 1
+
+    def test_rollback_before_restack_is_400(self) -> None:
+        session = FakeSession()
+        session.raise_on_rollback = ValueError("nothing to roll back — POST /restack first")
+        resp = dispatch(session, "POST", "/rollback", b"")
+        assert resp.status == 400
 
 
 # --------------------------------------------------------------------------- #
@@ -308,85 +720,6 @@ class TestApplySizeCap:
         # The session must carry the override so each re-part applies it.
         session = part_serve.PartingSession(Path("/repo"), "base", "head", size_cap=100000)
         assert session.size_cap == 100000
-
-
-class TestRenderReport:
-    """The report renderer is a pure function — no starlette, runs everywhere."""
-
-    def test_renders_part_buckets_and_files(self) -> None:
-        from caliper.cli.part_serve import render_report
-
-        out = render_report(_FAKE_CUT)
-        assert "<!doctype html>" in out.lower()
-        assert "src/app.py" in out
-        assert "deadbeefcafe" in out  # config digest stamped
-
-    def test_header_summarizes_buckets_and_cap(self) -> None:
-        # A no-cap cut must read as intentional ("1 part/bucket"), not broken.
-        from caliper.cli.part_serve import render_report
-
-        uncapped = {**_FAKE_CUT, "size_cap": None}
-        out = render_report(uncapped)
-        assert "1 bucket" in out  # one labelled bucket of concern
-        assert "cap none (1 part/bucket)" in out
-
-    def test_header_shows_numeric_cap_when_set(self) -> None:
-        from caliper.cli.part_serve import render_report
-
-        out = render_report(_FAKE_CUT)  # size_cap=400
-        assert "cap 400" in out
-        assert "1 part/bucket" not in out
-
-    def test_offers_every_selectable_bucket(self) -> None:
-        from caliper.cli.part_serve import _SELECTABLE_BUCKETS, render_report
-
-        out = render_report(_FAKE_CUT)
-        for bucket in _SELECTABLE_BUCKETS:
-            assert f'<option value="{bucket}"' in out
-        # Structural buckets are decided by git — never offered for reclassification.
-        for structural in ("delete", "move", "binary"):
-            assert f'<option value="{structural}"' not in out
-
-    def test_untiered_part_is_flagged(self) -> None:
-        from caliper.cli.part_serve import render_report
-
-        out = render_report(_FAKE_CUT)  # the only part is bucket "logic"
-        assert "needs a tier" in out
-        assert "untiered" in out
-
-    def test_per_file_reclassify_controls_present(self) -> None:
-        from caliper.cli.part_serve import render_report
-
-        out = render_report(_FAKE_CUT)
-        assert '<select class="bucket">' in out
-        assert "/reclassify" in out  # the JS posts to it
-        assert "/repart" in out
-
-    def test_glob_suggestion_broadens_nested_path(self) -> None:
-        from caliper.cli.part_serve import _suggest_glob
-
-        assert _suggest_glob("src/ui/app.py") == "src/ui/**"
-        assert _suggest_glob("README.md") == "README.md"  # top-level: itself
-
-    def test_override_badges_rendered(self) -> None:
-        from caliper.cli.part_serve import render_report
-
-        out = render_report(_FAKE_CUT, overrides=[{"glob": "src/ui/**", "bucket": "frontend"}])
-        assert "active overrides" in out
-        assert "src/ui/**" in out
-
-    def test_no_overrides_shows_empty_hint(self) -> None:
-        from caliper.cli.part_serve import render_report
-
-        out = render_report(_FAKE_CUT, overrides=[])
-        assert "no overrides yet" in out
-
-    def test_defensive_on_empty_cut(self) -> None:
-        """A partial/empty cut still renders without raising."""
-        from caliper.cli.part_serve import render_report
-
-        out = render_report({})
-        assert "<!doctype html>" in out.lower()
 
 
 class TestLoopbackOnly:
@@ -532,6 +865,81 @@ class TestSessionSuggest:
         assert session.suggest_dict()["suggestions"] == []
 
 
+class TestRetargetRollback:
+    """A rejected retarget must not leave the session permanently wedged.
+
+    `_cut_now()` fails against tmp_path (not a git repo) exactly like a bad
+    revset would against a real one — good enough to prove the rollback
+    without needing a real repository fixture.
+    """
+
+    def _cutlist(self):
+        from caliper.core.models import ChangeType, CutList, CutStats, Kerf, Part, Provenance
+
+        parts = [
+            Part(
+                id="infra-1",
+                files=["svc/lib/infra-utils/builder.ts"],
+                bucket=ChangeType.infra,
+                size=10,
+                opened_by=Kerf(fired_rule="bucket-end"),
+            )
+        ]
+        return CutList(
+            parts=parts,
+            size_cap=None,
+            provenance=Provenance(
+                caliper_version="0",
+                base_sha="b",
+                head_sha="h",
+                rename_threshold=50,
+                config_digest="d",
+            ),
+            stats=CutStats(
+                part_count=1, file_count=1, size_p50=0, size_p90=0, move_logic_pure=True
+            ),
+        )
+
+    def test_range_failure_restores_prior_target_and_cut(self, tmp_path: Path) -> None:
+        session = part_serve.PartingSession(tmp_path, "base", "head")
+        good_cut = self._cutlist()
+        session._cut = good_cut
+
+        with pytest.raises(Exception):
+            session.retarget(base="nope", head="also-nope")
+
+        assert session.base == "base"
+        assert session.head == "head"
+        # A read-only re-check must keep working — it must not re-raise.
+        assert session.cut_dict() == good_cut.model_dump(mode="json")
+
+    def test_pr_failure_restores_prior_target_and_cut(self, tmp_path: Path) -> None:
+        session = part_serve.PartingSession(tmp_path, "base", "head")
+        good_cut = self._cutlist()
+        session._cut = good_cut
+
+        with pytest.raises(Exception):
+            session.set_target_pr("not-a-valid-pr-ref")
+
+        assert session.repo_path == tmp_path
+        assert session.base == "base"
+        assert session.head == "head"
+        assert session.cut_dict() == good_cut.model_dump(mode="json")
+
+    def test_size_cap_failure_restores_prior_cap_and_cut(self, tmp_path: Path) -> None:
+        session = part_serve.PartingSession(tmp_path, "base", "head", size_cap=100)
+        good_cut = self._cutlist()
+        session._cut = good_cut
+
+        # tmp_path isn't a git repo, so re-cutting under the new cap fails —
+        # same "bad state exercises the real cut path" trick as the range test.
+        with pytest.raises(Exception):
+            session.set_size_cap(5)
+
+        assert session.size_cap == 100
+        assert session.cut_dict() == good_cut.model_dump(mode="json")
+
+
 class TestSelectableBucketsDriftGuard:
     """The human dropdown and the model's legal output set must not drift apart."""
 
@@ -543,3 +951,27 @@ class TestSelectableBucketsDriftGuard:
         assert set(_SELECTABLE_BUCKETS) == set(SELECTABLE_TIERS) | {"logic"}
         # Structural facts come from git, never reclassification.
         assert {"move", "delete", "binary"}.isdisjoint(_SELECTABLE_BUCKETS)
+
+
+class TestLoadAssets:
+    """The SPA bundle loader — an imperative-shell read, no fallback rendering."""
+
+    def test_loads_from_a_dist_dir(self, tmp_path: Path) -> None:
+        (tmp_path / "index.html").write_text("<html>shell</html>")
+        (tmp_path / "part_ui.js").write_text("console.log(1)")
+        (tmp_path / "part_ui.css").write_text("body{}")
+
+        assets = part_serve.load_assets(tmp_path)
+
+        assert assets.index_html == b"<html>shell</html>"
+        assert assets.js == b"console.log(1)"
+        assert assets.css == b"body{}"
+
+    def test_default_dir_resolves_to_the_committed_bundle(self) -> None:
+        # scripts/part_ui/build.ts must have been run (`npm run build:part-ui`)
+        # so the committed bundle under src/caliper/cli/part_ui_dist/ exists.
+        assets = part_serve.load_assets()
+
+        assert b"<!doctype html>" in assets.index_html.lower()
+        assert assets.js  # non-empty
+        assert assets.css  # non-empty
