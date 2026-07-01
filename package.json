@@ -1,0 +1,17 @@
+{
+  "name": "caliper-web-tooling",
+  "private": true,
+  "description": "Node build toolchain for the caliper part web frontend (scripts/part_ui) and the Playwright browser-gate screenshots (scripts/screenshots.ts). No runtime Node dependency — caliper ships as a pure Python package; the part_ui build output is committed under src/caliper/cli/part_ui_dist/.",
+  "type": "module",
+  "scripts": {
+    "build:part-ui": "tsx scripts/part_ui/build.ts",
+    "typecheck:part-ui": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "26.0.1",
+    "esbuild": "0.28.1",
+    "typescript": "6.0.3",
+    "tsx": "4.22.4",
+    "playwright": "1.61.1"
+  }
+}
