@@ -415,3 +415,140 @@ test_reject_takes_precedence_when_deny_and_warn_both_fire if {
 	decision := policy.decision with input as inp
 	decision == "reject"
 }
+
+# --- #345: Dev-scope exemption ---
+
+dev_exempt_config := object.union(base_config, {"rules_enabled": object.union(
+	base_config.rules_enabled,
+	{"dev_scope_exemption": true},
+)})
+
+dev_package := object.union(base_package, {"scope": "dev"})
+
+# T-345: dev-scope critical vuln + dev_scope_exemption:true -> warn, not deny.
+
+test_dev_scope_critical_vuln_downgraded_to_warn if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Remote code execution",
+			"package_name": "requests",
+			"version": "2.31.0",
+			"advisory_id": "CVE-2024-1234",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": dev_package,
+		"config": dev_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "CVE-2024-1234")
+	contains(msg, "dev-scope exemption")
+}
+
+# T-345: dev-scope critical vuln + dev_scope_exemption absent (default false)
+# -> still deny, unchanged from today (backward-compat).
+
+test_dev_scope_critical_vuln_deny_when_exemption_disabled if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Remote code execution",
+			"package_name": "requests",
+			"version": "2.31.0",
+			"advisory_id": "CVE-2024-1234",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": dev_package,
+		"config": base_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-345: runtime-scope critical vuln + dev_scope_exemption:true -> still deny
+# (the exemption only applies to dev-scope packages).
+
+test_runtime_scope_critical_vuln_still_denies_with_exemption_enabled if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Remote code execution",
+			"package_name": "requests",
+			"version": "2.31.0",
+			"advisory_id": "CVE-2024-1234",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": base_package, # scope: "runtime"
+		"config": dev_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-345: dev-scope MAL- prefixed advisory + dev_scope_exemption:true -> still
+# deny, never warn. Known-malicious packages always deny regardless of scope
+# or the exemption toggle. category=="vulnerability" + severity=="critical"
+# means this finding matches BOTH the critical_vuln deny rule (T-010, whose
+# downgrade-to-warn logic must exclude MAL- advisories) and the dedicated
+# malicious_package deny rule (T-011) -- both must fire and neither may
+# downgrade to warn.
+
+test_dev_scope_malicious_advisory_never_downgraded if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Known malicious package",
+			"package_name": "evil-pkg",
+			"version": "0.1.0",
+			"advisory_id": "MAL-2024-9999",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": dev_package,
+		"config": dev_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 2
+	some msg in deny_result
+	contains(msg, "MAL-2024-9999")
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-345: dev-scope forbidden license + dev_scope_exemption:true -> warn, not
+# deny (mirrors the vuln case for the license rule).
+
+test_dev_scope_forbidden_license_downgraded_to_warn if {
+	inp := {
+		"findings": [{
+			"severity": "info",
+			"category": "license",
+			"description": "Package uses GPL-3.0-only license",
+			"package_name": "some-gpl-lib",
+			"version": "1.0.0",
+			"advisory_id": "LIC-001",
+			"source_tool": "scancode",
+			"license_id": "GPL-3.0-only",
+		}],
+		"pkg": dev_package,
+		"config": dev_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "GPL-3.0-only")
+	contains(msg, "dev-scope exemption")
+}

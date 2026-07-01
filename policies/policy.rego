@@ -10,6 +10,7 @@ deny contains msg if {
 	some finding in input.findings
 	finding.category == "vulnerability"
 	finding.severity in {"critical", "high"}
+	not _dev_scope_downgraded(finding)
 	msg := sprintf("%s vulnerability %s in %s@%s", [
 		upper(finding.severity),
 		finding.advisory_id,
@@ -24,6 +25,7 @@ deny contains msg if {
 	some finding in input.findings
 	finding.category == "license"
 	finding.license_id in input.config.forbidden_licenses
+	not _dev_scope_downgraded(finding)
 	msg := sprintf("Forbidden license %s in %s@%s", [
 		finding.license_id,
 		finding.package_name,
@@ -59,6 +61,16 @@ deny contains msg if {
 	])
 }
 
+# T-345: Dev-scope exemption helper — true when a finding's deny should be
+# downgraded to warn because the package is dev-only and the operator opted
+# in. A MAL- prefixed advisory is never downgraded: known-malicious packages
+# always deny, regardless of scope or this exemption (see T-011 above).
+_dev_scope_downgraded(finding) if {
+	input.config.rules_enabled.dev_scope_exemption
+	input.pkg.scope == "dev"
+	not startswith(finding.advisory_id, "MAL-")
+}
+
 # T-012: Malicious version-bump signal (deterministic source-diff analysis).
 # Critical/high supply-chain signals (new install hooks, obfuscation, risky
 # imports) gate the build. The signal is deterministic; any LLM narrative is
@@ -76,6 +88,39 @@ deny contains msg if {
 }
 
 # --- warn rules (set of warning messages) ---
+
+# T-345: Dev-scope exemption — critical/high vulnerability downgraded to warn.
+# Only applies when dev_scope_exemption is enabled, the package is dev-scope,
+# and the finding is not a known-malicious-package advisory (MAL- prefix
+# always denies via _dev_scope_downgraded's exclusion, and via the dedicated
+# malicious_package rule below).
+warn contains msg if {
+	input.config.rules_enabled.critical_vuln
+	some finding in input.findings
+	finding.category == "vulnerability"
+	finding.severity in {"critical", "high"}
+	_dev_scope_downgraded(finding)
+	msg := sprintf("%s vulnerability %s in %s@%s (dev-scope exemption)", [
+		upper(finding.severity),
+		finding.advisory_id,
+		finding.package_name,
+		finding.version,
+	])
+}
+
+# T-345: Dev-scope exemption — forbidden license downgraded to warn.
+warn contains msg if {
+	input.config.rules_enabled.forbidden_license
+	some finding in input.findings
+	finding.category == "license"
+	finding.license_id in input.config.forbidden_licenses
+	_dev_scope_downgraded(finding)
+	msg := sprintf("Forbidden license %s in %s@%s (dev-scope exemption)", [
+		finding.license_id,
+		finding.package_name,
+		finding.version,
+	])
+}
 
 # T-012: Lower-severity supply-chain signal (maintainer change, etc.) — advisory.
 warn contains msg if {

@@ -5,7 +5,7 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-06-30
+  LAST VERIFIED: 2026-07-01
   VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
   plugin (20 ScannerPlugin subclasses total); 21 detectors in src/caliper/detectors/;
   61 semgrep rule ids in policies/semgrep/.
@@ -15,7 +15,7 @@
 
 Caliper — fully deterministic dependency, security, and code review for CI.
 19 scanner plugins, 21 deterministic detectors, 61 custom semgrep rules, 12 code graph
-checks, 8 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
+checks, 10 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
 ## Quick Numbers
@@ -26,7 +26,7 @@ supply-chain version-bump narrative is advisory metadata only).
 | Deterministic detectors | 21 (CAL-001..CAL-021) |
 | Custom semgrep rules | 61 (11 rule files) |
 | Code graph SQL checks | 12 |
-| OPA Rego policy rules | 8 (5 deny, 3 warn) |
+| OPA Rego policy rules | 10 (5 deny, 5 warn) |
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
 | Finding scribes | 4 (enclosing-symbol, code-graph, semgrep opt-in, supply-chain-threat opt-in) |
@@ -238,23 +238,28 @@ All in `plugins/_runners/checks.yaml`. Executed by the blast-radius plugin again
 
 ---
 
-## OPA Policy Rules (8 rules)
+## OPA Policy Rules (10 rules)
 
 File: `policies/policy.rego`. Consumes findings from all plugins.
 
 | Rule | Type | Trigger |
 |------|------|---------|
-| Critical/high vulnerability | deny | severity critical or high + category vulnerability |
-| Forbidden license | deny | license_id in config forbidden_licenses list |
+| Critical/high vulnerability | deny | severity critical or high + category vulnerability (not dev-scope-exempted) |
+| Forbidden license | deny | license_id in config forbidden_licenses list (not dev-scope-exempted) |
 | Package age < threshold | deny | first_published_date < min_package_age_days (default 90) |
-| Malicious package | deny | advisory_id starts with "MAL-" |
+| Malicious package | deny | advisory_id starts with "MAL-" (always denies, never dev-scope-exempted) |
 | Supply-chain version-bump signal | deny | severity critical or high + category supply_chain |
 | Medium vulnerability | warn | severity medium + category vulnerability |
 | Transitive dep count | warn | transitive_dep_count > max_transitive_deps (default 200) |
 | Supply-chain note | warn | severity medium + category supply_chain |
+| Dev-scope vulnerability exemption | warn | critical/high vulnerability, pkg.scope == "dev", `rules_enabled.dev_scope_exemption` true, advisory_id not "MAL-"-prefixed |
+| Dev-scope license exemption | warn | forbidden license, pkg.scope == "dev", `rules_enabled.dev_scope_exemption` true |
 
 Decision: any deny → reject. No deny + any warn → approve_with_constraints. Else → approve.
-All rules individually toggleable via `config.rules_enabled.*`.
+All rules individually toggleable via `config.rules_enabled.*`. `dev_scope_exemption`
+defaults to `false` (opt-in) — when enabled, it downgrades the critical/high-vulnerability
+and forbidden-license deny rules to warn for `pkg.scope == "dev"` packages only; a
+`MAL-`-prefixed advisory always denies regardless (#345).
 
 ---
 

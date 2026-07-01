@@ -40,11 +40,12 @@ Each element represents a single finding from a security scanner.
 | `forbidden_licenses` | array of string | `[]` | SPDX license IDs that are not allowed |
 | `max_transitive_deps` | integer | `200` | Maximum transitive dependency count before a warning fires |
 | `min_package_age_days` | integer | `90` | Minimum age in days a package must have been published |
-| `rules_enabled` | object | (all true) | Per-rule toggle; see below |
+| `rules_enabled` | object | (see below) | Per-rule toggle; see below |
 
 ### `input.config.rules_enabled`
 
-Each key toggles a specific policy rule. Set to `false` to disable.
+Each key toggles a specific policy rule. Set to `false` to disable (or, for
+`dev_scope_exemption`, `true` to opt in).
 
 | Key | Controls | Default |
 |-----|----------|---------|
@@ -53,6 +54,7 @@ Each key toggles a specific policy rule. Set to `false` to disable.
 | `package_age` | Package age deny | `true` |
 | `malicious_package` | MAL- prefix advisory deny | `true` |
 | `transitive_count` | Transitive dependency count warn | `true` |
+| `dev_scope_exemption` | Downgrades `critical_vuln`/`forbidden_license` deny to warn when `input.pkg.scope == "dev"`. A `MAL-` prefixed advisory (known-malicious package) always denies regardless of this setting. | `false` |
 
 ## Output Shape
 
