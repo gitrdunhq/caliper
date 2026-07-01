@@ -385,7 +385,7 @@ class TestConfig:
 
         settings = WebhookSettings()  # type: ignore[call-arg]
 
-        assert settings.secret == "env-secret-value"
+        assert settings.secret.get_secret_value() == "env-secret-value"
         assert settings.github_token.get_secret_value() == "ghp_env_token_xyz"
         assert settings.port == 12900
 
@@ -397,6 +397,26 @@ class TestConfig:
 
         settings = WebhookSettings()  # type: ignore[call-arg]
         assert settings.port == 12800
+
+    def test_secret_is_secretstr_and_does_not_leak_in_repr(self, monkeypatch):
+        """DPS-204 / #227: the webhook secret is a trust-boundary credential and
+        must use pydantic SecretStr, matching the convention used by
+        llm_api_key (core/config.py) and github_token (this module). SecretStr
+        masks the raw value in repr()/str(), so it can't leak into logs."""
+        from pydantic import SecretStr
+
+        from caliper.webhook.config import WebhookSettings
+
+        settings = WebhookSettings(
+            secret="super-secret-value",
+            github_token="ghp_test_token",
+            port=12800,
+        )
+
+        assert type(settings.secret) is SecretStr
+        assert "super-secret-value" not in repr(settings.secret)
+        assert "super-secret-value" not in repr(settings)
+        assert settings.secret.get_secret_value() == "super-secret-value"
 
 
 # ---------------------------------------------------------------------------
