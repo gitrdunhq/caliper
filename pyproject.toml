@@ -67,7 +67,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/caliper"]
-artifacts = ["**/*.j2"]
+artifacts = ["**/*.j2", "**/part_ui_dist/*"]
 only-include = ["src/caliper"]
 
 [tool.uv]

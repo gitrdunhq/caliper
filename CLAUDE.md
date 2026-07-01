@@ -168,13 +168,58 @@ an override is provenance-tracked. This is the one human decision point in the
 otherwise deterministic classifier — no ML.
 
 **`caliper part --serve [--port N]`** (`cli/part_serve.py`): a loopback sidecar
-(127.0.0.1:12700) serving the live cut report. A reviewer reclassifies a file from
-the browser → `write_override` appends/updates a `parting.overrides` entry and
-re-parts. The transport is **stdlib `http.server` only** — no uvicorn/starlette, so
-it runs from any install (no `caliper[copilot]` extra). Routing is the pure
+(127.0.0.1:12700) serving a full **TypeScript SPA** with CLI/web parity — not just
+the cut report. `--base/--head` is optional at launch; an untargeted session shows
+a targeting prompt (`POST /range` for a literal base/head, `POST /pr` to resolve a
+GitHub PR URL/number via the same `cli/part_pr.py` seam the CLI uses). A reviewer
+reclassifies a file from the browser → `write_override` appends/updates a
+`parting.overrides` entry and re-parts; live `size_cap`/`target` settings
+(`POST /repart`), bulk suggestion accept (`POST /suggest/apply`), and a
+client-side `--explain` viewer for a loaded `cutlist.json` round out CLI parity.
+The transport is **stdlib `http.server` only** — no uvicorn/starlette, so it runs
+from any install (no `caliper[copilot]` extra). Routing is the pure
 `dispatch(session, method, path, body)` (functional core), tested without binding a
-socket; the `BaseHTTPRequestHandler` is the thin shell. Browser gate:
-`scripts/screenshots.ts`.
+socket; the `BaseHTTPRequestHandler` is the thin shell. `PartingSession` holds all
+mutable state (target, settings, last generated run, one-shot apply token) behind
+a single `RLock`. Browser gate: `scripts/screenshots.ts`.
+
+**`core/part_pipeline.run_part`**: the single orchestrator both `cli/part_cmd.py`
+and `cli/part_serve.py` call — `run_gate` → cut (+ pin `resolved_revsets` into
+provenance) → suggest (optional apply, which re-cuts) → `probe_path_capability` →
+`describe_parts` → `render_restack_script` → write `restack.sh` (0755) +
+`cutlist.json` when `out_dir` is set. Returns a typed `PartRunResult` (cutlist,
+script text, backup bookmark, rescue op id, jj version, subjects, applied/proposed
+overrides, artifact paths). Extracting this out of `part_cmd.py` means the CLI and
+the sidecar can never drift on gate→cut→describe→render ordering —
+`tests/integration/test_part_e2e.py` guards the CLI side, `tests/unit/
+test_part_pipeline.py` (fake `ToolRunnerPort`) guards the pipeline itself.
+
+**Execute + rollback (`POST /restack`, `POST /apply`, `POST /rollback`)** — the one
+capability beyond the CLI: `/restack` runs `run_part` and mints a fresh one-shot
+CSRF token (`secrets.token_urlsafe(16)`) alongside the rollback header and
+downloadable `restack.sh`/`cutlist.json`. `/apply` requires that token
+(`hmac.compare_digest`, consumed on first use — replay is rejected) and rejects any
+request whose `Origin`/`Host` is not loopback (`_is_loopback_request`/
+`_hostname_of`), then runs `bash <restack_path>` for real via `ToolRunnerPort`
+(`cwd=repo_path`, 300s timeout) — `restack_path` is resolved to an absolute path
+first, since a relative `--out` is rooted at the server's invocation cwd, not
+`repo_path`. `/rollback` (no token needed — pure escape hatch) runs
+`jj op restore <rescue_op_id>` to undo it. The SPA gates `/apply` behind an in-page
+confirm modal that echoes the backup bookmark before firing.
+
+**Frontend build (`scripts/part_ui/`)**: `types.ts` (boundary model mirrors,
+bucket list drift-guarded against `_SELECTABLE_BUCKETS`), `api.ts` (one typed
+fetch per endpoint), `app.ts` (render + `data-action`-driven event wiring, no
+framework), `styles.css` (the `modern-css` skill conventions — `@layer`,
+`oklch()`/`color-mix()`, logical properties, `@scope`, `:has()`, `subgrid`,
+`prefers-reduced-motion`-gated animation). `build.ts` runs esbuild
+(`bundle`/`minify`/`iife`/`es2022`) into the **committed** bundle
+`src/caliper/cli/part_ui_dist/{index.html,part_ui.js,part_ui.css}` — package data
+(`pyproject.toml` `[tool.hatch.build.targets.wheel] artifacts`), so a built wheel
+serves the SPA with **zero Node at runtime**. `make part-ui`
+(`scripts/build_part_ui.sh`) type-checks and rebuilds the bundle from
+`scripts/part_ui/**`; rerun it (and recommit the bundle) whenever that directory
+changes — nothing rebuilds it automatically.
 
 **PR input** (`caliper part --pr <url|number>`, `cli/part_pr.py`): feed a GitHub PR
 URL or bare number instead of `--base/--head`. Pure parse in the functional core
