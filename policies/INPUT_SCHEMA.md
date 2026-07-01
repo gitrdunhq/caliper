@@ -40,12 +40,13 @@ Each element represents a single finding from a security scanner.
 | `forbidden_licenses` | array of string | `[]` | SPDX license IDs that are not allowed |
 | `max_transitive_deps` | integer | `200` | Maximum transitive dependency count before a warning fires |
 | `min_package_age_days` | integer | `90` | Minimum age in days a package must have been published |
+| `kev_ids` | array/set of string | `[]` | Operator-supplied CVE IDs known to be in CISA's Known Exploited Vulnerabilities catalog. No caliper-shipped default — the operator must supply this list |
 | `rules_enabled` | object | (see below) | Per-rule toggle; see below |
 
 ### `input.config.rules_enabled`
 
 Each key toggles a specific policy rule. Set to `false` to disable (or, for
-`dev_scope_exemption`, `true` to opt in).
+`dev_scope_exemption`/`cisa_kev`, `true` to opt in).
 
 | Key | Controls | Default |
 |-----|----------|---------|
@@ -55,6 +56,7 @@ Each key toggles a specific policy rule. Set to `false` to disable (or, for
 | `malicious_package` | MAL- prefix advisory deny | `true` |
 | `transitive_count` | Transitive dependency count warn | `true` |
 | `dev_scope_exemption` | Downgrades `critical_vuln`/`forbidden_license` deny to warn when `input.pkg.scope == "dev"`. A `MAL-` prefixed advisory (known-malicious package) always denies regardless of this setting. | `false` |
+| `cisa_kev` | Denies vulnerability findings whose `advisory_id` is in `input.config.kev_ids` (CISA KEV catalog). Never downgraded by `dev_scope_exemption` — an actively-exploited CVE always denies. | `false` |
 
 ## Output Shape
 

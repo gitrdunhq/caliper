@@ -552,3 +552,109 @@ test_dev_scope_forbidden_license_downgraded_to_warn if {
 	contains(msg, "GPL-3.0-only")
 	contains(msg, "dev-scope exemption")
 }
+
+# --- #344: CISA KEV — actively exploited CVE ---
+
+kev_config := object.union(base_config, {
+	"kev_ids": ["CVE-2021-44228"],
+	"rules_enabled": object.union(base_config.rules_enabled, {"cisa_kev": true}),
+})
+
+dev_kev_exempt_config := object.union(dev_exempt_config, {
+	"kev_ids": ["CVE-2021-44228"],
+	"rules_enabled": object.union(dev_exempt_config.rules_enabled, {"cisa_kev": true}),
+})
+
+# T-344: advisory_id in kev_ids + cisa_kev:true -> deny.
+
+test_kev_listed_cve_denies_when_enabled if {
+	inp := {
+		"findings": [{
+			"severity": "low",
+			"category": "vulnerability",
+			"description": "Log4Shell",
+			"package_name": "log4j-core",
+			"version": "2.14.1",
+			"advisory_id": "CVE-2021-44228",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": base_package,
+		"config": kev_config,
+	}
+	result := policy.deny with input as inp
+	count(result) == 1
+	some msg in result
+	contains(msg, "CVE-2021-44228")
+	contains(msg, "log4j-core@2.14.1")
+}
+
+# T-344: same finding but cisa_kev disabled (default false) -> the KEV rule
+# does not fire. Severity "low" also keeps T-010 (critical_vuln) from firing,
+# isolating this assertion to the KEV rule alone.
+
+test_kev_listed_cve_no_deny_when_disabled if {
+	inp := {
+		"findings": [{
+			"severity": "low",
+			"category": "vulnerability",
+			"description": "Log4Shell",
+			"package_name": "log4j-core",
+			"version": "2.14.1",
+			"advisory_id": "CVE-2021-44228",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": base_package,
+		"config": base_config, # cisa_kev absent -> default false
+	}
+	result := policy.deny with input as inp
+	count(result) == 0
+}
+
+# T-344: KEV-listed CVE on a dev-scope package with dev_scope_exemption:true
+# AND cisa_kev:true -> still deny. Proves the no-downgrade invariant: a KEV
+# CVE is never routed through _dev_scope_downgraded, unlike critical_vuln and
+# forbidden_license. Severity "low" isolates the assertion to the KEV rule
+# (it would not otherwise trigger T-010's dev-scope downgrade-to-warn path).
+
+test_dev_scope_kev_listed_cve_never_downgraded if {
+	inp := {
+		"findings": [{
+			"severity": "low",
+			"category": "vulnerability",
+			"description": "Log4Shell",
+			"package_name": "log4j-core",
+			"version": "2.14.1",
+			"advisory_id": "CVE-2021-44228",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": dev_package,
+		"config": dev_kev_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	some msg in deny_result
+	contains(msg, "CVE-2021-44228")
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-344: vulnerability finding NOT in kev_ids, cisa_kev:true -> the KEV rule
+# does not fire for it.
+
+test_non_kev_cve_no_deny_from_kev_rule if {
+	inp := {
+		"findings": [{
+			"severity": "low",
+			"category": "vulnerability",
+			"description": "Minor info leak",
+			"package_name": "some-lib",
+			"version": "1.0.0",
+			"advisory_id": "CVE-2024-0001",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": base_package,
+		"config": kev_config,
+	}
+	result := policy.deny with input as inp
+	count(result) == 0
+}

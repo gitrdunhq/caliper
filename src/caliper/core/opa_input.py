@@ -56,6 +56,11 @@ _DEFAULT_RULES_ENABLED: dict[str, bool] = {
     # is opted in without explicitly enabling it. See policies/policy.rego
     # T-345 and _dev_scope_downgraded.
     "dev_scope_exemption": False,
+    # Opt-in: denies vulnerabilities whose advisory_id is in the operator-
+    # supplied `config.kev_ids` (CISA Known Exploited Vulnerabilities
+    # catalog). Default False — kev_ids is threat intel the operator must
+    # supply, caliper ships no default list. See policies/policy.rego T-344.
+    "cisa_kev": False,
 }
 
 _DEFAULT_CONFIG: dict[str, object] = {
