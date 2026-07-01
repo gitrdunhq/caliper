@@ -138,6 +138,7 @@ class Finding(BaseModel):
     advisory_id: str | None = None
     advisory_url: str | None = None
     license_id: str | None = None
+    link_type: str = "unknown"
     confidence: float | None = None
     file_path: str | None = None
     line_number: int | None = None

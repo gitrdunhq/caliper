@@ -103,6 +103,27 @@ deny contains msg if {
 	])
 }
 
+# T-347: Copyleft propagation — strong-copyleft license, statically linked
+# (or link_type unset/"unknown" -- treated identically to "static" as the
+# conservative default: caliper has no scanner that detects real linkage
+# type today, so an unknown link_type is evaluated as if statically linked,
+# the case where copyleft obligations propagate most aggressively). Only an
+# explicit "dynamic" link_type gets the more lenient warn treatment below.
+deny contains msg if {
+	input.config.rules_enabled.copyleft_propagation
+	some finding in input.findings
+	finding.category == "license"
+	finding.license_id in input.config.copyleft_strong
+	link_type := object.get(finding, "link_type", "unknown")
+	link_type in {"static", "unknown"}
+	msg := sprintf("Strong copyleft license %s in %s@%s (link_type: %s)", [
+		finding.license_id,
+		finding.package_name,
+		finding.version,
+		link_type,
+	])
+}
+
 # --- warn rules (set of warning messages) ---
 
 # T-345: Dev-scope exemption — critical/high vulnerability downgraded to warn.
@@ -195,6 +216,38 @@ warn contains msg if {
 		input.pkg.version,
 		days_since_release,
 		max_days,
+	])
+}
+
+# T-347: Copyleft propagation — strong-copyleft license, dynamically linked.
+# Dynamic linking has a weaker propagation argument for strong copyleft than
+# static/unknown (see the deny rule above), so it is downgraded to warn
+# rather than denied outright, but is still worth flagging.
+warn contains msg if {
+	input.config.rules_enabled.copyleft_propagation
+	some finding in input.findings
+	finding.category == "license"
+	finding.license_id in input.config.copyleft_strong
+	object.get(finding, "link_type", "unknown") == "dynamic"
+	msg := sprintf("Strong copyleft license %s in %s@%s (dynamically linked)", [
+		finding.license_id,
+		finding.package_name,
+		finding.version,
+	])
+}
+
+# T-347: Copyleft propagation — weak-copyleft license, any link_type. Weak
+# copyleft's file-level scope (e.g. LGPL, MPL-2.0) makes it a lower-severity
+# signal regardless of linkage, so it is always a warn, never a deny.
+warn contains msg if {
+	input.config.rules_enabled.copyleft_propagation
+	some finding in input.findings
+	finding.category == "license"
+	finding.license_id in input.config.copyleft_weak
+	msg := sprintf("Weak copyleft license %s in %s@%s", [
+		finding.license_id,
+		finding.package_name,
+		finding.version,
 	])
 }
 

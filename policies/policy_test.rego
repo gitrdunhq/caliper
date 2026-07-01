@@ -708,3 +708,168 @@ test_missing_last_release_date_unmaintained_no_warn if {
 	warn_result := policy.warn with input as inp
 	count(warn_result) == 0
 }
+
+# --- T-347: Copyleft propagation ---
+
+copyleft_config := object.union(base_config, {
+	"copyleft_strong": ["GPL-2.0-only", "AGPL-3.0-only"],
+	"copyleft_weak": ["LGPL-3.0-only", "MPL-2.0"],
+	"rules_enabled": object.union(base_config.rules_enabled, {"copyleft_propagation": true}),
+})
+
+_strong_copyleft_finding(link_type_overrides) := finding if {
+	base := {
+		"category": "license",
+		"description": "GPL-2.0-only detected",
+		"package_name": "gplcore",
+		"version": "1.2.3",
+		"advisory_id": "LIC-347-1",
+		"source_tool": "scancode",
+		"license_id": "GPL-2.0-only",
+	}
+	finding := object.union(base, link_type_overrides)
+}
+
+_weak_copyleft_finding(link_type_overrides) := finding if {
+	base := {
+		"category": "license",
+		"description": "MPL-2.0 detected",
+		"package_name": "mpllib",
+		"version": "2.0.0",
+		"advisory_id": "LIC-347-2",
+		"source_tool": "scancode",
+		"license_id": "MPL-2.0",
+	}
+	finding := object.union(base, link_type_overrides)
+}
+
+# T-347: strong copyleft + link_type "static" -> deny.
+
+test_strong_copyleft_static_denies if {
+	inp := {
+		"findings": [_strong_copyleft_finding({"link_type": "static"})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	some msg in deny_result
+	contains(msg, "GPL-2.0-only")
+	contains(msg, "gplcore@1.2.3")
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-347: strong copyleft + link_type absent (defaults to "unknown" upstream,
+# treated identically to "static" -- the conservative default) -> deny.
+
+test_strong_copyleft_link_type_absent_denies_like_static if {
+	inp := {
+		"findings": [_strong_copyleft_finding({})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	some msg in deny_result
+	contains(msg, "GPL-2.0-only")
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-347: strong copyleft + link_type "unknown" (explicit) -> deny, same as
+# "static" and as the absent-field case above.
+
+test_strong_copyleft_link_type_unknown_denies_like_static if {
+	inp := {
+		"findings": [_strong_copyleft_finding({"link_type": "unknown"})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	some msg in deny_result
+	contains(msg, "GPL-2.0-only")
+}
+
+# T-347: strong copyleft + link_type "dynamic" -> warn, NOT deny.
+
+test_strong_copyleft_dynamic_warns_not_denies if {
+	inp := {
+		"findings": [_strong_copyleft_finding({"link_type": "dynamic"})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "GPL-2.0-only")
+	contains(msg, "dynamically linked")
+}
+
+# T-347: weak copyleft + any link_type -> warn, NOT deny.
+
+test_weak_copyleft_static_warns_not_denies if {
+	inp := {
+		"findings": [_weak_copyleft_finding({"link_type": "static"})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "MPL-2.0")
+}
+
+test_weak_copyleft_dynamic_warns_not_denies if {
+	inp := {
+		"findings": [_weak_copyleft_finding({"link_type": "dynamic"})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "MPL-2.0")
+}
+
+# T-347: copyleft_propagation disabled (default off, base_config has no
+# override) -> strong-copyleft finding fires neither deny nor warn from this
+# rule family, regardless of link_type.
+
+test_copyleft_propagation_disabled_by_default_no_deny_no_warn if {
+	inp := {
+		"findings": [_strong_copyleft_finding({"link_type": "static"})],
+		"pkg": base_package,
+		"config": base_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-347: a license not in either copyleft list -> no rule fires regardless
+# of copyleft_propagation being enabled.
+
+test_non_copyleft_license_no_deny_no_warn_from_copyleft_rule if {
+	other_finding := object.union(_strong_copyleft_finding({"link_type": "static"}), {
+		"license_id": "MIT",
+		"advisory_id": "LIC-347-3",
+	})
+	inp := {
+		"findings": [other_finding],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}

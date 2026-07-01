@@ -20,6 +20,7 @@ Each element represents a single finding from a security scanner.
 | `advisory_id` | string | yes | Advisory identifier (e.g. `CVE-2024-1234`, `MAL-2024-5678`) |
 | `source_tool` | string | yes | Scanner that produced this finding (e.g. `osv-scanner`, `trivy`) |
 | `license_id` | string | conditional | SPDX license identifier. Required when `category` is `"license"` |
+| `link_type` | string | conditional | One of `"static"`, `"dynamic"`, `"unknown"`. Defaults to `"unknown"` upstream (`Finding.link_type`); no scanner in caliper currently detects real linkage type, so `"unknown"` is treated identically to `"static"` — the conservative default. Used by the copyleft-propagation rule |
 
 ## `input.pkg` — metadata about the package under evaluation
 
@@ -43,6 +44,8 @@ Each element represents a single finding from a security scanner.
 | `min_package_age_days` | integer | `90` | Minimum age in days a package must have been published |
 | `kev_ids` | array/set of string | `[]` | Operator-supplied CVE IDs known to be in CISA's Known Exploited Vulnerabilities catalog. No caliper-shipped default — the operator must supply this list |
 | `max_days_since_release` | integer | `365` | Maximum days since `input.pkg.last_release_date` before the unmaintained-package rule warns |
+| `copyleft_strong` | array of string | `[]` | Operator-supplied SPDX IDs for strong-copyleft licenses (e.g. `GPL-3.0-only`, `AGPL-3.0-only`). No caliper-shipped default |
+| `copyleft_weak` | array of string | `[]` | Operator-supplied SPDX IDs for weak-copyleft licenses (e.g. `LGPL-3.0-only`, `MPL-2.0`). No caliper-shipped default |
 | `rules_enabled` | object | (see below) | Per-rule toggle; see below |
 
 ### `input.config.rules_enabled`
@@ -60,6 +63,7 @@ Each key toggles a specific policy rule. Set to `false` to disable (or, for
 | `dev_scope_exemption` | Downgrades `critical_vuln`/`forbidden_license` deny to warn when `input.pkg.scope == "dev"`. A `MAL-` prefixed advisory (known-malicious package) always denies regardless of this setting. | `false` |
 | `cisa_kev` | Denies vulnerability findings whose `advisory_id` is in `input.config.kev_ids` (CISA KEV catalog). Never downgraded by `dev_scope_exemption` — an actively-exploited CVE always denies. | `false` |
 | `unmaintained_package` | Warns when `input.pkg.last_release_date` is older than `max_days_since_release`. Fails open (no warn) when `last_release_date` is absent or null. | `false` |
+| `copyleft_propagation` | link_type-aware copyleft enforcement: denies a `copyleft_strong`-listed license when `link_type` is `"static"` or `"unknown"` (treated identically — the conservative default), warns when `"dynamic"`. Any `copyleft_weak`-listed license always warns, regardless of `link_type`. | `false` |
 
 ## Output Shape
 

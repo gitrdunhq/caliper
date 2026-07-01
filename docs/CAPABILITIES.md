@@ -15,7 +15,7 @@
 
 Caliper — fully deterministic dependency, security, and code review for CI.
 19 scanner plugins, 21 deterministic detectors, 61 custom semgrep rules, 12 code graph
-checks, 12 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
+checks, 15 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
 ## Quick Numbers
@@ -26,7 +26,7 @@ supply-chain version-bump narrative is advisory metadata only).
 | Deterministic detectors | 21 (CAL-001..CAL-021) |
 | Custom semgrep rules | 61 (11 rule files) |
 | Code graph SQL checks | 12 |
-| OPA Rego policy rules | 12 (6 deny, 6 warn) |
+| OPA Rego policy rules | 15 (7 deny, 8 warn) |
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
 | Finding scribes | 4 (enclosing-symbol, code-graph, semgrep opt-in, supply-chain-threat opt-in) |
@@ -47,7 +47,7 @@ supply-chain version-bump narrative is advisory metadata only).
 The 19 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
 five categories below. The **OPA policy plugin** is the 20th `ScannerPlugin` subclass but is
 wired separately — it consumes every other plugin's findings and runs last
-(`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-12-rules).
+(`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-15-rules).
 
 ### dependency (4)
 
@@ -238,7 +238,7 @@ All in `plugins/_runners/checks.yaml`. Executed by the blast-radius plugin again
 
 ---
 
-## OPA Policy Rules (12 rules)
+## OPA Policy Rules (15 rules)
 
 File: `policies/policy.rego`. Consumes findings from all plugins.
 
@@ -250,12 +250,15 @@ File: `policies/policy.rego`. Consumes findings from all plugins.
 | Malicious package | deny | advisory_id starts with "MAL-" (always denies, never dev-scope-exempted) |
 | Supply-chain version-bump signal | deny | severity critical or high + category supply_chain |
 | CISA KEV — actively exploited CVE | deny | category vulnerability + advisory_id in config.kev_ids (always denies, never dev-scope-exempted) |
+| Strong copyleft, static/unknown link | deny | category license + license_id in config.copyleft_strong + link_type "static" or "unknown" (#347) |
 | Medium vulnerability | warn | severity medium + category vulnerability |
 | Transitive dep count | warn | transitive_dep_count > max_transitive_deps (default 200) |
 | Supply-chain note | warn | severity medium + category supply_chain |
 | Dev-scope vulnerability exemption | warn | critical/high vulnerability, pkg.scope == "dev", `rules_enabled.dev_scope_exemption` true, advisory_id not "MAL-"-prefixed |
 | Dev-scope license exemption | warn | forbidden license, pkg.scope == "dev", `rules_enabled.dev_scope_exemption` true |
 | Unmaintained package | warn | days since pkg.last_release_date > max_days_since_release (default 365); fails open when last_release_date absent/null (#346) |
+| Strong copyleft, dynamic link | warn | category license + license_id in config.copyleft_strong + link_type "dynamic" (#347) |
+| Weak copyleft, any link | warn | category license + license_id in config.copyleft_weak, any link_type (#347) |
 
 Decision: any deny → reject. No deny + any warn → approve_with_constraints. Else → approve.
 All rules individually toggleable via `config.rules_enabled.*`. `dev_scope_exemption`
@@ -266,7 +269,12 @@ and forbidden-license deny rules to warn for `pkg.scope == "dev"` packages only;
 operator-supplied `config.kev_ids` (CISA Known Exploited Vulnerabilities catalog)
 always denies, with no dev-scope downgrade path (#344). `unmaintained_package` also
 defaults to `false` (opt-in) — when enabled, it warns on stale packages using
-`input.pkg.last_release_date` (#346).
+`input.pkg.last_release_date` (#346). `copyleft_propagation` also defaults to `false`
+(opt-in) — when enabled, a `link_type`-aware copyleft check: a `config.copyleft_strong`
+license denies when `link_type` is `"static"` or `"unknown"` (caliper has no linkage-
+detection scanner today, so `"unknown"` is treated as conservatively as `"static"`) and
+warns when `"dynamic"`; a `config.copyleft_weak` license always warns regardless of
+`link_type` (#347).
 
 ---
 

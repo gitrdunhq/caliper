@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the caliper scanner
 
 ## What This Is
 
-Caliper — fully deterministic dependency and code review for CI. 19 scanner plugins (+ OPA policy plugin), 21 deterministic detectors, 61 custom semgrep rules, 12 code graph checks, 12 OPA policy rules, 600+ tests, zero LLM in the decision path.
+Caliper — fully deterministic dependency and code review for CI. 19 scanner plugins (+ OPA policy plugin), 21 deterministic detectors, 61 custom semgrep rules, 12 code graph checks, 15 OPA policy rules, 600+ tests, zero LLM in the decision path.
 
 ## Commands
 

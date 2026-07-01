@@ -154,6 +154,17 @@ class TestFinding:
         assert finding.license_id is None
         assert finding.confidence is None
 
+    def test_finding_link_type_defaults_to_unknown(self) -> None:
+        """#347: link_type is not Optional -- every Finding has a link_type,
+        defaulting to "unknown" when not passed. "unknown" is deliberately
+        treated the same as "static" by the copyleft-propagation OPA rule
+        (the conservative default, since no caliper scanner detects real
+        linkage type today)."""
+        from caliper.core.models import Finding
+
+        finding = Finding.model_validate(self._make_finding())
+        assert finding.link_type == "unknown"
+
     def test_finding_rejects_invalid_severity(self) -> None:
         from caliper.core.models import Finding
 
