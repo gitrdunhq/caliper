@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from hypothesis import assume, given
+from hypothesis import strategies as st
+
 from caliper.core.models import (
     Finding,
     FindingCategory,
@@ -48,6 +51,24 @@ def _license_finding(
         package_name=pkg,
         version=version,
         license_id=license_id,
+    )
+
+
+def _no_advisory_finding(
+    description: str = "hardcoded secret detected",
+    tool: str = "CAL-005",
+    category: FindingCategory = FindingCategory.code_smell,
+) -> Finding:
+    """A finding with no advisory_id — secret-scan / code-smell / detector
+    findings that aren't vuln advisories (#234)."""
+    return Finding(
+        severity=FindingSeverity.high,
+        category=category,
+        description=description,
+        source_tool=tool,
+        package_name="caliper",
+        version="",
+        advisory_id=None,
     )
 
 
@@ -182,3 +203,50 @@ class TestNormalizeFindings:
 
         assert findings == []
         assert summary["critical"] == 0
+
+    def test_unrelated_no_advisory_findings_not_collapsed(self) -> None:
+        """Two unrelated findings that both lack an advisory_id (e.g. two
+        different detector hits sharing category/package_name/version) must
+        not collapse into one — regression for #234."""
+        f1 = _no_advisory_finding(description="hardcoded secret in config.py")
+        f2 = _no_advisory_finding(description="SQL injection in query builder")
+        results = [_scan_result("detectors", [f1, f2])]
+
+        findings, _ = normalize_findings(results)
+
+        assert len(findings) == 2
+        descriptions = {f.description for f in findings}
+        assert descriptions == {
+            "hardcoded secret in config.py",
+            "SQL injection in query builder",
+        }
+
+
+class TestProperties:
+    """Property-based tests mapped to the CLAUDE.md formal property table.
+
+    Domain: Uniqueness. Type: INVARIANT ("different inputs -> different
+    outputs"). Two findings that lack an advisory_id (not vuln advisories —
+    secret-scan / code-smell / detector findings) but differ in a
+    distinguishing field (source_tool or description) must never be dedup'd
+    into the same finding, even when category/package_name/version collide.
+    """
+
+    @given(
+        tool_a=st.text(min_size=1, max_size=20),
+        tool_b=st.text(min_size=1, max_size=20),
+        desc_a=st.text(min_size=1, max_size=50),
+        desc_b=st.text(min_size=1, max_size=50),
+    )
+    def test_no_advisory_findings_never_collapse(
+        self, tool_a: str, tool_b: str, desc_a: str, desc_b: str
+    ) -> None:
+        assume((tool_a, desc_a) != (tool_b, desc_b))
+
+        f1 = _no_advisory_finding(description=desc_a, tool=tool_a)
+        f2 = _no_advisory_finding(description=desc_b, tool=tool_b)
+        results = [_scan_result("detectors", [f1, f2])]
+
+        findings, _ = normalize_findings(results)
+
+        assert len(findings) == 2
