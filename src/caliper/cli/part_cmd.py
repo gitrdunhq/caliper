@@ -19,13 +19,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import click
-import orjson
 
+from caliper.cli.part_describe import describer_from_env
+from caliper.cli.part_pipeline import run_part
+from caliper.cli.part_suggest import suggester_from_env
 from caliper.core.models import CutList, PartTarget
-from caliper.core.part_gate import PartingGateError, run_gate
-from caliper.core.part_script import probe_path_capability, render_restack_script, rollback_header
+from caliper.core.part_gate import PartingGateError
+from caliper.core.part_script import rollback_header
 from caliper.core.parting import PartingError
-from caliper.core.registries import PARTING
 from caliper.core.repo_config import OverrideRule, load_repo_config
 
 
@@ -71,10 +72,6 @@ def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: 
         for a in cut.ambiguities:
             lines.append(f"  - {a.file}: {a.reason}")
     return "\n".join(lines) + "\n"
-
-
-def _cutlist_json(cut: CutList) -> str:
-    return orjson.dumps(cut.model_dump(mode="json"), option=orjson.OPT_INDENT_2).decode()
 
 
 def _overrides_yaml(rules: list[OverrideRule]) -> str:
@@ -228,10 +225,9 @@ def part(
         )
 
     if serve:
-        if not base or not head:
-            raise click.UsageError("--base and --head are required with --serve")
+        # base/head are optional for --serve (P2 live targeting): with neither set
+        # the SPA opens on the empty-state targeting prompt (POST /range or /pr).
         from caliper.cli.part_serve import DEFAULT_PORT, serve_part
-        from caliper.cli.part_suggest import suggester_from_env
 
         suggest_env = dict(os.environ)
         if suggest_model:
@@ -244,6 +240,7 @@ def part(
             size_cap=size_cap,
             override_store=pr_override_store,
             suggester=suggester_from_env(suggest_env, force=suggest_flag),
+            out_dir=Path(out) if out else None,
         )
         return
 
@@ -257,118 +254,68 @@ def part(
     if target is not None:
         cfg = cfg.model_copy(update={"target": PartTarget(target)})
 
-    # 1. Safety gate — runs before anything is touched; aborts hard on failure.
+    # Advisory local-model backends: env-driven, OUTSIDE config_digest — they only
+    # author a subject line or propose override globs; the deterministic boundary
+    # (cli/part_pipeline.run_part) decides what survives.
+    suggest_env = dict(os.environ)
+    if suggest_model:
+        suggest_env["CALIPER_SUGGESTER_MODEL"] = suggest_model
+    suggester = suggester_from_env(suggest_env, force=suggest_flag)
+
+    describe_env = dict(os.environ)
+    if describe_model:
+        describe_env["CALIPER_DESCRIBER_MODEL"] = describe_model
+    describer = describer_from_env(describe_env, force=describe_flag)
+
     # Microsecond precision so repeated runs in the same second never collide on
     # the backup bookmark name (jj bookmark create fails on a duplicate).
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%f")
+    out_dir = Path(out) if out else repo_path
     try:
-        gate = run_gate(repo_path, base, head, timestamp=timestamp, force=force)
+        result = run_part(
+            repo_path,
+            base,
+            head,
+            cfg,
+            timestamp=timestamp,
+            force=force,
+            describer=describer,
+            suggester=suggester,
+            suggest_apply=suggest_apply,
+            override_write_target=pr_override_store,
+            out_dir=out_dir,
+        )
     except PartingGateError as exc:
         raise click.ClickException(f"parting precondition failed [{exc.case}]: {exc}") from exc
     except PartingError as exc:
         raise click.ClickException(str(exc)) from exc
 
-    # 2. Cut: producer (build_stock) -> consumer (part()). Pin the gate's revsets.
-    # Import triggers the parting plugin's @PARTING.register side effect — it is
-    # underscore-prefixed so autodiscover never pulls it into the review pipeline.
-    import caliper.plugins._parting  # noqa: F401
-
-    try:
-        outcome = PARTING.create("parting").cut(repo_path, base, head, cfg)
-    except PartingError as exc:
-        raise click.ClickException(str(exc)) from exc
-    cut = outcome.cutlist.model_copy(
-        update={
-            "provenance": outcome.cutlist.provenance.model_copy(
-                update={"resolved_revsets": gate.resolved_revsets}
-            )
-        }
-    )
-
-    # 2b. Advisory tier suggester (imperative shell): ask a local model to propose
-    # override globs for the 'logic' residual. Env-driven and OUTSIDE config_digest;
-    # the model only authors globs — the deterministic boundary validates them and only
-    # the globs a human accepts (here via --suggest-apply) ever enter the cut.
-    from caliper.cli.part_serve import write_override
-    from caliper.cli.part_suggest import suggest_overrides, suggester_from_env
-
-    suggest_env = dict(os.environ)
-    if suggest_model:
-        suggest_env["CALIPER_SUGGESTER_MODEL"] = suggest_model
-    suggester = suggester_from_env(suggest_env, force=suggest_flag)
-    proposed = suggest_overrides(cut, suggester, existing_overrides=cfg.overrides)
-    if proposed:
-        click.echo(f"\ntier suggestions for the 'logic' residual ({len(proposed)}):")
-        click.echo(_overrides_yaml(proposed))
-        if suggest_apply:
+    if result.proposed_overrides:
+        click.echo(
+            f"\ntier suggestions for the 'logic' residual ({len(result.proposed_overrides)}):"
+        )
+        click.echo(_overrides_yaml(result.proposed_overrides))
+        if result.applied_overrides:
             write_target = pr_override_store or repo_path
-            for r in proposed:
-                write_override(write_target, glob=r.glob, bucket=r.bucket.value, note=r.note)
-            # Re-part with the accepted globs layered in-memory (independent of where the
-            # file landed), so the rendered cut reflects them deterministically.
-            cfg = cfg.model_copy(update={"overrides": [*cfg.overrides, *proposed]})
-            try:
-                outcome = PARTING.create("parting").cut(repo_path, base, head, cfg)
-            except PartingError as exc:
-                raise click.ClickException(str(exc)) from exc
-            cut = outcome.cutlist.model_copy(
-                update={
-                    "provenance": outcome.cutlist.provenance.model_copy(
-                        update={"resolved_revsets": gate.resolved_revsets}
-                    )
-                }
-            )
             click.echo(
-                f"applied {len(proposed)} override(s) to {write_target}/.caliper.yaml; re-parted"
+                f"applied {len(result.applied_overrides)} override(s) to "
+                f"{write_target}/.caliper.yaml; re-parted"
             )
         else:
             click.echo("(re-run with --suggest-apply to write these and re-part)")
     elif suggest_flag is True or suggest_apply:
         click.echo("\nno tier suggestions (residual empty or model unavailable)")
 
-    # 3. Probe the installed jj for non-interactive path restore (do not assume).
-    can_reconstruct, jj_version = probe_path_capability(str(repo_path))
-
-    # 3b. Advisory describer (imperative shell): name each commit with a local model,
-    # fail-soft to the deterministic subject. Env-driven and OUTSIDE config_digest, so
-    # it never touches the cut — only the human-readable subject line.
-    from caliper.cli.part_describe import describe_parts, describer_from_env
-
-    describe_env = dict(os.environ)
-    if describe_model:
-        describe_env["CALIPER_DESCRIBER_MODEL"] = describe_model
-    describer = describer_from_env(describe_env, force=describe_flag)
-    subjects = describe_parts(cut, describer)
-
-    # 4. Emit the restack script, pinning the gate's resolved base/head ids.
-    script = render_restack_script(
-        cut,
-        base_rev=gate.resolved_revsets.get("base") or base,
-        head_rev=gate.resolved_revsets.get("head") or head,
-        old_paths=outcome.old_paths,
-        backup_bookmark=gate.backup_bookmark,
-        rescue_op_id=gate.rescue_op_id,
-        jj_version=jj_version or gate.jj_version,
-        target=cfg.target,
-        validate_command=cfg.validate_command,
-        can_reconstruct=can_reconstruct,
-        subjects=subjects,
-    )
-
-    out_dir = Path(out) if out else repo_path
-    out_dir.mkdir(parents=True, exist_ok=True)
-    script_path = out_dir / "restack.sh"
-    script_path.write_text(script)
-    script_path.chmod(0o755)
-    # JSON persistence is optional (a proposal, not a verdict) but useful for --explain.
-    (out_dir / "cutlist.json").write_text(_cutlist_json(cut))
-
     click.echo(
-        _render_cutlist(cut, backup_bookmark=gate.backup_bookmark, rescue_op_id=gate.rescue_op_id)
+        _render_cutlist(
+            result.cutlist,
+            backup_bookmark=result.backup_bookmark,
+            rescue_op_id=result.rescue_op_id,
+        )
     )
-    click.echo(f"restack script written to {script_path}")
-    if subjects:
+    click.echo(f"restack script written to {result.restack_path}")
+    if result.subjects:
         click.echo(
-            f"described {len(subjects)}/{len(cut.parts)} commit subjects with a local model "
-            "(advisory; deterministic fallback for the rest)"
+            f"described {len(result.subjects)}/{len(result.cutlist.parts)} commit subjects "
+            "with a local model (advisory; deterministic fallback for the rest)"
         )
