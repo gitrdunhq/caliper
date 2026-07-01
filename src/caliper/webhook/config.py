@@ -21,6 +21,6 @@ class WebhookSettings(BaseSettings):
         case_sensitive=False,
     )
 
-    secret: str
+    secret: SecretStr
     github_token: SecretStr
     port: int = 12800

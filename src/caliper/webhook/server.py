@@ -132,7 +132,7 @@ def build_app(
             logger.warning("webhook_missing_signature", path=str(request.url))
             return JSONResponse({"error": "Missing X-Hub-Signature-256 header"}, status_code=401)
 
-        if not _verify_signature(body, signature, settings.secret):
+        if not _verify_signature(body, signature, settings.secret.get_secret_value()):
             logger.warning("webhook_invalid_signature")
             return JSONResponse({"error": "Signature mismatch"}, status_code=401)
 

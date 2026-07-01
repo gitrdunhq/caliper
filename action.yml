@@ -81,9 +81,10 @@ runs:
         fi
 
         if [ -f "$MEMO_FILE" ] && [ -s "$MEMO_FILE" ]; then
-          echo "memo<<MEMO_EOF" >> "$GITHUB_OUTPUT"
+          MEMO_EOF="MEMO_EOF_$(openssl rand -hex 16)"
+          echo "memo<<$MEMO_EOF" >> "$GITHUB_OUTPUT"
           cat "$MEMO_FILE" >> "$GITHUB_OUTPUT"
-          echo "MEMO_EOF" >> "$GITHUB_OUTPUT"
+          echo "$MEMO_EOF" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Post PR comment
