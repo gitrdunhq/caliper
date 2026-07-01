@@ -119,6 +119,15 @@ class TestConfigMerge:
         result = build_opa_input([], {})
         assert result["config"]["rules_enabled"]["dev_scope_exemption"] is False
 
+    def test_cisa_kev_present_and_defaults_false(self) -> None:
+        """#344: cisa_kev must exist and default to False so no one is
+        opted into the KEV deny rule without explicitly enabling it and
+        supplying kev_ids."""
+        assert "cisa_kev" in _DEFAULT_RULES_ENABLED
+        assert _DEFAULT_RULES_ENABLED["cisa_kev"] is False
+        result = build_opa_input([], {})
+        assert result["config"]["rules_enabled"]["cisa_kev"] is False
+
     def test_partial_rules_enabled_override_preserves_other_defaults(self) -> None:
         """A shallow dict.update() would silently disable every rule not
         named in the override — this must be a deep merge of rules_enabled."""
@@ -131,6 +140,7 @@ class TestConfigMerge:
         assert rules["transitive_count"] is True
         assert rules["supply_chain_diff"] is True
         assert rules["dev_scope_exemption"] is False
+        assert rules["cisa_kev"] is False
 
     def test_non_rules_enabled_overrides_merge_over_defaults(self) -> None:
         result = build_opa_input(

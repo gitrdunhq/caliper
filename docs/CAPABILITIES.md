@@ -15,7 +15,7 @@
 
 Caliper — fully deterministic dependency, security, and code review for CI.
 19 scanner plugins, 21 deterministic detectors, 61 custom semgrep rules, 12 code graph
-checks, 10 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
+checks, 11 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
 ## Quick Numbers
@@ -26,7 +26,7 @@ supply-chain version-bump narrative is advisory metadata only).
 | Deterministic detectors | 21 (CAL-001..CAL-021) |
 | Custom semgrep rules | 61 (11 rule files) |
 | Code graph SQL checks | 12 |
-| OPA Rego policy rules | 10 (5 deny, 5 warn) |
+| OPA Rego policy rules | 11 (6 deny, 5 warn) |
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
 | Finding scribes | 4 (enclosing-symbol, code-graph, semgrep opt-in, supply-chain-threat opt-in) |
@@ -47,7 +47,7 @@ supply-chain version-bump narrative is advisory metadata only).
 The 19 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
 five categories below. The **OPA policy plugin** is the 20th `ScannerPlugin` subclass but is
 wired separately — it consumes every other plugin's findings and runs last
-(`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-8-rules).
+(`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-11-rules).
 
 ### dependency (4)
 
@@ -238,7 +238,7 @@ All in `plugins/_runners/checks.yaml`. Executed by the blast-radius plugin again
 
 ---
 
-## OPA Policy Rules (10 rules)
+## OPA Policy Rules (11 rules)
 
 File: `policies/policy.rego`. Consumes findings from all plugins.
 
@@ -249,6 +249,7 @@ File: `policies/policy.rego`. Consumes findings from all plugins.
 | Package age < threshold | deny | first_published_date < min_package_age_days (default 90) |
 | Malicious package | deny | advisory_id starts with "MAL-" (always denies, never dev-scope-exempted) |
 | Supply-chain version-bump signal | deny | severity critical or high + category supply_chain |
+| CISA KEV — actively exploited CVE | deny | category vulnerability + advisory_id in config.kev_ids (always denies, never dev-scope-exempted) |
 | Medium vulnerability | warn | severity medium + category vulnerability |
 | Transitive dep count | warn | transitive_dep_count > max_transitive_deps (default 200) |
 | Supply-chain note | warn | severity medium + category supply_chain |
@@ -259,7 +260,10 @@ Decision: any deny → reject. No deny + any warn → approve_with_constraints. 
 All rules individually toggleable via `config.rules_enabled.*`. `dev_scope_exemption`
 defaults to `false` (opt-in) — when enabled, it downgrades the critical/high-vulnerability
 and forbidden-license deny rules to warn for `pkg.scope == "dev"` packages only; a
-`MAL-`-prefixed advisory always denies regardless (#345).
+`MAL-`-prefixed advisory always denies regardless (#345). `cisa_kev` also defaults to
+`false` (opt-in) — when enabled, any vulnerability whose advisory_id is in the
+operator-supplied `config.kev_ids` (CISA Known Exploited Vulnerabilities catalog)
+always denies, with no dev-scope downgrade path (#344).
 
 ---
 

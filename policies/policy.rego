@@ -87,6 +87,22 @@ deny contains msg if {
 	])
 }
 
+# T-344: CISA KEV — actively exploited CVE. Never downgradable via
+# _dev_scope_downgraded — an actively-exploited CVE is exactly as severe as
+# the MAL- known-malicious-package case above, which is also never
+# downgraded. See _dev_scope_downgraded's comment for why.
+deny contains msg if {
+	input.config.rules_enabled.cisa_kev
+	some finding in input.findings
+	finding.category == "vulnerability"
+	finding.advisory_id in object.get(input.config, "kev_ids", set())
+	msg := sprintf("Actively exploited (CISA KEV) vulnerability %s in %s@%s", [
+		finding.advisory_id,
+		finding.package_name,
+		finding.version,
+	])
+}
+
 # --- warn rules (set of warning messages) ---
 
 # T-345: Dev-scope exemption — critical/high vulnerability downgraded to warn.
