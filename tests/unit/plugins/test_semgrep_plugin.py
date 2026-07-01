@@ -13,16 +13,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from caliper.core.config import CaliperSettings
 from caliper.core.plugin import normalize_finding
 from caliper.core.registries import RULE_RUNNERS
 from caliper.plugins.semgrep import SemgrepPlugin
 
 
 class _FakeRunner:
-    def __init__(self, data: dict) -> None:
+    def __init__(self, data: dict, captured: dict | None = None) -> None:
         self._data = data
+        self._captured = captured
 
     def run(self, *args, **kwargs) -> dict:
+        if self._captured is not None:
+            self._captured["timeout"] = kwargs.get("timeout")
         return self._data
 
 
@@ -97,3 +101,35 @@ def test_run_defaults_fix_suggestion_to_empty_string(monkeypatch, tmp_path: Path
     result = plugin.run([str(target)], tmp_path)
 
     assert result.findings[0]["fix_suggestion"] == ""
+
+
+class TestSemgrepPluginTimeout:
+    """SemgrepPlugin must honor CaliperSettings.scanner_timeout (#432a)."""
+
+    def test_run_passes_scanner_timeout_from_settings(self, monkeypatch, tmp_path: Path) -> None:
+        target = tmp_path / "a.py"
+        captured: dict = {}
+        monkeypatch.setattr(
+            RULE_RUNNERS,
+            "create",
+            lambda name: _FakeRunner(_result({}, target), captured),
+        )
+
+        plugin = SemgrepPlugin(settings=CaliperSettings(scanner_timeout=5))
+        plugin.run([str(target)], tmp_path)
+
+        assert captured["timeout"] == 5
+
+    def test_run_defaults_to_120_without_settings(self, monkeypatch, tmp_path: Path) -> None:
+        target = tmp_path / "a.py"
+        captured: dict = {}
+        monkeypatch.setattr(
+            RULE_RUNNERS,
+            "create",
+            lambda name: _FakeRunner(_result({}, target), captured),
+        )
+
+        plugin = SemgrepPlugin()
+        plugin.run([str(target)], tmp_path)
+
+        assert captured["timeout"] == 120

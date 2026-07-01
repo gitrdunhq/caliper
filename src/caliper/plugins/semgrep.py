@@ -1,16 +1,24 @@
 """Semgrep plugin — AST-based code pattern matching.
 # tested-by: tests/unit/test_plugin_registry.py
+# tested-by: tests/unit/plugins/test_semgrep_plugin.py
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from caliper.core.config import CaliperSettings
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
 from caliper.core.registries import RULE_RUNNERS
 from caliper.plugins._runners import (
     semgrep_runner,  # noqa: F401  (registers RULE_RUNNERS["semgrep"])
 )
+
+# Historical plugin-specific default (predates settings wiring, #432a). Kept as
+# the fallback when no CaliperSettings is supplied so existing callers that
+# construct this plugin bare keep their current timeout; pass ``settings`` to
+# honor CaliperSettings.scanner_timeout instead.
+_DEFAULT_TIMEOUT = 120
 
 _CODE_EXTS = {
     ".py",
@@ -32,6 +40,9 @@ _CODE_EXTS = {
 
 
 class SemgrepPlugin(ScannerPlugin):
+    def __init__(self, settings: CaliperSettings | None = None) -> None:
+        self._timeout = settings.scanner_timeout if settings is not None else _DEFAULT_TIMEOUT
+
     @property
     def name(self) -> str:
         return "semgrep"
@@ -61,7 +72,7 @@ class SemgrepPlugin(ScannerPlugin):
             data = RULE_RUNNERS.create("semgrep").run(
                 files,
                 str(repo_path),
-                timeout=120,
+                timeout=self._timeout,
                 extra_config_dirs=sg.extra_config_dirs,
                 exclude_rules=sg.exclude_rules,
             )
