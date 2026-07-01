@@ -459,12 +459,10 @@ plugin-only CI jobs use.
 **Piping JSON out of a no-DB job.** `caliper review --format json` already
 prints to stdout when `--output` is omitted, so it composes naturally with
 `jq` or any downstream tool in a scanner-only, no-DB CI job. The full
-`evaluate` command's `--output-json` option, by contrast, currently only
-writes to a file path (it's a plain `click.Path()`) — there's no stdout
-(`-`) convention for it yet. A stdout mode (`--output-json -`) is in
-progress; once it lands, a scanner-only CI job that wants the full policy
-decision (not just plugin findings) will be able to pipe it straight out the
-same way, without a database or an intermediate file.
+`evaluate` command supports the same convention via `--output-json -`,
+streaming the policy decision JSON straight to stdout — a scanner-only CI job
+that wants the full policy decision (not just plugin findings) can pipe it
+out the same way, without a database or an intermediate file.
 
 **Single source of truth for this config.** `db_dsn`, timeouts, evidence
 path, and enabled scanners are all defined once in `CaliperSettings`
