@@ -940,6 +940,117 @@ class TestRetargetRollback:
         assert session.cut_dict() == good_cut.model_dump(mode="json")
 
 
+class TestRetargetInvalidatesApplyToken:
+    """A restack.sh + apply token minted for one target must not survive a
+    successful retarget to a different one (adversarial review finding
+    P02-1, docs/reviews/adversarial-2026-06-30.md) — otherwise a stale
+    token/script from the old target could be replayed via /apply against
+    whatever the session now points at.
+    """
+
+    def _cutlist(self):
+        from caliper.core.models import ChangeType, CutList, CutStats, Kerf, Part, Provenance
+
+        parts = [
+            Part(
+                id="infra-1",
+                files=["svc/lib/infra-utils/builder.ts"],
+                bucket=ChangeType.infra,
+                size=10,
+                opened_by=Kerf(fired_rule="bucket-end"),
+            )
+        ]
+        return CutList(
+            parts=parts,
+            size_cap=None,
+            provenance=Provenance(
+                caliper_version="0",
+                base_sha="b",
+                head_sha="h",
+                rename_threshold=50,
+                config_digest="d",
+            ),
+            stats=CutStats(
+                part_count=1, file_count=1, size_p50=0, size_p90=0, move_logic_pure=True
+            ),
+        )
+
+    def _fake_last_run(self):
+        from caliper.cli.part_pipeline import PartRunResult
+
+        return PartRunResult(
+            cutlist=self._cutlist(),
+            script_text="#!/bin/sh\necho hi\n",
+            backup_bookmark="bak",
+            rescue_op_id="op1",
+            jj_version="0",
+            can_reconstruct=True,
+            subjects={},
+            proposed_overrides=[],
+            applied_overrides=[],
+            restack_path="/tmp/restack.sh",
+            cutlist_path=None,
+        )
+
+    def test_retarget_success_clears_pending_apply_token(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        session = part_serve.PartingSession(tmp_path, "base", "head")
+        session._last_run = self._fake_last_run()
+        session._apply_token = "stale-token"
+        monkeypatch.setattr(session, "repart_dict", lambda: self._cutlist().model_dump(mode="json"))
+
+        session.retarget(base="new-base", head="new-head")
+
+        assert session._apply_token is None
+        assert session._last_run is None
+        with pytest.raises(ValueError, match="invalid or expired apply token"):
+            session.apply("stale-token")
+
+    def test_set_size_cap_success_clears_pending_apply_token(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        session = part_serve.PartingSession(tmp_path, "base", "head")
+        session._last_run = self._fake_last_run()
+        session._apply_token = "stale-token"
+        monkeypatch.setattr(session, "repart_dict", lambda: self._cutlist().model_dump(mode="json"))
+
+        session.set_size_cap(5)
+
+        assert session._apply_token is None
+        assert session._last_run is None
+
+    def test_set_target_pr_success_clears_pending_apply_token(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from caliper.cli import part_pr
+
+        session = part_serve.PartingSession(tmp_path, "base", "head")
+        session._last_run = self._fake_last_run()
+        session._apply_token = "stale-token"
+
+        other_repo = tmp_path / "other-repo"
+        other_repo.mkdir()
+        resolved = part_pr.ResolvedPr(
+            repo_path=other_repo,
+            base="pr-base",
+            head="pr-head",
+            slug="owner/repo",
+            number=1,
+            workdir=tmp_path / "workdir",
+            out_dir=tmp_path / "out",
+            override_store=other_repo / ".caliper.yaml",
+        )
+        monkeypatch.setattr(part_pr, "resolve_pr", lambda *a, **k: resolved)
+        monkeypatch.setattr(part_pr, "detect_origin_slug", lambda *a, **k: "owner/repo")
+        monkeypatch.setattr(session, "repart_dict", lambda: self._cutlist().model_dump(mode="json"))
+
+        session.set_target_pr("1")
+
+        assert session._apply_token is None
+        assert session._last_run is None
+
+
 class TestSelectableBucketsDriftGuard:
     """The human dropdown and the model's legal output set must not drift apart."""
 
