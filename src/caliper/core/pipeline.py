@@ -45,7 +45,14 @@ from caliper.core.sbom_diff import diff_sboms
 from caliper.core.seal import create_seal, find_previous_seal_hash
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from caliper.core.context import ApplicationContext
+    from caliper.core.ports import (
+        DecisionRepositoryPort,
+        EvidenceWriterPort,
+        PackageMetadataPort,
+    )
 
 logger = structlog.get_logger()
 
@@ -145,6 +152,131 @@ class ReviewPipeline:
             )
         return self._context
 
+    def _run_requests(
+        self,
+        context: ApplicationContext,
+        config: CaliperSettings,
+        requests: list,
+        repo_path: Path,
+        run_id: str,
+        pipeline_start: float,
+        orchestrator: ScanOrchestrator,
+        evidence: EvidenceWriterPort,
+        pypi_client: PackageMetadataPort,
+        db: DecisionRepositoryPort,
+        log_event: str,
+    ) -> list[ReviewDecision]:
+        """Run scanners once, then evaluate each request through
+        scan -> normalize -> policy -> decision -> memo, persisting each step.
+
+        Shared by evaluate() and evaluate_sbom() (previously two independently
+        drifting copies of this loop).
+        """
+        decisions: list[ReviewDecision] = []
+        scan_results = orchestrator.run(repo_path)
+
+        for req in requests:
+            # Pipeline timeout enforcement (F-007)
+            elapsed = time.monotonic() - pipeline_start
+            if elapsed >= config.pipeline_timeout:
+                logger.warning(
+                    "pipeline_timeout_reached",
+                    package=req.package_name,
+                    elapsed=elapsed,
+                )
+                break
+
+            logger.info(
+                log_event,
+                package=req.package_name,
+                version=req.target_version,
+                ecosystem=req.ecosystem,
+            )
+
+            try:
+                db.save_request(req)
+                db.save_scan_results(req.request_id, scan_results)
+
+                findings, _summary = normalize_findings(scan_results)
+
+                # Populate OPA metadata (F-012)
+                pypi_meta = pypi_client.fetch_metadata(req.package_name, req.target_version)
+                transitive_dep_count = count_transitive_deps_from_scan(scan_results)
+                package_metadata = _build_package_metadata(req, pypi_meta, transitive_dep_count)
+
+                policy_eval = _policy_evaluation(context, findings, package_metadata)
+                db.save_policy_evaluation(req.request_id, policy_eval)
+
+                pipeline_duration = time.monotonic() - pipeline_start
+                evidence_bundle_path = evidence.get_path(run_id, req.package_name)
+
+                decision = assemble_decision(
+                    request=req,
+                    findings=findings,
+                    scan_results=scan_results,
+                    policy_evaluation=policy_eval,
+                    evidence_bundle_path=evidence_bundle_path,
+                    pipeline_duration=pipeline_duration,
+                )
+
+                memo = generate_memo(decision)
+                decision.memo_text = memo
+
+                db.save_decision(req.request_id, decision)
+
+                evidence.store(
+                    run_id,
+                    f"{req.package_name}/decision.json",
+                    orjson.dumps(decision.model_dump(mode="json"), option=orjson.OPT_INDENT_2),
+                )
+                evidence.store(run_id, f"{req.package_name}/memo.md", memo)
+
+                decisions.append(decision)
+
+            except Exception:
+                logger.exception("package_evaluation_failed", package=req.package_name)
+                decisions.append(
+                    ReviewDecision(
+                        request=req,
+                        decision=DecisionVerdict.needs_review,
+                        findings=[],
+                        scan_results=scan_results,
+                        policy_evaluation=PolicyEvaluation(
+                            decision=DecisionVerdict.needs_review,
+                            triggered_rules=["package evaluation failed unexpectedly"],
+                            policy_bundle_version="unknown",
+                        ),
+                        pipeline_duration_seconds=time.monotonic() - pipeline_start,
+                    )
+                )
+
+        return decisions
+
+    def _finalize(
+        self,
+        append_decisions: Callable,
+        config: CaliperSettings,
+        decisions: list[ReviewDecision],
+        run_id: str,
+        commit_sha: str | None,
+    ) -> None:
+        """Append decisions to the parquet audit log and seal evidence (both fail-open).
+
+        Shared by evaluate() and evaluate_sbom() so the append/seal sequence and
+        commit_sha stamping can never drift between the two entry points again
+        (P01-1: evaluate_sbom() previously left commit_sha unstamped here).
+        """
+        # Append decisions to the parquet audit log (fail-open)
+        append_decisions(Path(config.evidence_path), decisions, run_id)
+
+        # Seal all evidence artifacts for this run (fail-open)
+        try:
+            evidence_run_dir = Path(config.evidence_path) / run_id
+            previous_hash = find_previous_seal_hash(Path(config.evidence_path), run_id)
+            create_seal(evidence_run_dir, run_id, commit_sha, previous_hash)
+        except Exception:
+            logger.exception("seal_creation_failed", run_id=run_id)
+
     def evaluate(
         self,
         diff_text: str,
@@ -202,95 +334,21 @@ class ReviewPipeline:
         db = get_decision_repository(context)
         append_decisions = get_audit_log_appender(context)
 
-        decisions: list[ReviewDecision] = []
-
         try:
-            # Run scanners ONCE before the per-package loop (F-005)
-            scan_results = orchestrator.run(repo_path)
-
-            for req in requests:
-                # Pipeline timeout enforcement (F-007)
-                elapsed = time.monotonic() - pipeline_start
-                if elapsed >= config.pipeline_timeout:
-                    logger.warning(
-                        "pipeline_timeout_reached",
-                        package=req.package_name,
-                        elapsed=elapsed,
-                    )
-                    break
-
-                logger.info(
-                    "evaluating_package", package=req.package_name, version=req.target_version
-                )
-
-                try:
-                    db.save_request(req)
-                    db.save_scan_results(req.request_id, scan_results)
-
-                    findings, _summary = normalize_findings(scan_results)
-
-                    # Populate OPA metadata (F-012)
-                    pypi_meta = pypi_client.fetch_metadata(req.package_name, req.target_version)
-                    transitive_dep_count = count_transitive_deps_from_scan(scan_results)
-                    package_metadata = _build_package_metadata(req, pypi_meta, transitive_dep_count)
-
-                    policy_eval = _policy_evaluation(context, findings, package_metadata)
-                    db.save_policy_evaluation(req.request_id, policy_eval)
-
-                    pipeline_duration = time.monotonic() - pipeline_start
-                    evidence_bundle_path = evidence.get_path(run_id, req.package_name)
-
-                    decision = assemble_decision(
-                        request=req,
-                        findings=findings,
-                        scan_results=scan_results,
-                        policy_evaluation=policy_eval,
-                        evidence_bundle_path=evidence_bundle_path,
-                        pipeline_duration=pipeline_duration,
-                    )
-
-                    memo = generate_memo(decision)
-                    decision.memo_text = memo
-
-                    db.save_decision(req.request_id, decision)
-
-                    evidence.store(
-                        run_id,
-                        f"{req.package_name}/decision.json",
-                        orjson.dumps(decision.model_dump(mode="json"), option=orjson.OPT_INDENT_2),
-                    )
-                    evidence.store(run_id, f"{req.package_name}/memo.md", memo)
-
-                    decisions.append(decision)
-
-                except Exception:
-                    logger.exception("package_evaluation_failed", package=req.package_name)
-                    decisions.append(
-                        ReviewDecision(
-                            request=req,
-                            decision=DecisionVerdict.needs_review,
-                            findings=[],
-                            scan_results=scan_results,
-                            policy_evaluation=PolicyEvaluation(
-                                decision=DecisionVerdict.needs_review,
-                                triggered_rules=["package evaluation failed unexpectedly"],
-                                policy_bundle_version="unknown",
-                            ),
-                            pipeline_duration_seconds=time.monotonic() - pipeline_start,
-                        )
-                    )
-
-            # Append decisions to the parquet audit log (fail-open)
-            append_decisions(Path(config.evidence_path), decisions, run_id)
-
-            # Seal all evidence artifacts for this run (fail-open)
-            try:
-                evidence_run_dir = Path(config.evidence_path) / run_id
-                previous_hash = find_previous_seal_hash(Path(config.evidence_path), run_id)
-                create_seal(evidence_run_dir, run_id, commit_sha, previous_hash)
-            except Exception:
-                logger.exception("seal_creation_failed", run_id=run_id)
-
+            decisions = self._run_requests(
+                context,
+                config,
+                requests,
+                repo_path,
+                run_id,
+                pipeline_start,
+                orchestrator,
+                evidence,
+                pypi_client,
+                db,
+                log_event="evaluating_package",
+            )
+            self._finalize(append_decisions, config, decisions, run_id, commit_sha)
         finally:
             db.close()
             with contextlib.suppress(Exception):
@@ -357,96 +415,21 @@ class ReviewPipeline:
         db = get_decision_repository(context)
         append_decisions = get_audit_log_appender(context)
 
-        decisions: list[ReviewDecision] = []
-
         try:
-            # Run scanners ONCE before the per-package loop (F-005)
-            scan_results = orchestrator.run(repo_path)
-
-            for req in requests:
-                elapsed = time.monotonic() - pipeline_start
-                if elapsed >= config.pipeline_timeout:
-                    logger.warning(
-                        "pipeline_timeout_reached",
-                        package=req.package_name,
-                        elapsed=elapsed,
-                    )
-                    break
-
-                logger.info(
-                    "evaluating_package_sbom",
-                    package=req.package_name,
-                    version=req.target_version,
-                    ecosystem=req.ecosystem,
-                )
-
-                try:
-                    db.save_request(req)
-                    db.save_scan_results(req.request_id, scan_results)
-
-                    findings, _summary = normalize_findings(scan_results)
-
-                    pypi_meta = pypi_client.fetch_metadata(req.package_name, req.target_version)
-                    transitive_dep_count = count_transitive_deps_from_scan(scan_results)
-                    package_metadata = _build_package_metadata(req, pypi_meta, transitive_dep_count)
-
-                    policy_eval = _policy_evaluation(context, findings, package_metadata)
-                    db.save_policy_evaluation(req.request_id, policy_eval)
-
-                    pipeline_duration = time.monotonic() - pipeline_start
-                    evidence_bundle_path = evidence.get_path(run_id, req.package_name)
-
-                    decision = assemble_decision(
-                        request=req,
-                        findings=findings,
-                        scan_results=scan_results,
-                        policy_evaluation=policy_eval,
-                        evidence_bundle_path=evidence_bundle_path,
-                        pipeline_duration=pipeline_duration,
-                    )
-
-                    memo = generate_memo(decision)
-                    decision.memo_text = memo
-
-                    db.save_decision(req.request_id, decision)
-
-                    evidence.store(
-                        run_id,
-                        f"{req.package_name}/decision.json",
-                        orjson.dumps(decision.model_dump(mode="json"), option=orjson.OPT_INDENT_2),
-                    )
-                    evidence.store(run_id, f"{req.package_name}/memo.md", memo)
-
-                    decisions.append(decision)
-
-                except Exception:
-                    logger.exception("package_evaluation_failed", package=req.package_name)
-                    decisions.append(
-                        ReviewDecision(
-                            request=req,
-                            decision=DecisionVerdict.needs_review,
-                            findings=[],
-                            scan_results=scan_results,
-                            policy_evaluation=PolicyEvaluation(
-                                decision=DecisionVerdict.needs_review,
-                                triggered_rules=["package evaluation failed unexpectedly"],
-                                policy_bundle_version="unknown",
-                            ),
-                            pipeline_duration_seconds=time.monotonic() - pipeline_start,
-                        )
-                    )
-
-            # Mirror evaluate(): append decisions to parquet audit log (fail-open)
-            append_decisions(Path(config.evidence_path), decisions, run_id)
-
-            # Mirror evaluate(): seal all evidence artifacts for this run (fail-open)
-            try:
-                evidence_run_dir = Path(config.evidence_path) / run_id
-                previous_hash = find_previous_seal_hash(Path(config.evidence_path), run_id)
-                create_seal(evidence_run_dir, run_id, commit_sha, previous_hash)
-            except Exception:
-                logger.exception("seal_creation_failed", run_id=run_id)
-
+            decisions = self._run_requests(
+                context,
+                config,
+                requests,
+                repo_path,
+                run_id,
+                pipeline_start,
+                orchestrator,
+                evidence,
+                pypi_client,
+                db,
+                log_event="evaluating_package_sbom",
+            )
+            self._finalize(append_decisions, config, decisions, run_id, commit_sha)
         finally:
             db.close()
             with contextlib.suppress(Exception):
