@@ -142,9 +142,9 @@ graph.register_check(
 )
 ```
 
-### Deterministic Bug Detectors (21 and growing)
+### Deterministic Bug Detectors (22 and growing)
 
-Beyond semgrep, caliper ships **21 deterministic AST bug detectors** (`CAL-001`…`CAL-021`) in `src/caliper/detectors/` — SQL injection via string formatting, JWT tokens with no audience claim, secrets typed as plain `str` instead of `SecretStr`, subprocess calls without a timeout, unbounded caches, non-atomic file writes, and more. They fire with no LLM, never crash a scan (fail-safe), and are suppressible per-line with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](docs/detectors.md).
+Beyond semgrep, caliper ships **22 deterministic AST bug detectors** (`CAL-001`…`CAL-022`) in `src/caliper/detectors/` — SQL injection via string formatting, JWT tokens with no audience claim, secrets typed as plain `str` instead of `SecretStr`, subprocess calls without a timeout, unbounded caches, non-atomic file writes, and more. They fire with no LLM, never crash a scan (fail-safe), and are suppressible per-line with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](docs/detectors.md).
 
 ### OPA Policy Rules (6 rules, pure Rego)
 
@@ -189,7 +189,7 @@ No other tool — free or paid — offers these capabilities:
 - **Actionability classification** — every finding is classified as fixable (upgrade available) or blocked (no upstream fix), so teams know what they can actually act on
 - **Sealed evidence chain** — SHA-256 hash chain over every scan artifact, appended to a Parquet audit lake queryable with DuckDB. Tamper with any artifact and the chain breaks
 - **61 custom semgrep rules** — security, reliability, SOLID, testing, architecture, and contract enforcement patterns that catch what generic rulesets miss
-- **21 deterministic bug detectors** — AST rules that catch SQL injection, missing JWT claims, secrets as plain strings, subprocess timeouts, unbounded caches, and more — no LLM, suppressible per-line
+- **22 deterministic bug detectors** — AST rules that catch SQL injection, missing JWT claims, secrets as plain strings, subprocess timeouts, unbounded caches, and more — no LLM, suppressible per-line
 - **Natural language code queries** — 12 templates: "what has the highest fan-out?", "show me layer violations", "what depends on X?" — all against the code graph, no LLM required
 - **Deterministic + free** — the only tool in the "broad scan + policy engine" quadrant that costs $0
 

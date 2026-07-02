@@ -473,6 +473,32 @@ class BaselineConfig(BaseModel):
     default_ttl_days: int = 90
 
 
+class ArchitectureConfig(BaseModel):
+    """Optional enforced tier-boundary layering for CAL-022 (tier_boundary detector).
+
+    Mirrors caliper's own guard test (``core/tier_map.py`` +
+    ``tests/unit/test_deterministic_architecture_guards.py``) but is entirely
+    opt-in for a scanned repo: unconfigured (``tiers`` empty, or ``package``/
+    ``src_root`` unset) means CAL-022 never fires -- caliper never fabricates
+    a layering the repo did not declare (fail-open).
+
+    ``src_root`` is the path (relative to the repo root) of the directory
+    that directly contains the tiered subdirectories -- e.g. ``src/myapp``,
+    not just ``src``. ``tiers`` maps each subdirectory name under
+    ``src_root`` to a tier name (e.g. ``{"api": "presentation", "db": "data"}``).
+    ``allow`` maps a source tier to the set of target tiers it may import;
+    a tier omitted from ``allow`` may only import itself (default-deny, so a
+    half-configured allow-set never becomes silently permissive).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    package: str = ""
+    src_root: str = ""
+    tiers: dict[str, str] = Field(default_factory=dict)
+    allow: dict[str, list[str]] = Field(default_factory=dict)
+
+
 class RepoConfig(BaseModel):
     """Top-level repo config parsed from .caliper.yaml."""
 
@@ -483,6 +509,7 @@ class RepoConfig(BaseModel):
     inspect: InspectConfig = InspectConfig()
     gauge: GaugeConfig = GaugeConfig()
     baseline: BaselineConfig = BaselineConfig()
+    architecture: ArchitectureConfig = ArchitectureConfig()
 
 
 def load_merged_config(repo_path: Path, package_root: Path | None = None) -> RepoConfig:
