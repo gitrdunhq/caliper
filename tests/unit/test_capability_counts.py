@@ -22,7 +22,7 @@ _REPO = Path(__file__).resolve().parents[2]
 _PLUGINS = 19
 _SEMGREP = 67
 _CODEGRAPH = 12
-_OPA = 15
+_OPA = 16
 
 
 def _semgrep_rule_count() -> int:

@@ -342,6 +342,22 @@ class CodeGraph:
         ).fetchone()
         return dict(row) if row else None
 
+    def imports_module(self, import_name: str) -> bool:
+        """Return True if any indexed file has an ``imports`` edge to *import_name*.
+
+        ``_add_import_edge`` stores the imported module's dotted path as the target
+        symbol's ``file`` (e.g. ``"yaml"`` for ``import yaml``, ``"yaml.Loader"`` for
+        ``from yaml import Loader``) — match the top-level package either as an exact
+        module or as the prefix of a deeper dotted import (``"yaml.%"``).
+        """
+        row = self.conn.execute(
+            "SELECT 1 FROM edges e JOIN symbols t ON e.target_id = t.id"
+            " WHERE e.kind = 'imports' AND t.kind = 'module'"
+            " AND (t.file = ? OR t.file LIKE ?) LIMIT 1",
+            (import_name, f"{import_name}.%"),
+        ).fetchone()
+        return row is not None
+
     def blast_radius(self, symbol_name: str, max_depth: int = 3) -> list[dict]:
         results: list[dict] = []
         visited: set[int] = set()

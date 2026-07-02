@@ -74,6 +74,13 @@ _DEFAULT_RULES_ENABLED: dict[str, bool] = {
     # copyleft_weak are operator-supplied lists, caliper ships no default.
     # See policies/policy.rego T-347.
     "copyleft_propagation": False,
+    # Opt-in: downgrades critical_vuln deny to warn when the reachability
+    # scribe (ADR-009) determined the package is declared but never
+    # imported (input.findings[_].reachable == false). Default False --
+    # requires the "reachability" scribe to be enabled via
+    # settings.enabled_scribes to have any effect (unset/null reachability
+    # never downgrades). See policies/policy.rego T-348.
+    "unreachable_vuln_exemption": False,
 }
 
 _DEFAULT_CONFIG: dict[str, object] = {
@@ -127,6 +134,10 @@ def _row_from_plugin_finding(f: PluginFinding) -> dict:
     license_id = finding_get(f, "license_id", default="")
     if f.category == FindingCategory.license.value and license_id:
         entry["license_id"] = license_id
+    scribe_meta = f.metadata.get("scribe") if isinstance(f.metadata, dict) else None
+    reachability = (scribe_meta or {}).get("reachability")
+    if isinstance(reachability, dict) and "reachable" in reachability:
+        entry["reachable"] = reachability["reachable"]
     return entry
 
 

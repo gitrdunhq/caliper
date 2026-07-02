@@ -83,15 +83,25 @@ def _build_package_metadata(req, pypi_meta: dict, transitive_dep_count: int | No
 
 
 def _policy_evaluation(
-    context: ApplicationContext, findings: list, package_metadata: dict
+    context: ApplicationContext,
+    config: CaliperSettings,
+    findings: list,
+    package_metadata: dict,
+    repo_path: Path,
 ) -> PolicyEvaluation:
     """Evaluate findings through the injected policy engine port.
 
-    Adapts the scan ``Finding`` list into the policy port's ``PolicyInput`` and
-    maps the returned ``PolicyDecision`` verdict onto a ``PolicyEvaluation``.
+    Adapts the scan ``Finding`` list into the policy port's ``PolicyInput``,
+    runs the enabled scribes (ADR-006/ADR-009 — e.g. reachability) over the
+    adapted findings so opt-in policy exemptions (T-348) have something to
+    read, and maps the returned ``PolicyDecision`` verdict onto a
+    ``PolicyEvaluation``.
     """
+    from caliper.core.accessors import get_scribes
     from caliper.core.plugin import PluginFinding
     from caliper.core.policy_port import PolicyInput
+    from caliper.core.scribe import ScribeContext
+    from caliper.core.scribe_pass import scribe_findings
 
     plugin_findings = [
         PluginFinding(
@@ -110,6 +120,13 @@ def _policy_evaluation(
         )
         for f in findings
     ]
+    scribes = get_scribes(context)
+    if scribes:
+        plugin_findings = scribe_findings(
+            plugin_findings,
+            scribes,
+            ScribeContext(repo_path=str(repo_path), scribe_timeout=config.scribe_timeout),
+        )
     pd = context.policy_engine.evaluate(
         PolicyInput(findings=plugin_findings, packages=[package_metadata], config={})
     )
@@ -214,7 +231,9 @@ class ReviewPipeline:
                 transitive_dep_count = count_transitive_deps_from_scan(scan_results)
                 package_metadata = _build_package_metadata(req, pypi_meta, transitive_dep_count)
 
-                policy_eval = _policy_evaluation(context, findings, package_metadata)
+                policy_eval = _policy_evaluation(
+                    context, config, findings, package_metadata, repo_path
+                )
                 db.save_policy_evaluation(req.request_id, policy_eval)
 
                 pipeline_duration = time.monotonic() - pipeline_start

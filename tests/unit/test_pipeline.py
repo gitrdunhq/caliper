@@ -303,11 +303,12 @@ class TestCountTransitiveDepsFromScan:
 
 
 class TestPolicyEvaluationConstraintsRegression:
-    def test_constraints_populated_from_warn_reasons(self) -> None:
+    def test_constraints_populated_from_warn_reasons(self, tmp_path) -> None:
         """When OPA returns warn messages, PolicyEvaluation.constraints must be
         populated (regression for P03-3: previously constraints was always [])."""
         from unittest.mock import MagicMock
 
+        from caliper.core.config import CaliperSettings
         from caliper.core.models import DecisionVerdict, PolicyEvaluation
         from caliper.core.pipeline import _policy_evaluation
         from caliper.core.policy_port import PolicyDecision
@@ -324,8 +325,9 @@ class TestPolicyEvaluationConstraintsRegression:
 
         fake_ctx = MagicMock()
         fake_ctx.policy_engine = fake_engine
+        fake_ctx.scribes = []
 
-        result = _policy_evaluation(fake_ctx, [], {})
+        result = _policy_evaluation(fake_ctx, CaliperSettings(), [], {}, tmp_path)
 
         assert isinstance(result, PolicyEvaluation)
         assert result.decision == DecisionVerdict.approve_with_constraints
@@ -334,10 +336,11 @@ class TestPolicyEvaluationConstraintsRegression:
             f"expected {warn_msgs!r} in constraints, got {result.constraints!r}"
         )
 
-    def test_constraints_empty_on_full_approve(self) -> None:
+    def test_constraints_empty_on_full_approve(self, tmp_path) -> None:
         """constraints must be empty when OPA approves unconditionally."""
         from unittest.mock import MagicMock
 
+        from caliper.core.config import CaliperSettings
         from caliper.core.models import DecisionVerdict
         from caliper.core.pipeline import _policy_evaluation
         from caliper.core.policy_port import PolicyDecision
@@ -352,8 +355,9 @@ class TestPolicyEvaluationConstraintsRegression:
 
         fake_ctx = MagicMock()
         fake_ctx.policy_engine = fake_engine
+        fake_ctx.scribes = []
 
-        result = _policy_evaluation(fake_ctx, [], {})
+        result = _policy_evaluation(fake_ctx, CaliperSettings(), [], {}, tmp_path)
 
         assert result.decision == DecisionVerdict.approve
         assert result.constraints == []
@@ -366,9 +370,10 @@ class TestPolicyEvaluationConstraintsRegression:
 
 
 class TestPolicyEvaluationLinkTypeMetadata:
-    def test_link_type_present_in_plugin_finding_metadata(self) -> None:
+    def test_link_type_present_in_plugin_finding_metadata(self, tmp_path) -> None:
         from unittest.mock import MagicMock
 
+        from caliper.core.config import CaliperSettings
         from caliper.core.models import Finding, FindingCategory, FindingSeverity
         from caliper.core.pipeline import _policy_evaluation
         from caliper.core.policy_port import PolicyDecision
@@ -394,20 +399,22 @@ class TestPolicyEvaluationLinkTypeMetadata:
         )
         fake_ctx = MagicMock()
         fake_ctx.policy_engine = fake_engine
+        fake_ctx.scribes = []
 
-        _policy_evaluation(fake_ctx, [finding], {})
+        _policy_evaluation(fake_ctx, CaliperSettings(), [finding], {}, tmp_path)
 
         policy_input = fake_engine.evaluate.call_args[0][0]
         plugin_finding = policy_input.findings[0]
         assert plugin_finding.metadata["link_type"] == "dynamic"
 
-    def test_link_type_defaults_to_unknown_in_plugin_finding_metadata(self) -> None:
+    def test_link_type_defaults_to_unknown_in_plugin_finding_metadata(self, tmp_path) -> None:
         """A Finding constructed without an explicit link_type defaults to
         "unknown" (Finding.link_type default) and that value must still land
         in PluginFinding.metadata -- link_type is threaded unconditionally,
         unlike license_id."""
         from unittest.mock import MagicMock
 
+        from caliper.core.config import CaliperSettings
         from caliper.core.models import Finding, FindingCategory, FindingSeverity
         from caliper.core.pipeline import _policy_evaluation
         from caliper.core.policy_port import PolicyDecision
@@ -431,8 +438,9 @@ class TestPolicyEvaluationLinkTypeMetadata:
         )
         fake_ctx = MagicMock()
         fake_ctx.policy_engine = fake_engine
+        fake_ctx.scribes = []
 
-        _policy_evaluation(fake_ctx, [finding], {})
+        _policy_evaluation(fake_ctx, CaliperSettings(), [finding], {}, tmp_path)
 
         policy_input = fake_engine.evaluate.call_args[0][0]
         plugin_finding = policy_input.findings[0]

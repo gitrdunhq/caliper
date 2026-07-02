@@ -636,3 +636,36 @@ class TestWalkUpstreamNoneGuardRegression:
 
         # May return 0 or 1 result depending on what survives the deleted symbol lookup
         assert isinstance(results, list)
+
+
+class TestImportsModule:
+    """CodeGraph.imports_module (ADR-009 reachability scribe)."""
+
+    def test_plain_import_is_found(self):
+        graph = CodeGraph()
+        graph.index_file("a.py", "import yaml\n\ndef f():\n    return yaml.safe_load('{}')\n")
+        graph.conn.commit()
+        assert graph.imports_module("yaml") is True
+
+    def test_from_import_of_submodule_is_found_via_top_level_prefix(self):
+        graph = CodeGraph()
+        graph.index_file("a.py", "from yaml import Loader\n\ndef f():\n    return Loader\n")
+        graph.conn.commit()
+        assert graph.imports_module("yaml") is True
+
+    def test_unimported_module_is_not_found(self):
+        graph = CodeGraph()
+        graph.index_file("a.py", "import os\n\ndef f():\n    return os.getcwd()\n")
+        graph.conn.commit()
+        assert graph.imports_module("yaml") is False
+
+    def test_empty_graph_returns_false(self):
+        graph = CodeGraph()
+        assert graph.imports_module("yaml") is False
+
+    def test_does_not_match_unrelated_prefix(self):
+        """`yaml2` must not satisfy a lookup for `yaml` -- prefix match requires a dot."""
+        graph = CodeGraph()
+        graph.index_file("a.py", "import yaml2\n\ndef f():\n    return yaml2\n")
+        graph.conn.commit()
+        assert graph.imports_module("yaml") is False
