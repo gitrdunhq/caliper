@@ -349,6 +349,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Webhook server | `src/caliper/webhook/server.py` | Starlette ASGI. GitHub PR webhooks (opened/synchronize/reopened). HMAC-SHA256 signature validation. Port 12800. |
 | Jenkins | `jenkins/vars/dependencyAdmission.groovy` | Shared library for Jenkins pipelines. |
 | Container | `Dockerfile` | Podman/Docker. Read-only workspace mount. |
+| Third-party plugin SDK | `src/caliper/plugins/__init__.py`, `docs/PLUGIN_SDK.md` | External packages publish `ScannerPlugin`/`AnalyzerPort` implementations under the `caliper.plugins` `importlib.metadata` entry-point group; `get_default_registry()` discovers them alongside the 19 in-tree plugins. Fail-open per entry point (a broken third-party plugin is logged and skipped, never crashes discovery) and fail-open on the entry-point lookup itself. |
 
 ---
 
