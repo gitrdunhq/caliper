@@ -194,7 +194,7 @@ def _compute_age_days(first_published_date: str | None) -> int | None:
         return None
 
 
-from caliper.core.registries import PACKAGE_INDEXES  # noqa: E402  (registration wiring)
+from caliper.core.port_registries import PACKAGE_INDEXES  # noqa: E402  (registration wiring)
 
 
 @PACKAGE_INDEXES.register("pypi")

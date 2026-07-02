@@ -11,8 +11,8 @@ from __future__ import annotations
 import pytest
 
 from caliper.composition.bootstrap import load_adapters
+from caliper.core.port_registries import SCRIBES
 from caliper.core.ports import ScribePort
-from caliper.core.registries import SCRIBES
 
 load_adapters()
 

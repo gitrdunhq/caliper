@@ -12,17 +12,7 @@ import pytest
 
 from caliper.composition.bootstrap import load_adapters
 from caliper.core.policy_port import PolicyEnginePort
-from caliper.core.ports import (
-    CodeGraphCheckPort,
-    DecisionStorePort,
-    EvidenceStorePort,
-    PackageMetadataPort,
-    PullRequestPublisherPort,
-    ReportRendererPort,
-    RepoSnapshotPort,
-    SemgrepRunnerPort,
-)
-from caliper.core.registries import (
+from caliper.core.port_registries import (
     CODEGRAPH_CHECKS,
     DECISION_STORES,
     EVIDENCE_STORES,
@@ -32,6 +22,16 @@ from caliper.core.registries import (
     RENDERERS,
     REPO_SNAPSHOTS,
     RULE_RUNNERS,
+)
+from caliper.core.ports import (
+    CodeGraphCheckPort,
+    DecisionStorePort,
+    EvidenceStorePort,
+    PackageMetadataPort,
+    PullRequestPublisherPort,
+    ReportRendererPort,
+    RepoSnapshotPort,
+    SemgrepRunnerPort,
 )
 
 # Populate the registries via the composition tier's explicit import step.

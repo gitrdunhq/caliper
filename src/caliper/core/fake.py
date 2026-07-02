@@ -9,7 +9,7 @@ network, a subprocess, or the filesystem.
 from __future__ import annotations
 
 from caliper.core.policy_port import PolicyDecision, PolicyInput
-from caliper.core.registries import (
+from caliper.core.port_registries import (
     CODEGRAPH_CHECKS,
     PACKAGE_INDEXES,
     POLICY_ENGINES,

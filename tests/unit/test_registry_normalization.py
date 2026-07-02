@@ -48,7 +48,7 @@ class _DictPlugin(ScannerPlugin):
 
 class TestRegistryNormalization:
     def test_registry_normalizes_findings_to_plugin_finding(self) -> None:
-        from caliper.core.registry import PluginRegistry
+        from caliper.core.plugin_registry import PluginRegistry
 
         registry = PluginRegistry()
         registry.register(_DictPlugin())

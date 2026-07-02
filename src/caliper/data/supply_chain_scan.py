@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from caliper.core.registries import PACKAGE_SOURCES
+from caliper.core.port_registries import PACKAGE_SOURCES
 from caliper.core.supply_chain_diff import detect_upgrades, score_signals
 from caliper.core.supply_chain_models import VersionDiff
 from caliper.data.pkgsrc import diff_versions

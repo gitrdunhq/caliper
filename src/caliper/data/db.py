@@ -449,7 +449,7 @@ class NullRepository:
         pass
 
 
-from caliper.core.registries import DECISION_STORES  # noqa: E402  (registration wiring)
+from caliper.core.port_registries import DECISION_STORES  # noqa: E402  (registration wiring)
 
 
 @DECISION_STORES.register("postgres")

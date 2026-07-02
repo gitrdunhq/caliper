@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from caliper.core.plugin import finding_get
-from caliper.core.registries import SCRIBES
+from caliper.core.port_registries import SCRIBES
 from caliper.core.scribe import enclosing_symbol, merge_scribe
 
 if TYPE_CHECKING:

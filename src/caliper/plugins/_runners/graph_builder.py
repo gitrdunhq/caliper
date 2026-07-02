@@ -745,7 +745,7 @@ def _is_log_call(node: ast.Call) -> bool:
     return False
 
 
-from caliper.core.registries import CODEGRAPH_CHECKS  # noqa: E402  (registration wiring)
+from caliper.core.port_registries import CODEGRAPH_CHECKS  # noqa: E402  (registration wiring)
 
 
 @CODEGRAPH_CHECKS.register("blast-radius")

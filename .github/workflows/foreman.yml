@@ -80,7 +80,7 @@ jobs:
               src/caliper/core/pipeline.py|\
               src/caliper/core/pipeline_helpers.py|\
               src/caliper/core/plugin.py|\
-              src/caliper/core/registry.py|\
+              src/caliper/core/plugin_registry.py|\
               src/caliper/core/renderer.py|\
               src/caliper/core/repo_config.py|\
               src/caliper/core/sarif.py|\

@@ -48,7 +48,7 @@ with enclosing symbol + blast radius + a suggested consolidation home).
 - Findings carry actionable context by construction; the agent/human/datum-ax consume a deterministic
   packet instead of re-deriving it (cheaper, reproducible — the "deterministic data → the LLM can tell
   the story" principle).
-- New core seam: `ScribePort` (`core/ports.py`), `SCRIBES` registry (`core/registries.py`),
+- New core seam: `ScribePort` (`core/ports.py`), `SCRIBES` registry (`core/port_registries.py`),
   `ApplicationContext.scribes` + `get_scribes` accessor, one scribe pass in `core/pipeline.py`
   after `normalize_findings` and before policy. Adapters live in the tier of the tool they use
   (`CodeGraphScribe` in `plugins`, `EnclosingSymbolScribe` in `detectors`) and self-register into

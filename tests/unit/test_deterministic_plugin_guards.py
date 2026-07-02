@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from caliper.core.registry import PluginRegistry
+from caliper.core.plugin_registry import PluginRegistry
 
 if TYPE_CHECKING:
     pass
@@ -189,11 +189,11 @@ def test_sequential_execution_pattern_detection():
     """
     import inspect
 
-    from caliper.core import registry
+    from caliper.core import plugin_registry
 
     # Get the source code of run_all and _run_all_per_package
-    run_all_source = inspect.getsource(registry.PluginRegistry.run_all)
-    run_per_pkg_source = inspect.getsource(registry.PluginRegistry._run_all_per_package)
+    run_all_source = inspect.getsource(plugin_registry.PluginRegistry.run_all)
+    run_per_pkg_source = inspect.getsource(plugin_registry.PluginRegistry._run_all_per_package)
 
     # Detect the problematic pattern: simple for loop calling _run_one
     # This pattern indicates sequential execution

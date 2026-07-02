@@ -360,7 +360,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Health score | `core/renderer.py` | 0-100 severity-weighted score (critical=10, high=5, medium=2, low=1). |
 | Monorepo support | `core/manifest_discovery.py` | Walk repo, discover multiple package roots (8 manifest types, 8 lockfile types), run plugins per-package with scoped config merging. |
 | Policy engine | `core/policy.py` | OPA subprocess wrapper with fail-open degradation. |
-| Topological ordering | `core/registry.py` | Plugins declare `depends_on` for execution order. `["*"]` = run last. Circular dep detection. |
+| Topological ordering | `core/plugin_registry.py` | Plugins declare `depends_on` for execution order. `["*"]` = run last. Circular dep detection. |
 | Ignore patterns | `core/ignore.py` | `.caliperignore` with 6 built-in defaults (.git/, __pycache__/, node_modules/, .venv/, .claude/, .caliper/). |
 | Repo config | `core/repo_config.py` | `.caliper.yaml` — per-plugin enable/disable, thresholds, telemetry. Root + package-level merge. |
 | Task-fit advisory | `core/taskfit.py` | Optional LLM 8-dimension proportionality check (NECESSITY, MINIMALITY, MAINTENANCE, SECURITY, EXPOSURE, BLAST_RADIUS, ALTERNATIVES, BEHAVIORAL). |

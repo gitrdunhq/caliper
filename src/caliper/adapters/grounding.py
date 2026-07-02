@@ -30,7 +30,7 @@ from pathlib import Path
 
 import structlog
 
-from caliper.core.registries import GROUNDING_PROVIDERS
+from caliper.core.port_registries import GROUNDING_PROVIDERS
 
 logger = structlog.get_logger(__name__)
 

@@ -20,7 +20,7 @@ from caliper.core.flywheel import cluster_key
 from caliper.core.ledger import append as ledger_append
 from caliper.core.llm_port import DraftRequest, DraftResult
 from caliper.core.models import Backtest, CandidateGauge, Claim, LedgerEntry
-from caliper.core.registries import GAUGE_DRAFTERS
+from caliper.core.port_registries import GAUGE_DRAFTERS
 from caliper.core.tool_crib import is_active
 
 _KEY = cluster_key("correctness", "missing null check before deref")

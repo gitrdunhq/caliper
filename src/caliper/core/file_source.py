@@ -29,7 +29,7 @@ from pathlib import Path
 import structlog
 
 from caliper.core.ignore import load_ignore_patterns, should_ignore
-from caliper.core.registries import FILE_SOURCES
+from caliper.core.port_registries import FILE_SOURCES
 from caliper.core.subprocess_runner import SubprocessToolRunner
 from caliper.core.tool_runner import ToolInvocation, ToolRunnerPort
 

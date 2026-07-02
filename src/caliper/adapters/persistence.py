@@ -55,7 +55,7 @@ class FileEvidenceStore:
         return str(target)
 
 
-from caliper.core.registries import DECISION_STORES, EVIDENCE_STORES  # noqa: E402  (wiring)
+from caliper.core.port_registries import DECISION_STORES, EVIDENCE_STORES  # noqa: E402  (wiring)
 
 
 @DECISION_STORES.register("null")

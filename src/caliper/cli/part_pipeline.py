@@ -29,7 +29,7 @@ from caliper.core.commit_describer import CommitDescriberPort, NullDescriber
 from caliper.core.models import CutList
 from caliper.core.part_gate import run_gate
 from caliper.core.part_script import probe_path_capability, render_restack_script
-from caliper.core.registries import PARTING
+from caliper.core.port_registries import PARTING
 from caliper.core.repo_config import OverrideRule, PartingConfig
 from caliper.core.tier_suggester import NullSuggester, TierSuggesterPort
 from caliper.core.tool_runner import ToolRunnerPort

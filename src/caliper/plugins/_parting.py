@@ -24,7 +24,7 @@ from caliper.core.models import CutList, Provenance
 from caliper.core.part_stock import build_stock
 from caliper.core.parting import config_digest, part
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from caliper.core.registries import PARTING
+from caliper.core.port_registries import PARTING
 from caliper.core.repo_config import PartingConfig
 from caliper.core.tool_runner import ToolRunnerPort
 from caliper.core.version import get_version

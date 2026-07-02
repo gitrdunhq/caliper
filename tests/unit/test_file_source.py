@@ -23,8 +23,8 @@ from caliper.core.file_source import (
     WalkFileSource,
     select_file_source,
 )
+from caliper.core.port_registries import FILE_SOURCES
 from caliper.core.ports import FileSourcePort
-from caliper.core.registries import FILE_SOURCES
 from tests.unit._strategies import path_segment
 
 # ---------------------------------------------------------------------------

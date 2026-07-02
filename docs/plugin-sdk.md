@@ -282,7 +282,7 @@ def run(self, files: list[str], repo_path: Path) -> PluginResult:
 
 ## Auto-Discovery
 
-`discover_plugins(plugin_dir)` in `src/caliper/core/registry.py` scans a directory
+`discover_plugins(plugin_dir)` in `src/caliper/core/plugin_registry.py` scans a directory
 for concrete `ScannerPlugin` subclasses and returns one instantiated instance per
 class found.
 

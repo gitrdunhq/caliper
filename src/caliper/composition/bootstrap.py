@@ -26,19 +26,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from caliper.core.context import ApplicationContext
-from caliper.core.ports import (
-    AuditSinkPort,
-    DecisionStorePort,
-    GroundingProviderPort,
-    PullRequestPublisherPort,
-)
-from caliper.core.registries import (
+from caliper.core.port_registries import (
     DECISION_STORES,
     EVIDENCE_STORES,
     GROUNDING_PROVIDERS,
     PACKAGE_INDEXES,
     POLICY_ENGINES,
     PUBLISHERS,
+)
+from caliper.core.ports import (
+    AuditSinkPort,
+    DecisionStorePort,
+    GroundingProviderPort,
+    PullRequestPublisherPort,
 )
 from caliper.core.tool_runner import ToolInvocation, ToolResult
 
@@ -255,7 +255,7 @@ def build_scribes(settings: CaliperSettings) -> list:
     finding. Unknown keys are skipped so config can name scribes a given build
     doesn't ship. The factories do no I/O — scribes build tool state lazily.
     """
-    from caliper.core.registries import SCRIBES
+    from caliper.core.port_registries import SCRIBES
 
     scribes: list = []
     for name in settings.enabled_scribes:
@@ -273,7 +273,7 @@ def build_default_scribes() -> list:
     the ``DEFAULT_SCRIBES`` keys (semgrep stays opt-in).
     """
     from caliper.core.config import DEFAULT_SCRIBES
-    from caliper.core.registries import SCRIBES
+    from caliper.core.port_registries import SCRIBES
 
     load_adapters()
     return [SCRIBES.create(k) for k in DEFAULT_SCRIBES if k in SCRIBES]
@@ -524,7 +524,7 @@ def load_adapters() -> None:
 
     ``autodiscover`` cannot cross tier boundaries (core may not import
     data/adapters), so the composition tier explicitly imports the adapter
-    modules to populate the core-owned registries in ``caliper.core.registries``.
+    modules to populate the core-owned registries in ``caliper.core.port_registries``.
     Idempotent — imports are cached in ``sys.modules``.
     """
     import caliper.adapters.github_publisher  # noqa: F401

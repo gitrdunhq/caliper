@@ -20,7 +20,7 @@ from caliper.core.inspect_cache import InspectCache, content_key
 from caliper.core.inspect_view import PartView
 from caliper.core.llm_port import LLMPort, LLMReview
 from caliper.core.models import Part
-from caliper.core.registries import INSPECT_BACKENDS
+from caliper.core.port_registries import INSPECT_BACKENDS
 from caliper.core.repo_config import InspectConfig
 
 # Rough chars-per-token proxy for the lower-parts context budget (research-fed).

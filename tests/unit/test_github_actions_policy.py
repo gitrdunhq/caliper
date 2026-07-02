@@ -255,7 +255,7 @@ def test_foreman_keeps_pr_ci_fast_and_full_e2e_manual_only() -> None:
     for contract_path in (
         "tests/contract/",
         "src/caliper/core/use_cases.py",
-        "src/caliper/core/registry.py",
+        "src/caliper/core/plugin_registry.py",
         "src/caliper/core/renderer.py",
         "src/caliper/plugins/supply_chain.py",
     ):

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from caliper.core.plugin import finding_get
-from caliper.core.registries import SCRIBES
+from caliper.core.port_registries import SCRIBES
 from caliper.core.scribe import merge_scribe
 
 if TYPE_CHECKING:

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from caliper.core.registry import PluginRegistry
+from caliper.core.plugin_registry import PluginRegistry
 from caliper.core.use_cases import ReviewOptions, review_repository
 
 pytestmark = pytest.mark.contract

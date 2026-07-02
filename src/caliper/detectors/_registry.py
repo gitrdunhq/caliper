@@ -2,7 +2,7 @@
 """Detector discovery on the generic Registry (folds the 3rd registry in).
 
 Replaces the bespoke ``DetectorRegistry`` singleton with the shared
-``caliper.registry.Registry[T]`` primitive plus thin domain helpers. Detectors
+``caliper.adapter_registry.Registry[T]`` primitive plus thin domain helpers. Detectors
 self-register with the ``@register_detector`` decorator (deriving their
 ``detector_id``); ``discover_detectors`` recursively imports the
 ``caliper.detectors`` subpackages so those decorators run.
@@ -14,7 +14,7 @@ import importlib
 import pkgutil
 from typing import TYPE_CHECKING
 
-from caliper.registry import Registry
+from caliper.adapter_registry import Registry
 
 if TYPE_CHECKING:
     from caliper.core.models import FindingSeverity
