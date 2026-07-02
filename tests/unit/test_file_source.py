@@ -12,7 +12,11 @@ falls back to walk otherwise, with an ``CALIPER_FILE_SOURCE`` override.
 from __future__ import annotations
 
 import subprocess
+import tempfile
 from pathlib import Path
+
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from caliper.core.file_source import (
     GitLsFilesSource,
@@ -21,6 +25,7 @@ from caliper.core.file_source import (
 )
 from caliper.core.ports import FileSourcePort
 from caliper.core.registries import FILE_SOURCES
+from tests.unit._strategies import path_segment
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -192,6 +197,23 @@ class TestGitLsFilesSource:
         # Not a repo: must not raise; returns an empty list (caller falls back).
         assert GitLsFilesSource().list_files(tmp_path) == []
 
+    def test_excludes_symlink_escaping_root(self, tmp_path: Path):
+        # A tracked symlink whose target resolves outside the repo root must
+        # never reach a scanner (opengrep aborts its whole run on one such
+        # path) — mirrors the escape guard WalkFileSource already has.
+        outside = tmp_path.parent / "outside_target.json"
+        _write(outside, "{}")
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _init_git_repo(repo)
+        _write(repo / "keep.py")
+        (repo / "escape.json").symlink_to(outside)
+        _commit_all(repo)
+        out = GitLsFilesSource().list_files(repo)
+        rels = {p.relative_to(repo).as_posix() for p in out}
+        assert "keep.py" in rels
+        assert "escape.json" not in rels
+
 
 # ---------------------------------------------------------------------------
 # select_file_source
@@ -249,3 +271,44 @@ class TestProperties:
         first = src.list_files(tmp_path, suffixes=(".py",))
         second = src.list_files(tmp_path, suffixes=(".py",))
         assert first == second
+
+
+class TestContainmentProperty:
+    """Isolation INVARIANT: no adapter ever returns a path outside root.
+
+    Regresses the gap where GitLsFilesSource lacked WalkFileSource's
+    escape-via-symlink guard: opengrep aborts its *entire* scan on one such
+    path in the target list (see semgrep_runner.py's ``_abort_detail``
+    docstring), so a single escaping symlink silently blinds a whole scanner.
+    A property test fuzzing filenames/depths catches this class of bug across
+    both adapters at once, where example-based tests only cover one adapter
+    at a time.
+    """
+
+    @given(
+        keep_names=st.lists(path_segment(max_size=8), min_size=1, max_size=3, unique=True),
+        escape_name=path_segment(max_size=8),
+    )
+    @settings(max_examples=15, deadline=None)
+    def test_no_source_returns_a_path_outside_root(
+        self, keep_names: list[str], escape_name: str
+    ) -> None:
+        with (
+            tempfile.TemporaryDirectory() as outside_dir,
+            tempfile.TemporaryDirectory() as repo_dir,
+        ):
+            outside_target = Path(outside_dir) / "escape_target.json"
+            _write(outside_target, "{}")
+
+            repo = Path(repo_dir)
+            _init_git_repo(repo)
+            for name in keep_names:
+                _write(repo / f"{name}.py")
+            (repo / f"{escape_name}.json").symlink_to(outside_target)
+            _commit_all(repo)
+
+            root_resolved = repo.resolve()
+            for source in (WalkFileSource(), GitLsFilesSource()):
+                for path in source.list_files(repo):
+                    # Raises ValueError if path escapes root — that's the bug.
+                    path.resolve().relative_to(root_resolved)
