@@ -15,7 +15,7 @@ from __future__ import annotations
 from caliper.core.flywheel import top_candidates
 from caliper.core.llm_port import DraftRequest, GaugeDraftPort
 from caliper.core.models import CandidateGauge, LedgerEntry
-from caliper.core.registries import GAUGE_DRAFTERS
+from caliper.core.port_registries import GAUGE_DRAFTERS
 from caliper.core.repo_config import GaugeConfig
 
 

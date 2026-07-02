@@ -8,8 +8,8 @@ this package decorate their factory with ``@SCANNERS.register("<key>")`` and
 
 from __future__ import annotations
 
+from caliper.adapter_registry import Registry, autodiscover
 from caliper.data.scanners.base import ScannerPort
-from caliper.registry import Registry, autodiscover
 
 # Defined before autodiscover so adapter modules can import it on import.
 SCANNERS: Registry[ScannerPort] = Registry("scanner")

@@ -20,7 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from caliper.core.registry import PluginRegistry
+from caliper.core.plugin_registry import PluginRegistry
 
 # ── shared fixtures ──────────────────────────────────────────────────────────
 

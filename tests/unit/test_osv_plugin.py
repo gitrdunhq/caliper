@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from caliper.core.plugin import PluginCategory
-from caliper.core.registry import _normalize_findings
+from caliper.core.plugin_registry import _normalize_findings
 from caliper.plugins.osv_scanner import OsvScannerPlugin
 
 OSV_RESPONSE = {

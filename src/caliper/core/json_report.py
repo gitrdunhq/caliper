@@ -134,7 +134,7 @@ class JsonRenderer:
         return render_json(report.plugin_results)
 
 
-from caliper.core.registries import RENDERERS  # noqa: E402  (registration wiring)
+from caliper.core.port_registries import RENDERERS  # noqa: E402  (registration wiring)
 
 
 @RENDERERS.register("json")

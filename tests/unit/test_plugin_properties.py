@@ -19,7 +19,7 @@ from caliper.core.plugin import (
     ScannerPlugin,
     finding_get,
 )
-from caliper.core.registry import PluginRegistry
+from caliper.core.plugin_registry import PluginRegistry
 from caliper.core.renderer import render_comment
 
 # ── Strategies ──

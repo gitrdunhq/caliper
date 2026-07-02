@@ -57,7 +57,7 @@ import orjson
 import structlog
 import yaml
 
-from caliper.core.registries import PARTING
+from caliper.core.port_registries import PARTING
 from caliper.core.repo_config import OverrideRule, PartingConfig, load_repo_config
 
 if TYPE_CHECKING:

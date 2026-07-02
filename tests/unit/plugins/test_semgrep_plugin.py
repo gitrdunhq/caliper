@@ -15,7 +15,7 @@ from pathlib import Path
 
 from caliper.core.config import CaliperSettings
 from caliper.core.plugin import normalize_finding
-from caliper.core.registries import RULE_RUNNERS
+from caliper.core.port_registries import RULE_RUNNERS
 from caliper.plugins.semgrep import SemgrepPlugin
 
 

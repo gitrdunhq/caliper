@@ -21,7 +21,7 @@ import httpx
 import pytest
 import respx
 
-from caliper.core.registries import PACKAGE_SOURCES
+from caliper.core.port_registries import PACKAGE_SOURCES
 from caliper.core.supply_chain_models import FetchedPackage, FileChange
 from caliper.data.pkgsrc import (
     ExtractionError,

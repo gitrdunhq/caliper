@@ -127,7 +127,7 @@ class OpaRegoAdapter:
         return PolicyDecision(verdict="approve")
 
 
-from caliper.core.registries import POLICY_ENGINES  # noqa: E402  (registration wiring)
+from caliper.core.port_registries import POLICY_ENGINES  # noqa: E402  (registration wiring)
 
 
 @POLICY_ENGINES.register("opa")

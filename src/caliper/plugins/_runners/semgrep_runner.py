@@ -194,7 +194,7 @@ class OpengrepRunner:
         )
 
 
-from caliper.core.registries import RULE_RUNNERS  # noqa: E402  (registration wiring)
+from caliper.core.port_registries import RULE_RUNNERS  # noqa: E402  (registration wiring)
 
 
 @RULE_RUNNERS.register("semgrep")

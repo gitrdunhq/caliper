@@ -17,7 +17,7 @@ tier-boundary detector):
 * ``data`` / ``adapters`` / ``plugins`` / ``detectors`` — may import core
   (where the ports/contracts live), the shared kernel, and themselves. Never
   presentation, never a sibling outer tier.
-* kernel (``caliper._base`` / ``caliper.registry``) — importable everywhere,
+* kernel (``caliper._base`` / ``caliper.adapter_registry``) — importable everywhere,
   depends on nothing in ``caliper``.
 
 Relative imports are resolved to their absolute ``caliper.*`` form (not
@@ -79,7 +79,7 @@ def test_unmapped_target_is_a_violation_not_kernel() -> None:
     assert "unknown" not in _ALLOWED["core"]
     # Real tiers + the shared kernel still resolve correctly.
     assert _target_tier("caliper.data.scanners") == "data"
-    assert _target_tier("caliper.registry") == "kernel"
+    assert _target_tier("caliper.adapter_registry") == "kernel"
     assert _target_tier("caliper._base") == "kernel"
 
 

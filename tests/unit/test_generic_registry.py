@@ -2,7 +2,7 @@
 # tested-by: tests/unit/test_generic_registry.py
 
 RED phase for issue #405 — these import symbols that do not exist yet and are
-expected to fail with ImportError until src/caliper/registry.py is added.
+expected to fail with ImportError until src/caliper/adapter_registry.py is added.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from caliper.registry import Registry, autodiscover
+from caliper.adapter_registry import Registry, autodiscover
 
 
 class _Widget:

@@ -338,7 +338,7 @@ def _extract_mi(
     return "", 0, "", 0.0, 0, 0
 
 
-from caliper.core.registries import RENDERERS  # noqa: E402  (registration wiring)
+from caliper.core.port_registries import RENDERERS  # noqa: E402  (registration wiring)
 
 
 @RENDERERS.register("markdown")

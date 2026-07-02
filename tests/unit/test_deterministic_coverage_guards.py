@@ -22,7 +22,7 @@ from typing import Any
 
 from caliper.core.models import ScanResult, ScanResultStatus
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
-from caliper.core.registry import PluginRegistry
+from caliper.core.plugin_registry import PluginRegistry
 
 _ROOT = Path(__file__).resolve().parents[2]
 _TESTS = _ROOT / "tests"

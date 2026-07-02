@@ -25,7 +25,7 @@ from pathlib import Path
 import httpx
 import structlog
 
-from caliper.core.registries import PACKAGE_SOURCES
+from caliper.core.port_registries import PACKAGE_SOURCES
 from caliper.core.supply_chain_models import (
     FetchedPackage,
     FileChange,

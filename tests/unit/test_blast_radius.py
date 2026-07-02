@@ -317,7 +317,7 @@ class TestFindingMessages:
 
     def test_plugin_findings_normalize_to_nonempty_messages(self, tmp_path, monkeypatch):
         """End-to-end: PluginFinding.message is never empty for blast-radius."""
-        from caliper.core.registry import _normalize_findings
+        from caliper.core.plugin_registry import _normalize_findings
 
         monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
         repo = tmp_path / "repo"

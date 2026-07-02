@@ -14,9 +14,9 @@ that consumes this registry: discovery changed, ordering did not.
 
 from __future__ import annotations
 
+from caliper.adapter_registry import Registry, autodiscover
 from caliper.core.plugin import AnalyzerPort
-from caliper.core.registry import PluginRegistry
-from caliper.registry import Registry, autodiscover
+from caliper.core.plugin_registry import PluginRegistry
 
 __all__ = ["ANALYZERS", "PluginRegistry", "get_default_registry"]
 

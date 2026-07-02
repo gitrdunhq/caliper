@@ -590,7 +590,7 @@ The pipeline already produces everything needed for usage tracking:
 | Signal | Source | Location |
 |--------|--------|----------|
 | Scan count | Each `ReviewPipeline.evaluate()` call | `pipeline.py:82` |
-| Plugin count | `PluginRegistry.run_all()` result length | `core/registry.py` |
+| Plugin count | `PluginRegistry.run_all()` result length | `core/plugin_registry.py` |
 | Finding count | `len(decision.findings)` | `core/models.py` |
 | Pipeline duration | `decision.pipeline_duration_seconds` | `core/models.py` |
 | Scanner names | `scan_results[].tool_name` | `core/models.py` |
@@ -906,7 +906,7 @@ The following modules are cloud-ready as-is and require zero modifications:
 - `src/caliper/core/diff.py` -- diff parsing
 - `src/caliper/core/sbom_diff.py` -- SBOM diffing
 - `src/caliper/core/plugin.py` -- plugin ABC
-- `src/caliper/core/registry.py` -- plugin registry
+- `src/caliper/core/plugin_registry.py` -- plugin registry
 - `src/caliper/core/renderer.py` -- comment rendering
 - `src/caliper/core/sarif.py` -- SARIF generation
 - `src/caliper/core/repo_config.py` -- repo config loading

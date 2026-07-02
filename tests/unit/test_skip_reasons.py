@@ -66,7 +66,7 @@ class TestScannerPluginSkipReason:
 
 class TestRegistryPopulatesSkipReason:
     def test_skipped_plugin_has_skip_reason_in_result(self) -> None:
-        from caliper.core.registry import PluginRegistry
+        from caliper.core.plugin_registry import PluginRegistry
 
         registry = PluginRegistry()
         registry.register(_StubPlugin())

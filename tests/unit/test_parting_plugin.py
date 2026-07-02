@@ -9,7 +9,7 @@ from pathlib import Path
 
 # Importing the module triggers its @PARTING.register side effect.
 import caliper.plugins._parting  # noqa: E402,F401
-from caliper.core.registries import PARTING
+from caliper.core.port_registries import PARTING
 from caliper.core.repo_config import PartingConfig
 from caliper.core.tool_runner import ToolInvocation, ToolResult
 from caliper.plugins._parting import PartingPlugin  # noqa: E402

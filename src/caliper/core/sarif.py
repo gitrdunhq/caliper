@@ -215,7 +215,7 @@ class SarifRenderer:
         return json.dumps(doc, indent=2)
 
 
-from caliper.core.registries import RENDERERS  # noqa: E402  (registration wiring)
+from caliper.core.port_registries import RENDERERS  # noqa: E402  (registration wiring)
 
 
 @RENDERERS.register("sarif")

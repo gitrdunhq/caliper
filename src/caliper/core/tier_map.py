@@ -12,7 +12,7 @@ Mirrors the ports-&-adapters layering (#404 Phase 6, closes #231):
   (where the ports/contracts live), the shared kernel, and themselves. Never
   presentation, never a sibling outer tier.
 * kernel (root-level ``src/caliper/*.py`` modules, e.g. ``_base`` /
-  ``registry``) — importable everywhere, depends on nothing in ``caliper``.
+  ``adapter_registry``) — importable everywhere, depends on nothing in ``caliper``.
 
 Every function here is pure (no I/O beyond reading paths already handed to
 it), so it is safe to reuse from both a container-free test and a scanner

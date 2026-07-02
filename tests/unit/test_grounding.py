@@ -29,8 +29,8 @@ from caliper.composition.bootstrap import (  # noqa: E402
     run_grounding,
 )
 from caliper.core.config import CaliperSettings  # noqa: E402
+from caliper.core.port_registries import GROUNDING_PROVIDERS  # noqa: E402
 from caliper.core.ports import GroundingProviderPort  # noqa: E402
-from caliper.core.registries import GROUNDING_PROVIDERS  # noqa: E402
 
 
 def _settings(**overrides) -> CaliperSettings:

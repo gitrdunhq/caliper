@@ -90,7 +90,7 @@ assert isinstance(
 ), "GitHubPublisher must satisfy PullRequestPublisherPort"
 
 
-from caliper.core.registries import PUBLISHERS  # noqa: E402  (registration wiring)
+from caliper.core.port_registries import PUBLISHERS  # noqa: E402  (registration wiring)
 
 
 @PUBLISHERS.register("github")

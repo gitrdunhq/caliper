@@ -15,6 +15,7 @@ directly.
 
 from __future__ import annotations
 
+from caliper.adapter_registry import Registry
 from caliper.core.llm_port import GaugeDraftPort, LLMPort
 from caliper.core.plugin import AnalyzerPort
 from caliper.core.policy_port import PolicyEnginePort
@@ -32,7 +33,6 @@ from caliper.core.ports import (
     ScribePort,
     SemgrepRunnerPort,
 )
-from caliper.registry import Registry
 
 SCRIBES: Registry[ScribePort] = Registry("scribe")
 POLICY_ENGINES: Registry[PolicyEnginePort] = Registry("policy_engine")

@@ -13,7 +13,7 @@ from caliper.core.plugin import (
     PluginResult,
     ScannerPlugin,
 )
-from caliper.core.registry import PluginRegistry
+from caliper.core.plugin_registry import PluginRegistry
 
 # ── Concrete test plugin ──
 

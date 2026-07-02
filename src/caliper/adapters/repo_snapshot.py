@@ -69,7 +69,7 @@ class NullRepoSnapshot:
         return None
 
 
-from caliper.core.registries import REPO_SNAPSHOTS  # noqa: E402  (registration wiring)
+from caliper.core.port_registries import REPO_SNAPSHOTS  # noqa: E402  (registration wiring)
 
 
 @REPO_SNAPSHOTS.register("git")
