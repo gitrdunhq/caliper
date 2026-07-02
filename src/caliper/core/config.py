@@ -108,6 +108,14 @@ class CaliperSettings(BaseSettings):
     llm_model: str | None = None
     llm_api_key: SecretStr | None = None  # F-021: use SecretStr to prevent accidental logging
 
+    # Concern-review LLM fan-out defaults (holistic audit + remediation, see
+    # core/concern_review.py and core/concern_remediate.py). Distinct from the
+    # llm_* task-fit settings above — a different subsystem, always-on rather
+    # than gated by llm_enabled. Advisory-only: never affects config_digest or
+    # the deterministic decision path.
+    default_llm_model: str = "claude-haiku-4-5-20251001"
+    default_llm_endpoint: str = "https://api.anthropic.com"
+
     # Supply-chain version-bump source-diff analysis (a separate, gated step —
     # NOT part of the normal scan). Off by default: it needs registry egress to
     # fetch package distributions. The optional LLM narrative reuses the llm_*

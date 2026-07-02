@@ -24,6 +24,7 @@ import structlog
 from caliper.core.concern_prompt import SYSTEM_PROMPT as _SYSTEM_PROMPT
 from caliper.core.concern_prompt import post_with_retry as _post_with_retry
 from caliper.core.concern_prompt import render_audit_markdown as render_audit_markdown
+from caliper.core.config import CaliperSettings
 
 if TYPE_CHECKING:
     from caliper.core.plugin import PluginResult
@@ -271,17 +272,18 @@ class HolisticReviewer:
 
     def __init__(
         self,
-        model: str = "claude-haiku-4-5-20251001",
+        model: str | None = None,
         api_key: str | None = None,
-        endpoint: str = "https://api.anthropic.com",
+        endpoint: str | None = None,
         timeout: int = 120,
         max_tokens: int = 4096,
         coverage_manifest: str = "",
     ) -> None:
-        self._model = model
+        settings = CaliperSettings()  # type: ignore[call-arg]
+        self._model = model or settings.default_llm_model
         self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-        self._endpoint = endpoint
-        self._is_anthropic = "anthropic.com" in endpoint
+        self._endpoint = endpoint or settings.default_llm_endpoint
+        self._is_anthropic = "anthropic.com" in self._endpoint
         self._timeout = timeout
         self._max_tokens = max_tokens
         self._client = httpx.Client(timeout=timeout)
@@ -419,9 +421,9 @@ def run_audit(
     repo_path: Path,
     results: list[PluginResult],
     files: list[str],
-    model: str = "claude-haiku-4-5-20251001",
+    model: str | None = None,
     api_key: str | None = None,
-    endpoint: str = "https://api.anthropic.com",
+    endpoint: str | None = None,
     timeout: int = 120,
     max_tokens_per_cluster: int = 12_000,
     max_workers: int = 4,
