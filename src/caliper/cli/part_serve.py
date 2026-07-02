@@ -16,9 +16,10 @@ Design:
   into ``.caliper.yaml``, validated through ``PartingConfig`` before it touches
   disk so a bad bucket never corrupts the file.
 * ``PartingSession`` holds the repo/base/head and owns the re-part (git IO).
-* ``dispatch`` is the pure request router (functional core) over a session —
-  testable with a fake session and a hand-built ``Assets`` fixture, no git, no
-  filesystem, and no socket required.
+* ``dispatch`` (in ``part_routes.py``) is the pure request router (functional
+  core) over a session, table-driven by ``(method, path)`` — testable with a
+  fake session and a hand-built ``Assets`` fixture, no git, no filesystem, and
+  no socket required.
 * ``load_assets`` is the one piece of filesystem IO — reading the committed SPA
   bundle off disk — kept out of ``dispatch`` so the router stays pure.
 
@@ -47,16 +48,14 @@ import os
 import secrets
 import ssl
 import threading
-from collections.abc import Mapping
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
-import orjson
 import structlog
 import yaml
 
+from caliper.cli.part_routes import Assets, _SessionLike, dispatch
 from caliper.core.port_registries import PARTING
 from caliper.core.repo_config import OverrideRule, PartingConfig, load_repo_config
 
@@ -134,24 +133,6 @@ def write_override(repo_path: Path, *, glob: str, bucket: str, note: str = "") -
 # --------------------------------------------------------------------------- #
 # Session — owns the re-part (git IO)
 # --------------------------------------------------------------------------- #
-
-
-class _SessionLike(Protocol):
-    def cut_dict(self) -> dict: ...
-    def repart_dict(self) -> dict: ...
-    def reclassify(self, *, target: str, bucket: str, note: str = "") -> dict: ...
-    def overrides(self) -> list[dict]: ...
-    def suggest_dict(self) -> dict: ...
-    def suggest_apply(self, rules: list[dict]) -> dict: ...
-    def retarget(self, *, base: str, head: str) -> dict: ...
-    def set_target_pr(self, ref: str) -> dict: ...
-    def set_size_cap(self, size_cap: int | None) -> dict: ...
-    def generate(
-        self, *, describe: bool = False, force: bool = False, target: str | None = None
-    ) -> dict: ...
-    def restack_script(self) -> str | None: ...
-    def apply(self, token: str) -> dict: ...
-    def rollback(self) -> dict: ...
 
 
 def _apply_size_cap(cfg: PartingConfig, size_cap: int | None) -> PartingConfig:
@@ -600,15 +581,6 @@ _SELECTABLE_BUCKETS: tuple[str, ...] = (
 _ASSETS_DIRNAME = "part_ui_dist"
 
 
-@dataclass(frozen=True)
-class Assets:
-    """The built SPA bundle: the HTML shell plus its JS/CSS, as raw bytes."""
-
-    index_html: bytes
-    js: bytes
-    css: bytes
-
-
 def load_assets(assets_dir: Path | None = None) -> Assets:
     """Read the committed bundle off disk (imperative shell — the only IO here).
 
@@ -632,258 +604,9 @@ def load_assets(assets_dir: Path | None = None) -> Assets:
 #
 # The sidecar is loopback, single-reviewer, short-lived — it has no business
 # pulling in uvicorn/starlette (the caliper[copilot] extra). The whole transport
-# is Python's stdlib http.server. Routing is the pure `dispatch()` below
-# (functional core) so it is exercised without ever binding a socket; the
-# BaseHTTPRequestHandler is the thin imperative shell around it.
-
-
-@dataclass(frozen=True)
-class Response:
-    """A rendered HTTP response: status + content type + raw body bytes."""
-
-    status: int
-    content_type: str
-    body: bytes
-
-
-def _json(payload: object, status: int = 200) -> Response:
-    return Response(status, "application/json", orjson.dumps(payload))
-
-
-def _with_overrides(session: _SessionLike, cut: dict) -> dict:
-    """Merge the session's current override list into a cut payload.
-
-    Every route that returns a cut (not just GET /cutlist) must carry this —
-    the SPA's overrides panel re-renders from whatever the *last* response
-    said, and a reclassify/repart/suggest-apply response that omitted the key
-    made a successful write look like it silently did nothing.
-
-    The untargeted sentinel (``{"targeted": False}``, no range/PR set yet)
-    passes through bare — there is no cut to attach overrides to.
-    """
-    if cut.get("targeted") is False:
-        return cut
-    return {**cut, "overrides": session.overrides()}
-
-
-_LOOPBACK_HOSTNAMES = frozenset({"127.0.0.1", "localhost", "::1"})
-
-
-def _hostname_of(header_value: str) -> str:
-    """Bare hostname from a Host header (``127.0.0.1:12700``) or an Origin
-    header (``http://127.0.0.1:12700``) — strips scheme, port, and path."""
-    value = header_value.split("://", 1)[-1].split("/", 1)[0]
-    if value.startswith("["):  # bracketed IPv6, e.g. "[::1]:12700"
-        return value[1 : value.index("]")]
-    return value.rsplit(":", 1)[0] if ":" in value else value
-
-
-def _is_loopback_request(headers: Mapping[str, str] | None) -> bool:
-    """Whether a request's Host (and, if present, Origin) both name loopback.
-
-    Defense against a browser tab or DNS-rebinding attack POSTing to this
-    loopback-bound sidecar: fails closed (missing/absent headers -> False),
-    matching the plan's "reject requests whose Origin/Host is not loopback."
-    """
-    if headers is None:
-        return False
-    host = headers.get("host")
-    if not host or _hostname_of(host) not in _LOOPBACK_HOSTNAMES:
-        return False
-    origin = headers.get("origin")
-    return origin is None or _hostname_of(origin) in _LOOPBACK_HOSTNAMES
-
-
-def dispatch(
-    session: _SessionLike,
-    method: str,
-    path: str,
-    body: bytes,
-    assets: Assets | None = None,
-    headers: Mapping[str, str] | None = None,
-) -> Response:
-    """Route one request against *session*. Pure: no IO, no socket — fully testable.
-
-    *headers* is a plain lowercased-key mapping (``{"host": ..., "origin": ...}``)
-    threaded in the same way as *assets* — the handler shell reads the real
-    socket headers, dispatch only ever inspects plain data. Only ``/apply``
-    consults it (the loopback/CSRF guard); every other route ignores it, so
-    existing callers that omit it are unaffected.
-
-    *assets* is the committed SPA bundle (``load_assets()``), threaded in as a
-    plain-data argument rather than loaded here — that keeps dispatch itself
-    filesystem-free and testable with a hand-built ``Assets`` fixture. ``None``
-    means the caller hasn't loaded a bundle (e.g. a misconfigured install); the
-    asset routes then fail loudly with 500 rather than serving a blank shell.
-    """
-    if method == "GET" and path == "/":
-        if assets is None:
-            return _json({"error": "static assets not loaded"}, 500)
-        return Response(200, "text/html; charset=utf-8", assets.index_html)
-    if method == "GET" and path == "/assets/part_ui.js":
-        if assets is None:
-            return _json({"error": "static assets not loaded"}, 500)
-        return Response(200, "application/javascript; charset=utf-8", assets.js)
-    if method == "GET" and path == "/assets/part_ui.css":
-        if assets is None:
-            return _json({"error": "static assets not loaded"}, 500)
-        return Response(200, "text/css; charset=utf-8", assets.css)
-    if method == "GET" and path == "/cutlist":
-        return _json(_with_overrides(session, session.cut_dict()))
-    if method == "POST" and path == "/reclassify":
-        try:
-            payload = orjson.loads(body or b"")
-        except orjson.JSONDecodeError:
-            return _json({"error": "invalid JSON body"}, 400)
-        if not isinstance(payload, dict):
-            return _json({"error": "invalid JSON body"}, 400)
-        target = payload.get("glob") or payload.get("file")
-        bucket = payload.get("bucket")
-        if not target or not bucket:
-            return _json({"error": "both a target (file or glob) and a bucket are required"}, 400)
-        try:
-            cut = session.reclassify(target=target, bucket=bucket, note=payload.get("note", ""))
-        except Exception as exc:  # validation / write errors are reviewer-facing, not 500s
-            logger.info("parting_reclassify_rejected", error=str(exc))
-            return _json({"error": str(exc)}, 400)
-        return _json(_with_overrides(session, cut))
-    if method == "POST" and path == "/repart":
-        if body:
-            try:
-                payload = orjson.loads(body)
-            except orjson.JSONDecodeError:
-                return _json({"error": "invalid JSON body"}, 400)
-            if not isinstance(payload, dict):
-                return _json({"error": "invalid JSON body"}, 400)
-            if "size_cap" in payload:
-                size_cap = payload["size_cap"]
-                valid = size_cap is None or (
-                    isinstance(size_cap, int) and not isinstance(size_cap, bool) and size_cap > 0
-                )
-                if not valid:
-                    return _json({"error": "size_cap must be a positive integer or null"}, 400)
-                try:
-                    cut = session.set_size_cap(size_cap)
-                except Exception as exc:  # live setting rejected -> reviewer-facing 400
-                    return _json({"error": str(exc)}, 400)
-                return _json(_with_overrides(session, cut))
-        return _json(_with_overrides(session, session.repart_dict()))
-    if method == "POST" and path == "/range":
-        try:
-            payload = orjson.loads(body or b"")
-        except orjson.JSONDecodeError:
-            return _json({"error": "invalid JSON body"}, 400)
-        if not isinstance(payload, dict):
-            return _json({"error": "invalid JSON body"}, 400)
-        base = payload.get("base")
-        head = payload.get("head")
-        if not base or not head:
-            return _json({"error": "both 'base' and 'head' are required"}, 400)
-        try:
-            cut = session.retarget(base=base, head=head)
-        except Exception as exc:  # bad revsets etc. are reviewer-facing, not 500s
-            logger.info("parting_retarget_rejected", error=str(exc))
-            return _json({"error": str(exc)}, 400)
-        return _json(_with_overrides(session, cut))
-    if method == "POST" and path == "/pr":
-        try:
-            payload = orjson.loads(body or b"")
-        except orjson.JSONDecodeError:
-            return _json({"error": "invalid JSON body"}, 400)
-        if not isinstance(payload, dict):
-            return _json({"error": "invalid JSON body"}, 400)
-        ref = payload.get("ref")
-        if not ref:
-            return _json({"error": "a 'ref' (PR URL or number) is required"}, 400)
-        try:
-            cut = session.set_target_pr(ref)
-        except Exception as exc:  # unresolvable PR / clone failure -> 400, not 500
-            logger.info("parting_pr_target_rejected", error=str(exc))
-            return _json({"error": str(exc)}, 400)
-        return _json(_with_overrides(session, cut))
-    if method == "POST" and path == "/suggest":
-        # Advisory: ask the local model for tier globs on the 'logic' residual. The
-        # reviewer accepts one by POSTing /reclassify with the suggested glob+bucket;
-        # nothing is written here. Fail-soft — the session swallows model errors to [].
-        return _json(session.suggest_dict())
-    if method == "POST" and path == "/suggest/apply":
-        # Bulk-accept: the "accept all" button writes every proposed rule in one
-        # request instead of one /reclassify round-trip per suggestion.
-        try:
-            payload = orjson.loads(body or b"")
-        except orjson.JSONDecodeError:
-            return _json({"error": "invalid JSON body"}, 400)
-        if not isinstance(payload, dict):
-            return _json({"error": "invalid JSON body"}, 400)
-        rules = payload.get("globs")
-        if not isinstance(rules, list) or not rules:
-            return _json({"error": "a non-empty 'globs' list is required"}, 400)
-        for rule in rules:
-            if not isinstance(rule, dict) or not rule.get("glob") or not rule.get("bucket"):
-                return _json({"error": "each rule needs a 'glob' and a 'bucket'"}, 400)
-        try:
-            cut = session.suggest_apply(rules)
-        except Exception as exc:  # validation / write errors are reviewer-facing, not 500s
-            logger.info("parting_suggest_apply_rejected", error=str(exc))
-            return _json({"error": str(exc)}, 400)
-        return _json(_with_overrides(session, cut))
-    if method == "POST" and path == "/restack":
-        payload: dict = {}
-        if body:
-            try:
-                payload = orjson.loads(body)
-            except orjson.JSONDecodeError:
-                return _json({"error": "invalid JSON body"}, 400)
-            if not isinstance(payload, dict):
-                return _json({"error": "invalid JSON body"}, 400)
-        describe = payload.get("describe", False)
-        force = payload.get("force", False)
-        target = payload.get("target")
-        if not isinstance(describe, bool):
-            return _json({"error": "'describe' must be a boolean"}, 400)
-        if not isinstance(force, bool):
-            return _json({"error": "'force' must be a boolean"}, 400)
-        if target is not None and target not in ("stack", "series"):
-            return _json({"error": "'target' must be 'stack' or 'series'"}, 400)
-        try:
-            result = session.generate(describe=describe, force=force, target=target)
-        except Exception as exc:  # gate failure / untargeted session -> reviewer-facing 400
-            logger.info("parting_restack_rejected", error=str(exc))
-            return _json({"error": str(exc)}, 400)
-        return _json(result)
-    if method == "GET" and path == "/restack.sh":
-        script = session.restack_script()
-        if script is None:
-            return _json({"error": "no restack script generated yet — POST /restack first"}, 404)
-        return Response(200, "text/x-shellscript; charset=utf-8", script.encode())
-    if method == "POST" and path == "/apply":
-        if not _is_loopback_request(headers):
-            return _json({"error": "request is not from loopback"}, 403)
-        payload = {}
-        if body:
-            try:
-                payload = orjson.loads(body)
-            except orjson.JSONDecodeError:
-                return _json({"error": "invalid JSON body"}, 400)
-            if not isinstance(payload, dict):
-                return _json({"error": "invalid JSON body"}, 400)
-        token = payload.get("apply_token")
-        if not isinstance(token, str) or not token:
-            return _json({"error": "'apply_token' is required"}, 400)
-        try:
-            result = session.apply(token)
-        except Exception as exc:  # bad/stale token, ungenerated script -> reviewer-facing 400
-            logger.info("parting_apply_rejected", error=str(exc))
-            return _json({"error": str(exc)}, 400)
-        return _json(result)
-    if method == "POST" and path == "/rollback":
-        try:
-            result = session.rollback()
-        except Exception as exc:  # nothing to roll back yet -> reviewer-facing 400
-            logger.info("parting_rollback_rejected", error=str(exc))
-            return _json({"error": str(exc)}, 400)
-        return _json(result)
-    return _json({"error": "not found"}, 404)
+# is Python's stdlib http.server. Routing is the pure `dispatch()` in
+# `part_routes.py` (functional core) so it is exercised without ever binding a
+# socket; the BaseHTTPRequestHandler here is the thin imperative shell around it.
 
 
 def _make_handler(
