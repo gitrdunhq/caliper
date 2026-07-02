@@ -30,6 +30,7 @@ from caliper.core.ports import (
     PullRequestPublisherPort,
     ReportRendererPort,
     RepoSnapshotPort,
+    ScanCachePort,
     ScribePort,
     SemgrepRunnerPort,
 )
@@ -54,6 +55,8 @@ DECISION_STORES: Registry[DecisionStorePort] = Registry("decision_store")
 EVIDENCE_STORES: Registry[EvidenceStorePort] = Registry("evidence_store")
 PUBLISHERS: Registry[PullRequestPublisherPort] = Registry("publisher")
 REPO_SNAPSHOTS: Registry[RepoSnapshotPort] = Registry("repo_snapshot")
+# Cross-run scan result cache (ADR-010) — sqlite adapter + null fail-open fallback.
+SCAN_CACHES: Registry[ScanCachePort] = Registry("scan_cache")
 # Parting (caliper part) — a dedicated, manual registry. The parting plugin
 # self-registers here and is deliberately kept OUT of ANALYZERS so it can never
 # be auto-discovered into the automatic review pipeline. It runs only when the
@@ -86,4 +89,5 @@ __all__ = [
     "RENDERERS",
     "REPO_SNAPSHOTS",
     "RULE_RUNNERS",
+    "SCAN_CACHES",
 ]

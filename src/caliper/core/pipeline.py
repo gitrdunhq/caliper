@@ -21,8 +21,10 @@ from caliper.core.accessors import (
     get_decision_repository,
     get_evidence_writer,
     get_package_metadata,
+    get_scan_cache,
     get_scanners,
 )
+from caliper.core.caching_scanner import CachingScanner
 from caliper.core.config import CaliperSettings
 from caliper.core.decision import assemble_decision
 from caliper.core.diff import DependencyDiffDetector
@@ -42,7 +44,9 @@ from caliper.core.pipeline_helpers import (  # noqa: F401
     sbom_changes_to_requests,
 )
 from caliper.core.sbom_diff import diff_sboms
+from caliper.core.scan_cache_key import compute_cache_key, settings_digest
 from caliper.core.seal import create_seal, find_previous_seal_hash
+from caliper.core.version import get_version
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -320,6 +324,33 @@ class ReviewPipeline:
         except Exception:
             logger.exception("seal_creation_failed", run_id=run_id)
 
+    def _build_orchestrator(
+        self,
+        context: ApplicationContext,
+        config: CaliperSettings,
+        commit_sha: str | None,
+    ) -> ScanOrchestrator:
+        """Build a ScanOrchestrator, wrapping scanners with a read-through cache (ADR-010).
+
+        Caching is skipped entirely when *commit_sha* is unavailable (non-git target) —
+        fail-open, scanners just run uncached. Shared by evaluate() and evaluate_sbom()
+        so the two entry points can never drift on cache wiring.
+        """
+        scanners = get_scanners(context)
+        cache = get_scan_cache(context)
+        if commit_sha is not None and cache is not None:
+            tool_version = get_version()
+            digest = settings_digest(config)
+            scanners = [
+                CachingScanner(
+                    scanner,
+                    cache,
+                    compute_cache_key(commit_sha, scanner.name, tool_version, digest),
+                )
+                for scanner in scanners
+            ]
+        return ScanOrchestrator(scanners=scanners, combined_timeout=config.combined_scanner_timeout)
+
     def evaluate(
         self,
         diff_text: str,
@@ -368,10 +399,7 @@ class ReviewPipeline:
             return []
 
         context = self._require_context()
-        orchestrator = ScanOrchestrator(
-            scanners=get_scanners(context),
-            combined_timeout=config.combined_scanner_timeout,
-        )
+        orchestrator = self._build_orchestrator(context, config, commit_sha)
         evidence = get_evidence_writer(context)
         pypi_client = get_package_metadata(context)
         db = get_decision_repository(context)
@@ -449,10 +477,7 @@ class ReviewPipeline:
             req.commit_sha = commit_sha
 
         context = self._require_context()
-        orchestrator = ScanOrchestrator(
-            scanners=get_scanners(context),
-            combined_timeout=config.combined_scanner_timeout,
-        )
+        orchestrator = self._build_orchestrator(context, config, commit_sha)
         evidence = get_evidence_writer(context)
         pypi_client = get_package_metadata(context)
         db = get_decision_repository(context)

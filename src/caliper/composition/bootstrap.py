@@ -33,12 +33,14 @@ from caliper.core.port_registries import (
     PACKAGE_INDEXES,
     POLICY_ENGINES,
     PUBLISHERS,
+    SCAN_CACHES,
 )
 from caliper.core.ports import (
     AuditSinkPort,
     DecisionStorePort,
     GroundingProviderPort,
     PullRequestPublisherPort,
+    ScanCachePort,
 )
 from caliper.core.tool_runner import ToolInvocation, ToolResult
 
@@ -62,6 +64,7 @@ __all__ = [
     "build_package_index",
     "build_package_metadata",
     "build_publisher",
+    "build_scan_cache",
     "build_scanners",
 ]
 
@@ -195,6 +198,29 @@ def build_decision_store(settings: CaliperSettings) -> DecisionStorePort:
             exc_info=True,
         )
         return DECISION_STORES.create("null")
+
+
+def build_scan_cache(settings: CaliperSettings) -> ScanCachePort:
+    """Return a SqliteScanCache under the evidence dir, or NullScanCache on failure.
+
+    Mirrors build_decision_store's fail-open fallback (ADR-010): a scan cache that
+    can't initialize (unwritable evidence dir, etc.) never blocks a scan — it just
+    means every scanner runs uncached.
+    """
+    import structlog
+
+    log = structlog.get_logger()
+    load_adapters()
+    try:
+        db_path = Path(settings.evidence_path) / "scan_cache.sqlite"
+        return SCAN_CACHES.create("sqlite", db_path=db_path)
+    except Exception:
+        log.warning(
+            "scan_cache_null",
+            msg="Failed to initialise SqliteScanCache — falling back to NullScanCache",
+            exc_info=True,
+        )
+        return SCAN_CACHES.create("null")
 
 
 def build_audit_sink(settings: CaliperSettings) -> AuditSinkPort:
@@ -540,6 +566,7 @@ def load_adapters() -> None:
     import caliper.data.db  # noqa: F401
     import caliper.data.pkgsrc  # noqa: F401  (registers pypi/npm PACKAGE_SOURCES)
     import caliper.data.pypi  # noqa: F401
+    import caliper.data.scan_cache  # noqa: F401
     import caliper.detectors.scribes.enclosing_symbol  # noqa: F401
     import caliper.plugins._runners.graph_builder  # noqa: F401
     import caliper.plugins._runners.semgrep_runner  # noqa: F401
@@ -592,4 +619,5 @@ def bootstrap(settings: CaliperSettings) -> ApplicationContext:
         audit_log_appender=build_audit_log_appender(),
         scribes=build_scribes(settings),
         grounding=build_grounding_provider(settings),
+        scan_cache=build_scan_cache(settings),
     )
