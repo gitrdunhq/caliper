@@ -16,6 +16,8 @@ from pathlib import Path
 import httpx  # noqa: F401
 import structlog
 
+from caliper.core.config import CaliperSettings
+
 logger = structlog.get_logger(__name__)
 
 _REMEDIATION_PROMPT = """\
@@ -74,12 +76,12 @@ class Remediator:
 
     def __init__(
         self,
-        model: str = "claude-haiku-4-5-20251001",
+        model: str | None = None,
         api_key: str | None = None,
         timeout: int = 120,
         max_tokens: int = 4096,
     ) -> None:
-        self._model = model
+        self._model = model or CaliperSettings().default_llm_model  # type: ignore[call-arg]
         self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
         self._timeout = timeout
         self._max_tokens = max_tokens
@@ -173,7 +175,7 @@ def _remediate_one(
 def run_remediation(
     findings: list[dict],
     repo_path: Path,
-    model: str = "claude-haiku-4-5-20251001",
+    model: str | None = None,
     api_key: str | None = None,
     timeout: int = 120,
     max_workers: int = 4,
