@@ -65,8 +65,6 @@ class CORSWildcardVisitor(ast.NodeVisitor):
         for child in ast.walk(node):
             if isinstance(child, ast.Constant) and child.value == "*":
                 return True
-            if isinstance(child, ast.Str) and child.s == "*":  # Python <3.8 compatibility
-                return True
         return False
 
     def _is_cors_middleware_call(self, node: ast.Call) -> bool:
@@ -105,9 +103,6 @@ class CORSWildcardVisitor(ast.NodeVisitor):
             if isinstance(key, ast.Constant) and key.value in _CORS_PATTERN_ATTRS:
                 if self._contains_wildcard(value):
                     self.violations.append((node.lineno, f"CORS config dict with {key.value}='*'"))
-            if isinstance(key, ast.Str) and key.s in _CORS_PATTERN_ATTRS:  # Python <3.8
-                if self._contains_wildcard(value):
-                    self.violations.append((node.lineno, f"CORS config dict with {key.s}='*'"))
         self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
