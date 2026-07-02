@@ -37,7 +37,6 @@ class ForemanAgent:
 
     def __init__(self, config: AgentSettings) -> None:
         self._config = config
-        self._decisions_have_reject = False
 
     async def run(
         self,
@@ -67,9 +66,9 @@ class ForemanAgent:
                 )
 
             try:
-                agent_response = await self._run_agent_session(diff_text, pr_url, team)
+                has_reject = self._run_deterministic_pipeline(diff_text, pr_url, team)
             except Exception as exc:
-                logger.error("agent.session_failed", error=str(exc))
+                logger.error("agent.pipeline_failed", error=str(exc))
                 fail_closed = self._config.enforcement_mode == EnforcementMode.block
                 if not is_log_mode:
                     await self._post_comment(
@@ -89,15 +88,31 @@ class ForemanAgent:
                     "error": str(exc),
                 }
 
-            has_reject = self._decisions_have_reject
-
             comments_posted = 0
+            try:
+                agent_response = await self._run_agent_session(diff_text, pr_url, team)
+            except Exception as exc:
+                # Narration only — the block/warn/log decision above already came
+                # from the deterministic pipeline, so an LLM crash can neither
+                # force a block nor let a real reject slip through. See #205.
+                logger.error("agent.session_failed", error=str(exc))
+                agent_response = ""
+                if not is_log_mode:
+                    await self._post_comment(
+                        pr_number,
+                        repo_owner,
+                        repo_name,
+                        f"🟡 **Foreman** narration failed: {exc}\n\n"
+                        "The deterministic review decision was still enforced.",
+                    )
+                    comments_posted += 1
+
             if not is_log_mode and agent_response.strip():
                 body = agent_response
                 if len(body) > self._config.max_comment_length:
                     body = body[: self._config.max_comment_length] + "\n\n*[truncated]*"
                 await self._post_comment(pr_number, repo_owner, repo_name, body)
-                comments_posted = 1
+                comments_posted += 1
 
             if has_reject and self._config.enforcement_mode == EnforcementMode.block:
                 exit_code = 1
@@ -114,6 +129,27 @@ class ForemanAgent:
             "has_reject": has_reject,
         }
 
+    def _run_deterministic_pipeline(self, diff_text: str, pr_url: str, team: str) -> bool:
+        """Run caliper's own review pipeline and return whether it rejects the change.
+
+        This is the sole source of the block/warn/log decision. It runs
+        independently of the LLM session below — which only narrates the
+        result — so block enforcement can never be skipped by a malformed,
+        prose-only, or tool-skipping LLM response. See issue #205.
+        """
+        from caliper.agent.tool_helpers import run_pipeline
+        from caliper.core.models import DecisionVerdict
+
+        decisions, _, _ = run_pipeline(
+            diff_text=diff_text,
+            pr_url=pr_url,
+            team=team,
+            repo_path=self._config.repo_path,
+        )
+        return any(
+            d.decision in (DecisionVerdict.reject, DecisionVerdict.needs_review) for d in decisions
+        )
+
     async def _run_agent_session(
         self,
         diff_text: str,
@@ -126,8 +162,6 @@ class ForemanAgent:
         system_prompt = build_system_prompt(
             policy_version=self._config.policy_version,
         )
-
-        self._decisions_have_reject = False
 
         agent = GitHubCopilotAgent(
             instructions=system_prompt,
@@ -160,26 +194,7 @@ class ForemanAgent:
         )
 
         response = await agent.run(user_message)
-        response_text = response.text if response else ""
-
-        self._extract_reject_from_tool_results(response)
-
-        return response_text
-
-    def _extract_reject_from_tool_results(self, response: Any) -> None:
-        """Check structured tool results for reject verdicts (not LLM prose)."""
-        try:
-            if not response or not hasattr(response, "value"):
-                return
-            value = response.value
-            if isinstance(value, dict):
-                decisions = value.get("decisions", [])
-                for d in decisions:
-                    if isinstance(d, dict) and d.get("decision") in ("reject", "needs_review"):
-                        self._decisions_have_reject = True
-                        return
-        except Exception as exc:
-            logger.debug("extract_reject.parse_error", error=str(exc))
+        return response.text if response else ""
 
     def _github_headers(self) -> dict[str, str]:
         """Build GitHub API headers."""
