@@ -69,17 +69,36 @@ podman run --rm --platform linux/amd64 \
 
 ## Architecture
 
-Three-tier — imports flow downward only (cli -> core -> data):
+Ports-and-adapters, enforced by an AST-walking guard test
+(`tests/unit/test_deterministic_architecture_guards.py`, resolution logic in
+`core/tier_map.py`) — **not** "imports flow downward"; the direction is
+**inward**, toward `core`:
+
+- **presentation** (`cli/`, `agent/`, `webhook/`, `composition/`) — may import
+  anything. This is where concrete adapters get wired together.
+- **`core/`** — all business logic (pipeline, policy, plugin registry,
+  renderer, SARIF, config, scribe seam, ports/contracts). May import only
+  `core` itself + the shared kernel — **never** presentation, **never**
+  data/adapters/plugins/detectors.
+- **`data/`**, **`adapters/`**, **`plugins/`**, **`detectors/`** — each may
+  import `core` (where the ports live), the shared kernel, and itself —
+  **never** presentation, **never** a sibling outer tier.
+- **kernel** (root-level `src/caliper/*.py` modules, e.g. `_base.py`,
+  `registry.py`) — importable everywhere, depends on nothing else in
+  `caliper`.
+
+Tier contents:
 
 - `src/caliper/cli/` — thin CLI adapter. Parses args, delegates to core, formats output.
+- `src/caliper/agent/` — Foreman Copilot Agent (second presentation-tier entry point).
+- `src/caliper/webhook/` — Starlette ASGI webhook server (GitHub PR events, HMAC-SHA256, port 12800).
+- `src/caliper/composition/` — composition root: `bootstrap()` wires adapters/scribes into an `ApplicationContext` (NullRepository fallback when no DB).
 - `src/caliper/core/` — all business logic. Pipeline, policy, plugin registry, renderer, SARIF, config, scribe seam.
 - `src/caliper/data/` — persistence and external calls. Scanners, DB, evidence, parquet, PyPI client.
+- `src/caliper/adapters/` — hexagonal-architecture port adapters (persistence, code-graph grounding, GitHub publishing).
 - `src/caliper/plugins/` — 19 scanner plugins (+ OPA policy plugin) with auto-discovery via `PluginRegistry`.
 - `src/caliper/plugins/scribes/` — code-graph + opt-in semgrep finding scribes (ADR-006).
 - `src/caliper/detectors/` — 21 deterministic AST bug detectors (CAL-001..021), exposed as a `DeterministicScanner`. See `docs/detectors.md`.
-- `src/caliper/composition/` — composition root: `bootstrap()` wires adapters/scribes into an `ApplicationContext` (NullRepository fallback when no DB).
-- `src/caliper/webhook/` — Starlette ASGI webhook server (GitHub PR events, HMAC-SHA256, port 12800).
-- `src/caliper/agent/` — Foreman Copilot Agent (second presentation-tier entry point).
 - `src/caliper/templates/` — Jinja2 templates for PR comment rendering.
 
 **Detect-then-scribe (ADR-006)**: a post-detection, pre-policy pass decorates every finding's `metadata['scribe']` with deterministic context (enclosing symbol, blast-radius callers, nearby semgrep matches). Sequential, fail-open, time-bounded (`scribe_timeout`), verdict-independent. Registry: `SCRIBES` in `core/registries.py`.
