@@ -133,6 +133,39 @@ class TestBuildOpaInputFromPluginFinding:
         result = build_opa_input([finding], {})
         assert result["findings"][0]["link_type"] == "static"
 
+    def test_reachable_absent_when_no_scribe_metadata(self) -> None:
+        """#348: findings never touched by the reachability scribe carry no
+        `reachable` key at all -- OPA's `object.get(finding, "reachable", null)`
+        then correctly reads null, never a false 'unreachable' claim."""
+        finding = PluginFinding(id="CVE-3", severity="high", message="vuln")
+        result = build_opa_input([finding], {})
+        assert "reachable" not in result["findings"][0]
+
+    def test_reachable_read_from_scribe_metadata_when_present(self) -> None:
+        """#348, ADR-009: the reachability scribe attaches
+        metadata.scribe.reachability.reachable -- opa_input must surface it as
+        a first-class `reachable` field for the rego exemption to read."""
+        finding = PluginFinding(
+            id="CVE-4",
+            severity="critical",
+            message="vuln",
+            category="vulnerability",
+            metadata={"scribe": {"reachability": {"reachable": False, "evidence": ["x"]}}},
+        )
+        result = build_opa_input([finding], {})
+        assert result["findings"][0]["reachable"] is False
+
+    def test_reachable_true_and_none_both_pass_through(self) -> None:
+        for value in (True, None):
+            finding = PluginFinding(
+                id="CVE-5",
+                severity="critical",
+                message="vuln",
+                metadata={"scribe": {"reachability": {"reachable": value}}},
+            )
+            result = build_opa_input([finding], {})
+            assert result["findings"][0]["reachable"] is value
+
 
 class TestConfigMerge:
     def test_default_rules_enabled_present_when_config_omitted(self) -> None:
@@ -164,6 +197,15 @@ class TestConfigMerge:
         result = build_opa_input([], {})
         assert result["config"]["copyleft_strong"] == []
         assert result["config"]["copyleft_weak"] == []
+
+    def test_unreachable_vuln_exemption_present_and_defaults_false(self) -> None:
+        """#348, ADR-009: unreachable_vuln_exemption must exist and default to
+        False so no one is opted into the reachability-based deny downgrade
+        without explicitly enabling it and running the reachability scribe."""
+        assert "unreachable_vuln_exemption" in _DEFAULT_RULES_ENABLED
+        assert _DEFAULT_RULES_ENABLED["unreachable_vuln_exemption"] is False
+        result = build_opa_input([], {})
+        assert result["config"]["rules_enabled"]["unreachable_vuln_exemption"] is False
 
     def test_cisa_kev_present_and_defaults_false(self) -> None:
         """#344: cisa_kev must exist and default to False so no one is

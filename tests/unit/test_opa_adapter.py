@@ -332,11 +332,12 @@ class TestTriggeredRulesRegression:
 
 
 class TestFullFieldPassthroughViaLivePipeline:
-    def test_live_pipeline_carries_full_finding_shape_to_opa_input(self):
+    def test_live_pipeline_carries_full_finding_shape_to_opa_input(self, tmp_path):
         """A Finding's category/package_name/version/license_id/advisory_id/
         source_tool must all survive Finding -> PluginFinding (pipeline.py) ->
         OpaRegoAdapter._build_opa_input -> the JSON handed to the opa binary.
         """
+        from caliper.core.config import CaliperSettings
         from caliper.core.models import Finding, FindingCategory, FindingSeverity
         from caliper.core.pipeline import _policy_evaluation
 
@@ -367,8 +368,14 @@ class TestFullFieldPassthroughViaLivePipeline:
             link_type="static",
         )
 
-        fake_ctx = SimpleNamespace(policy_engine=adapter)
-        _policy_evaluation(fake_ctx, [finding], {"name": "copyleftlib", "version": "9.9.9"})
+        fake_ctx = SimpleNamespace(policy_engine=adapter, scribes=[])
+        _policy_evaluation(
+            fake_ctx,
+            CaliperSettings(),
+            [finding],
+            {"name": "copyleftlib", "version": "9.9.9"},
+            tmp_path,
+        )
 
         assert runner.payload is not None, "OPA was never invoked"
         opa_finding = runner.payload["findings"][0]

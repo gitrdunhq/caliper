@@ -544,6 +544,7 @@ def load_adapters() -> None:
     import caliper.plugins._runners.graph_builder  # noqa: F401
     import caliper.plugins._runners.semgrep_runner  # noqa: F401
     import caliper.plugins.scribes.code_graph  # noqa: F401
+    import caliper.plugins.scribes.reachability  # noqa: F401
     import caliper.plugins.scribes.semgrep  # noqa: F401
     import caliper.plugins.scribes.supply_chain_threat  # noqa: F401
 

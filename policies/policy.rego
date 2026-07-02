@@ -11,6 +11,7 @@ deny contains msg if {
 	finding.category == "vulnerability"
 	finding.severity in {"critical", "high"}
 	not _dev_scope_downgraded(finding)
+	not _unreachable_downgraded(finding)
 	msg := sprintf("%s vulnerability %s in %s@%s", [
 		upper(finding.severity),
 		finding.advisory_id,
@@ -39,7 +40,7 @@ deny contains msg if {
 	min_age_days := object.get(input.config, "min_package_age_days", 30)
 	published_ns := time.parse_rfc3339_ns(input.pkg.first_published_date)
 	now_ns := time.now_ns()
-	age_days := (now_ns - published_ns) / ((1000 * 1000 * 1000) * 60 * 60 * 24)
+	age_days := (now_ns - published_ns) / (((((1000 * 1000) * 1000) * 60) * 60) * 24)
 	age_days < min_age_days
 	msg := sprintf("Package %s@%s is only %d days old (minimum: %d)", [
 		input.pkg.name,
@@ -68,6 +69,20 @@ deny contains msg if {
 _dev_scope_downgraded(finding) if {
 	input.config.rules_enabled.dev_scope_exemption
 	input.pkg.scope == "dev"
+	not startswith(finding.advisory_id, "MAL-")
+}
+
+# T-348: Unreachable-vulnerability exemption helper (ADR-009) — true when a
+# finding's deny should be downgraded to warn because the reachability
+# scribe determined the vulnerable package is declared but never imported
+# anywhere in the repo. Only fires on an explicit `reachable == false`; a
+# `null`/missing reachability (unresolved import name, no code graph, or the
+# scribe not enabled) NEVER downgrades — absence of evidence is not evidence
+# of absence. A MAL- prefixed advisory is never downgraded, matching
+# _dev_scope_downgraded's carve-out.
+_unreachable_downgraded(finding) if {
+	input.config.rules_enabled.unreachable_vuln_exemption
+	object.get(finding, "reachable", null) == false
 	not startswith(finding.advisory_id, "MAL-")
 }
 
@@ -145,6 +160,24 @@ warn contains msg if {
 	])
 }
 
+# T-348: Unreachable-vulnerability exemption — critical/high vulnerability
+# downgraded to warn because the reachability scribe found the package
+# declared but never imported. See _unreachable_downgraded for the
+# null-never-downgrades and MAL- carve-outs.
+warn contains msg if {
+	input.config.rules_enabled.critical_vuln
+	some finding in input.findings
+	finding.category == "vulnerability"
+	finding.severity in {"critical", "high"}
+	_unreachable_downgraded(finding)
+	msg := sprintf("%s vulnerability %s in %s@%s (unreachable — declared but never imported)", [
+		upper(finding.severity),
+		finding.advisory_id,
+		finding.package_name,
+		finding.version,
+	])
+}
+
 # T-345: Dev-scope exemption — forbidden license downgraded to warn.
 warn contains msg if {
 	input.config.rules_enabled.forbidden_license
@@ -209,7 +242,7 @@ warn contains msg if {
 	max_days := object.get(input.config, "max_days_since_release", 365)
 	released_ns := time.parse_rfc3339_ns(input.pkg.last_release_date)
 	now_ns := time.now_ns()
-	days_since_release := (now_ns - released_ns) / ((1000 * 1000 * 1000) * 60 * 60 * 24)
+	days_since_release := (now_ns - released_ns) / (((((1000 * 1000) * 1000) * 60) * 60) * 24)
 	days_since_release > max_days
 	msg := sprintf("Package %s@%s has had no release in %d days (threshold: %d)", [
 		input.pkg.name,

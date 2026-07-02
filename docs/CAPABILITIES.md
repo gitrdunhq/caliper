@@ -15,7 +15,7 @@
 
 Caliper — fully deterministic dependency, security, and code review for CI.
 19 scanner plugins, 21 deterministic detectors, 67 custom semgrep rules, 12 code graph
-checks, 15 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
+checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
 ## Quick Numbers
@@ -26,10 +26,10 @@ supply-chain version-bump narrative is advisory metadata only).
 | Deterministic detectors | 21 (CAL-001..CAL-021) |
 | Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 12 |
-| OPA Rego policy rules | 15 (7 deny, 8 warn) |
+| OPA Rego policy rules | 16 (7 deny, 9 warn) |
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
-| Finding scribes | 4 (enclosing-symbol, code-graph, semgrep opt-in, supply-chain-threat opt-in) |
+| Finding scribes | 5 (enclosing-symbol, code-graph, reachability opt-in, semgrep opt-in, supply-chain-threat opt-in) |
 | CLI commands | 11 |
 | Parting taxonomy buckets | 16 ChangeTypes (4 code tiers, 7 non-code intent, `logic` residual, 4 structural/generated) |
 | Output formats | 4 |
@@ -241,13 +241,13 @@ All in `plugins/_runners/checks.yaml`. Executed by the blast-radius plugin again
 
 ---
 
-## OPA Policy Rules (15 rules)
+## OPA Policy Rules (16 rules)
 
 File: `policies/policy.rego`. Consumes findings from all plugins.
 
 | Rule | Type | Trigger |
 |------|------|---------|
-| Critical/high vulnerability | deny | severity critical or high + category vulnerability (not dev-scope-exempted) |
+| Critical/high vulnerability | deny | severity critical or high + category vulnerability (not dev-scope-exempted, not unreachable-exempted) |
 | Forbidden license | deny | license_id in config forbidden_licenses list (not dev-scope-exempted) |
 | Package age < threshold | deny | first_published_date < min_package_age_days (default 90) |
 | Malicious package | deny | advisory_id starts with "MAL-" (always denies, never dev-scope-exempted) |
@@ -258,6 +258,7 @@ File: `policies/policy.rego`. Consumes findings from all plugins.
 | Transitive dep count | warn | transitive_dep_count > max_transitive_deps (default 200) |
 | Supply-chain note | warn | severity medium + category supply_chain |
 | Dev-scope vulnerability exemption | warn | critical/high vulnerability, pkg.scope == "dev", `rules_enabled.dev_scope_exemption` true, advisory_id not "MAL-"-prefixed |
+| Unreachable-vulnerability exemption | warn | critical/high vulnerability, `finding.reachable == false`, `rules_enabled.unreachable_vuln_exemption` true, advisory_id not "MAL-"-prefixed (#348, ADR-009) |
 | Dev-scope license exemption | warn | forbidden license, pkg.scope == "dev", `rules_enabled.dev_scope_exemption` true |
 | Unmaintained package | warn | days since pkg.last_release_date > max_days_since_release (default 365); fails open when last_release_date absent/null (#346) |
 | Strong copyleft, dynamic link | warn | category license + license_id in config.copyleft_strong + link_type "dynamic" (#347) |
@@ -277,7 +278,11 @@ defaults to `false` (opt-in) — when enabled, it warns on stale packages using
 license denies when `link_type` is `"static"` or `"unknown"` (caliper has no linkage-
 detection scanner today, so `"unknown"` is treated as conservatively as `"static"`) and
 warns when `"dynamic"`; a `config.copyleft_weak` license always warns regardless of
-`link_type` (#347).
+`link_type` (#347). `unreachable_vuln_exemption` also defaults to `false` (opt-in) —
+when enabled, it downgrades a critical/high vulnerability deny to warn when the
+`reachability` scribe (ADR-009) reports `reachable == false` on the finding (package
+declared but never imported anywhere in the repo); an unresolved/missing reachability
+(`null`) never downgrades, and a `MAL-`-prefixed advisory always denies regardless (#348).
 
 ---
 
@@ -351,7 +356,8 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 |------------|------|-------------|
 | Parallel scanning | `core/orchestrator.py` | ThreadPoolExecutor with combined wall-clock timeout. |
 | Unified verdict (SoT) | `core/review_summary.py` | One `summarize_review()` computes verdict + counts + scores; the markdown badge, JSON report, SARIF properties, and CI header/label all consume it (no divergent re-derivation). Diff-scoped gate: only PR-introduced security findings block; pre-existing dependency CVEs are advisory. |
-| Detect-then-scribe | `core/scribe.py`, `core/scribe.py` | Post-detection pass (ADR-006): every plugin finding is decorated with deterministic context in `metadata['scribe']` — enclosing symbol (`detectors` scribe), code-graph blast radius (`plugins` scribe), opt-in nearby semgrep matches (`plugins` scribe), and the opt-in supply-chain-threat LLM narrative (`plugins` scribe). Sequential, fail-open, time-bounded (`scribe_timeout`); verdict-independent. Pluggable via the `SCRIBES` registry; also wired into the Foreman agent's `scan_code`. |
+| Detect-then-scribe | `core/scribe.py`, `core/scribe.py` | Post-detection pass (ADR-006): every plugin finding is decorated with deterministic context in `metadata['scribe']` — enclosing symbol (`detectors` scribe), code-graph blast radius (`plugins` scribe), opt-in vulnerability reachability (`plugins` scribe, ADR-009 — declared-vs-imported via the code graph's import edges), opt-in nearby semgrep matches (`plugins` scribe), and the opt-in supply-chain-threat LLM narrative (`plugins` scribe). Sequential, fail-open, time-bounded (`scribe_timeout`); verdict-independent. Pluggable via the `SCRIBES` registry; also wired into the Foreman agent's `scan_code`. |
+| Vulnerability reachability | `plugins/scribes/reachability.py`, `core/import_resolution.py` | Opt-in scribe (ADR-009): resolves a vulnerable package's distribution name to its import name (curated map → `importlib.metadata` best-effort → heuristic fallback) and checks the code graph for an `imports` edge. Attaches `metadata.scribe.reachability = {reachable: bool\|None, evidence}`. `reachable=false` (declared, never imported) can downgrade a critical/high vuln deny to warn via the opt-in `unreachable_vuln_exemption` OPA rule (T-348); `reachable=None` (unresolved import name, no code graph) never downgrades — absence of evidence is not evidence of absence. |
 | Cross-scanner dedup | `core/normalizer.py` | Highest severity wins per (advisory_id, category, package, version). |
 | Evidence chain | `core/seal.py` | Blockchain-style SHA-256 seals. manifest hash + previous seal → seal hash. `verify_seal()` detects tampering. |
 | Parquet audit log | `data/parquet_writer.py` | Append-only per-run audit trail. |

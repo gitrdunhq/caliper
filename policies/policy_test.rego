@@ -146,9 +146,7 @@ test_allowed_license_no_deny if {
 
 test_young_package_deny if {
 	# Use a date far in the future so it's always "just published" relative to now
-	young_package := object.union(base_package, {
-		"first_published_date": "2099-01-01T00:00:00Z",
-	})
+	young_package := object.union(base_package, {"first_published_date": "2099-01-01T00:00:00Z"})
 	inp := object.union(clean_input, {"pkg": young_package})
 	result := policy.deny with input as inp
 	count(result) == 1
@@ -352,9 +350,7 @@ test_disabled_package_age_no_deny if {
 		base_config.rules_enabled,
 		{"package_age": false},
 	)})
-	young_package := object.union(base_package, {
-		"first_published_date": "2099-01-01T00:00:00Z",
-	})
+	young_package := object.union(base_package, {"first_published_date": "2099-01-01T00:00:00Z"})
 	inp := {
 		"findings": [],
 		"pkg": young_package,
@@ -870,6 +866,144 @@ test_non_copyleft_license_no_deny_no_warn_from_copyleft_rule if {
 	}
 	deny_result := policy.deny with input as inp
 	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# --- T-348: Unreachable-vulnerability exemption (ADR-009) ---
+
+unreachable_exempt_config := object.union(base_config, {"rules_enabled": object.union(
+	base_config.rules_enabled,
+	{"unreachable_vuln_exemption": true},
+)})
+
+# T-348: critical vuln, reachable:false, exemption enabled -> warn, not deny.
+
+test_unreachable_vuln_downgraded_to_warn if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Remote code execution",
+			"package_name": "requests",
+			"version": "2.31.0",
+			"advisory_id": "CVE-2024-1234",
+			"source_tool": "osv-scanner",
+			"reachable": false,
+		}],
+		"pkg": base_package,
+		"config": unreachable_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "CVE-2024-1234")
+	contains(msg, "unreachable")
+}
+
+# T-348: critical vuln, reachable:false, exemption absent (default false) ->
+# still deny, unchanged from today (backward-compat).
+
+test_unreachable_vuln_deny_when_exemption_disabled if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Remote code execution",
+			"package_name": "requests",
+			"version": "2.31.0",
+			"advisory_id": "CVE-2024-1234",
+			"source_tool": "osv-scanner",
+			"reachable": false,
+		}],
+		"pkg": base_package,
+		"config": base_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-348 SAFETY: critical vuln, reachable:null (missing -- unresolved import
+# name, no code graph, or the scribe not enabled), exemption enabled -> still
+# deny. Absence of evidence is not evidence of absence; null must never
+# downgrade.
+
+test_null_reachability_never_downgrades_deny if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Remote code execution",
+			"package_name": "requests",
+			"version": "2.31.0",
+			"advisory_id": "CVE-2024-1234",
+			"source_tool": "osv-scanner",
+			# reachable field omitted entirely
+		}],
+		"pkg": base_package,
+		"config": unreachable_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-348 SAFETY: explicit reachable:true, exemption enabled -> still deny (the
+# exemption only fires on an explicit false, never on true or null).
+
+test_reachable_true_never_downgrades_deny if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Remote code execution",
+			"package_name": "requests",
+			"version": "2.31.0",
+			"advisory_id": "CVE-2024-1234",
+			"source_tool": "osv-scanner",
+			"reachable": true,
+		}],
+		"pkg": base_package,
+		"config": unreachable_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-348: dev-scope MAL- prefixed advisory, reachable:false, both
+# dev_scope_exemption and unreachable_vuln_exemption enabled -> still deny,
+# never warn. Known-malicious packages are never downgraded by any exemption.
+
+test_unreachable_malicious_advisory_never_downgraded if {
+	both_exempt_config := object.union(unreachable_exempt_config, {"rules_enabled": object.union(
+		unreachable_exempt_config.rules_enabled,
+		{"dev_scope_exemption": true},
+	)})
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Known malicious package",
+			"package_name": "evil-pkg",
+			"version": "0.1.0",
+			"advisory_id": "MAL-2024-9999",
+			"source_tool": "osv-scanner",
+			"reachable": false,
+		}],
+		"pkg": dev_package,
+		"config": both_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 2
+	some msg in deny_result
+	contains(msg, "MAL-2024-9999")
 	warn_result := policy.warn with input as inp
 	count(warn_result) == 0
 }
