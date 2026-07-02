@@ -166,6 +166,7 @@ class GitLsFilesSource:
             return []
 
         patterns = load_ignore_patterns(root)
+        root_resolved = root.resolve()
         out: list[Path] = []
         seen: set[str] = set()
         for rel in result.stdout.split("\0"):
@@ -176,7 +177,15 @@ class GitLsFilesSource:
                 continue
             if should_ignore(rel, patterns):  # caliper exclusions on top of .gitignore
                 continue
-            out.append(root / rel)
+            full = root / rel
+            # Reject paths escaping the root via symlink — git tracks a symlink's
+            # target string as a blob, so ls-files surfaces it same as any other
+            # file even when it points outside the repo.
+            try:
+                full.resolve().relative_to(root_resolved)
+            except ValueError:
+                continue
+            out.append(full)
 
         return sorted(out)
 
