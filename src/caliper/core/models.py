@@ -277,6 +277,8 @@ class ReviewDecision(BaseModel):
     memo_text: str | None = None
     should_comment: bool = False
     should_mark_unstable: bool = False
+    baseline_suppressed_count: int = 0
+    baseline_expired_count: int = 0
     pipeline_duration_seconds: float
     created_at: datetime = Field(default_factory=_utcnow)
 

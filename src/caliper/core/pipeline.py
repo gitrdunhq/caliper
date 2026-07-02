@@ -172,8 +172,17 @@ class ReviewPipeline:
         Shared by evaluate() and evaluate_sbom() (previously two independently
         drifting copies of this loop).
         """
+        from datetime import date
+
+        from caliper.core.baseline import filter_findings, finding_fingerprint, load_baseline
+        from caliper.core.repo_config import load_repo_config
+
         decisions: list[ReviewDecision] = []
         scan_results = orchestrator.run(repo_path)
+
+        repo_config = load_repo_config(repo_path)
+        baseline = load_baseline(repo_path / repo_config.baseline.path)
+        today = date.today()
 
         for req in requests:
             # Pipeline timeout enforcement (F-007)
@@ -198,6 +207,7 @@ class ReviewPipeline:
                 db.save_scan_results(req.request_id, scan_results)
 
                 findings, _summary = normalize_findings(scan_results)
+                findings, suppressed, expired = filter_findings(findings, baseline, today)
 
                 # Populate OPA metadata (F-012)
                 pypi_meta = pypi_client.fetch_metadata(req.package_name, req.target_version)
@@ -218,6 +228,8 @@ class ReviewPipeline:
                     evidence_bundle_path=evidence_bundle_path,
                     pipeline_duration=pipeline_duration,
                 )
+                decision.baseline_suppressed_count = len(suppressed)
+                decision.baseline_expired_count = len(expired)
 
                 memo = generate_memo(decision)
                 decision.memo_text = memo
@@ -230,6 +242,18 @@ class ReviewPipeline:
                     orjson.dumps(decision.model_dump(mode="json"), option=orjson.OPT_INDENT_2),
                 )
                 evidence.store(run_id, f"{req.package_name}/memo.md", memo)
+                if suppressed or expired:
+                    evidence.store(
+                        run_id,
+                        f"{req.package_name}/baseline.json",
+                        orjson.dumps(
+                            {
+                                "suppressed": [finding_fingerprint(f) for f in suppressed],
+                                "expired": [finding_fingerprint(f) for f in expired],
+                            },
+                            option=orjson.OPT_INDENT_2,
+                        ),
+                    )
 
                 decisions.append(decision)
 

@@ -466,6 +466,13 @@ class GaugeConfig(BaseModel):
     prompt_version: str = "v0"
 
 
+class BaselineConfig(BaseModel):
+    """Configuration for finding baseline/suppression (``caliper baseline``)."""
+
+    path: str = ".caliper-baseline.yaml"
+    default_ttl_days: int = 90
+
+
 class RepoConfig(BaseModel):
     """Top-level repo config parsed from .caliper.yaml."""
 
@@ -475,6 +482,7 @@ class RepoConfig(BaseModel):
     parting: PartingConfig = PartingConfig()
     inspect: InspectConfig = InspectConfig()
     gauge: GaugeConfig = GaugeConfig()
+    baseline: BaselineConfig = BaselineConfig()
 
 
 def load_merged_config(repo_path: Path, package_root: Path | None = None) -> RepoConfig:

@@ -5,7 +5,7 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-07-01
+  LAST VERIFIED: 2026-07-02
   VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
   plugin (20 ScannerPlugin subclasses total); 21 detectors in src/caliper/detectors/;
   67 semgrep rule ids in policies/semgrep/.
@@ -318,6 +318,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | `caliper eval` | Review-quality eval over a seeded-bug corpus (`--corpus DIR`, `--format text\|json`). Runs each recorded case through the same pure Adjudicate filter and reports precision/recall/F1/nit-rate/SNR pre- and post-Adjudicate, plus the per-rule Adjudicate drop rate. Deterministic (recorded claims), advisory, never gates. The trust gate that decides the model default; plugs into BATTLEARENA. |
 | `caliper reinstall` | Developer convenience: rebuild the working tree and reinstall it as the `caliper` uv tool with a unique PEP 440 local build id (`+dev.<timestamp>.g<sha>`), so the installed binary always reflects HEAD instead of a stale cached wheel (uv caches by `(name, version)`). Resolves the checkout via `git rev-parse --show-toplevel` (or `--repo`), validates it is the caliper project, and delegates to `scripts/install-local.sh` (single source of truth; restores `pyproject.toml` on exit). Not part of any scan; dev-only. |
 | `caliper gauge` | The flywheel: turn recurring advisory LLM claims into permanent deterministic Screen gauges. Subcommands: `propose` (deterministic clustering/ranking of the claims ledger; the LLM drafts candidate gauges — the only LLM step, behind GAUGE_DRAFTERS), `backtest` (deterministic four-part gate — recall, precision, determinism, performance; LLM-free), `promote` (human-gated; refuses without a passing backtest and `--by`; records a Promotion with full lineage into the tool crib), `status` (convergence scorecard: substantiation rate, advisory recurrence, gauge coverage, LLM novelty). The LLM drafts but never promotes — a gauge is active iff a Promotion exists. Bias guards mandatory: candidacy floor (no nits/style), recurrence threshold, precision backtest, human promotion. Ledger is advisory data, never the audit lake. |
+| `caliper baseline` | Deterministic finding suppression with expiry, no LLM. Subcommand `update` scans the repo the same way `caliper evaluate` does (ScanOrchestrator + `normalize_findings`) and writes a sha256 fingerprint (source_tool, category, package_name, version, advisory_id-or-description, normalized file path — **not** line_number, so line drift never invalidates a suppression) for every unbaselined finding into `.caliper-baseline.yaml`, each entry requiring `--reason` and defaulting to `baseline.default_ttl_days` (90) from `.caliper.yaml`. Re-running against an unchanged finding set is a no-op. `core/pipeline.ReviewPipeline._run_requests` filters findings against the baseline before policy evaluation; an expired entry fails **safe** — the finding returns to the policy-evaluated set rather than being silently dropped — and `ReviewDecision.baseline_suppressed_count`/`baseline_expired_count` plus a per-package `baseline.json` evidence artifact record what was filtered. |
 
 ---
 
@@ -425,7 +426,8 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Mechanism | File | Scope |
 |-----------|------|-------|
 | Env vars | `CALIPER_*` prefix | Global: operating_mode, db_dsn, evidence_path, 7 timeouts, enabled_scanners, LLM settings |
-| Repo config | `.caliper.yaml` | Per-repo: plugin enable/disable, per-plugin thresholds, telemetry. Root + package-level merge. |
+| Repo config | `.caliper.yaml` | Per-repo: plugin enable/disable, per-plugin thresholds, telemetry, `baseline.path`/`baseline.default_ttl_days`. Root + package-level merge. |
+| Finding baseline | `.caliper-baseline.yaml` (path configurable) | Per-repo: deterministic finding suppressions (fingerprint, reason, added, expires), written by `caliper baseline update`. |
 | Ignore patterns | `.caliperignore` | Per-repo: fnmatch exclusions, layered on top of every file source. |
 | File source | `CALIPER_FILE_SOURCE` | Global: `auto` (git ls-files when usable, else walk), `git`, or `walk`. |
 | Gitleaks config | `.caliper/gitleaks.toml` | Per-repo: custom gitleaks rules. |
