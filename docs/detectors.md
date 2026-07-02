@@ -1,6 +1,6 @@
 # Deterministic Detectors
 
-Caliper ships **21 deterministic bug detectors** (`CAL-001` … `CAL-021`) in
+Caliper ships **22 deterministic bug detectors** (`CAL-001` … `CAL-022`) in
 `src/caliper/detectors/`. They complement the 19 scanner plugins: where a plugin shells out
 to an external tool or queries an external database (CVEs, licenses, SBOMs), a *detector* is
 a small, self-contained, AST-driven rule that flags a specific bug pattern in source you
@@ -55,9 +55,9 @@ Shared helpers live in `src/caliper/detectors/ast_utils.py`: a content-addressed
 `BatchVisitor` for single-pass multi-detector traversal. Python is analyzed via the stdlib
 `ast`; YAML / Dockerfile / shell detectors use targeted text + structural parsing.
 
-## The 21 detectors
+## The 22 detectors
 
-### Security (8)
+### Security (9)
 
 | ID | Name | Severity | Catches |
 |----|------|----------|---------|
@@ -69,6 +69,7 @@ Shared helpers live in `src/caliper/detectors/ast_utils.py`: a content-addressed
 | CAL-016 | CI Verification Gate Bypass | high | shell scripts that exit `0` when a required GitHub Actions status is absent/null |
 | CAL-017 | Presentation Tier Imports Data Tier Directly | medium | files in `agent/`/`cli/` importing `caliper.data.*` (three-tier breach) |
 | CAL-020 | Fixed Heredoc Delimiter with GITHUB_OUTPUT/GITHUB_ENV | low | fixed heredoc delimiters writing to GitHub Actions output sinks |
+| CAL-022 | Architecture Tier Boundary Violation | medium | imports crossing a repo-declared `architecture.tiers`/`allow` boundary in `.caliper.yaml` (opt-in, fail-open when unconfigured) |
 
 ### Reliability (10)
 

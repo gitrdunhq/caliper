@@ -16,8 +16,8 @@ an append-only Parquet audit log.
 **Plugin review** (`review` command): runs 19 scanner plugins organized into five
 categories (dependency, code, infra, quality, supply_chain) plus the OPA policy
 plugin (which always runs last) against a repository or diff. In addition to the
-plugins, a `DeterministicScanner` (Section 21) runs 21 AST-based detectors
-(CAL-001..CAL-021) in the same parallel pass. The flow is: file enumeration →
+plugins, a `DeterministicScanner` (Section 21) runs 22 AST-based detectors
+(CAL-001..CAL-022) in the same parallel pass. The flow is: file enumeration →
 parallel scan (plugins + deterministic detectors) → normalize/dedup (highest
 severity wins) → detect-then-scribe (Section 22) → OPA policy/decision → render
 (Markdown comment or SARIF v2.1.0) plus evidence/Parquet persistence. Plugins are
@@ -1135,12 +1135,12 @@ Watch mode is purely additive — the review command runs identically with or wi
 
 ## 21. Deterministic Detectors
 
-The `src/caliper/detectors/` module provides 21 AST-based bug detectors
-(`CAL-001`..`CAL-021`) that run alongside the scanner plugins. They are
+The `src/caliper/detectors/` module provides 22 AST-based bug detectors
+(`CAL-001`..`CAL-022`) that run alongside the scanner plugins. They are
 deterministic — the same source always produces the same findings — and require no
 subprocess, network, or external binary.
 
-By category: **8 security**, **10 reliability**, **2 configuration**, **1 process**.
+By category: **9 security**, **10 reliability**, **2 configuration**, **1 process**.
 The full per-detector reference lives in `docs/detectors.md`; `DetectorCategory`
 (`detectors/categories.py`) is a `StrEnum` mapped to `FindingCategory` for scanner
 integration.

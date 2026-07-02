@@ -29,7 +29,7 @@ Both outcomes cost real money. One costs velocity. The other costs incidents.
 
 ---
 
-When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 19 plugins in parallel (plus 21 deterministic AST detectors and 61 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
+When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 19 plugins in parallel (plus 22 deterministic AST detectors and 67 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
 
 Every scanning tool is deterministic. The decision is deterministic. Nothing blocks the build unless OPA says so.
 
@@ -102,9 +102,9 @@ All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper t
 |--------|-------------|
 | **OPA** | Policy enforcement (6 Rego rules), runs last (`depends_on=["*"]`) — see [policy rules](#opa-policy-rules) |
 
-### Plus 21 deterministic detectors
+### Plus 22 deterministic detectors
 
-On changed source, caliper also runs **21 AST bug detectors** (`CAL-001`…`CAL-021`) — SQL injection, missing JWT audience claim, secrets typed as plain `str`, subprocess without timeout, unbounded caches, non-atomic writes, and more. Deterministic, fail-safe, suppressible with `# noqa: CAL-NNN`. See [`docs/detectors.md`](docs/detectors.md).
+On changed source, caliper also runs **22 AST bug detectors** (`CAL-001`…`CAL-022`) — SQL injection, missing JWT audience claim, secrets typed as plain `str`, subprocess without timeout, unbounded caches, non-atomic writes, and more. Deterministic, fail-safe, suppressible with `# noqa: CAL-NNN`. See [`docs/detectors.md`](docs/detectors.md).
 
 **Scanner disagreement:** When OSV-Scanner and Trivy report the same CVE, the normalizer deduplicates on `(advisory_id, category, package_name, version)`. Highest severity wins.
 
@@ -312,7 +312,7 @@ src/caliper/
 │   ├── cfn_nag.py          #   CloudFormation template scanning
 │   ├── scribes/          #   Detect-then-scribe: code-graph + opt-in semgrep (ADR-006)
 │   └── ...                 #   + 13 more (one file per plugin, incl. _opa.py)
-├── detectors/              # 21 deterministic AST bug detectors (CAL-001..021)
+├── detectors/              # 22 deterministic AST bug detectors (CAL-001..022)
 │   ├── security/           #   8 detectors (SQL injection, JWT audience, SecretStr, ...)
 │   ├── reliability/        #   subprocess timeout, unbounded cache, atomic write, ...
 │   ├── scanner.py          #   DeterministicScanner (ScannerPort) — runs them in the pipeline

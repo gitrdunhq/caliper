@@ -153,4 +153,4 @@ Blocks for the same reason as cfn-nag: CDK violations represent infrastructure-a
 
 ## See also
 
-- [Deterministic detectors](../detectors.md) — 21 AST-based bug-pattern rules (CAL-001..CAL-021) that run alongside the plugins.
+- [Deterministic detectors](../detectors.md) — 22 AST-based bug-pattern rules (CAL-001..CAL-022) that run alongside the plugins.

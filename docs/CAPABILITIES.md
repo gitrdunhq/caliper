@@ -7,14 +7,14 @@
 
   LAST VERIFIED: 2026-07-02
   VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
-  plugin (20 ScannerPlugin subclasses total); 21 detectors in src/caliper/detectors/;
+  plugin (20 ScannerPlugin subclasses total); 22 detectors in src/caliper/detectors/;
   67 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
-19 scanner plugins, 21 deterministic detectors, 67 custom semgrep rules, 12 code graph
+19 scanner plugins, 22 deterministic detectors, 67 custom semgrep rules, 12 code graph
 checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
@@ -23,7 +23,7 @@ supply-chain version-bump narrative is advisory metadata only).
 | Metric | Count |
 |--------|-------|
 | Scanner plugins | 19 (5 categories) + OPA policy plugin |
-| Deterministic detectors | 21 (CAL-001..CAL-021) |
+| Deterministic detectors | 22 (CAL-001..CAL-022) |
 | Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 12 |
 | OPA Rego policy rules | 16 (7 deny, 9 warn) |
@@ -203,11 +203,12 @@ with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](detectors.md).
 | CAL-015 | High Cardinality Metric Labels | reliability | medium |
 | CAL-019 | Nullable advisory_id in Dedup Key | reliability | low |
 | CAL-021 | Non-Atomic File Write | reliability | medium |
+| CAL-022 | Architecture Tier Boundary Violation | security | medium |
 | CAL-013 | Config Merge Dropping Telemetry | configuration | low |
 | CAL-018 | Dockerfile Pin Drift | configuration | medium |
 | CAL-014 | Missing Tested-By Annotation | process | low |
 
-By category: security 8, reliability 10, configuration 2, process 1.
+By category: security 9, reliability 10, configuration 2, process 1.
 
 ---
 
@@ -397,7 +398,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 
 | Capability | SonarQube | caliper |
 |------------|-----------|-------|
-| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 67 custom rules + 21 deterministic detectors |
+| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 67 custom rules + 22 deterministic detectors |
 | Stylistic code smells | Hundreds of built-in rules | Not primary focus |
 | Structural code smells | Limited | 12 graph checks (dead code, god functions, SRP, layer violations, circular deps, deep inheritance, stubs) |
 | Complexity | Cyclomatic + cognitive | Cyclomatic (Lizard) + MI (Radon) — parity |
