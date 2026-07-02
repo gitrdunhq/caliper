@@ -542,3 +542,49 @@ class TestEvaluateSbomCommitShaRegression:
                 f"P01-1 regression: explicit commit_sha {explicit_sha!r} "
                 f"was not stamped; got {req.commit_sha!r}"
             )
+
+
+class TestEvaluateCommitShaRegression:
+    """evaluate() must stamp commit_sha too — locks P01-1 into the shared
+    _run_requests()/_finalize() helpers evaluate() and evaluate_sbom() both call,
+    so the two entry points can no longer drift on this independently."""
+
+    def test_evaluate_stamps_resolved_commit_sha(self, tmp_path: Path) -> None:
+        from caliper.core.models import OperatingMode
+        from caliper.core.pipeline import ReviewPipeline
+
+        config = _make_config(tmp_path)
+        ctx = _fake_pipeline_context()
+
+        captured_requests: list = []
+        original_save = ctx.decision_repository.save_request
+
+        def _capturing_save(req) -> None:
+            captured_requests.append(req)
+            return original_save(req)
+
+        ctx.decision_repository.save_request = _capturing_save
+
+        fixed_sha = "deadbeef1234567890abcdef12345678deadbeef"
+
+        with (
+            patch("caliper.core.pipeline.ScanOrchestrator.run", return_value=[]),
+            patch("caliper.core.pipeline.resolve_git_sha", return_value=fixed_sha),
+        ):
+            decisions = ReviewPipeline(config, context=ctx).evaluate(
+                diff_text=DIFF_WITH_REQUIREMENTS,
+                pr_url="https://github.com/org/repo/pull/9",
+                team="platform",
+                mode=OperatingMode.monitor,
+                repo_path=tmp_path,
+            )
+
+        assert len(decisions) >= 1, "Expected at least one decision from the diff"
+        assert len(captured_requests) >= 1, "Expected at least one request to be saved"
+
+        for req in captured_requests:
+            assert req.commit_sha == fixed_sha, (
+                f"req.commit_sha should be {fixed_sha!r} but got {req.commit_sha!r}. "
+                "evaluate() must stamp commit_sha on each ReviewRequest before the "
+                "per-package loop, same as evaluate_sbom()."
+            )
