@@ -32,7 +32,7 @@ supply-chain version-bump narrative is advisory metadata only).
 | Finding scribes | 5 (enclosing-symbol, code-graph, reachability opt-in, semgrep opt-in, supply-chain-threat opt-in) |
 | CLI commands | 11 |
 | Parting taxonomy buckets | 16 ChangeTypes (4 code tiers, 7 non-code intent, `logic` residual, 4 structural/generated) |
-| Output formats | 4 |
+| Output formats | 5 |
 | Supported ecosystems (SBOM) | 18 |
 | Supported languages (CPD) | 15 |
 | Supported languages (complexity) | 10 |
@@ -313,7 +313,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Command | Description |
 |---------|-------------|
 | `caliper evaluate` | Full pipeline on dependency changes. Modes: monitor/advise. Output: JSON. |
-| `caliper review` | Plugin review on repo or diff. Filter by --scanners, --category, --enable/--disable. Formats: markdown, json (schema: `docs/schema/report-v1.0.json`), SARIF. Supports --watch (watchdog, 500ms debounce), --pr N (inline PR review), --package (monorepo single package). |
+| `caliper review` | Plugin review on repo or diff. Filter by --scanners, --category, --enable/--disable. Formats: markdown, json (schema: `docs/schema/report-v1.0.json`), SARIF, OpenVEX. Supports --watch (watchdog, 500ms debounce), --pr N (inline PR review), --package (monorepo single package). |
 | `caliper check-health` | Verify scanner binaries and DB connectivity. |
 | `caliper plugins` | List all registered plugins with binary status and depends_on. |
 | `caliper schema` | Print the JSON Schema for `caliper review --format json` output. `--output` writes to a file. Published artifact: `docs/schema/report-v1.0.json`. |
@@ -336,6 +336,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | SARIF v2.1.0 | `core/sarif.py` | GitHub Security tab integration. Severity-to-level mapping. Configurable max findings cap. Detect-then-scribe packets surface in each result's `properties.scribe` (parity with the JSON report). |
 | Inline PR review | `core/pr_review.py` | SARIF → GitHub PR review. Hunk-aware line placement. REQUEST_CHANGES on reject, COMMENT on approve_with_constraints. Outside-diff findings in collapsed summary. |
 | JSON decision | CLI `--output-json` | Machine-readable decision with all findings, policy evaluation, and evidence. |
+| OpenVEX v0.2.0 | `core/vex.py` | `caliper review --format vex`. One statement per vulnerability finding: reachability scribe `reachable=False` → `not_affected` (justification `vulnerable_code_not_in_execute_path`); blocking severity → `affected` with upgrade guidance; otherwise `under_investigation`. Worst-status-wins dedup across plugins; deterministic content-addressed `@id`. |
 
 ---
 
