@@ -1,11 +1,13 @@
 """PMD CPD plugin — copy-paste detection.
 # tested-by: tests/unit/test_plugin_registry.py
+# tested-by: tests/unit/test_cpd_plugin.py
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from caliper.core.config import CaliperSettings
 from caliper.core.plugin import (
     PluginCategory,
     PluginResult,
@@ -31,6 +33,9 @@ _CODE_EXTS = {
 
 
 class CpdPlugin(ScannerPlugin):
+    def __init__(self, settings: CaliperSettings | None = None) -> None:
+        self._timeout = (settings or CaliperSettings()).scanner_timeout
+
     @property
     def name(self) -> str:
         return "cpd"
@@ -48,7 +53,7 @@ class CpdPlugin(ScannerPlugin):
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
         try:
-            data = _run(files, str(repo_path))
+            data = _run(files, str(repo_path), timeout=self._timeout)
         except Exception as exc:
             return PluginResult(plugin_name=self.name, error=str(exc))
 
@@ -96,6 +101,6 @@ from caliper.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
 
 
 @ANALYZERS.register("cpd")
-def build_cpd_plugin() -> CpdPlugin:
+def build_cpd_plugin(settings: CaliperSettings | None = None) -> CpdPlugin:
     """Register this analyzer with the ANALYZERS registry."""
-    return CpdPlugin()
+    return CpdPlugin(settings=settings)

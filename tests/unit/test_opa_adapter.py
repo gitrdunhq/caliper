@@ -8,6 +8,8 @@ Every test here is expected to fail with ImportError (RED phase of TDD).
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from types import SimpleNamespace
 
 from caliper.core.opa_adapter import OpaRegoAdapter  # noqa: F401 — does not exist yet (RED)
 from caliper.core.plugin import PluginFinding
@@ -312,3 +314,69 @@ class TestTriggeredRulesRegression:
 
         assert decision.verdict == "approve"
         assert decision.triggered_rules == []
+
+
+# ---------------------------------------------------------------------------
+# 8. Full-field passthrough via the LIVE production pipeline wiring
+# ---------------------------------------------------------------------------
+#
+# Three places used to build the OPA input (policy.py::build_opa_input,
+# OpaRegoAdapter._build_opa_input, and the ad-hoc PluginFinding constructed
+# inside pipeline._policy_evaluation) had drifted out of sync. The LIVE
+# production path (pipeline._policy_evaluation -> OpaRegoAdapter) emitted
+# only {id, severity, message} per finding, so every policy.rego rule that
+# reads finding.category / .package_name / .license_id / .advisory_id /
+# .source_tool evaluated undefined and silently never fired. This test
+# exercises the real pipeline function (not policy.py's build_opa_input
+# directly) to prove the wiring end-to-end.
+
+
+class TestFullFieldPassthroughViaLivePipeline:
+    def test_live_pipeline_carries_full_finding_shape_to_opa_input(self):
+        """A Finding's category/package_name/version/license_id/advisory_id/
+        source_tool must all survive Finding -> PluginFinding (pipeline.py) ->
+        OpaRegoAdapter._build_opa_input -> the JSON handed to the opa binary.
+        """
+        from caliper.core.models import Finding, FindingCategory, FindingSeverity
+        from caliper.core.pipeline import _policy_evaluation
+
+        class CapturingRunner:
+            def __init__(self) -> None:
+                self.payload: dict | None = None
+
+            def run(self, invocation) -> ToolResult:
+                input_path = Path(invocation.cmd[invocation.cmd.index("-i") + 1])
+                self.payload = json.loads(input_path.read_text())
+                stdout = json.dumps(
+                    {"result": [{"expressions": [{"value": {"deny": [], "warn": []}}]}]}
+                )
+                return ToolResult(exit_code=0, stdout=stdout, stderr="")
+
+        runner = CapturingRunner()
+        adapter = OpaRegoAdapter(policy_path="/fake/policy.rego", tool_runner=runner)
+
+        finding = Finding(
+            severity=FindingSeverity.high,
+            category=FindingCategory.license,
+            description="GPL-3.0 detected in transitive dependency",
+            source_tool="scancode",
+            package_name="copyleftlib",
+            version="9.9.9",
+            advisory_id="LIC-0001",
+            license_id="GPL-3.0",
+            link_type="static",
+        )
+
+        fake_ctx = SimpleNamespace(policy_engine=adapter)
+        _policy_evaluation(fake_ctx, [finding], {"name": "copyleftlib", "version": "9.9.9"})
+
+        assert runner.payload is not None, "OPA was never invoked"
+        opa_finding = runner.payload["findings"][0]
+
+        assert opa_finding["category"] == "license", opa_finding
+        assert opa_finding["package_name"] == "copyleftlib", opa_finding
+        assert opa_finding["version"] == "9.9.9", opa_finding
+        assert opa_finding["advisory_id"] == "LIC-0001", opa_finding
+        assert opa_finding["license_id"] == "GPL-3.0", opa_finding
+        assert opa_finding["source_tool"] == "scancode", opa_finding
+        assert opa_finding["link_type"] == "static", opa_finding

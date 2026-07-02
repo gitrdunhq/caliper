@@ -146,7 +146,7 @@ def test_normalize_never_adds_findings(scan_results: list[ScanResult]) -> None:
     pkg_name=st.text(min_size=1, max_size=30),
     version=st.text(min_size=1, max_size=20),
     category=st.sampled_from(_non_license_categories),
-    advisory_id=st.one_of(st.none(), st.text(min_size=1, max_size=20)),
+    advisory_id=st.text(min_size=1, max_size=20),
     sev1=st.sampled_from(list(FindingSeverity)),
     sev2=st.sampled_from(list(FindingSeverity)),
 )
@@ -155,13 +155,19 @@ def test_dedup_keeps_higher_severity(
     pkg_name: str,
     version: str,
     category: FindingCategory,
-    advisory_id: str | None,
+    advisory_id: str,
     sev1: FindingSeverity,
     sev2: FindingSeverity,
 ) -> None:
     """When two findings share a dedup key, the higher severity survives.
 
-    The dedup key is (advisory_id, category, package_name, version).
+    The dedup key is (advisory_id, category, package_name, version) whenever
+    advisory_id is set (a real vuln advisory). When advisory_id is None, the
+    key is extended with (source_tool, description) instead (#234) — two
+    unrelated non-advisory findings (secret-scan/code-smell) must NOT collapse
+    just because they share a category/package/version, so that case is
+    covered separately by test_normalizer.py::test_no_advisory_findings_never_collapse
+    and is deliberately excluded here (advisory_id is always a real id).
     When keys collide, the finding with the higher _SEVERITY_RANK wins.
     If ranks are equal, the first-encountered finding is retained.
     """

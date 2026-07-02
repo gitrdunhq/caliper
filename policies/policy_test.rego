@@ -415,3 +415,461 @@ test_reject_takes_precedence_when_deny_and_warn_both_fire if {
 	decision := policy.decision with input as inp
 	decision == "reject"
 }
+
+# --- #345: Dev-scope exemption ---
+
+dev_exempt_config := object.union(base_config, {"rules_enabled": object.union(
+	base_config.rules_enabled,
+	{"dev_scope_exemption": true},
+)})
+
+dev_package := object.union(base_package, {"scope": "dev"})
+
+# T-345: dev-scope critical vuln + dev_scope_exemption:true -> warn, not deny.
+
+test_dev_scope_critical_vuln_downgraded_to_warn if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Remote code execution",
+			"package_name": "requests",
+			"version": "2.31.0",
+			"advisory_id": "CVE-2024-1234",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": dev_package,
+		"config": dev_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "CVE-2024-1234")
+	contains(msg, "dev-scope exemption")
+}
+
+# T-345: dev-scope critical vuln + dev_scope_exemption absent (default false)
+# -> still deny, unchanged from today (backward-compat).
+
+test_dev_scope_critical_vuln_deny_when_exemption_disabled if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Remote code execution",
+			"package_name": "requests",
+			"version": "2.31.0",
+			"advisory_id": "CVE-2024-1234",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": dev_package,
+		"config": base_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-345: runtime-scope critical vuln + dev_scope_exemption:true -> still deny
+# (the exemption only applies to dev-scope packages).
+
+test_runtime_scope_critical_vuln_still_denies_with_exemption_enabled if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Remote code execution",
+			"package_name": "requests",
+			"version": "2.31.0",
+			"advisory_id": "CVE-2024-1234",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": base_package, # scope: "runtime"
+		"config": dev_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-345: dev-scope MAL- prefixed advisory + dev_scope_exemption:true -> still
+# deny, never warn. Known-malicious packages always deny regardless of scope
+# or the exemption toggle. category=="vulnerability" + severity=="critical"
+# means this finding matches BOTH the critical_vuln deny rule (T-010, whose
+# downgrade-to-warn logic must exclude MAL- advisories) and the dedicated
+# malicious_package deny rule (T-011) -- both must fire and neither may
+# downgrade to warn.
+
+test_dev_scope_malicious_advisory_never_downgraded if {
+	inp := {
+		"findings": [{
+			"severity": "critical",
+			"category": "vulnerability",
+			"description": "Known malicious package",
+			"package_name": "evil-pkg",
+			"version": "0.1.0",
+			"advisory_id": "MAL-2024-9999",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": dev_package,
+		"config": dev_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 2
+	some msg in deny_result
+	contains(msg, "MAL-2024-9999")
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-345: dev-scope forbidden license + dev_scope_exemption:true -> warn, not
+# deny (mirrors the vuln case for the license rule).
+
+test_dev_scope_forbidden_license_downgraded_to_warn if {
+	inp := {
+		"findings": [{
+			"severity": "info",
+			"category": "license",
+			"description": "Package uses GPL-3.0-only license",
+			"package_name": "some-gpl-lib",
+			"version": "1.0.0",
+			"advisory_id": "LIC-001",
+			"source_tool": "scancode",
+			"license_id": "GPL-3.0-only",
+		}],
+		"pkg": dev_package,
+		"config": dev_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "GPL-3.0-only")
+	contains(msg, "dev-scope exemption")
+}
+
+# --- #344: CISA KEV — actively exploited CVE ---
+
+kev_config := object.union(base_config, {
+	"kev_ids": ["CVE-2021-44228"],
+	"rules_enabled": object.union(base_config.rules_enabled, {"cisa_kev": true}),
+})
+
+dev_kev_exempt_config := object.union(dev_exempt_config, {
+	"kev_ids": ["CVE-2021-44228"],
+	"rules_enabled": object.union(dev_exempt_config.rules_enabled, {"cisa_kev": true}),
+})
+
+# T-344: advisory_id in kev_ids + cisa_kev:true -> deny.
+
+test_kev_listed_cve_denies_when_enabled if {
+	inp := {
+		"findings": [{
+			"severity": "low",
+			"category": "vulnerability",
+			"description": "Log4Shell",
+			"package_name": "log4j-core",
+			"version": "2.14.1",
+			"advisory_id": "CVE-2021-44228",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": base_package,
+		"config": kev_config,
+	}
+	result := policy.deny with input as inp
+	count(result) == 1
+	some msg in result
+	contains(msg, "CVE-2021-44228")
+	contains(msg, "log4j-core@2.14.1")
+}
+
+# T-344: same finding but cisa_kev disabled (default false) -> the KEV rule
+# does not fire. Severity "low" also keeps T-010 (critical_vuln) from firing,
+# isolating this assertion to the KEV rule alone.
+
+test_kev_listed_cve_no_deny_when_disabled if {
+	inp := {
+		"findings": [{
+			"severity": "low",
+			"category": "vulnerability",
+			"description": "Log4Shell",
+			"package_name": "log4j-core",
+			"version": "2.14.1",
+			"advisory_id": "CVE-2021-44228",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": base_package,
+		"config": base_config, # cisa_kev absent -> default false
+	}
+	result := policy.deny with input as inp
+	count(result) == 0
+}
+
+# T-344: KEV-listed CVE on a dev-scope package with dev_scope_exemption:true
+# AND cisa_kev:true -> still deny. Proves the no-downgrade invariant: a KEV
+# CVE is never routed through _dev_scope_downgraded, unlike critical_vuln and
+# forbidden_license. Severity "low" isolates the assertion to the KEV rule
+# (it would not otherwise trigger T-010's dev-scope downgrade-to-warn path).
+
+test_dev_scope_kev_listed_cve_never_downgraded if {
+	inp := {
+		"findings": [{
+			"severity": "low",
+			"category": "vulnerability",
+			"description": "Log4Shell",
+			"package_name": "log4j-core",
+			"version": "2.14.1",
+			"advisory_id": "CVE-2021-44228",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": dev_package,
+		"config": dev_kev_exempt_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	some msg in deny_result
+	contains(msg, "CVE-2021-44228")
+}
+
+# T-344: vulnerability finding NOT in kev_ids, cisa_kev:true -> the KEV rule
+# does not fire for it.
+
+test_non_kev_cve_no_deny_from_kev_rule if {
+	inp := {
+		"findings": [{
+			"severity": "low",
+			"category": "vulnerability",
+			"description": "Minor info leak",
+			"package_name": "some-lib",
+			"version": "1.0.0",
+			"advisory_id": "CVE-2024-0001",
+			"source_tool": "osv-scanner",
+		}],
+		"pkg": base_package,
+		"config": kev_config,
+	}
+	result := policy.deny with input as inp
+	count(result) == 0
+}
+
+# --- T-346: Unmaintained package rule ---
+
+unmaintained_config := object.union(base_config, {"rules_enabled": object.union(
+	base_config.rules_enabled,
+	{"unmaintained_package": true},
+)})
+
+test_stale_package_unmaintained_warn if {
+	stale_package := object.union(base_package, {"last_release_date": "2020-01-01T00:00:00Z"})
+	inp := {
+		"findings": [],
+		"pkg": stale_package,
+		"config": unmaintained_config,
+	}
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "no release")
+}
+
+test_stale_package_unmaintained_disabled_no_warn if {
+	stale_package := object.union(base_package, {"last_release_date": "2020-01-01T00:00:00Z"})
+	inp := {
+		"findings": [],
+		"pkg": stale_package,
+		"config": base_config,
+	}
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+test_fresh_package_unmaintained_no_warn if {
+	fresh_package := object.union(base_package, {"last_release_date": "2099-01-01T00:00:00Z"})
+	inp := {
+		"findings": [],
+		"pkg": fresh_package,
+		"config": unmaintained_config,
+	}
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+test_missing_last_release_date_unmaintained_no_warn if {
+	inp := {
+		"findings": [],
+		"pkg": base_package,
+		"config": unmaintained_config,
+	}
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# --- T-347: Copyleft propagation ---
+
+copyleft_config := object.union(base_config, {
+	"copyleft_strong": ["GPL-2.0-only", "AGPL-3.0-only"],
+	"copyleft_weak": ["LGPL-3.0-only", "MPL-2.0"],
+	"rules_enabled": object.union(base_config.rules_enabled, {"copyleft_propagation": true}),
+})
+
+_strong_copyleft_finding(link_type_overrides) := finding if {
+	base := {
+		"category": "license",
+		"description": "GPL-2.0-only detected",
+		"package_name": "gplcore",
+		"version": "1.2.3",
+		"advisory_id": "LIC-347-1",
+		"source_tool": "scancode",
+		"license_id": "GPL-2.0-only",
+	}
+	finding := object.union(base, link_type_overrides)
+}
+
+_weak_copyleft_finding(link_type_overrides) := finding if {
+	base := {
+		"category": "license",
+		"description": "MPL-2.0 detected",
+		"package_name": "mpllib",
+		"version": "2.0.0",
+		"advisory_id": "LIC-347-2",
+		"source_tool": "scancode",
+		"license_id": "MPL-2.0",
+	}
+	finding := object.union(base, link_type_overrides)
+}
+
+# T-347: strong copyleft + link_type "static" -> deny.
+
+test_strong_copyleft_static_denies if {
+	inp := {
+		"findings": [_strong_copyleft_finding({"link_type": "static"})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	some msg in deny_result
+	contains(msg, "GPL-2.0-only")
+	contains(msg, "gplcore@1.2.3")
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-347: strong copyleft + link_type absent (defaults to "unknown" upstream,
+# treated identically to "static" -- the conservative default) -> deny.
+
+test_strong_copyleft_link_type_absent_denies_like_static if {
+	inp := {
+		"findings": [_strong_copyleft_finding({})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	some msg in deny_result
+	contains(msg, "GPL-2.0-only")
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-347: strong copyleft + link_type "unknown" (explicit) -> deny, same as
+# "static" and as the absent-field case above.
+
+test_strong_copyleft_link_type_unknown_denies_like_static if {
+	inp := {
+		"findings": [_strong_copyleft_finding({"link_type": "unknown"})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 1
+	some msg in deny_result
+	contains(msg, "GPL-2.0-only")
+}
+
+# T-347: strong copyleft + link_type "dynamic" -> warn, NOT deny.
+
+test_strong_copyleft_dynamic_warns_not_denies if {
+	inp := {
+		"findings": [_strong_copyleft_finding({"link_type": "dynamic"})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "GPL-2.0-only")
+	contains(msg, "dynamically linked")
+}
+
+# T-347: weak copyleft + any link_type -> warn, NOT deny.
+
+test_weak_copyleft_static_warns_not_denies if {
+	inp := {
+		"findings": [_weak_copyleft_finding({"link_type": "static"})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "MPL-2.0")
+}
+
+test_weak_copyleft_dynamic_warns_not_denies if {
+	inp := {
+		"findings": [_weak_copyleft_finding({"link_type": "dynamic"})],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 1
+	some msg in warn_result
+	contains(msg, "MPL-2.0")
+}
+
+# T-347: copyleft_propagation disabled (default off, base_config has no
+# override) -> strong-copyleft finding fires neither deny nor warn from this
+# rule family, regardless of link_type.
+
+test_copyleft_propagation_disabled_by_default_no_deny_no_warn if {
+	inp := {
+		"findings": [_strong_copyleft_finding({"link_type": "static"})],
+		"pkg": base_package,
+		"config": base_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# T-347: a license not in either copyleft list -> no rule fires regardless
+# of copyleft_propagation being enabled.
+
+test_non_copyleft_license_no_deny_no_warn_from_copyleft_rule if {
+	other_finding := object.union(_strong_copyleft_finding({"link_type": "static"}), {
+		"license_id": "MIT",
+		"advisory_id": "LIC-347-3",
+	})
+	inp := {
+		"findings": [other_finding],
+		"pkg": base_package,
+		"config": copyleft_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) == 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}

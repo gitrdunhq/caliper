@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent: runs scripts/runner-healthcheck.sh every 5 minutes (StartInterval=300s),
+  mirroring the crontab cadence documented in that script's header (*/5 * * * *).
+
+  BEFORE INSTALLING: replace BOTH placeholder paths below with real absolute
+  paths on this machine — launchd plists are not templated (no ~ expansion,
+  no env var substitution), so this is a one-time manual edit:
+    - /REPLACE/WITH/ABSOLUTE/PATH/TO/caliper/scripts/runner-healthcheck.sh
+    - /REPLACE/WITH/ABSOLUTE/PATH/TO/HOME/Library/Logs/caliper-runner-healthcheck.log
+      (e.g. /Users/yourname/Library/Logs/caliper-runner-healthcheck.log)
+  See the install instructions in scripts/runner-healthcheck.sh for the full command.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.caliper.runner-healthcheck</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/REPLACE/WITH/ABSOLUTE/PATH/TO/caliper/scripts/runner-healthcheck.sh</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/REPLACE/WITH/ABSOLUTE/PATH/TO/HOME/Library/Logs/caliper-runner-healthcheck.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/REPLACE/WITH/ABSOLUTE/PATH/TO/HOME/Library/Logs/caliper-runner-healthcheck.log</string>
+</dict>
+</plist>

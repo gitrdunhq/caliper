@@ -36,7 +36,9 @@ GitHub Code Scanning API without custom formatting.
 **Database fallback pattern.** The `NullRepository` pattern
 (`src/caliper/data/db.py:412`) means the pipeline can run without a database. This
 is useful during the migration: cloud workers can start with no DB and add
-persistence incrementally.
+persistence incrementally. See README.md's "Running without a database
+(scanner-only mode)" section for the CLI-level detail (`NullRepository`
+trigger conditions, the DB-free `caliper review` command).
 
 **Pydantic-typed boundaries everywhere.** Every data exchange uses typed Pydantic
 models (`src/caliper/core/models.py`). These serialize to JSON natively, which

@@ -77,10 +77,20 @@ class SyftPlugin(ScannerPlugin):
             )
 
         components = data.get("components", [])
+        # The full CycloneDX document is intentionally excluded from summary:
+        # it can be multi-megabyte and would bloat every JSON report / PR
+        # comment carrying this PluginResult, plus over-disclose the whole
+        # dependency tree unconditionally. Only small, renderer-friendly
+        # metadata lives here; the raw document stays out of the pipeline
+        # (#223/#257).
         return PluginResult(
             plugin_name=self.name,
             findings=[],
-            summary={"components": len(components), "sbom": data},
+            summary={
+                "components": len(components),
+                "bom_format": data.get("bomFormat", ""),
+                "spec_version": data.get("specVersion", ""),
+            },
         )
 
     def render(self, result: PluginResult, template_dir: Path | None = None) -> str:

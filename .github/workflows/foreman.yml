@@ -187,28 +187,40 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
       needs.preflight.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      # docker-container driver + the security.insecure entitlement, created
+      # inline (no external action — actions-allowlist policy), so Dockerfile.test's
+      # `RUN --security=insecure` uv steps build under BuildKit here the same way
+      # they do via scripts/build-test.sh / build-container.yml.
+      - name: Set up Buildx builder with insecure entitlement
+        run: |
+          docker buildx create --name caliper-builder --driver docker-container \
+            --buildkitd-flags '--allow-insecure-entitlement security.insecure' --use
+          docker buildx inspect --bootstrap
 
-      - name: Cache uv packages
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
-        with:
-          path: /tmp/uv-cache
-          key: uv-test-${{ hashFiles('uv.lock') }}
-          restore-keys: uv-test-
+      - name: Run tests in container
+        run: make test
 
-      - name: Install dependencies
-        run: uv sync --group dev
+      # Same OPA_VERSION/checksum the runtime Dockerfile already vets and pins
+      # (see ARG OPA_VERSION / OPA_SHA256_AMD64 there) — one known-good binary,
+      # not an independently-sourced version for CI only.
+      - name: Install OPA
+        run: |
+          curl -sSfL -o /usr/local/bin/opa \
+            "https://github.com/open-policy-agent/opa/releases/download/v1.15.2/opa_linux_amd64_static"
+          echo "a9d9481e463e7af8cb1a2cd7c3deb764f0327b3281c54e632546c2f425fc0824  /usr/local/bin/opa" | sha256sum -c -
+          chmod +x /usr/local/bin/opa
 
-      - name: Run pytest
-        run: uv run pytest tests/unit/ -v --tb=short
-        env:
-          CALIPER_ALLOW_HOST_TESTS: "1"
+      # --ignore '*.yaml' excludes policies/semgrep/*.yaml and policies/swiftlint/*
+      # (semgrep rule packs and swiftlint config, not OPA data/policy) — without
+      # it, opa tries to merge those sibling YAML files into one data document
+      # and fails with "merge error" before a single Rego test runs.
+      - name: Run OPA policy tests
+        run: opa test policies/ --ignore '*.yaml' --ignore '*.yml'
 
   api_contract:
     name: API Contract Tests
@@ -730,8 +742,15 @@ jobs:
           VERDICT="${{ steps.verdict.outputs.verdict }}"
           CRASHED="${{ steps.verdict.outputs.crashed }}"
           ERRORS="${{ steps.verdict.outputs.errors }}"
+          # Only workflow_dispatch carries this input; pull_request/push fall back to
+          # "block" so normal PR/push triggers keep failing closed (#214).
+          ENFORCEMENT_MODE="${{ github.event.inputs.enforcement_mode || 'block' }}"
 
           if [ "$VERDICT" = "blocked" ]; then
-            echo "::error::Foreman fail-closed — verdict: ${VERDICT} (${CRASHED} crashed, ${ERRORS} errors)"
-            exit 1
+            if [ "$ENFORCEMENT_MODE" = "block" ]; then
+              echo "::error::Foreman fail-closed — verdict: ${VERDICT} (${CRASHED} crashed, ${ERRORS} errors)"
+              exit 1
+            else
+              echo "::warning::Foreman verdict: ${VERDICT} (${CRASHED} crashed, ${ERRORS} errors) — not failing the job, enforcement_mode=${ENFORCEMENT_MODE}"
+            fi
           fi

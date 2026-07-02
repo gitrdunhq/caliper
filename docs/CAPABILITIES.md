@@ -5,17 +5,17 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-06-30
+  LAST VERIFIED: 2026-07-01
   VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
   plugin (20 ScannerPlugin subclasses total); 21 detectors in src/caliper/detectors/;
-  61 semgrep rule ids in policies/semgrep/.
+  67 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
-19 scanner plugins, 21 deterministic detectors, 61 custom semgrep rules, 12 code graph
-checks, 8 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
+19 scanner plugins, 21 deterministic detectors, 67 custom semgrep rules, 12 code graph
+checks, 15 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
 ## Quick Numbers
@@ -24,9 +24,9 @@ supply-chain version-bump narrative is advisory metadata only).
 |--------|-------|
 | Scanner plugins | 19 (5 categories) + OPA policy plugin |
 | Deterministic detectors | 21 (CAL-001..CAL-021) |
-| Custom semgrep rules | 61 (11 rule files) |
+| Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 12 |
-| OPA Rego policy rules | 8 (5 deny, 3 warn) |
+| OPA Rego policy rules | 15 (7 deny, 8 warn) |
 | NL query templates | 12 |
 | Copilot agent tools | 6 |
 | Finding scribes | 4 (enclosing-symbol, code-graph, semgrep opt-in, supply-chain-threat opt-in) |
@@ -47,7 +47,7 @@ supply-chain version-bump narrative is advisory metadata only).
 The 19 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
 five categories below. The **OPA policy plugin** is the 20th `ScannerPlugin` subclass but is
 wired separately — it consumes every other plugin's findings and runs last
-(`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-8-rules).
+(`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-15-rules).
 
 ### dependency (4)
 
@@ -70,7 +70,7 @@ wired separately — it consumes every other plugin's findings and runs last
 
 | Plugin | File | Detects |
 |--------|------|---------|
-| semgrep | `plugins/semgrep.py` | AST code pattern matching. Dynamic ruleset selection by file extension (Python, TS, JS, Go, Ruby, Java, Terraform, K8s, Shell, Docker, Swift). 61 custom org rules (see below). Supports pinned local rule snapshots. |
+| semgrep | `plugins/semgrep.py` | AST code pattern matching. Dynamic ruleset selection by file extension (Python, TS, JS, Go, Ruby, Java, Terraform, K8s, Shell, Docker, Swift). 67 custom org rules (see below). Supports pinned local rule snapshots. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyright (faster, stricter) when available, falls back to mypy. Error + warning severity only. |
 | swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.caliper/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
@@ -95,7 +95,7 @@ wired separately — it consumes every other plugin's findings and runs last
 
 ---
 
-## Custom Semgrep Rules (61 rules, 11 files)
+## Custom Semgrep Rules (67 rules, 11 files)
 
 All in `policies/semgrep/`.
 
@@ -108,12 +108,15 @@ All in `policies/semgrep/`.
 - `org.security.path-no-resolve-check` — path used without resolve/traversal check
 - `org.security.hardcoded-secret-default` — hardcoded secret as a default value
 
-### resource-safety.yaml (9)
+### resource-safety.yaml (15)
 - `org.resource.file-read-all-python` / `file-read-all-js` — unbounded file read
 - `org.resource.temp-dir-persistent-python` / `temp-dir-persistent-js` — temp dir never cleaned up
 - `org.resource.fire-and-forget-task-python` / `fire-and-forget-promise-js` — unawaited task/promise
 - `org.resource.lock-held-during-io-python` — I/O while holding a lock
 - `org.resource.unbounded-append-in-loop-python` / `unbounded-append-in-loop-js` — unbounded growth in a loop
+- `org.resource.await-in-consumer-loop-python` / `await-in-consumer-loop-js` — sequential await inside a consumer loop
+- `org.resource.unbounded-channel-python` / `unbounded-channel-js` — unbounded queue/channel with no backpressure
+- `org.resource.unchecked-thread-safety-python` / `unchecked-thread-safety-js` — shared state mutated without a lock
 
 ### org-code-smells.yaml (12)
 - `org.python.no-bare-except-pass` — bare except: pass
@@ -238,23 +241,43 @@ All in `plugins/_runners/checks.yaml`. Executed by the blast-radius plugin again
 
 ---
 
-## OPA Policy Rules (8 rules)
+## OPA Policy Rules (15 rules)
 
 File: `policies/policy.rego`. Consumes findings from all plugins.
 
 | Rule | Type | Trigger |
 |------|------|---------|
-| Critical/high vulnerability | deny | severity critical or high + category vulnerability |
-| Forbidden license | deny | license_id in config forbidden_licenses list |
+| Critical/high vulnerability | deny | severity critical or high + category vulnerability (not dev-scope-exempted) |
+| Forbidden license | deny | license_id in config forbidden_licenses list (not dev-scope-exempted) |
 | Package age < threshold | deny | first_published_date < min_package_age_days (default 90) |
-| Malicious package | deny | advisory_id starts with "MAL-" |
+| Malicious package | deny | advisory_id starts with "MAL-" (always denies, never dev-scope-exempted) |
 | Supply-chain version-bump signal | deny | severity critical or high + category supply_chain |
+| CISA KEV — actively exploited CVE | deny | category vulnerability + advisory_id in config.kev_ids (always denies, never dev-scope-exempted) |
+| Strong copyleft, static/unknown link | deny | category license + license_id in config.copyleft_strong + link_type "static" or "unknown" (#347) |
 | Medium vulnerability | warn | severity medium + category vulnerability |
 | Transitive dep count | warn | transitive_dep_count > max_transitive_deps (default 200) |
 | Supply-chain note | warn | severity medium + category supply_chain |
+| Dev-scope vulnerability exemption | warn | critical/high vulnerability, pkg.scope == "dev", `rules_enabled.dev_scope_exemption` true, advisory_id not "MAL-"-prefixed |
+| Dev-scope license exemption | warn | forbidden license, pkg.scope == "dev", `rules_enabled.dev_scope_exemption` true |
+| Unmaintained package | warn | days since pkg.last_release_date > max_days_since_release (default 365); fails open when last_release_date absent/null (#346) |
+| Strong copyleft, dynamic link | warn | category license + license_id in config.copyleft_strong + link_type "dynamic" (#347) |
+| Weak copyleft, any link | warn | category license + license_id in config.copyleft_weak, any link_type (#347) |
 
 Decision: any deny → reject. No deny + any warn → approve_with_constraints. Else → approve.
-All rules individually toggleable via `config.rules_enabled.*`.
+All rules individually toggleable via `config.rules_enabled.*`. `dev_scope_exemption`
+defaults to `false` (opt-in) — when enabled, it downgrades the critical/high-vulnerability
+and forbidden-license deny rules to warn for `pkg.scope == "dev"` packages only; a
+`MAL-`-prefixed advisory always denies regardless (#345). `cisa_kev` also defaults to
+`false` (opt-in) — when enabled, any vulnerability whose advisory_id is in the
+operator-supplied `config.kev_ids` (CISA Known Exploited Vulnerabilities catalog)
+always denies, with no dev-scope downgrade path (#344). `unmaintained_package` also
+defaults to `false` (opt-in) — when enabled, it warns on stale packages using
+`input.pkg.last_release_date` (#346). `copyleft_propagation` also defaults to `false`
+(opt-in) — when enabled, a `link_type`-aware copyleft check: a `config.copyleft_strong`
+license denies when `link_type` is `"static"` or `"unknown"` (caliper has no linkage-
+detection scanner today, so `"unknown"` is treated as conservatively as `"static"`) and
+warns when `"dynamic"`; a `config.copyleft_weak` license always warns regardless of
+`link_type` (#347).
 
 ---
 
@@ -367,7 +390,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 
 | Capability | SonarQube | caliper |
 |------------|-----------|-------|
-| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 61 custom rules + 21 deterministic detectors |
+| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 67 custom rules + 21 deterministic detectors |
 | Stylistic code smells | Hundreds of built-in rules | Not primary focus |
 | Structural code smells | Limited | 12 graph checks (dead code, god functions, SRP, layer violations, circular deps, deep inheritance, stubs) |
 | Complexity | Cyclomatic + cognitive | Cyclomatic (Lizard) + MI (Radon) — parity |

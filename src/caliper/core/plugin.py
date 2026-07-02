@@ -49,6 +49,7 @@ _FINDING_KNOWN_KEYS = {
     "rule_id",
     "summary",
     "description",
+    "fix_suggestion",
 }
 
 
@@ -71,6 +72,7 @@ class PluginFinding(Contract):
     version: str = ""
     fixed_version: str = ""
     rule_id: str = ""
+    fix_suggestion: str = ""
     metadata: dict = Field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -86,6 +88,7 @@ class PluginFinding(Contract):
             "version": self.version,
             "fixed_version": self.fixed_version,
             "rule_id": self.rule_id,
+            "fix_suggestion": self.fix_suggestion,
         }
         d.update(self.metadata)
         return d
@@ -141,6 +144,7 @@ def normalize_finding(raw: dict) -> PluginFinding:
         version=str(known.get("version", "")),
         fixed_version=str(known.get("fixed_version", "")),
         rule_id=str(known.get("rule_id", "")),
+        fix_suggestion=str(known.get("fix_suggestion", "")),
         metadata=metadata,
     )
 

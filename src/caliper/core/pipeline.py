@@ -50,6 +50,31 @@ if TYPE_CHECKING:
 logger = structlog.get_logger()
 
 
+def _build_package_metadata(req, pypi_meta: dict, transitive_dep_count: int | None) -> dict:
+    """Assemble the ``package_metadata`` dict passed into policy evaluation.
+
+    Extracts PyPI-derived signals from ``pypi_meta`` (already fetched by the
+    caller) and merges them with request-derived fields. Both ``evaluate()``
+    and ``evaluate_sbom()`` build this exact shape before it flows through
+    ``_policy_evaluation`` -> OPA's ``input.pkg`` (SEAM-6) -- this is the one
+    place it happens.
+    """
+    first_published_date = (
+        pypi_meta.get("first_published_date") if pypi_meta.get("available") else None
+    )
+    last_release_date = pypi_meta.get("last_release_date") if pypi_meta.get("available") else None
+
+    return {
+        "name": req.package_name,
+        "version": req.target_version,
+        "ecosystem": req.ecosystem,
+        "scope": req.scope,
+        "first_published_date": first_published_date,
+        "last_release_date": last_release_date,
+        "transitive_dep_count": transitive_dep_count,
+    }
+
+
 def _policy_evaluation(
     context: ApplicationContext, findings: list, package_metadata: dict
 ) -> PolicyEvaluation:
@@ -66,6 +91,15 @@ def _policy_evaluation(
             id=f.advisory_id or "",
             severity=f.severity.value,
             message=f.description,
+            category=f.category.value,
+            package=f.package_name,
+            version=f.version,
+            metadata={
+                "advisory_id": f.advisory_id or "",
+                "source_tool": f.source_tool,
+                "link_type": f.link_type,
+                **({"license_id": f.license_id} if f.license_id else {}),
+            },
         )
         for f in findings
     ]
@@ -197,21 +231,8 @@ class ReviewPipeline:
 
                     # Populate OPA metadata (F-012)
                     pypi_meta = pypi_client.fetch_metadata(req.package_name, req.target_version)
-                    first_published_date = (
-                        pypi_meta.get("first_published_date")
-                        if pypi_meta.get("available")
-                        else None
-                    )
                     transitive_dep_count = count_transitive_deps_from_scan(scan_results)
-
-                    package_metadata = {
-                        "name": req.package_name,
-                        "version": req.target_version,
-                        "ecosystem": req.ecosystem,
-                        "scope": req.scope,
-                        "first_published_date": first_published_date,
-                        "transitive_dep_count": transitive_dep_count,
-                    }
+                    package_metadata = _build_package_metadata(req, pypi_meta, transitive_dep_count)
 
                     policy_eval = _policy_evaluation(context, findings, package_metadata)
                     db.save_policy_evaluation(req.request_id, policy_eval)
@@ -366,21 +387,8 @@ class ReviewPipeline:
                     findings, _summary = normalize_findings(scan_results)
 
                     pypi_meta = pypi_client.fetch_metadata(req.package_name, req.target_version)
-                    first_published_date = (
-                        pypi_meta.get("first_published_date")
-                        if pypi_meta.get("available")
-                        else None
-                    )
                     transitive_dep_count = count_transitive_deps_from_scan(scan_results)
-
-                    package_metadata = {
-                        "name": req.package_name,
-                        "version": req.target_version,
-                        "ecosystem": req.ecosystem,
-                        "scope": req.scope,
-                        "first_published_date": first_published_date,
-                        "transitive_dep_count": transitive_dep_count,
-                    }
+                    package_metadata = _build_package_metadata(req, pypi_meta, transitive_dep_count)
 
                     policy_eval = _policy_evaluation(context, findings, package_metadata)
                     db.save_policy_evaluation(req.request_id, policy_eval)

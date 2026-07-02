@@ -54,6 +54,20 @@ def hash_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _iter_artifact_paths(evidence_dir: Path) -> list[str]:
+    """Enumerate the relative paths of every artifact in *evidence_dir*.
+
+    The single definition of "what counts as an artifact" (every file except
+    ``seal.json`` itself), shared by ``create_seal`` (builds the manifest) and
+    ``verify_seal`` (detects files added after sealing — #230).
+    """
+    return sorted(
+        str(fpath.relative_to(evidence_dir))
+        for fpath in evidence_dir.rglob("*")
+        if fpath.is_file() and fpath.name != SEAL_FILENAME
+    )
+
+
 def create_seal(
     evidence_dir: Path,
     run_id: str,
@@ -71,14 +85,8 @@ def create_seal(
         logger.warning("seal_no_evidence_dir", path=str(evidence_dir))
         return {}
 
-    for fpath in sorted(evidence_dir.rglob("*")):
-        if not fpath.is_file():
-            continue
-        if fpath.name == SEAL_FILENAME:
-            continue
-
-        rel_path = str(fpath.relative_to(evidence_dir))
-        file_hash = hash_file(fpath)
+    for rel_path in _iter_artifact_paths(evidence_dir):
+        file_hash = hash_file(evidence_dir / rel_path)
         artifacts.append({"path": rel_path, "sha256": file_hash})
 
     manifest_content = "\n".join(f"{a['sha256']}  {a['path']}" for a in artifacts)
@@ -150,6 +158,11 @@ def verify_seal(evidence_dir: Path) -> dict:
                 f"tampered: {artifact['path']} "
                 f"(expected {artifact['sha256'][:16]}..., got {actual_hash[:16]}...)"
             )
+
+    known_paths = {artifact["path"] for artifact in seal.get("artifacts", [])}
+    for rel_path in _iter_artifact_paths(evidence_dir):
+        if rel_path not in known_paths:
+            errors.append(f"unexpected file added: {rel_path}")
 
     manifest_content = "\n".join(f"{a['sha256']}  {a['path']}" for a in seal.get("artifacts", []))
     expected_manifest = hash_bytes(manifest_content.encode())

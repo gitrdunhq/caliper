@@ -13,19 +13,13 @@ Fix: Use partitioned Parquet writes (one file per run), DuckDB COPY INTO APPEND,
      requires reading the accumulated history.
 
 Parent bug: #222 / Epic: #146.
-Status: xfail — read_table still present in append_decisions().
+Status: fixed — append_decisions() now writes one part-file per append and
+never reads/rewrites prior history; read_decisions() is the new SSOT read path.
 """
 
 from __future__ import annotations
 
 import inspect
-
-import pytest
-
-pytestmark = pytest.mark.xfail(
-    reason="deterministic bug detector for #256 — eliminate read_table in append, then green",
-    strict=False,
-)
 
 
 def _get_append_decisions_source() -> str:

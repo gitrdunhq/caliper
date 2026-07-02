@@ -7,7 +7,7 @@ from datetime import datetime
 import httpx
 import respx
 
-from caliper.data.pypi import PyPIClient, _compute_first_published
+from caliper.data.pypi import PyPIClient, _compute_first_published, _compute_last_published
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -183,6 +183,49 @@ class TestFirstPublishedDate:
         assert result["available"] is True
         assert result["package_age_days"] is not None
         assert result["package_age_days"] > 3000  # published > 8 years ago
+
+
+class TestLastPublishedDate:
+    """Test suite for last_release_date calculation."""
+
+    def test_latest_date_is_selected(self) -> None:
+        """The latest upload timestamp across all releases is selected."""
+        releases = {
+            "1.0": [{"upload_time_iso_8601": "2020-06-15T10:00:00+00:00"}],
+            "0.1": [{"upload_time_iso_8601": "2018-01-01T00:00:00+00:00"}],
+            "2.0": [{"upload_time_iso_8601": "2023-03-10T12:00:00+00:00"}],
+        }
+
+        result = _compute_last_published(releases)
+
+        assert result is not None
+        parsed = datetime.fromisoformat(result)
+        assert parsed.year == 2023
+        assert parsed.month == 3
+
+    def test_empty_releases_returns_none(self) -> None:
+        """No releases at all returns None."""
+        assert _compute_last_published({}) is None
+
+    def test_releases_without_timestamps_returns_none(self) -> None:
+        """Releases with no upload_time fields return None."""
+        releases = {"1.0": [{}], "2.0": [{"filename": "pkg.tar.gz"}]}
+        assert _compute_last_published(releases) is None
+
+    @respx.mock
+    def test_last_release_date_present_in_metadata(self) -> None:
+        """fetch_metadata surfaces last_release_date alongside first_published_date."""
+        respx.get("https://pypi.org/pypi/requests/json").mock(
+            return_value=httpx.Response(200, json=SAMPLE_PYPI_RESPONSE)
+        )
+
+        client = PyPIClient(timeout=5)
+        result = client.fetch_metadata("requests")
+
+        assert result["available"] is True
+        assert result["last_release_date"] is not None
+        parsed = datetime.fromisoformat(result["last_release_date"])
+        assert parsed.year == 2023
 
 
 class TestCountTransitiveDeps:

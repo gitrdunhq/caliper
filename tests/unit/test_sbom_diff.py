@@ -4,6 +4,11 @@
 
 Covers example-based and property-based tests for parse_sbom_packages(),
 diff_sboms(), and PackageInfo.
+
+Property domains (DPS-12):
+  Determinism   INVARIANT   same SBOM fragment always parses to the same result
+  (fail-open)   SAFETY      malformed SBOM JSON fragments degrade gracefully —
+                             never crash the whole pipeline
 """
 
 from __future__ import annotations
@@ -13,6 +18,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from caliper.core.sbom_diff import PackageInfo, diff_sboms, parse_sbom_packages
+from tests.unit._strategies import garbage_text
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -521,3 +527,58 @@ class TestClassifyVersionChangeFallback:
             "Semantic version comparison must be used for valid semver — "
             "'10.0.0' is semantically greater than '9.0.0'"
         )
+
+
+# ---------------------------------------------------------------------------
+# Property-based tests (DPS-12)
+# ---------------------------------------------------------------------------
+
+
+class TestProperties:
+    """Hypothesis coverage for the SBOM-parsing boundary.
+
+    ``test_diff.py`` and ``test_ignore.py`` etc. import shared strategies from
+    ``tests.unit._strategies``; this SBOM-specific strategy for a malformed
+    ``"components"`` field lives here because it's only meaningful against
+    this module's shape.
+    """
+
+    @given(
+        components=st.one_of(
+            st.integers(),
+            st.floats(allow_nan=False),
+            st.booleans(),
+            st.none(),
+            st.text(max_size=20),
+            st.dictionaries(st.text(max_size=10), st.integers(), max_size=5),
+        )
+    )
+    @settings(max_examples=200)
+    def test_malformed_components_field_never_raises(self, components: object) -> None:
+        """Regression: a non-list ``"components"`` value must degrade to {}, not crash.
+
+        Before the fix, ``sbom.get("components", [])`` being an int/float/bool
+        /None reached ``for component in components`` and raised an unhandled
+        TypeError ("'int' object is not iterable"), instead of the graceful
+        degradation the docstring promises for malformed SBOM fragments.
+        """
+        result = parse_sbom_packages({"components": components})
+        assert isinstance(result, dict)
+
+    @given(sbom=st.dictionaries(garbage_text(max_size=15), garbage_text(max_size=15), max_size=10))
+    @settings(max_examples=200)
+    def test_parse_sbom_packages_determinism(self, sbom: dict) -> None:
+        """Same malformed-ish dict input always parses to an equal result."""
+        first = parse_sbom_packages(sbom)
+        second = parse_sbom_packages(sbom)
+        assert first == second
+
+    @given(
+        before=st.dictionaries(garbage_text(max_size=10), garbage_text(max_size=10), max_size=5),
+        after=st.dictionaries(garbage_text(max_size=10), garbage_text(max_size=10), max_size=5),
+    )
+    @settings(max_examples=100)
+    def test_diff_sboms_never_raises_on_malformed_dicts(self, before: dict, after: dict) -> None:
+        """diff_sboms on arbitrary (dict-shaped) malformed input must not crash."""
+        result = diff_sboms(before, after)
+        assert isinstance(result, list)

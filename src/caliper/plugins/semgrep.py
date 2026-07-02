@@ -1,16 +1,24 @@
 """Semgrep plugin — AST-based code pattern matching.
 # tested-by: tests/unit/test_plugin_registry.py
+# tested-by: tests/unit/plugins/test_semgrep_plugin.py
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from caliper.core.config import CaliperSettings
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
 from caliper.core.registries import RULE_RUNNERS
 from caliper.plugins._runners import (
     semgrep_runner,  # noqa: F401  (registers RULE_RUNNERS["semgrep"])
 )
+
+# Historical plugin-specific default (predates settings wiring, #432a). Kept as
+# the fallback when no CaliperSettings is supplied so existing callers that
+# construct this plugin bare keep their current timeout; pass ``settings`` to
+# honor CaliperSettings.scanner_timeout instead.
+_DEFAULT_TIMEOUT = 120
 
 _CODE_EXTS = {
     ".py",
@@ -32,6 +40,9 @@ _CODE_EXTS = {
 
 
 class SemgrepPlugin(ScannerPlugin):
+    def __init__(self, settings: CaliperSettings | None = None) -> None:
+        self._timeout = settings.scanner_timeout if settings is not None else _DEFAULT_TIMEOUT
+
     @property
     def name(self) -> str:
         return "semgrep"
@@ -61,7 +72,7 @@ class SemgrepPlugin(ScannerPlugin):
             data = RULE_RUNNERS.create("semgrep").run(
                 files,
                 str(repo_path),
-                timeout=120,
+                timeout=self._timeout,
                 extra_config_dirs=sg.extra_config_dirs,
                 exclude_rules=sg.exclude_rules,
             )
@@ -83,14 +94,20 @@ class SemgrepPlugin(ScannerPlugin):
                 rel_path = str(Path(raw_path).relative_to(repo_path))
             except ValueError:
                 rel_path = raw_path
+            extra = r.get("extra", {})
+            # Prefer opengrep/semgrep's native autofix (`extra.fix`) over the
+            # custom `extra.metadata.fix_suggestion` convention some rule YAMLs
+            # use; fall back to "" so the key always round-trips (#276).
+            fix_suggestion = extra.get("fix") or extra.get("metadata", {}).get("fix_suggestion", "")
             findings.append(
                 {
                     "rule_id": r.get("check_id", "?"),
                     "file": rel_path,
                     "start_line": r.get("start", {}).get("line", 0),
                     "end_line": r.get("end", {}).get("line", 0),
-                    "severity": r.get("extra", {}).get("severity", "WARNING"),
-                    "message": r.get("extra", {}).get("message", ""),
+                    "severity": extra.get("severity", "WARNING"),
+                    "message": extra.get("message", ""),
+                    "fix_suggestion": fix_suggestion,
                 }
             )
         findings.sort(key=lambda f: {"ERROR": 0, "WARNING": 1, "INFO": 2}.get(f["severity"], 3))

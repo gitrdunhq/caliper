@@ -1,11 +1,13 @@
 """Complexity plugin — Lizard CCN + Radon MI.
 # tested-by: tests/unit/test_plugin_registry.py
+# tested-by: tests/unit/test_complexity_plugin.py
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from caliper.core.config import CaliperSettings
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
 from caliper.plugins._runners.complexity_runner import run_complexity as _run
 
@@ -13,6 +15,9 @@ _CODE_EXTS = {".py", ".ts", ".js", ".tsx", ".jsx", ".go", ".java", ".rs", ".c", 
 
 
 class ComplexityPlugin(ScannerPlugin):
+    def __init__(self, settings: CaliperSettings | None = None) -> None:
+        self._timeout = (settings or CaliperSettings()).scanner_timeout
+
     @property
     def name(self) -> str:
         return "complexity"
@@ -30,7 +35,7 @@ class ComplexityPlugin(ScannerPlugin):
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
         try:
-            data = _run(files, str(repo_path))
+            data = _run(files, str(repo_path), timeout=self._timeout)
         except Exception as exc:
             return PluginResult(plugin_name=self.name, error=str(exc))
 
@@ -106,6 +111,6 @@ from caliper.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
 
 
 @ANALYZERS.register("complexity")
-def build_complexity_plugin() -> ComplexityPlugin:
+def build_complexity_plugin(settings: CaliperSettings | None = None) -> ComplexityPlugin:
     """Register this analyzer with the ANALYZERS registry."""
-    return ComplexityPlugin()
+    return ComplexityPlugin(settings=settings)

@@ -17,8 +17,6 @@ lint:
 CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
 CONTAINER_COMMAND := $(notdir $(CONTAINER_ENGINE))
 CONTAINER_RUN_SECURITY := $(if $(filter podman,$(CONTAINER_COMMAND)),--security-opt apparmor=unconfined,--security-opt seccomp=unconfined)
-TEST_BUILD_COMMAND ?= $(if $(filter docker,$(CONTAINER_COMMAND)),$(CONTAINER_ENGINE) buildx build --allow security.insecure --load,$(CONTAINER_ENGINE) build --security-opt apparmor=unconfined)
-PROD_BUILD_COMMAND ?= $(if $(filter docker,$(CONTAINER_COMMAND)),$(CONTAINER_ENGINE) buildx build --allow security.insecure --load,$(CONTAINER_ENGINE) build --security-opt apparmor=unconfined)
 # Test image is multi-arch (Dockerfile.test FROM is a manifest-index digest), so the
 # test platform defaults to the HOST arch: native arm64 on Apple Silicon (no qemu, no
 # pyarrow segfault), native amd64 on the CI host. Override with TEST_PLATFORM=linux/amd64
@@ -29,11 +27,16 @@ TEST_IMAGE ?= caliper-test:$(HOST_ARCH)
 PROD_PLATFORM ?= linux/amd64
 PROD_IMAGE ?= caliper:amd64
 
+# The build step routes through scripts/build-test.sh, which strips
+# --security=insecure RUN directives for podman (unsupported on Mac) and sets
+# up the buildx insecure-entitlement builder for docker. Invoking podman/docker
+# directly against Dockerfile.test here would reintroduce that divergent,
+# unstripped code path (#448). The run step stays inline so it keeps invoking
+# /opt/test-venv/bin/python directly against the image-built venv (#203).
 test-build:
-	@$(TEST_BUILD_COMMAND) --platform $(TEST_PLATFORM) -f Dockerfile.test -t $(TEST_IMAGE) .
+	@bash scripts/build-test.sh --build-only $(if $(filter linux/amd64,$(TEST_PLATFORM)),--amd64,--fast)
 
-test:
-	@$(MAKE) test-build
+test: test-build
 	@$(CONTAINER_ENGINE) run --rm \
 		--platform $(TEST_PLATFORM) \
 		$(CONTAINER_RUN_SECURITY) \
@@ -47,12 +50,12 @@ test-amd64:
 	@$(MAKE) test TEST_PLATFORM=linux/amd64 TEST_IMAGE=caliper-test:amd64
 
 prod-build:
-	@$(PROD_BUILD_COMMAND) --platform $(PROD_PLATFORM) -f Dockerfile -t $(PROD_IMAGE) .
+	@bash scripts/build.sh $(if $(filter linux/amd64,$(PROD_PLATFORM)),amd64,arm64)
 
 prod-smoke: prod-build
 	@$(CONTAINER_ENGINE) run --rm \
 		--platform $(PROD_PLATFORM) \
-		$(CONTAINER_SECURITY_OPT) \
+		$(CONTAINER_RUN_SECURITY) \
 		--entrypoint caliper \
 		$(PROD_IMAGE) \
 		--help >/dev/null
@@ -61,7 +64,7 @@ test-host:
 	@CALIPER_ALLOW_HOST_TESTS=1 uv run pytest tests/ -v
 
 test-e2e:
-	@$(CONTAINER_ENGINE) build -t caliper:latest .
+	@bash scripts/build.sh $(HOST_ARCH)
 	@$(CONTAINER_ENGINE) run --rm \
 		-v "$(CURDIR):/workspace:ro" \
 		-w /workspace \

@@ -113,6 +113,7 @@ class PyPIClient:
 
         releases = data.get("releases", {})
         first_published_date = _compute_first_published(releases)
+        last_release_date = _compute_last_published(releases)
         package_age_days = _compute_age_days(first_published_date)
 
         return {
@@ -126,6 +127,7 @@ class PyPIClient:
             "source_url": source_url,
             "classifiers": info.get("classifiers", []),
             "first_published_date": first_published_date,
+            "last_release_date": last_release_date,
             "package_age_days": package_age_days,
         }
 
@@ -152,6 +154,30 @@ def _compute_first_published(releases: dict) -> str | None:
     if earliest is None:
         return None
     return earliest.isoformat()
+
+
+def _compute_last_published(releases: dict) -> str | None:
+    """Find the latest upload_time across all releases.
+
+    Returns ISO-formatted datetime string or None if no releases exist.
+    """
+    latest: datetime | None = None
+
+    for _version, files in releases.items():
+        for file_info in files:
+            upload_time_str = file_info.get("upload_time_iso_8601") or file_info.get("upload_time")
+            if not upload_time_str:
+                continue
+            try:
+                ts = datetime.fromisoformat(upload_time_str.replace("Z", "+00:00"))
+                if latest is None or ts > latest:
+                    latest = ts
+            except (ValueError, TypeError):
+                continue
+
+    if latest is None:
+        return None
+    return latest.isoformat()
 
 
 def _compute_age_days(first_published_date: str | None) -> int | None:

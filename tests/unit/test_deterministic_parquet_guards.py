@@ -8,6 +8,9 @@ semantics. This is a performance issue that becomes critical as audit logs grow.
 Bug: #256 — Parquet append rewrites the whole audit log
 Parent: #222
 Epic: #146
+
+Status: fixed — append_decisions() now writes one part-file per append and
+never reads/rewrites prior history.
 """
 
 from __future__ import annotations
@@ -16,11 +19,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
-pytestmark = pytest.mark.xfail(
-    reason="deterministic bug detector — fix the source code, then this test goes green",
-    strict=False,
-)
 
 
 def _make_minimal_review_decision() -> Any:

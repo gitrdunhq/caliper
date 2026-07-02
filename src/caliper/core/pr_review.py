@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 
 import structlog
 
+from caliper.core.sarif import SENTINEL_RULE_IDS
+
 logger = structlog.get_logger(__name__)
 
 _HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", re.MULTILINE)
@@ -89,6 +91,13 @@ def sarif_to_review(
     for run in sarif.get("runs", []):
         tool_name = run.get("tool", {}).get("driver", {}).get("name", "unknown")
         for result in run.get("results", []):
+            rule_id = result.get("ruleId", tool_name)
+            if rule_id in SENTINEL_RULE_IDS:
+                # Degraded-plugin sentinels (a crashed plugin, a truncated findings
+                # list) are not real findings — fail-open means they never count
+                # toward the blocking verdict recount (#211).
+                continue
+
             total += 1
             level = result.get("level", "note")
             if level == "error":
@@ -97,7 +106,6 @@ def sarif_to_review(
                 warning_count += 1
 
             msg = result.get("message", {}).get("text", "")
-            rule_id = result.get("ruleId", tool_name)
             locations = result.get("locations", [])
 
             file_path = ""

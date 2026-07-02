@@ -56,6 +56,9 @@ class DetectorFinding(BaseModel):
         - message -> description
         - issue_reference -> advisory_id
         - confidence -> confidence
+        - file_path -> file_path
+        - line_number -> line_number
+        - column -> column
         """
         return Finding(
             severity=self.severity,
@@ -66,4 +69,7 @@ class DetectorFinding(BaseModel):
             version="",
             advisory_id=self.issue_reference,
             confidence=self.confidence,
+            file_path=self.file_path,
+            line_number=self.line_number,
+            column=self.column,
         )

@@ -15,82 +15,18 @@ from pathlib import Path
 
 import structlog
 
-from caliper.core.models import (
-    DecisionVerdict,
-    Finding,
-    FindingCategory,
-    PolicyEvaluation,
-)
+from caliper.core.models import DecisionVerdict, Finding, PolicyEvaluation
+from caliper.core.opa_input import build_opa_input
 
 log = structlog.get_logger()
 
-# Severity ordering for OPA input (not used for dedup here, just for reference)
-_SEVERITY_VALUES = ("critical", "high", "medium", "low", "info")
-
-_DEFAULT_RULES_ENABLED = {
-    "critical_vuln": True,
-    "forbidden_license": True,
-    "package_age": True,
-    "malicious_package": True,
-    "transitive_count": True,
-    "supply_chain_diff": True,
-}
-
-_DEFAULT_CONFIG = {
-    "forbidden_licenses": [],
-    "max_transitive_deps": 200,
-    "min_package_age_days": 90,
-    "rules_enabled": dict(_DEFAULT_RULES_ENABLED),
-}
-
 _FALLBACK_POLICY_VERSION = "unknown"
 
-
-def build_opa_input(
-    findings: list[Finding],
-    package_metadata: dict,
-    config: dict | None = None,
-) -> dict:
-    """Construct the OPA-expected input shape per INPUT_SCHEMA.md.
-
-    Args:
-        findings: Normalized scanner findings.
-        package_metadata: Package metadata dict with name, version, ecosystem, etc.
-        config: Optional policy config overrides.
-
-    Returns:
-        Dict matching the OPA input schema with findings, package, and config keys.
-    """
-    opa_findings = []
-    for f in findings:
-        entry: dict = {
-            "severity": f.severity.value if hasattr(f.severity, "value") else str(f.severity),
-            "category": f.category.value if hasattr(f.category, "value") else str(f.category),
-            "description": f.description,
-            "package_name": f.package_name,
-            "version": f.version,
-            "advisory_id": f.advisory_id or "",
-            "source_tool": f.source_tool,
-        }
-        if f.category == FindingCategory.license and f.license_id:
-            entry["license_id"] = f.license_id
-        opa_findings.append(entry)
-
-    merged_config = dict(_DEFAULT_CONFIG)
-    if config:
-        for key, value in config.items():
-            if key == "rules_enabled" and isinstance(value, dict):
-                merged_rules = dict(_DEFAULT_RULES_ENABLED)
-                merged_rules.update(value)
-                merged_config["rules_enabled"] = merged_rules
-            else:
-                merged_config[key] = value
-
-    return {
-        "findings": opa_findings,
-        "pkg": package_metadata,
-        "config": merged_config,
-    }
+# build_opa_input now lives in caliper.core.opa_input — the single canonical
+# OPA-input builder shared by this module (supply-chain-diff / legacy
+# plugins/_opa.py path) and caliper.core.opa_adapter.OpaRegoAdapter (the
+# live production path). Re-imported above so `from caliper.core.policy
+# import build_opa_input` keeps working for existing callers/tests.
 
 
 class OpaEvaluator:

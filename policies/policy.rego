@@ -10,6 +10,7 @@ deny contains msg if {
 	some finding in input.findings
 	finding.category == "vulnerability"
 	finding.severity in {"critical", "high"}
+	not _dev_scope_downgraded(finding)
 	msg := sprintf("%s vulnerability %s in %s@%s", [
 		upper(finding.severity),
 		finding.advisory_id,
@@ -24,6 +25,7 @@ deny contains msg if {
 	some finding in input.findings
 	finding.category == "license"
 	finding.license_id in input.config.forbidden_licenses
+	not _dev_scope_downgraded(finding)
 	msg := sprintf("Forbidden license %s in %s@%s", [
 		finding.license_id,
 		finding.package_name,
@@ -59,6 +61,16 @@ deny contains msg if {
 	])
 }
 
+# T-345: Dev-scope exemption helper — true when a finding's deny should be
+# downgraded to warn because the package is dev-only and the operator opted
+# in. A MAL- prefixed advisory is never downgraded: known-malicious packages
+# always deny, regardless of scope or this exemption (see T-011 above).
+_dev_scope_downgraded(finding) if {
+	input.config.rules_enabled.dev_scope_exemption
+	input.pkg.scope == "dev"
+	not startswith(finding.advisory_id, "MAL-")
+}
+
 # T-012: Malicious version-bump signal (deterministic source-diff analysis).
 # Critical/high supply-chain signals (new install hooks, obfuscation, risky
 # imports) gate the build. The signal is deterministic; any LLM narrative is
@@ -75,7 +87,77 @@ deny contains msg if {
 	])
 }
 
+# T-344: CISA KEV — actively exploited CVE. Never downgradable via
+# _dev_scope_downgraded — an actively-exploited CVE is exactly as severe as
+# the MAL- known-malicious-package case above, which is also never
+# downgraded. See _dev_scope_downgraded's comment for why.
+deny contains msg if {
+	input.config.rules_enabled.cisa_kev
+	some finding in input.findings
+	finding.category == "vulnerability"
+	finding.advisory_id in object.get(input.config, "kev_ids", set())
+	msg := sprintf("Actively exploited (CISA KEV) vulnerability %s in %s@%s", [
+		finding.advisory_id,
+		finding.package_name,
+		finding.version,
+	])
+}
+
+# T-347: Copyleft propagation — strong-copyleft license, statically linked
+# (or link_type unset/"unknown" -- treated identically to "static" as the
+# conservative default: caliper has no scanner that detects real linkage
+# type today, so an unknown link_type is evaluated as if statically linked,
+# the case where copyleft obligations propagate most aggressively). Only an
+# explicit "dynamic" link_type gets the more lenient warn treatment below.
+deny contains msg if {
+	input.config.rules_enabled.copyleft_propagation
+	some finding in input.findings
+	finding.category == "license"
+	finding.license_id in input.config.copyleft_strong
+	link_type := object.get(finding, "link_type", "unknown")
+	link_type in {"static", "unknown"}
+	msg := sprintf("Strong copyleft license %s in %s@%s (link_type: %s)", [
+		finding.license_id,
+		finding.package_name,
+		finding.version,
+		link_type,
+	])
+}
+
 # --- warn rules (set of warning messages) ---
+
+# T-345: Dev-scope exemption — critical/high vulnerability downgraded to warn.
+# Only applies when dev_scope_exemption is enabled, the package is dev-scope,
+# and the finding is not a known-malicious-package advisory (MAL- prefix
+# always denies via _dev_scope_downgraded's exclusion, and via the dedicated
+# malicious_package rule below).
+warn contains msg if {
+	input.config.rules_enabled.critical_vuln
+	some finding in input.findings
+	finding.category == "vulnerability"
+	finding.severity in {"critical", "high"}
+	_dev_scope_downgraded(finding)
+	msg := sprintf("%s vulnerability %s in %s@%s (dev-scope exemption)", [
+		upper(finding.severity),
+		finding.advisory_id,
+		finding.package_name,
+		finding.version,
+	])
+}
+
+# T-345: Dev-scope exemption — forbidden license downgraded to warn.
+warn contains msg if {
+	input.config.rules_enabled.forbidden_license
+	some finding in input.findings
+	finding.category == "license"
+	finding.license_id in input.config.forbidden_licenses
+	_dev_scope_downgraded(finding)
+	msg := sprintf("Forbidden license %s in %s@%s (dev-scope exemption)", [
+		finding.license_id,
+		finding.package_name,
+		finding.version,
+	])
+}
 
 # T-012: Lower-severity supply-chain signal (maintainer change, etc.) — advisory.
 warn contains msg if {
@@ -113,6 +195,59 @@ warn contains msg if {
 		max_deps,
 		input.pkg.name,
 		input.pkg.version,
+	])
+}
+
+# T-346: Unmaintained package — no release in max_days_since_release days.
+# A stale package is a supply-chain risk signal, not an active exploit, so
+# this is warn-only (matches transitive_count / medium supply_chain_diff
+# precedent). Fail-open: if input.pkg.last_release_date is absent or null
+# (e.g. PyPI lookup failed), time.parse_rfc3339_ns errors and this rule
+# instance is simply undefined -- it never fires.
+warn contains msg if {
+	input.config.rules_enabled.unmaintained_package
+	max_days := object.get(input.config, "max_days_since_release", 365)
+	released_ns := time.parse_rfc3339_ns(input.pkg.last_release_date)
+	now_ns := time.now_ns()
+	days_since_release := (now_ns - released_ns) / ((1000 * 1000 * 1000) * 60 * 60 * 24)
+	days_since_release > max_days
+	msg := sprintf("Package %s@%s has had no release in %d days (threshold: %d)", [
+		input.pkg.name,
+		input.pkg.version,
+		days_since_release,
+		max_days,
+	])
+}
+
+# T-347: Copyleft propagation — strong-copyleft license, dynamically linked.
+# Dynamic linking has a weaker propagation argument for strong copyleft than
+# static/unknown (see the deny rule above), so it is downgraded to warn
+# rather than denied outright, but is still worth flagging.
+warn contains msg if {
+	input.config.rules_enabled.copyleft_propagation
+	some finding in input.findings
+	finding.category == "license"
+	finding.license_id in input.config.copyleft_strong
+	object.get(finding, "link_type", "unknown") == "dynamic"
+	msg := sprintf("Strong copyleft license %s in %s@%s (dynamically linked)", [
+		finding.license_id,
+		finding.package_name,
+		finding.version,
+	])
+}
+
+# T-347: Copyleft propagation — weak-copyleft license, any link_type. Weak
+# copyleft's file-level scope (e.g. LGPL, MPL-2.0) makes it a lower-severity
+# signal regardless of linkage, so it is always a warn, never a deny.
+warn contains msg if {
+	input.config.rules_enabled.copyleft_propagation
+	some finding in input.findings
+	finding.category == "license"
+	finding.license_id in input.config.copyleft_weak
+	msg := sprintf("Weak copyleft license %s in %s@%s", [
+		finding.license_id,
+		finding.package_name,
+		finding.version,
 	])
 }
 

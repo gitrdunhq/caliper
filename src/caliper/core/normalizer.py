@@ -35,9 +35,25 @@ def normalize_findings(
         else:
             vuln_findings.append(f)
 
-    deduped: dict[tuple[str | None, str, str, str], Finding] = {}
+    deduped: dict[tuple, Finding] = {}
     for f in vuln_findings:
-        key = (f.advisory_id, f.category, f.package_name, f.version)
+        if f.advisory_id:
+            key = (f.advisory_id, f.category, f.package_name, f.version)
+        else:
+            # No advisory ID means this isn't a vuln advisory (secret-scan /
+            # code-smell / detector findings) — category/package_name/version
+            # routinely collide across unrelated findings in that case, so
+            # extend the key with the most specific fields Finding actually
+            # carries (source_tool, description) to keep them from silently
+            # collapsing into one (#234).
+            key = (
+                f.advisory_id,
+                f.category,
+                f.package_name,
+                f.version,
+                f.source_tool,
+                f.description,
+            )
         existing = deduped.get(key)
         if existing is None or _SEVERITY_RANK.get(f.severity, 0) > _SEVERITY_RANK.get(
             existing.severity, 0

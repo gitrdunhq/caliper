@@ -1,0 +1,206 @@
+"""Tests for caliper.core.opa_input — the canonical OPA input builder.
+
+This module is the single source of truth for input.findings/pkg/config
+consumed by both core/policy.py (supply-chain-diff / legacy plugins/_opa.py
+path, fed core `Finding` models) and core/opa_adapter.py's OpaRegoAdapter
+(the live production path, fed PolicyInput's `PluginFinding` objects).
+"""
+
+from __future__ import annotations
+
+from caliper.core.models import Finding, FindingCategory, FindingSeverity
+from caliper.core.opa_input import _DEFAULT_RULES_ENABLED, build_opa_input
+from caliper.core.plugin import PluginFinding
+
+
+def _vuln_finding(**overrides) -> Finding:
+    defaults = dict(
+        severity=FindingSeverity.high,
+        category=FindingCategory.vulnerability,
+        description="Test vuln CVE-2024-1234",
+        source_tool="osv-scanner",
+        package_name="lodash",
+        version="4.17.20",
+        advisory_id="CVE-2024-1234",
+    )
+    defaults.update(overrides)
+    return Finding(**defaults)
+
+
+class TestBuildOpaInputFromCoreFindingModel:
+    """The supply-chain-diff / legacy plugins/_opa.py path — list[Finding]."""
+
+    def test_finding_row_has_full_schema_shape(self) -> None:
+        result = build_opa_input([_vuln_finding()], {"name": "lodash", "version": "4.17.20"})
+        row = result["findings"][0]
+        assert row["severity"] == "high"
+        assert row["category"] == "vulnerability"
+        assert row["description"] == "Test vuln CVE-2024-1234"
+        assert row["package_name"] == "lodash"
+        assert row["version"] == "4.17.20"
+        assert row["advisory_id"] == "CVE-2024-1234"
+        assert row["source_tool"] == "osv-scanner"
+
+    def test_license_id_only_present_for_license_category(self) -> None:
+        license_finding = _vuln_finding(
+            category=FindingCategory.license,
+            license_id="GPL-3.0",
+        )
+        vuln_finding = _vuln_finding()
+        result = build_opa_input([vuln_finding, license_finding], {})
+        assert "license_id" not in result["findings"][0]
+        assert result["findings"][1]["license_id"] == "GPL-3.0"
+
+    def test_link_type_defaults_to_unknown_and_is_always_present(self) -> None:
+        """#347: link_type is unconditional (unlike license_id) -- every row
+        carries it, defaulting to "unknown" when the Finding didn't set one."""
+        result = build_opa_input([_vuln_finding()], {})
+        assert result["findings"][0]["link_type"] == "unknown"
+
+    def test_link_type_explicit_value_passed_through(self) -> None:
+        result = build_opa_input([_vuln_finding(link_type="dynamic")], {})
+        assert result["findings"][0]["link_type"] == "dynamic"
+
+
+class TestBuildOpaInputFromPluginFinding:
+    """The LIVE production path — PolicyInput.findings is list[PluginFinding]."""
+
+    def test_first_class_fields_map_to_schema_names(self) -> None:
+        finding = PluginFinding(
+            id="CVE-2026-0001",
+            severity="high",
+            message="critical vulnerability",
+            category="vulnerability",
+            package="dangerlib",
+            version="1.0.0",
+            metadata={"advisory_id": "CVE-2026-0001", "source_tool": "osv-scanner"},
+        )
+        result = build_opa_input([finding], {"name": "dangerlib", "version": "1.0.0"})
+        row = result["findings"][0]
+        assert row["severity"] == "high"
+        assert row["category"] == "vulnerability"
+        assert row["description"] == "critical vulnerability"
+        assert row["package_name"] == "dangerlib"
+        assert row["version"] == "1.0.0"
+        assert row["advisory_id"] == "CVE-2026-0001"
+        assert row["source_tool"] == "osv-scanner"
+
+    def test_advisory_id_falls_back_to_id_when_metadata_absent(self) -> None:
+        """PluginFinding has no first-class advisory_id field; historically
+        .id carries it (pipeline._policy_evaluation sets id=advisory_id)."""
+        finding = PluginFinding(id="MAL-2024-0007", severity="critical", message="malware")
+        result = build_opa_input([finding], {})
+        assert result["findings"][0]["advisory_id"] == "MAL-2024-0007"
+
+    def test_license_id_read_from_metadata_only_for_license_category(self) -> None:
+        finding = PluginFinding(
+            id="LIC-1",
+            severity="low",
+            message="GPL-3.0 detected",
+            category="license",
+            metadata={"license_id": "GPL-3.0"},
+        )
+        result = build_opa_input([finding], {})
+        assert result["findings"][0]["license_id"] == "GPL-3.0"
+
+    def test_license_id_absent_for_non_license_category(self) -> None:
+        finding = PluginFinding(
+            id="CVE-1",
+            severity="high",
+            message="vuln",
+            category="vulnerability",
+            metadata={"license_id": "GPL-3.0"},
+        )
+        result = build_opa_input([finding], {})
+        assert "license_id" not in result["findings"][0]
+
+    def test_link_type_read_from_metadata_defaults_to_unknown(self) -> None:
+        """#347: PluginFinding has no first-class link_type field; it is read
+        from metadata (the finding_get escape hatch), defaulting to
+        "unknown" when metadata doesn't carry it."""
+        finding = PluginFinding(id="CVE-2", severity="high", message="vuln")
+        result = build_opa_input([finding], {})
+        assert result["findings"][0]["link_type"] == "unknown"
+
+    def test_link_type_read_from_metadata_when_present(self) -> None:
+        finding = PluginFinding(
+            id="LIC-2",
+            severity="low",
+            message="GPL-3.0 detected",
+            category="license",
+            metadata={"license_id": "GPL-3.0", "link_type": "static"},
+        )
+        result = build_opa_input([finding], {})
+        assert result["findings"][0]["link_type"] == "static"
+
+
+class TestConfigMerge:
+    def test_default_rules_enabled_present_when_config_omitted(self) -> None:
+        result = build_opa_input([], {})
+        assert result["config"]["rules_enabled"] == _DEFAULT_RULES_ENABLED
+
+    def test_dev_scope_exemption_present_and_defaults_false(self) -> None:
+        """#345: dev_scope_exemption must exist and default to False so no
+        one is opted into the dev-scope deny->warn downgrade without
+        explicitly enabling it."""
+        assert "dev_scope_exemption" in _DEFAULT_RULES_ENABLED
+        assert _DEFAULT_RULES_ENABLED["dev_scope_exemption"] is False
+        result = build_opa_input([], {})
+        assert result["config"]["rules_enabled"]["dev_scope_exemption"] is False
+
+    def test_copyleft_propagation_present_and_defaults_false(self) -> None:
+        """#347: copyleft_propagation must exist and default to False so no
+        one is opted into the link_type-aware copyleft enforcement without
+        explicitly enabling it and supplying copyleft_strong/copyleft_weak."""
+        assert "copyleft_propagation" in _DEFAULT_RULES_ENABLED
+        assert _DEFAULT_RULES_ENABLED["copyleft_propagation"] is False
+        result = build_opa_input([], {})
+        assert result["config"]["rules_enabled"]["copyleft_propagation"] is False
+
+    def test_copyleft_strong_and_weak_default_to_empty_list(self) -> None:
+        """#347: copyleft_strong/copyleft_weak are operator-supplied SPDX ID
+        lists (mirrors forbidden_licenses/kev_ids) -- caliper ships no
+        opinionated default list for either."""
+        result = build_opa_input([], {})
+        assert result["config"]["copyleft_strong"] == []
+        assert result["config"]["copyleft_weak"] == []
+
+    def test_cisa_kev_present_and_defaults_false(self) -> None:
+        """#344: cisa_kev must exist and default to False so no one is
+        opted into the KEV deny rule without explicitly enabling it and
+        supplying kev_ids."""
+        assert "cisa_kev" in _DEFAULT_RULES_ENABLED
+        assert _DEFAULT_RULES_ENABLED["cisa_kev"] is False
+        result = build_opa_input([], {})
+        assert result["config"]["rules_enabled"]["cisa_kev"] is False
+
+    def test_partial_rules_enabled_override_preserves_other_defaults(self) -> None:
+        """A shallow dict.update() would silently disable every rule not
+        named in the override — this must be a deep merge of rules_enabled."""
+        result = build_opa_input([], {}, config={"rules_enabled": {"critical_vuln": False}})
+        rules = result["config"]["rules_enabled"]
+        assert rules["critical_vuln"] is False
+        assert rules["forbidden_license"] is True
+        assert rules["package_age"] is True
+        assert rules["malicious_package"] is True
+        assert rules["transitive_count"] is True
+        assert rules["supply_chain_diff"] is True
+        assert rules["dev_scope_exemption"] is False
+        assert rules["cisa_kev"] is False
+
+    def test_non_rules_enabled_overrides_merge_over_defaults(self) -> None:
+        result = build_opa_input(
+            [],
+            {},
+            config={"forbidden_licenses": ["GPL-3.0"], "max_transitive_deps": 50},
+        )
+        assert result["config"]["forbidden_licenses"] == ["GPL-3.0"]
+        assert result["config"]["max_transitive_deps"] == 50
+        assert result["config"]["min_package_age_days"] == 90
+
+
+class TestTopLevelShape:
+    def test_has_findings_pkg_config_keys(self) -> None:
+        result = build_opa_input([], {"name": "pkg", "version": "1.0.0"})
+        assert set(result.keys()) == {"findings", "pkg", "config"}
+        assert result["pkg"] == {"name": "pkg", "version": "1.0.0"}

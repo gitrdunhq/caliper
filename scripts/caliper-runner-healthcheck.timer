@@ -1,0 +1,15 @@
+[Unit]
+Description=Run caliper-runner-healthcheck.service every 5 minutes (mirrors */5 * * * * crontab cadence)
+
+[Timer]
+# OnCalendar=*:0/5 mirrors the crontab cadence documented in
+# runner-healthcheck.sh's header (*/5 * * * *) exactly: fires at :00, :05,
+# :10, ... on the wall clock, rather than 5 minutes after the last run
+# finished (which is what OnUnitActiveSec would give).
+OnCalendar=*:0/5
+# Catch up on a missed run (e.g. machine was asleep) instead of waiting for
+# the next aligned tick.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
