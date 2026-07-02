@@ -303,7 +303,7 @@ def evaluate(
 @click.option(
     "--format",
     "output_format",
-    type=click.Choice(["markdown", "sarif", "json"]),
+    type=click.Choice(["markdown", "sarif", "json", "vex"]),
     default="markdown",
     help="Output format.",
 )

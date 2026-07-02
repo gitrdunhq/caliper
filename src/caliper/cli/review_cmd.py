@@ -107,7 +107,7 @@ def render_review_output(
     plugin_map: dict,
     write_output: Callable[[str, str], None],
 ) -> None:
-    """Format and emit review results (sarif/PR-post, json, or markdown).
+    """Format and emit review results (sarif/PR-post, json, vex, or markdown).
 
     Mirrors review()'s original inline dispatch. Calls sys.exit(1) on a --pr
     posting failure or a GitHub repo/diff-files resolution error, matching the
@@ -171,6 +171,19 @@ def render_review_output(
             click.echo(f"JSON written to {output}")
         else:
             click.echo(json_text)
+        return
+
+    if output_format == "vex":
+        import orjson
+
+        from caliper.core.vex import to_vex
+
+        vex_text = orjson.dumps(to_vex(results), option=orjson.OPT_INDENT_2).decode()
+        if output:
+            write_output(output, vex_text)
+            click.echo(f"VEX written to {output}")
+        else:
+            click.echo(vex_text)
         return
 
     from caliper.core.renderer import render_comment
