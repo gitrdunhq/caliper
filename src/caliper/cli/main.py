@@ -155,6 +155,7 @@ def cli() -> None:
 
 
 def _register_subcommands() -> None:
+    from caliper.cli.baseline_cmd import baseline
     from caliper.cli.eval_cmd import eval_cmd
     from caliper.cli.gauge_cmd import gauge
     from caliper.cli.inspect_cmd import inspect
@@ -173,6 +174,7 @@ def _register_subcommands() -> None:
     cli.add_command(gauge)
     cli.add_command(eval_cmd)
     cli.add_command(reinstall_cmd)
+    cli.add_command(baseline)
 
 
 _register_subcommands()
