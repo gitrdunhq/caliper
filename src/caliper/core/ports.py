@@ -56,6 +56,21 @@ class ScannerPort(Protocol):
 
 
 @runtime_checkable
+class ScanCachePort(Protocol):
+    """Contract for a read-through cache of scanner results (ADR-010).
+
+    Keyed on an opaque string the caller builds (see
+    ``core.scan_cache_key.compute_cache_key``) covering the scanned tree state,
+    scanner identity, tool version, and scan config. Adapters must be fail-open:
+    a broken cache never blocks a scan, it just means every lookup misses.
+    """
+
+    def get(self, key: str) -> ScanResult | None: ...
+
+    def put(self, key: str, result: ScanResult) -> None: ...
+
+
+@runtime_checkable
 class SemgrepRunnerPort(Protocol):
     """Contract for running a semgrep/opengrep ruleset over changed files."""
 

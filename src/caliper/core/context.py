@@ -24,6 +24,7 @@ from caliper.core.ports import (
     PackageIndexPort,
     PackageMetadataPort,
     PullRequestPublisherPort,
+    ScanCachePort,
     ScannerPort,
     ScribePort,
 )
@@ -61,3 +62,7 @@ class ApplicationContext:
     # Gated, on-demand code-grounding provider (invisible unless grounding_enabled;
     # NullGroundingProvider otherwise). Not consulted by the normal review path.
     grounding: GroundingProviderPort | None = None
+
+    # Cross-run scan result cache (ADR-010). Optional, fail-open: None behaves like a
+    # cache that always misses.
+    scan_cache: ScanCachePort | None = None

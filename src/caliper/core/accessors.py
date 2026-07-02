@@ -20,6 +20,7 @@ if TYPE_CHECKING:
         DecisionRepositoryPort,
         EvidenceWriterPort,
         PackageMetadataPort,
+        ScanCachePort,
         ScannerPort,
         ScribePort,
     )
@@ -62,3 +63,12 @@ def get_decision_repository(context: ApplicationContext) -> DecisionRepositoryPo
 
 def get_audit_log_appender(context: ApplicationContext) -> Callable[[Path, list, str], object]:
     return _require(context.audit_log_appender, "audit_log_appender")
+
+
+def get_scan_cache(context: ApplicationContext) -> ScanCachePort | None:
+    """Return the injected scan cache, or None if the context never wired one.
+
+    Optional, fail-open collaborator (ADR-010): None is treated the same as a cache
+    that always misses — scanners just run directly, never blocked by its absence.
+    """
+    return getattr(context, "scan_cache", None)
