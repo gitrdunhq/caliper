@@ -373,9 +373,13 @@ def review(
     gh_repo: str | None,
 ) -> None:
     """Run Caliper plugin review on a repo or diff."""
+    from caliper.cli.review_cmd import (
+        build_file_lists,
+        render_review_output,
+        resolve_plugin_selection,
+    )
     from caliper.composition.bootstrap import bootstrap_review
     from caliper.core.plugin import PluginCategory
-    from caliper.core.renderer import render_comment
     from caliper.core.repo_config import RepoConfig, load_repo_config
     from caliper.core.use_cases import ScanScope
 
@@ -394,57 +398,22 @@ def review(
     repo_name = pr_url.split("github.com/")[-1].split("/pull")[0] if "github.com" in pr_url else ""
 
     repo_config = load_repo_config(repo) if (repo / ".caliper.yaml").exists() else RepoConfig()
-    disabled_names: set[str] = set(repo_config.plugins.disabled or [])
-    if disable:
-        for _d in disable.split(","):
-            disabled_names.add(_d.strip())
-    disabled_names.discard("")
-    enabled_names: set[str] = set(repo_config.plugins.enabled or [])
-    if enable:
-        for _e in enable.split(","):
-            enabled_names.add(_e.strip())
-    enabled_names.discard("")
-
-    def _all_repo_files() -> list[str]:
-        return _collect_repo_files(repo, _REVIEW_SUFFIXES)
-
-    def _diff_files() -> list[str]:
-        from caliper.core.ignore import load_ignore_patterns, should_ignore
-
-        ignore_patterns = load_ignore_patterns(repo)
-        diff_text = _read_diff(diff)  # type: ignore[arg-type]
-        files: list[str] = []
-        for line in diff_text.split("\n"):
-            if line.startswith("diff --git"):
-                parts = line.split(" b/")
-                if len(parts) == 2:
-                    fpath = parts[1].strip()
-                    full = (repo / fpath).resolve()
-                    if not full.is_relative_to(repo.resolve()):
-                        continue
-                    if (
-                        full.exists()
-                        and not fpath.startswith(".git")
-                        and not should_ignore(fpath, ignore_patterns)
-                    ):
-                        files.append(str(full))
-        return files
-
-    def _build_file_lists() -> tuple[list[str], list[str] | None]:
-        """Return (files, repo_files). repo_files is non-None only in diff scope."""
-        if resolved_scope == ScanScope.DIFF:
-            return _diff_files(), _all_repo_files()
-        if resolved_scope == ScanScope.FOLDER:
-            folder = Path(package).resolve()  # type: ignore[arg-type]
-            return _collect_repo_files(folder, _REVIEW_SUFFIXES), None
-        if diff:
-            return _diff_files(), None
-        return _all_repo_files(), None
+    disabled_names, enabled_names = resolve_plugin_selection(
+        repo_config, disable=disable, enable=enable
+    )
 
     def run_review() -> None:
         from caliper.core.use_cases import ReviewOptions, review_repository
 
-        files, repo_file_list = _build_file_lists()
+        files, repo_file_list = build_file_lists(
+            repo=repo,
+            resolved_scope=resolved_scope,
+            diff=diff,
+            package=package,
+            collect_repo_files=_collect_repo_files,
+            read_diff=_read_diff,
+            review_suffixes=_REVIEW_SUFFIXES,
+        )
 
         options = ReviewOptions(
             scanners=names,
@@ -461,83 +430,23 @@ def review(
         review_result = review_repository(
             _ctx, files, repo, options, repo_files=repo_file_list, changed_files=changed_files
         )
-        results = review_result.results
-        summary = review_result.summary
 
-        if output_format == "sarif" or pr is not None:
-            import orjson
-
-            from caliper.core.sarif import to_sarif
-
-            sarif_doc = to_sarif(
-                results,
-                repo_path=str(repo),
-                max_findings_per_run=sarif_max_findings,
-                summary=summary,
-            )
-
-            if pr is not None:
-                from caliper.core.pr_review import (
-                    detect_gh_repo,
-                    get_pr_diff_files,
-                    post_review,
-                    sarif_to_review,
-                )
-
-                target_repo = gh_repo or detect_gh_repo()
-                if not target_repo:
-                    click.echo("Could not detect GitHub repo. Use --repo owner/name.", err=True)
-                    sys.exit(1)
-
-                try:
-                    diff_files = get_pr_diff_files(target_repo, pr)
-                except RuntimeError as exc:
-                    click.echo(str(exc), err=True)
-                    sys.exit(1)
-                pr_review = sarif_to_review(sarif_doc, diff_files)
-                ok = post_review(target_repo, pr, pr_review)
-                click.echo(
-                    f"{'Posted' if ok else 'Failed to post'} review on PR #{pr}: "
-                    f"{pr_review.event} ({len(pr_review.comments)} inline, "
-                    f"{len(pr_review.outside_diff)} outside diff)"
-                )
-                if not ok:
-                    sys.exit(1)
-                return
-
-            sarif_text = orjson.dumps(sarif_doc, option=orjson.OPT_INDENT_2).decode()
-            if output:
-                _write_output(output, sarif_text)
-                click.echo(f"SARIF written to {output}")
-            else:
-                click.echo(sarif_text)
-            return
-
-        if output_format == "json":
-            from caliper.core.json_report import render_json
-
-            json_text = render_json(results, repo=repo_name or str(repo), summary=summary)
-            if output:
-                _write_output(output, json_text)
-                click.echo(f"JSON written to {output}")
-            else:
-                click.echo(json_text)
-            return
-
-        md = render_comment(
-            results,
-            repo=repo_name or str(repo),
+        render_review_output(
+            results=review_result.results,
+            summary=review_result.summary,
+            output_format=output_format,
+            output=output,
+            pr=pr,
+            gh_repo=gh_repo,
+            sarif_max_findings=sarif_max_findings,
+            repo=repo,
+            repo_name=repo_name,
             pr_num=pr_num,
             title=title,
             file_count=len(files),
-            plugin_renderers=plugin_map,
-            verdict=summary.verdict.value if summary else None,
+            plugin_map=plugin_map,
+            write_output=_write_output,
         )
-        if output:
-            _write_output(output, md)
-            click.echo(f"Review written to {output} ({len(md)} chars)")
-        else:
-            click.echo(md)
 
     run_review()
 
