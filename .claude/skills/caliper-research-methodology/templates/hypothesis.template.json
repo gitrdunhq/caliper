@@ -1,0 +1,14 @@
+{
+  "_comment": "Field-by-field guidance lives in SKILL.md under 'The hypothesis record'. Copy this file to .temp/research/<id>.json and fill it in -- do not edit this template in place.",
+  "id": "",
+  "author": "",
+  "date": "",
+  "claim": "",
+  "mechanism": "",
+  "predicted_numbers": {},
+  "actual_numbers": {},
+  "observations_explained": [],
+  "refutation_owner": "",
+  "refutation_verdict": "",
+  "outcome": "experiment"
+}

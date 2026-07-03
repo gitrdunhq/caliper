@@ -53,7 +53,12 @@ refutation discipline and Haiku free-associates).
 - Confirm `.temp/` is gitignored (it is the standard caliper scratch mount). If not, use another ignored scratch dir.
 
 ### 1. Partition the target
-Launch **one `Explore` agent** to map the target into review partitions. Rules:
+If `.tokensave/` exists at the repo root, map the target into review
+partitions using `tokensave_files` / `tokensave_context` / `tokensave_module_api`
+output instead of an agent — the global "No Explore Agents When Tokensave Is
+Available" rule overrides this skill's own default. Only when tokensave is
+confirmed unavailable, launch **one `Explore` agent** to map the target into
+review partitions. Rules:
 - Each partition ≲ **2,000 lines** so a small model can read it fully.
 - Group by cohesion (a subpackage, a feature, related files), not alphabetically.
 - Every source file lands in exactly one partition. Exclude vendored code,

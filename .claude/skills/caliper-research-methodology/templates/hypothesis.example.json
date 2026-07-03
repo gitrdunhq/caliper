@@ -1,0 +1,31 @@
+{
+  "_comment": "Illustrative worked example for the SKILL.md docs, filled out AS IF a new rules_enabled flag were being proposed, modeled on the shape of the real dev_scope_exemption/unmaintained_package flags (see policies/policy.rego + src/caliper/core/opa_input.py). This is a demonstration file for the hypothesis_gate.py script, not a record of an actual historical caliper experiment.",
+  "id": "opa-stale-lockfile-warn-2026-07-02",
+  "author": "jdoe",
+  "date": "2026-07-02",
+  "claim": "Warning (not denying) when a manifest's lockfile is >180 days older than the manifest file itself catches supply-chain drift that package_age alone misses, without materially increasing false-positive noise on caliper's own dogfood run.",
+  "mechanism": "A lockfile that predates its manifest by a large margin means dependency resolution was never re-run after the manifest changed -- the installed set silently diverges from what the manifest declares, which is a supply-chain risk signal independent of any single package's age.",
+  "predicted_numbers": {
+    "new_warn_findings_on_dogfood_run": "0-2",
+    "false_positive_rate_on_dogfood_run": "0%"
+  },
+  "actual_numbers": {
+    "new_warn_findings_on_dogfood_run": 1,
+    "false_positive_rate_on_dogfood_run": "0%"
+  },
+  "observations_explained": [
+    {
+      "polarity": "positive",
+      "observation": "caliper's own uv.lock is well within 180 days of pyproject.toml (repo is actively maintained) -- rule should NOT fire on caliper's own dogfood run under normal conditions.",
+      "explanation": "Confirmed: 0 findings on a clean checkout, matches the mechanism (actively maintained manifests keep lockfiles current)."
+    },
+    {
+      "polarity": "negative",
+      "observation": "Checking out a commit from before the last `uv sync` (stale lockfile relative to a later manifest edit in the same branch) should NOT fire the new rule if the manifest and lockfile were bumped in the SAME commit -- the mechanism is about drift, not raw file age.",
+      "explanation": "Confirmed: rule reads the last commit that touched each file independently and only fires when they diverge by >180 days; a same-commit bump keeps the delta at 0 regardless of the commit's own age, so this case correctly produced 0 findings."
+    }
+  ],
+  "refutation_owner": "sonnet-challenger-batch-03",
+  "refutation_verdict": "CONFIRMED",
+  "outcome": "flag"
+}
