@@ -12,6 +12,9 @@ jobs:
   add-to-project:
     name: Add to project board
     runs-on: ubuntu-latest
+    # Board automation is best-effort: a lapsed GITRDUNHQ_PROJECT_BOT credential
+    # must never paint issues/PRs red (#395).
+    continue-on-error: true
     steps:
       - name: Add issue or pull request to project board
         env:
