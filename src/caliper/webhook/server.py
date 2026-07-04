@@ -209,7 +209,7 @@ def build_app(
             review_output = f"caliper review timed out after {_REVIEW_TIMEOUT_S}s"
         except Exception as exc:
             logger.error("webhook_review_failed", error=str(exc), pr_url=pr_url)
-            review_output = f"caliper review could not run: {exc}"
+            review_output = "caliper review could not run: an internal error occurred"
 
         # --- Post PR comment (fail-open) ------------------------------------
         try:

@@ -97,7 +97,7 @@ class OpaEvaluator:
                 decision=DecisionVerdict.needs_review,
                 triggered_rules=[],
                 policy_bundle_version=_FALLBACK_POLICY_VERSION,
-                note=f"OPA evaluation failed: {exc}",
+                note="OPA evaluation failed: an internal error occurred",
             )
 
     def _run_opa(
@@ -150,7 +150,7 @@ class OpaEvaluator:
                 decision=DecisionVerdict.needs_review,
                 triggered_rules=[],
                 policy_bundle_version=self._read_policy_version(),
-                note=f"OPA policy error: {error_msg}",
+                note="OPA policy error: an internal error occurred",
             )
 
         # OPA eval output shape: {"result": [{"expressions": [{"value": {...}}]}]}
@@ -163,7 +163,7 @@ class OpaEvaluator:
                 decision=DecisionVerdict.needs_review,
                 triggered_rules=[],
                 policy_bundle_version=self._read_policy_version(),
-                note=f"OPA returned unexpected result shape: {exc}",
+                note="OPA returned unexpected result shape: an internal error occurred",
             )
 
         deny_messages: list[str] = list(value.get("deny", []))

@@ -75,7 +75,7 @@ class ForemanAgent:
                         pr_number,
                         repo_owner,
                         repo_name,
-                        f"🔴 **Foreman** review failed: {exc}\n\n"
+                        "🔴 **Foreman** review failed: an internal error occurred.\n\n"
                         + (
                             "Build blocked — review did not complete."
                             if fail_closed
@@ -102,7 +102,7 @@ class ForemanAgent:
                         pr_number,
                         repo_owner,
                         repo_name,
-                        f"🟡 **Foreman** narration failed: {exc}\n\n"
+                        "🟡 **Foreman** narration failed: an internal error occurred.\n\n"
                         "The deterministic review decision was still enforced.",
                     )
                     comments_posted += 1
