@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:part-ui": "tsx scripts/part_ui/build.ts",
+    "build:complexity-helper": "tsx scripts/complexity_helper/build.ts",
     "typecheck:part-ui": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
@@ -12,6 +13,7 @@
     "esbuild": "0.28.1",
     "typescript": "6.0.3",
     "tsx": "4.22.4",
-    "playwright": "1.61.1"
+    "playwright": "1.61.1",
+    "typhonjs-escomplex": "0.1.0"
   }
 }
