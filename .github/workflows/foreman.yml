@@ -736,18 +736,27 @@ jobs:
 
       - name: Fail-closed gate
         if: always()
-        run: |
-          if [ "${{ steps.upstream.outputs.upstream_ok }}" != "true" ]; then
-            echo "::error::Foreman fail-closed — upstream job(s) failed (lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, api_contract=${{ needs.api_contract.result }}, e2e_smoke=${{ needs.e2e_smoke.result }}, e2e_full=${{ needs.e2e_full.result }}, review=${{ needs.review.result }})"
-            exit 1
-          fi
-
-          VERDICT="${{ steps.verdict.outputs.verdict }}"
-          CRASHED="${{ steps.verdict.outputs.crashed }}"
-          ERRORS="${{ steps.verdict.outputs.errors }}"
+        # Context data reaches the shell via env, never ${{ }} inside run: —
+        # step outputs/branch data interpolated into a script is an injection seam.
+        env:
+          UPSTREAM_OK: ${{ steps.upstream.outputs.upstream_ok }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          API_CONTRACT_RESULT: ${{ needs.api_contract.result }}
+          E2E_SMOKE_RESULT: ${{ needs.e2e_smoke.result }}
+          E2E_FULL_RESULT: ${{ needs.e2e_full.result }}
+          REVIEW_RESULT: ${{ needs.review.result }}
+          VERDICT: ${{ steps.verdict.outputs.verdict }}
+          CRASHED: ${{ steps.verdict.outputs.crashed }}
+          ERRORS: ${{ steps.verdict.outputs.errors }}
           # Only workflow_dispatch carries this input; pull_request/push fall back to
           # "block" so normal PR/push triggers keep failing closed (#214).
-          ENFORCEMENT_MODE="${{ github.event.inputs.enforcement_mode || 'block' }}"
+          ENFORCEMENT_MODE: ${{ github.event.inputs.enforcement_mode || 'block' }}
+        run: |
+          if [ "$UPSTREAM_OK" != "true" ]; then
+            echo "::error::Foreman fail-closed — upstream job(s) failed (lint=${LINT_RESULT}, test=${TEST_RESULT}, api_contract=${API_CONTRACT_RESULT}, e2e_smoke=${E2E_SMOKE_RESULT}, e2e_full=${E2E_FULL_RESULT}, review=${REVIEW_RESULT})"
+            exit 1
+          fi
 
           if [ "$VERDICT" = "blocked" ]; then
             if [ "$ENFORCEMENT_MODE" = "block" ]; then
