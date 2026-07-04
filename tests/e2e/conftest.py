@@ -39,7 +39,7 @@ def fixture_repo(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
     name = getattr(request, "param", "vuln-repo")
     src = FIXTURES_DIR / name
     dst = tmp_path / name
-    shutil.copytree(src, dst)
+    shutil.copytree(src, dst, ignore=shutil.ignore_patterns("osv-scanner.toml"))
     subprocess.run(["git", "init", str(dst)], capture_output=True, check=True)
     subprocess.run(["git", "-C", str(dst), "add", "-A"], capture_output=True, check=True)
     subprocess.run(
@@ -74,7 +74,7 @@ def vuln_repo(tmp_path: Path) -> Path:
         "GIT_AUTHOR_EMAIL": "t@t",
         "GIT_COMMITTER_EMAIL": "t@t",
     }
-    shutil.copytree(src, dst)
+    shutil.copytree(src, dst, ignore=shutil.ignore_patterns("osv-scanner.toml"))
     subprocess.run(["git", "init", str(dst)], capture_output=True, check=True)
     subprocess.run(
         ["git", "-C", str(dst), "commit", "--allow-empty", "-m", "init"],
@@ -112,7 +112,7 @@ def clean_repo(tmp_path: Path) -> Path:
         "GIT_AUTHOR_EMAIL": "t@t",
         "GIT_COMMITTER_EMAIL": "t@t",
     }
-    shutil.copytree(src, dst)
+    shutil.copytree(src, dst, ignore=shutil.ignore_patterns("osv-scanner.toml"))
     subprocess.run(["git", "init", str(dst)], capture_output=True, check=True)
     subprocess.run(
         ["git", "-C", str(dst), "commit", "--allow-empty", "-m", "init"],
