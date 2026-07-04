@@ -55,11 +55,12 @@ class AgentSettings(BaseSettings):
     enabled_scanners: list[str] = Field(default=["syft", "osv-scanner", "trivy"])
     semgrep_timeout: int = 120
     pipeline_timeout: int = 300
-    # TODO: replace with Optional[str] once no-DB mode is implemented.
+    # TODO: replace with Optional[SecretStr] once no-DB mode is implemented.
     # Currently triggers NullRepository fallback in the pipeline.
     # Removal condition: when CaliperSettings.db_dsn becomes optional.
     # No credentials in the default DSN — override via FOREMAN_DB_DSN.
-    db_dsn: str = "postgresql://localhost/caliper"
+    # SecretStr: an overridden DSN embeds the DB password (#227).
+    db_dsn: SecretStr = SecretStr("postgresql://localhost/caliper")
     policy_version: str = "1.0.0"
 
     @classmethod

@@ -49,7 +49,7 @@ class TestCaliperSettings:
             settings = CaliperSettings()
 
         assert settings.operating_mode.value == "advise"
-        assert settings.db_dsn == "postgresql://user:pass@localhost:5432/testdb"
+        assert settings.db_dsn.get_secret_value() == "postgresql://user:pass@localhost:5432/testdb"
         assert settings.evidence_path == "/tmp/evidence"
         assert settings.scanner_timeout == 90
         assert settings.combined_scanner_timeout == 200
@@ -159,7 +159,7 @@ class TestCaliperSettings:
         with patch.dict(os.environ, env, clear=True):
             settings = CaliperSettings()
 
-        assert settings.db_dsn == "postgresql://user:pass@localhost:5432/testdb"
+        assert settings.db_dsn.get_secret_value() == "postgresql://user:pass@localhost:5432/testdb"
 
     def test_enabled_scanners_parsed_from_comma_separated(self) -> None:
         """Comma-separated scanner list is parsed into a Python list."""
@@ -187,6 +187,37 @@ class TestCaliperSettings:
         # repr/str must not expose the value
         assert "sk-my-key" not in repr(settings.llm_api_key)
         assert settings.llm_api_key.get_secret_value() == "sk-my-key"
+
+    def test_db_dsn_is_secret_str(self) -> None:
+        """#227: db_dsn carries credentials — it must be a SecretStr."""
+        from pydantic import SecretStr
+
+        from caliper.core.config import CaliperSettings
+
+        env = self._minimal_env()
+        env["CALIPER_DB_DSN"] = "postgresql://user:hunter2@dbhost:12432/caliper"
+        with patch.dict(os.environ, env, clear=True):
+            settings = CaliperSettings()
+
+        assert isinstance(settings.db_dsn, SecretStr)
+        # The password must never leak through repr, str, or model_dump.
+        assert "hunter2" not in repr(settings)
+        assert "hunter2" not in str(settings)
+        assert "hunter2" not in repr(settings.model_dump())
+        assert settings.db_dsn.get_secret_value() == (
+            "postgresql://user:hunter2@dbhost:12432/caliper"
+        )
+
+    def test_db_dsn_unset_stays_none(self) -> None:
+        """#227: db_dsn remains optional — NullRepository fallback intact."""
+        from caliper.core.config import CaliperSettings
+
+        env = self._minimal_env()
+        env.pop("CALIPER_DB_DSN", None)
+        with patch.dict(os.environ, env, clear=True):
+            settings = CaliperSettings()
+
+        assert settings.db_dsn is None
 
     def test_scancode_timeout_default(self) -> None:
         """scancode_timeout defaults to 60 (closes #335)."""

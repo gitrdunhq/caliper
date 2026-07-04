@@ -14,19 +14,13 @@ Fix:
   Access via .get_secret_value() at the one site that actually needs the raw string.
 
 Parent bug: #227 / Epic: #146.
-Status: xfail — both fields are still plain str.
+Status: enforcing — both fields are SecretStr; this guard now fails hard if
+either regresses to plain str.
 """
 
 from __future__ import annotations
 
 import inspect
-
-import pytest
-
-pytestmark = pytest.mark.xfail(
-    reason="deterministic bug detector for #261 — use SecretStr for secrets, then green",
-    strict=False,
-)
 
 
 def test_261_webhook_secret_uses_secret_str() -> None:

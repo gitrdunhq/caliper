@@ -16,9 +16,8 @@ def test_db_dsn_has_no_hardcoded_credentials(monkeypatch):
     try:
         settings = AgentSettings(github_token="test-token")
         # If a default exists it must not embed 'unused' credentials
-        assert (
-            "unused" not in settings.db_dsn.lower()
-        ), f"Default db_dsn contains hardcoded credentials: {settings.db_dsn}"
+        dsn = settings.db_dsn.get_secret_value()
+        assert "unused" not in dsn.lower(), f"Default db_dsn contains hardcoded credentials: {dsn}"
     except ValidationError:
         # Required field with no default — acceptable; forces explicit config
         pass
@@ -30,4 +29,6 @@ def test_db_dsn_can_be_set_via_env_var(monkeypatch):
     monkeypatch.setenv("FOREMAN_DB_DSN", test_dsn)
 
     settings = AgentSettings(github_token="test-token")
-    assert settings.db_dsn == test_dsn
+    assert settings.db_dsn.get_secret_value() == test_dsn
+    # #227: the DSN password must never leak through repr.
+    assert "pass" not in repr(settings.db_dsn)

@@ -78,7 +78,7 @@ def check_health() -> None:
         config = CaliperSettings()  # type: ignore[call-arg]
         from caliper.data.db import DecisionRepository
 
-        db = DecisionRepository(dsn=config.db_dsn)
+        db = DecisionRepository(dsn=config.db_dsn.get_secret_value() if config.db_dsn else None)
         if db.connect():
             click.echo("  Database        OK")
             db.close()
