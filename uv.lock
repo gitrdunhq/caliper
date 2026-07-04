@@ -2,9 +2,13 @@ version = 1
 revision = 3
 requires-python = ">=3.12"
 
+[options]
+exclude-newer = "2026-06-27T17:05:32.108992Z"
+exclude-newer-span = "P7D"
+
 [[package]]
 name = "agent-framework-core"
-version = "1.10.0"
+version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "opentelemetry-api" },
@@ -12,7 +16,10 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/95/92/a3551481406a6c3dc437fc8a0f139352f4ad4271525d39018857cd066ee0/agent_framework_core-1.10.0.tar.gz", hash = "sha256:a373b3bec966e4d186d968e248ac683549cce464a0db345b6ebeebfeafdc7025", size = 476779, upload-time = "2026-06-30T21:00:32.968Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f1/38/5b4f1f69cfe62ecf0b66838a09d82678dfc0a90084e16b3f1c0f52aa53c3/agent_framework_core-1.9.0.tar.gz", hash = "sha256:09c5f18a43209f6db53dfe0da25d3dfbf1e5176a930a8ec3859091687d8f80a2", size = 449168, upload-time = "2026-06-18T09:42:48.308Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/4b/1c0140cfbb134c51d335274948bcbdcee837a3bdad86bea92ef6b7235d13/agent_framework_core-1.9.0-py3-none-any.whl", hash = "sha256:aa33c588ec839dc7fc8e4768f4ff3d3cd44d4b38d7aa9733f5ee0a37ff4de956", size = 496431, upload-time = "2026-06-18T09:42:46.613Z" },
+]
 
 [[package]]
 name = "agent-framework-github-copilot"
@@ -83,7 +90,7 @@ wheels = [
 
 [[package]]
 name = "caliper"
-version = "0.2.27"
+version = "0.2.28"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
