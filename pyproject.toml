@@ -1,6 +1,6 @@
 [project]
 name = "caliper"
-version = "0.2.27"
+version = "0.2.28"
 description = "Caliper — fully deterministic dependency and code review for CI"
 requires-python = ">=3.12"
 readme = "README.md"
