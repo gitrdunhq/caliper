@@ -86,6 +86,9 @@ def test_release_manager_agent_preserves_release_safety_contract() -> None:
     for required_rule in required_release_rules:
         assert required_rule in normalized_body
 
-    assert "UV_CACHE_DIR=/tmp/uv-cache CALIPER_ALLOW_HOST_TESTS=1 uv run pytest" in body
+    assert (
+        "UV_CACHE_DIR=/tmp/uv-cache CALIPER_ALLOW_HOST_TESTS=1 "
+        "CALIPER_I_KNOW_HOST_TESTS_LIE=1 uv run pytest"
+    ) in body
     assert "tests/unit/test_copilot_agent_profiles.py" in body
     assert "daily release" not in normalized_body.lower()

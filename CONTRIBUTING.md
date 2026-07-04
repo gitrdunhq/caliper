@@ -65,12 +65,11 @@ Post-hoc tests are forbidden — a test written after the source cannot prove it
 
 **Assertion quality** — never use `toBeDefined()` / `assert result` as the only assertion. Assert concrete values. If you delete the function body, the test must fail.
 
-Run tests:
+Run tests (container-only — host runs can't guarantee parity with CI):
 
 ```bash
-uv run pytest tests/ -v
-uv run pytest tests/unit/ -v          # unit only (no scanner binaries needed)
-uv run pytest tests/integration/ -v   # requires Docker + scanner binaries
+make test                                     # full suite in podman/docker
+bash scripts/build-test.sh -- tests/unit/ -q  # targeted run
 ```
 
 ## Code Standards

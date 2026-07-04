@@ -259,6 +259,7 @@ jobs:
         run: uv run pytest tests/contract/ -v --tb=short
         env:
           CALIPER_ALLOW_HOST_TESTS: "1"
+          CALIPER_I_KNOW_HOST_TESTS_LIE: "1"
 
   e2e_smoke:
     name: E2E Smoke
@@ -290,6 +291,7 @@ jobs:
         run: uv run pytest tests/e2e/test_smoke_review.py -v --tb=short
         env:
           CALIPER_ALLOW_HOST_TESTS: "1"
+          CALIPER_I_KNOW_HOST_TESTS_LIE: "1"
           CALIPER_E2E: "1"
 
   e2e_full:
@@ -356,6 +358,7 @@ jobs:
         run: uv run pytest tests/e2e/ -v --tb=short
         env:
           CALIPER_ALLOW_HOST_TESTS: "1"
+          CALIPER_I_KNOW_HOST_TESTS_LIE: "1"
           CALIPER_E2E: "1"
 
   review:
