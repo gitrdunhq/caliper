@@ -15,19 +15,13 @@ Fix: Add Hypothesis @given-decorated tests to each of the above files covering a
      the INVARIANT property "empty input returns empty output".
 
 Parent bug: #225 / Epic: #146.
-Status: xfail — @given not present in any of the three test files.
+Status: enforcing — all three test files carry @given property tests; this
+guard now fails hard if any of them regresses to example-only coverage.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-
-import pytest
-
-pytestmark = pytest.mark.xfail(
-    reason="deterministic bug detector for #259 — add @given property tests, then green",
-    strict=False,
-)
 
 _REPO = Path(__file__).resolve().parents[2]
 _TESTS = _REPO / "tests" / "unit"
