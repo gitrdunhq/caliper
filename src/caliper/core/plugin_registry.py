@@ -58,7 +58,7 @@ def _topological_sort(plugins: list[ScannerPlugin]) -> list[ScannerPlugin]:
     try:
         sorter = TopologicalSorter(graph)
         return [by_name[name] for name in sorter.static_order()]
-    except CycleError as exc:
+    except CycleError as exc:  # noqa: CAL-002  # startup/CLI-local, not exposed
         raise ValueError(f"Circular plugin dependency detected: {exc}") from exc
 
 

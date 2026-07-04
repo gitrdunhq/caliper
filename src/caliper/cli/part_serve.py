@@ -333,7 +333,7 @@ class PartingSession:
             pr_ref = parse_pr_ref(ref, default_slug=detect_origin_slug(self.repo_path))
             try:
                 resolved = resolve_pr(pr_ref, workdir_root=default_part_workdir())
-            except PrResolveError as exc:
+            except PrResolveError as exc:  # noqa: CAL-002  # loopback-only sidecar
                 raise ValueError(f"could not resolve PR: {exc}") from exc
             prev = (
                 self.repo_path,

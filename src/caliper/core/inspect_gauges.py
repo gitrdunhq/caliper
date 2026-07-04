@@ -108,7 +108,7 @@ def run_gauges(
     if categories and part.files:
         try:
             plugin_results = analyze(list(part.files), repo_path, list(categories))
-        except Exception as exc:  # noqa: BLE001 - any infra failure is fail-closed
+        except Exception as exc:  # noqa: BLE001, CAL-002  # CLI-local, not exposed
             raise InspectError(f"Screen gauge run failed for part {part.id}: {exc}") from exc
         for pr in plugin_results:
             results.append(_to_gauge_result(pr, cfg))

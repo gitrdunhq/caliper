@@ -248,7 +248,7 @@ def part(
         workdir_root = default_part_workdir()
         try:
             resolved = resolve_pr(pr_ref, workdir_root=workdir_root)
-        except PrResolveError as exc:
+        except PrResolveError as exc:  # noqa: CAL-002  # CLI-local, not exposed
             raise click.ClickException(f"could not resolve PR: {exc}") from exc
         repo = str(resolved.repo_path)
         base, head = resolved.base, resolved.head
@@ -329,7 +329,7 @@ def part(
             override_write_target=pr_override_store,
             out_dir=out_dir,
         )
-    except PartingGateError as exc:
+    except PartingGateError as exc:  # noqa: CAL-002  # CLI-local, not exposed
         raise click.ClickException(f"parting precondition failed [{exc.case}]: {exc}") from exc
     except PartingError as exc:
         raise click.ClickException(str(exc)) from exc

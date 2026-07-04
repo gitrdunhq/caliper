@@ -585,12 +585,12 @@ def load_repo_config(repo_path: Path) -> RepoConfig:
 
     try:
         raw_text = config_file.read_text(encoding="utf-8")
-    except OSError as exc:
+    except OSError as exc:  # noqa: CAL-002  # caught by fixed upstream handler
         raise ValueError(f"Cannot read {config_file}: {exc}") from exc
 
     try:
         data = yaml.safe_load(raw_text)
-    except yaml.YAMLError as exc:
+    except yaml.YAMLError as exc:  # noqa: CAL-002  # caught by fixed upstream handler
         raise ValueError(f"Invalid YAML in {config_file}: {exc}") from exc
 
     # Empty file → yaml.safe_load returns None
@@ -602,5 +602,5 @@ def load_repo_config(repo_path: Path) -> RepoConfig:
 
     try:
         return RepoConfig.model_validate(data)
-    except ValidationError as exc:
+    except ValidationError as exc:  # noqa: CAL-002  # caught by fixed upstream handler
         raise ValueError(f"Schema error in {config_file}: {exc}") from exc

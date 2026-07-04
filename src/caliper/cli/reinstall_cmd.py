@@ -74,7 +74,7 @@ def validate_caliper_repo(repo_root: Path) -> Path:
     # not fool the gate — only `[project].name` decides.
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError as exc:
+    except tomllib.TOMLDecodeError as exc:  # noqa: CAL-002  # CLI-local, not exposed
         raise ReinstallError(f"{repo_root}/pyproject.toml is not valid TOML: {exc}") from exc
     if data.get("project", {}).get("name") != "caliper":
         raise ReinstallError(f"{repo_root}/pyproject.toml is not the caliper project")
