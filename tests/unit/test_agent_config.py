@@ -25,7 +25,7 @@ def test_db_dsn_has_no_hardcoded_credentials(monkeypatch):
 
 def test_db_dsn_can_be_set_via_env_var(monkeypatch):
     """db_dsn must be configurable via FOREMAN_DB_DSN environment variable."""
-    test_dsn = "postgresql://user:pass@prod-db:5432/mydb"
+    test_dsn = "postgresql://user:pass@prod-db:5432/mydb"  # noqa: CAL-004  # fake test fixture
     monkeypatch.setenv("FOREMAN_DB_DSN", test_dsn)
 
     settings = AgentSettings(github_token="test-token")

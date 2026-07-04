@@ -210,7 +210,7 @@ class TestAddLabel:
 class TestTokenScrubbing:
     def test_scrub_token_replaces_token_with_redacted(self):
         """_scrub_token must replace the raw token with [REDACTED]."""
-        token = "ghp_super_secret_token_12345"
+        token = "ghp_super_secret_token_12345"  # noqa: CAL-004  # fake test fixture
         publisher = GitHubPublisher(token=token)
         result = publisher._scrub_token(f"Error: Bearer {token} is invalid")
         assert token not in result
@@ -224,7 +224,7 @@ class TestTokenScrubbing:
 
     def test_run_scrubs_token_from_stderr_after_failed_command(self):
         """_run must scrub the token from result.stderr when the command fails."""
-        token = "ghp_super_secret_12345"
+        token = "ghp_super_secret_12345"  # noqa: CAL-004  # fake test fixture
         publisher = GitHubPublisher(token=token)
 
         mock_result = MagicMock()

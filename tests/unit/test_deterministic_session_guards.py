@@ -26,7 +26,7 @@ _REPO = Path(__file__).resolve().parents[2]
 _SRC = _REPO / "src" / "caliper"
 
 # Token-bearing field name patterns (case-insensitive)
-_TOKEN_FIELD_RE = r"token|session|auth|credential|api[_-]?key|access[_-]?token|refresh[_-]?token"
+_TOKEN_FIELD_RE = r"token|session|auth|credential|api[_-]?key|access[_-]?token|refresh[_-]?token"  # noqa: CAL-004  # regex pattern string, not a secret value
 
 # Expiration-related field patterns (case-insensitive)
 _EXPIRATION_PATTERNS: Set[str] = {
