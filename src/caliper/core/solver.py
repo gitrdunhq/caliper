@@ -30,7 +30,7 @@ from pathlib import Path
 import httpx
 import orjson
 import structlog
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
 logger = structlog.get_logger()
 
@@ -105,7 +105,7 @@ Conventions you MUST follow:
 
 class SolverConfig(BaseModel):
     endpoint: str = Field(default="https://openrouter.ai/api", pattern=r"^https://")
-    api_key: str = ""
+    api_key: SecretStr = SecretStr("")
     model_ladder: list[ModelSpec] = Field(default_factory=lambda: list(DEFAULT_MODEL_LADDER))
     output_dir: str = ".temp/solver-results"
     request_delay: float = Field(default=2.0, ge=0.0)
@@ -296,7 +296,7 @@ def _try_model(
             raw, status_code, resp_headers = _post(
                 client=client,
                 url=url,
-                api_key=config.api_key,
+                api_key=config.api_key.get_secret_value(),
                 model=model_spec.id,
                 system=config.system_prompt,
                 user=prompt,

@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 import structlog
+from pydantic import SecretStr
 
 from caliper.core.commit_describer import (
     CommitDescriberPort,
@@ -56,7 +57,7 @@ def describer_from_env(env: Mapping[str, str], *, force: bool | None = None) -> 
     except ValueError:
         timeout = 20.0
     return OpenAICompatDescriber(
-        DescriberConfig(base_url=base_url, model=model, api_key=api_key, timeout=timeout)
+        DescriberConfig(base_url=base_url, model=model, api_key=SecretStr(api_key), timeout=timeout)
     )
 
 

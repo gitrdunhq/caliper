@@ -21,6 +21,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import structlog
+from pydantic import SecretStr
 
 from caliper.core.commit_describer import DescribeRequest, normalize_subject
 
@@ -51,7 +52,7 @@ class DescriberConfig:
 
     base_url: str
     model: str
-    api_key: str = ""
+    api_key: SecretStr = SecretStr("")
     timeout: float = 20.0
     num_predict: int = 32
 
@@ -86,7 +87,7 @@ class OpenAICompatDescriber:
         url = self._cfg.base_url.rstrip("/") + "/chat/completions"
         headers = {"Content-Type": "application/json"}
         if self._cfg.api_key:
-            headers["Authorization"] = f"Bearer {self._cfg.api_key}"
+            headers["Authorization"] = f"Bearer {self._cfg.api_key.get_secret_value()}"
         body = json.dumps(
             {
                 "model": self._cfg.model,

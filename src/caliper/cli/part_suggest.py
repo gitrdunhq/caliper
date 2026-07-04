@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 import structlog
+from pydantic import SecretStr
 
 from caliper.core.models import ChangeType, CutList
 from caliper.core.repo_config import OverrideRule
@@ -62,7 +63,7 @@ def suggester_from_env(env: Mapping[str, str], *, force: bool | None = None) -> 
     except ValueError:
         timeout = 30.0
     return OpenAICompatSuggester(
-        SuggesterConfig(base_url=base_url, model=model, api_key=api_key, timeout=timeout)
+        SuggesterConfig(base_url=base_url, model=model, api_key=SecretStr(api_key), timeout=timeout)
     )
 
 

@@ -24,6 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import structlog
+from pydantic import SecretStr
 
 from caliper.core.tier_suggester import SELECTABLE_TIERS, SuggestedRule, SuggestRequest
 
@@ -59,7 +60,7 @@ class SuggesterConfig:
 
     base_url: str
     model: str
-    api_key: str = ""
+    api_key: SecretStr = SecretStr("")
     timeout: float = 20.0
     num_predict: int = 512  # a JSON array of rules needs more room than a subject line
 
@@ -105,7 +106,7 @@ class OpenAICompatSuggester:
         url = self._cfg.base_url.rstrip("/") + "/chat/completions"
         headers = {"Content-Type": "application/json"}
         if self._cfg.api_key:
-            headers["Authorization"] = f"Bearer {self._cfg.api_key}"
+            headers["Authorization"] = f"Bearer {self._cfg.api_key.get_secret_value()}"
         body = json.dumps(
             {
                 "model": self._cfg.model,

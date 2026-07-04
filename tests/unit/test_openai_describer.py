@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import json
 
+from pydantic import SecretStr
+
 from caliper.core.commit_describer import DescribeRequest
 from caliper.data.openai_describer import (
     DescriberConfig,
@@ -79,7 +81,7 @@ class TestDescribe:
             captured["headers"] = headers
             return _completion("add x")
 
-        cfg = DescriberConfig(base_url="http://h/v1", model="m", api_key="secret")
+        cfg = DescriberConfig(base_url="http://h/v1", model="m", api_key=SecretStr("secret"))
         OpenAICompatDescriber(cfg, post=post).describe(_REQ)
         assert captured["headers"].get("Authorization") == "Bearer secret"
 
