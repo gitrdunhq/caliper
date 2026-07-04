@@ -60,8 +60,11 @@ prod-smoke: prod-build
 		$(PROD_IMAGE) \
 		--help >/dev/null
 
+# Maintainer-only escape hatch (#216): host results are NOT authoritative.
 test-host:
-	@CALIPER_ALLOW_HOST_TESTS=1 uv run pytest tests/ -v
+	@echo "!!! WARNING: host test run — results are NOT authoritative (#216)." >&2
+	@echo "!!! Container parity with CI is not guaranteed. Use 'make test'." >&2
+	@CALIPER_ALLOW_HOST_TESTS=1 CALIPER_I_KNOW_HOST_TESTS_LIE=1 uv run pytest tests/ -v
 
 test-e2e:
 	@bash scripts/build.sh $(HOST_ARCH)

@@ -8,7 +8,7 @@
 
 ## Test Plan
 
-- [ ] Unit tests pass (`uv run pytest tests/ -v`)
+- [ ] Tests pass in container (`make test`)
 - [ ] Lint passes (`uv run ruff check src/ tests/`)
 - [ ] Format passes (`uv run black --check src/ tests/`)
 - [ ] OPA policy tests pass (`opa test policies/ --ignore '*.yaml' --ignore '*.yml'`)

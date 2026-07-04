@@ -810,7 +810,7 @@ Fuzzy matching maps your question to the closest template by keyword overlap. Un
 ```bash
 uv sync --group dev                      # Install everything
 docker-compose up -d                     # PostgreSQL on port 12432
-uv run pytest tests/ -v                  # 1078 tests
+make test                                # Tests (container-only)
 uv run ruff check src/ tests/            # Lint
 uv run black src/ tests/                 # Format
 opa test policies/ --ignore '*.yaml' --ignore '*.yml'  # OPA policy tests

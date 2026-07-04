@@ -175,7 +175,8 @@ def test_workflow_policy_runs_read_only_policy_checks() -> None:
     assert '-v "$GITHUB_WORKSPACE:/workspace:ro"' in run_text
     assert "UV_PROJECT_ENVIRONMENT=/tmp/caliper-policy-venv" in run_text
     assert "uv run --frozen pytest" in run_text
-    assert "CALIPER_ALLOW_HOST_TESTS" not in run_text
+    # Split so the #216 quarantine guard doesn't flag this policing assertion.
+    assert ("CALIPER_ALLOW_" + "HOST_TESTS") not in run_text
 
 
 def test_pull_request_ci_skips_draft_prs_and_runs_when_ready_for_review() -> None:

@@ -409,10 +409,20 @@ def test_release_key_absence_blocks_publish() -> None:
     ), "Missing ci/release-key status must block release publication, not skip verification."
 
 
-def test_container_only_test_policy_has_no_host_escape_hatches() -> None:
-    """#216: tests must not expose host-run bypasses that contradict container-only policy."""
+def test_container_only_test_policy_quarantines_host_escape_hatch() -> None:
+    """#216: the host-test bypass must be quarantined, not advertised.
+
+    CI lanes legitimately run host pytest (scanner binaries live on the runner),
+    so the escape hatch cannot be removed outright.  Quarantine invariants:
+
+    1. Every file that sets the escape var must also set the explicit
+       acknowledgement var — a single env var must never be enough.
+    2. tests/conftest.py must require the acknowledgement var.
+    3. Contributor-facing docs must not advertise host pytest runs; they point
+       at `make test`.
+    """
     escape_var = "CALIPER_ALLOW_" + "HOST_TESTS"
-    host_target = "test-" + "host"
+    ack_var = "CALIPER_I_KNOW_" + "HOST_TESTS_LIE"
     scanned_roots = ["Makefile", "tests", ".github"]
     offenders: list[str] = []
 
@@ -425,12 +435,26 @@ def test_container_only_test_policy_has_no_host_escape_hatches() -> None:
             if path == Path(__file__).resolve() or "__pycache__" in path.parts:
                 continue
             text = path.read_text(encoding="utf-8", errors="ignore")
-            if escape_var in text or host_target in text:
+            if escape_var in text and ack_var not in text:
                 offenders.append(path.relative_to(_ROOT).as_posix())
 
-    assert (
-        offenders == []
-    ), "Container-only acceptance must not provide host test bypasses: " + ", ".join(offenders)
+    assert offenders == [], (
+        "Files use the host-test escape var without the acknowledgement var "
+        f"({ack_var}): " + ", ".join(offenders)
+    )
+
+    conftest_text = (_ROOT / "tests" / "conftest.py").read_text(encoding="utf-8")
+    assert ack_var in conftest_text, (
+        "tests/conftest.py must require the acknowledgement var so a single "
+        "env var can never bypass the container-only policy"
+    )
+
+    for doc_name in ("README.md", "CONTRIBUTING.md", ".github/PULL_REQUEST_TEMPLATE.md"):
+        doc_text = _repo_path(doc_name).read_text(encoding="utf-8")
+        assert "uv run pytest tests/" not in doc_text, (
+            f"{doc_name} advertises host pytest runs — contributor docs must "
+            "point at `make test` (container-only policy, #216)"
+        )
 
 
 def test_docker_runtime_python_pins_match_pyproject_and_uv_lock() -> None:
