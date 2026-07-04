@@ -390,7 +390,7 @@ class TestAgentConfig:
 
     def test_default_db_dsn_triggers_null_repository(self):
         config = _make_settings()
-        assert "localhost" in config.db_dsn
+        assert "localhost" in config.db_dsn.get_secret_value()
 
 
 class TestAgentTierViolation:

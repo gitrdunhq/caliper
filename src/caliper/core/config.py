@@ -67,7 +67,8 @@ class CaliperSettings(BaseSettings):
     operating_mode: OperatingMode = OperatingMode.monitor
 
     # Database — optional; NullRepository fallback when unset (see class docstring).
-    db_dsn: str | None = None
+    # SecretStr: the DSN embeds the DB password — never expose it in repr/logs (#227).
+    db_dsn: SecretStr | None = None
 
     # Evidence storage
     evidence_path: str = "./evidence"

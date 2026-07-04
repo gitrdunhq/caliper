@@ -183,7 +183,7 @@ def build_decision_store(settings: CaliperSettings) -> DecisionStorePort:
         return DECISION_STORES.create("null")
 
     try:
-        repo = DECISION_STORES.create("postgres", dsn=dsn)
+        repo = DECISION_STORES.create("postgres", dsn=dsn.get_secret_value())
         if not repo.connect():
             log.warning(
                 "decision_store_null",
@@ -515,7 +515,7 @@ def build_decision_repository(settings: CaliperSettings):
         # No DSN configured — persist nothing rather than attempt a doomed connect.
         return NullRepository()
     try:
-        repo = DecisionRepository(dsn=settings.db_dsn, query_timeout=10)
+        repo = DecisionRepository(dsn=settings.db_dsn.get_secret_value(), query_timeout=10)
         if not repo.connect():
             log.warning("db_unavailable", msg="Falling back to NullRepository")
             return NullRepository()

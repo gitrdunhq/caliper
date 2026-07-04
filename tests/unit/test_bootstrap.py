@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import dataclasses
 
+from pydantic import SecretStr
+
 # ---------------------------------------------------------------------------
 # ApplicationContext dataclass
 # ---------------------------------------------------------------------------
@@ -330,7 +332,7 @@ class TestMakeDecisionStore:
         from caliper.composition.bootstrap import _make_decision_store
 
         settings = MagicMock()
-        settings.db_dsn = "postgresql://user:pass@localhost:5432/caliper"
+        settings.db_dsn = SecretStr("postgresql://user:pass@localhost:5432/caliper")
 
         with patch("caliper.data.db.DecisionRepository.connect", return_value=True):
             result = _make_decision_store(settings)
@@ -348,7 +350,7 @@ class TestMakeDecisionStore:
         from caliper.data.db import DecisionRepository
 
         settings = MagicMock()
-        settings.db_dsn = "postgresql://user:pass@localhost:5432/caliper"
+        settings.db_dsn = SecretStr("postgresql://user:pass@localhost:5432/caliper")
 
         with patch("caliper.data.db.DecisionRepository.connect", return_value=True):
             result = _make_decision_store(settings)
@@ -363,7 +365,7 @@ class TestMakeDecisionStore:
         from caliper.composition.bootstrap import _make_decision_store
 
         settings = MagicMock()
-        settings.db_dsn = "postgresql://user:pass@badhost:5432/caliper"
+        settings.db_dsn = SecretStr("postgresql://user:pass@badhost:5432/caliper")
 
         with patch("caliper.data.db.DecisionRepository.connect", return_value=False):
             result = _make_decision_store(settings)
@@ -380,7 +382,7 @@ class TestMakeDecisionStore:
         from caliper.composition.bootstrap import _make_decision_store
 
         settings = MagicMock()
-        settings.db_dsn = "postgresql://user:pass@localhost:5432/caliper"
+        settings.db_dsn = SecretStr("postgresql://user:pass@localhost:5432/caliper")
 
         with patch("caliper.data.db.DecisionRepository.connect", side_effect=RuntimeError("boom")):
             result = _make_decision_store(settings)
@@ -432,7 +434,7 @@ class TestBuildDecisionRepositoryRegressions:
         from caliper.data.db import NullRepository
 
         settings = MagicMock()
-        settings.db_dsn = ""
+        settings.db_dsn = SecretStr("")
 
         result = build_decision_repository(settings)
 
@@ -452,7 +454,7 @@ class TestBuildDecisionRepositoryRegressions:
         from caliper.data.db import NullRepository
 
         settings = MagicMock()
-        settings.db_dsn = "postgresql://user:pass@localhost:5432/caliper"
+        settings.db_dsn = SecretStr("postgresql://user:pass@localhost:5432/caliper")
 
         with patch("caliper.data.db.DecisionRepository.connect", return_value=False):
             # connect() returns False → falls back to NullRepository, but the
