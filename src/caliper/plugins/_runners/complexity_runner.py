@@ -23,7 +23,9 @@ logger = structlog.get_logger(__name__)
 _JS_TS_EXTS = (".js", ".ts", ".jsx", ".tsx")
 
 # Committed esbuild bundle of typhonjs-escomplex (#441); ships as package data.
-_MI_HELPER = Path(__file__).parent / "complexity_helper_dist" / "mi.cjs"
+_MI_HELPER = (
+    Path(__file__).parent / "complexity_helper_dist" / "mi.cjs"
+)  # nosemgrep: path-no-resolve-check — literal path anchored on __file__, no external input
 
 _SUPPORTED_EXTS = (
     ".py",

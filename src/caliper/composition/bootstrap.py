@@ -212,7 +212,9 @@ def build_scan_cache(settings: CaliperSettings) -> ScanCachePort:
     log = structlog.get_logger()
     load_adapters()
     try:
-        db_path = Path(settings.evidence_path) / "scan_cache.sqlite"
+        db_path = (
+            Path(settings.evidence_path) / "scan_cache.sqlite"
+        )  # nosemgrep: path-no-resolve-check — evidence_path is operator config, not external input
         return SCAN_CACHES.create("sqlite", db_path=db_path)
     except Exception:
         log.warning(
