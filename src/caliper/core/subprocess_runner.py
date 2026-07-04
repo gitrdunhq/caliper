@@ -62,7 +62,7 @@ class SubprocessToolRunner:
                 duration_ms=duration_ms,
                 not_installed=True,
             )
-        except OSError as exc:
+        except OSError as exc:  # noqa: CAL-002  # tool-stderr diagnostic, same as scanner results
             # PermissionError, NotADirectoryError, ... — degrade, never propagate
             # (the seam's contract is that callers never see a raw subprocess exception).
             duration_ms = int((time.monotonic() - start) * 1000)

@@ -132,7 +132,7 @@ def verify_seal(evidence_dir: Path) -> dict:
 
     try:
         seal = json.loads(seal_path.read_text())
-    except (json.JSONDecodeError, OSError) as e:
+    except (json.JSONDecodeError, OSError) as e:  # noqa: CAL-002  # no prod callers
         return {"valid": False, "errors": [f"seal.json unreadable: {e}"], "seal": None}
 
     errors: list[str] = []

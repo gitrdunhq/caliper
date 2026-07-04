@@ -84,14 +84,14 @@ class ScanCodeScanner:
         if not raw_json.strip():
             try:
                 raw_json = output_file.read_text(encoding="utf-8")
-            except OSError as exc:
+            except OSError as exc:  # noqa: CAL-002  # scanner diagnostic
                 log.warning("scanner.read_output_failed", error=str(exc))
                 return ScanResult.failed(self.name, f"could not read scancode output: {exc}")
 
         # Parse JSON
         try:
             data = json.loads(raw_json)
-        except (json.JSONDecodeError, ValueError) as exc:
+        except (json.JSONDecodeError, ValueError) as exc:  # noqa: CAL-002  # scanner diagnostic
             log.warning("scanner.parse_error", error=str(exc))
             return ScanResult.failed(self.name, f"failed to parse scancode output: {exc}")
 

@@ -81,7 +81,7 @@ def safe_extract(
     try:
         with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:*") as tf:
             _extract_tar(tf, dest, max_total_bytes, max_files, max_file_bytes)
-    except tarfile.TarError as exc:
+    except tarfile.TarError as exc:  # noqa: CAL-002  # .error field has no consumers
         raise ExtractionError(f"unrecognized archive: {exc}") from exc
 
 
@@ -315,14 +315,14 @@ class PyPISource:
         url = f"https://pypi.org/pypi/{package}/{version}/json"
         try:
             resp = self._client.get(url)
-        except httpx.HTTPError as exc:
+        except httpx.HTTPError as exc:  # noqa: CAL-002  # .error field has no consumers
             logger.warning("pkgsrc.pypi.http_error", package=package, error=str(exc))
             return _unavailable(f"pypi request failed: {exc}")
         if resp.status_code != 200:
             return _unavailable(f"pypi returned {resp.status_code}")
         try:
             data = resp.json()
-        except ValueError as exc:
+        except ValueError as exc:  # noqa: CAL-002  # .error field has no consumers
             return _unavailable(f"pypi parse error: {exc}")
 
         info = data.get("info") or {}
@@ -340,14 +340,14 @@ class PyPISource:
             return _unavailable("missing sdist url")
         try:
             blob = self._client.get(url)
-        except httpx.HTTPError as exc:
+        except httpx.HTTPError as exc:  # noqa: CAL-002  # .error field has no consumers
             return _unavailable(f"sdist download failed: {exc}")
         if blob.status_code != 200:
             return _unavailable(f"sdist download returned {blob.status_code}")
         content = blob.content
         try:
             safe_extract(content, dest)
-        except ExtractionError as exc:
+        except ExtractionError as exc:  # noqa: CAL-002  # .error field has no consumers
             logger.warning("pkgsrc.pypi.extract_rejected", error=str(exc))
             return _unavailable(f"unsafe sdist archive: {exc}")
         return FetchedPackage(
@@ -374,14 +374,14 @@ class NpmSource:
         url = f"https://registry.npmjs.org/{package}/{version}"
         try:
             resp = self._client.get(url)
-        except httpx.HTTPError as exc:
+        except httpx.HTTPError as exc:  # noqa: CAL-002  # .error field has no consumers
             logger.warning("pkgsrc.npm.http_error", package=package, error=str(exc))
             return _unavailable(f"npm request failed: {exc}")
         if resp.status_code != 200:
             return _unavailable(f"npm returned {resp.status_code}")
         try:
             manifest = resp.json()
-        except ValueError as exc:
+        except ValueError as exc:  # noqa: CAL-002  # .error field has no consumers
             return _unavailable(f"npm parse error: {exc}")
 
         scripts = manifest.get("scripts") or {}
@@ -405,14 +405,14 @@ class NpmSource:
             return _unavailable("missing tarball url")
         try:
             blob = self._client.get(url)
-        except httpx.HTTPError as exc:
+        except httpx.HTTPError as exc:  # noqa: CAL-002  # .error field has no consumers
             return _unavailable(f"tarball download failed: {exc}")
         if blob.status_code != 200:
             return _unavailable(f"tarball download returned {blob.status_code}")
         content = blob.content
         try:
             safe_extract(content, dest)
-        except ExtractionError as exc:
+        except ExtractionError as exc:  # noqa: CAL-002  # .error field has no consumers
             logger.warning("pkgsrc.npm.extract_rejected", error=str(exc))
             return _unavailable(f"unsafe tarball: {exc}")
         return FetchedPackage(

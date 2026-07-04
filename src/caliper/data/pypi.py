@@ -53,7 +53,7 @@ class PyPIClient:
         except httpx.TimeoutException:
             logger.warning("pypi.timeout", package=package_name, version=version)
             return {"available": False, "error": "PyPI request timed out"}
-        except httpx.HTTPError as exc:
+        except httpx.HTTPError as exc:  # noqa: CAL-002  # error key unread downstream
             logger.warning("pypi.http_error", package=package_name, error=str(exc))
             return {"available": False, "error": f"PyPI request failed: {exc}"}
 
@@ -74,7 +74,7 @@ class PyPIClient:
 
         try:
             data = response.json()
-        except Exception as exc:
+        except Exception as exc:  # noqa: CAL-002  # error key unread downstream
             logger.warning("pypi.parse_error", package=package_name, error=str(exc))
             return {"available": False, "error": f"failed to parse PyPI response: {exc}"}
 

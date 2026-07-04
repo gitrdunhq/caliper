@@ -351,7 +351,7 @@ def _try_model(
         try:
             response = _parse_response(raw)
             raw_code = response.choices[0].message.get("content", "")
-        except (orjson.JSONDecodeError, KeyError, IndexError) as exc:
+        except (orjson.JSONDecodeError, KeyError, IndexError) as exc:  # noqa: CAL-002  # log-only
             logger.warning(
                 "solver.parse_error",
                 issue=issue_number,
@@ -361,7 +361,7 @@ def _try_model(
             if retry < config.max_retries - 1:
                 time.sleep(_backoff(retry))
             continue
-        except Exception as exc:
+        except Exception as exc:  # noqa: CAL-002  # log-only
             logger.warning(
                 "solver.parse_error_unexpected",
                 issue=issue_number,

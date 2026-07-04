@@ -85,7 +85,7 @@ class OsvScanner:
         # Parse JSON
         try:
             data = json.loads(stdout)
-        except (json.JSONDecodeError, ValueError) as exc:
+        except (json.JSONDecodeError, ValueError) as exc:  # noqa: CAL-002  # scanner diagnostic
             log.warning("scanner.parse_error", error=str(exc))
             return ScanResult.failed(self.name, f"failed to parse osv-scanner output: {exc}")
 
