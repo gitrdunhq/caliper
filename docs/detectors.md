@@ -16,11 +16,13 @@ own. No external binary, no network, no LLM — same input always yields the sam
 | Example | "JWT encoded without an `aud` claim" | "this version of Django has CVE-2024-…" |
 | Dependency | Python stdlib `ast` only | a wrapped CLI (osv-scanner, syft, trivy, …) |
 
-Detectors and plugin findings flow into the **same** pipeline: the detector set is exposed
-as a single `DeterministicScanner` (`src/caliper/detectors/scanner.py`) implementing
-`ScannerPort` with `tool_name="deterministic"`, so the orchestrator runs it in parallel
-alongside the plugins, and its findings go through the same normalize → scribe → policy
-stages.
+Detectors and plugin findings flow into the **same** review pipeline: the detector set is
+exposed as a single `DeterministicScanner` (`src/caliper/detectors/scanner.py`, `name =
+"deterministic"`). Since `detectors/` may not import `plugins/` directly (tier boundary),
+a composition-registered adapter — `DeterministicPlugin`
+(`src/caliper/composition/deterministic_plugin.py`) — wraps it as a `ScannerPlugin` and
+registers it with `ANALYZERS`, so `caliper review` runs it alongside the other 19 plugins
+and its findings render/gate exactly like theirs (#457).
 
 ## How a detector works
 
@@ -39,7 +41,9 @@ Guarantees baked into the base class:
 - **Fail-safe** — the scanner calls `detect_safe()`, which wraps `detect()` and returns `[]`
   on *any* exception. A buggy detector can never crash a scan or block a build.
 - **Suppressible** — a `# noqa: CAL-NNN` comment on the offending line silences exactly that
-  detector; `# noqa` with no id silences all of them on that line.
+  detector; `# noqa` with no id silences all of them on that line. The suppression regex is
+  anchored to end-of-line, so a trailing justification must live in a *second* `#`-comment
+  (`# noqa: CAL-004  # fake test fixture`), not a parenthetical after the code.
 - **Deterministic** — analysis is pure AST/text inspection. Same file, same findings.
 
 Registration and discovery are decorator-driven: `@register_detector`

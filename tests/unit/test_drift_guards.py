@@ -87,17 +87,19 @@ def test_generate_plugin_inventory_matches_default_registry():
 
 
 # ---------------------------------------------------------------------------
-# 4. Plugin count matches docs/CAPABILITIES.md canonical count (19)
+# 4. Plugin count matches docs/CAPABILITIES.md canonical count (20)
 # ---------------------------------------------------------------------------
 
-_CAPABILITIES_PLUGIN_COUNT = 19
+_CAPABILITIES_PLUGIN_COUNT = 20
 
 
 def test_plugin_inventory_count_matches_capabilities_md():
     """Inventory length must equal the canonical count declared in docs/CAPABILITIES.md."""
+    from caliper.composition.bootstrap import load_adapters
     from caliper.core.doc_gen import generate_plugin_inventory  # noqa: PLC0415
     from caliper.plugins import get_default_registry
 
+    load_adapters()
     inventory = generate_plugin_inventory(get_default_registry())
     assert len(inventory) == _CAPABILITIES_PLUGIN_COUNT, (
         f"Expected {_CAPABILITIES_PLUGIN_COUNT} plugins per docs/CAPABILITIES.md, "

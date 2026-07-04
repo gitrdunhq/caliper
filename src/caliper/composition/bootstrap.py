@@ -559,6 +559,7 @@ def load_adapters() -> None:
     import caliper.adapters.grounding  # noqa: F401
     import caliper.adapters.persistence  # noqa: F401
     import caliper.adapters.repo_snapshot  # noqa: F401
+    import caliper.composition.deterministic_plugin  # noqa: F401
     import caliper.core.fake  # noqa: F401
     import caliper.core.file_source  # noqa: F401
     import caliper.core.json_report  # noqa: F401

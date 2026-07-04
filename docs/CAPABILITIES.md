@@ -6,15 +6,17 @@
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
   LAST VERIFIED: 2026-07-04
-  VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
-  plugin (20 ScannerPlugin subclasses total); 22 detectors in src/caliper/detectors/;
-  67 semgrep rule ids in policies/semgrep/.
+  VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + the
+  "deterministic" plugin (composition-registered, wraps DeterministicScanner,
+  #457) + OPA policy plugin (21 ScannerPlugin subclasses total); 22 detectors
+  in src/caliper/detectors/; 67 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
-19 scanner plugins, 22 deterministic detectors, 67 custom semgrep rules, 12 code graph
+20 scanner plugins (19 auto-discovered + "deterministic", which wraps all 22
+CAL-001..022 detectors), 67 custom semgrep rules, 12 code graph
 checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
@@ -22,8 +24,8 @@ supply-chain version-bump narrative is advisory metadata only).
 
 | Metric | Count |
 |--------|-------|
-| Scanner plugins | 19 (5 categories) + OPA policy plugin |
-| Deterministic detectors | 22 (CAL-001..CAL-022) |
+| Scanner plugins | 20 (19 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
+| Deterministic detectors | 22 (CAL-001..CAL-022), run via the "deterministic" plugin during `caliper review` |
 | Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 12 |
 | OPA Rego policy rules | 16 (7 deny, 9 warn) |
@@ -45,8 +47,10 @@ supply-chain version-bump narrative is advisory metadata only).
 ## Plugins by Category
 
 The 19 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
-five categories below. The **OPA policy plugin** is the 20th `ScannerPlugin` subclass but is
-wired separately — it consumes every other plugin's findings and runs last
+five categories below, plus **deterministic** (also `@ANALYZERS.register`, but
+composition-registered — see `code (6)` below since `detectors/` may not import
+`plugins/` directly). The **OPA policy plugin** is the 21st `ScannerPlugin` subclass but
+is wired separately — it consumes every other plugin's findings and runs last
 (`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-15-rules).
 
 ### dependency (4)
@@ -66,10 +70,11 @@ wired separately — it consumes every other plugin's findings and runs last
 | gitleaks | `plugins/gitleaks.py` | Secret/credential detection, 800+ patterns. Custom config via `.caliper/gitleaks.toml`. Secrets never appear in findings — only rule ID, file, line, entropy, fingerprint. Always critical severity. |
 | clamav | `plugins/clamav.py` | Malware/virus scanning via ClamAV (`clamscan`). Recursive repo scan. |
 
-### code (5)
+### code (6)
 
 | Plugin | File | Detects |
 |--------|------|---------|
+| deterministic | `composition/deterministic_plugin.py` | Wraps `DeterministicScanner` (`detectors/scanner.py`) — all 22 AST-based bug detectors (CAL-001..022). Composition-registered rather than auto-discovered, since `detectors/` may not import `plugins/` directly (#457). |
 | semgrep | `plugins/semgrep.py` | AST code pattern matching. Dynamic ruleset selection by file extension (Python, TS, JS, Go, Ruby, Java, Terraform, K8s, Shell, Docker, Swift). 67 custom org rules (see below). Supports pinned local rule snapshots. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyright (faster, stricter) when available, falls back to mypy. Error + warning severity only. |
