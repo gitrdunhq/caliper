@@ -163,7 +163,7 @@ class PackageCatalog:
                         safe["eco"] = ecosystem
                         safe["pkg"] = package_name
                         safe["ver"] = version
-                        cur.execute(
+                        cur.execute(  # noqa: CAL-005  # set_clause is allowlisted column names only; values stay parameterized via `safe`
                             f"UPDATE package_catalog SET {set_clause}, updated_at = now() "
                             "WHERE ecosystem = %(eco)s AND package_name = %(pkg)s "
                             "AND version = %(ver)s",
