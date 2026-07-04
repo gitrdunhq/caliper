@@ -8,12 +8,16 @@ import json
 import subprocess
 from unittest.mock import MagicMock, patch
 
+from hypothesis import given
+from hypothesis import strategies as st
+
 from caliper.core.pr_review import (
     get_pr_diff_hunks,
     line_in_hunks,
     parse_hunk_ranges,
     sarif_to_review,
 )
+from tests.unit._strategies import garbage_text
 
 
 def _sarif(results: list[dict], tool: str = "test-tool") -> dict:
@@ -366,3 +370,105 @@ class TestGetPrDiffHunks:
             )
             result = get_pr_diff_hunks("owner/repo", 123)
             assert "src/app.py" in result
+
+
+# ---------------------------------------------------------------------------
+# Property-based tests (#225 / #259) — Hypothesis domains for the hunk parser
+# ---------------------------------------------------------------------------
+
+
+class TestProperties:
+    """Property domains for PR hunk parsing and SARIF→review conversion.
+
+    Domains (per DPS-12):
+      - SAFETY: parsers never raise on arbitrary untrusted diff/SARIF input.
+      - INVARIANT (Determinism): same input → same output.
+      - INVARIANT: empty input → empty output.
+    """
+
+    @given(patch=garbage_text(max_size=300))
+    def test_parse_hunk_ranges_never_raises(self, patch: str) -> None:
+        """SAFETY: arbitrary patch text never crashes the hunk parser."""
+        ranges = parse_hunk_ranges(patch)
+        assert isinstance(ranges, list)
+        for start, end in ranges:
+            assert start >= 0
+            assert end >= start or end == start
+
+    @given(patch=garbage_text(max_size=300))
+    def test_parse_hunk_ranges_deterministic(self, patch: str) -> None:
+        """INVARIANT (Determinism): re-parsing yields the identical ranges."""
+        assert parse_hunk_ranges(patch) == parse_hunk_ranges(patch)
+
+    @given(
+        old_start=st.integers(min_value=0, max_value=10_000),
+        old_len=st.integers(min_value=0, max_value=500),
+        new_start=st.integers(min_value=0, max_value=10_000),
+        new_len=st.integers(min_value=1, max_value=500),
+    )
+    def test_parse_hunk_ranges_well_formed_header_round_trips(
+        self, old_start: int, old_len: int, new_start: int, new_len: int
+    ) -> None:
+        """INVARIANT: a well-formed header parses to exactly its +side range."""
+        patch = f"@@ -{old_start},{old_len} +{new_start},{new_len} @@\n context\n"
+        assert parse_hunk_ranges(patch) == [(new_start, new_start + new_len - 1)]
+
+    @given(line=st.integers())
+    def test_line_in_hunks_empty_hunks_always_false(self, line: int) -> None:
+        """INVARIANT: no line is ever inside an empty hunk list."""
+        assert line_in_hunks(line, []) is False
+
+    @given(
+        line=st.integers(min_value=-1000, max_value=100_000),
+        hunks=st.lists(
+            st.tuples(
+                st.integers(min_value=0, max_value=10_000),
+                st.integers(min_value=0, max_value=10_000),
+            ),
+            max_size=20,
+        ),
+    )
+    def test_line_in_hunks_matches_range_semantics(
+        self, line: int, hunks: list[tuple[int, int]]
+    ) -> None:
+        """INVARIANT: membership is exactly 'within any inclusive range'."""
+        expected = any(start <= line <= end for start, end in hunks)
+        assert line_in_hunks(line, hunks) == expected
+
+    @given(
+        results=st.lists(
+            st.fixed_dictionaries(
+                {
+                    "ruleId": garbage_text(max_size=30),
+                    "level": st.sampled_from(["error", "warning", "note", ""]),
+                    "message": st.fixed_dictionaries({"text": garbage_text(max_size=80)}),
+                }
+            ),
+            max_size=10,
+        )
+    )
+    def test_sarif_to_review_never_raises_and_empty_diff_has_no_inline_comments(
+        self, results: list[dict]
+    ) -> None:
+        """SAFETY + INVARIANT: arbitrary SARIF results never crash the
+        converter, and with no files in the diff there are never inline
+        comments."""
+        sarif = _sarif(results)
+        review = sarif_to_review(sarif, diff_files=set())
+        assert review.comments == []
+        assert review.event in ("REQUEST_CHANGES", "COMMENT")
+
+    @given(patch=garbage_text(max_size=200))
+    def test_sarif_to_review_sentinels_never_block(self, patch: str) -> None:
+        """SAFETY (fail-open, #211): degraded-plugin sentinel results never
+        produce a REQUEST_CHANGES verdict, whatever the surrounding text."""
+        results = [
+            {
+                "ruleId": rule_id,
+                "level": "error",
+                "message": {"text": patch},
+            }
+            for rule_id in ("caliper-plugin-error", "caliper-truncated")
+        ]
+        review = sarif_to_review(_sarif(results), diff_files=set())
+        assert review.event == "COMMENT"
