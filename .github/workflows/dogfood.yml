@@ -14,7 +14,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
 
       - name: Install deps
         run: uv sync --group dev
