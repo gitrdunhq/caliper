@@ -13,6 +13,9 @@ jobs:
   move-to-done:
     name: Move to Done on project board
     runs-on: ubuntu-latest
+    # Board automation is best-effort: a lapsed GITRDUNHQ_PROJECT_BOT credential
+    # must never paint issues/PRs red (#395).
+    continue-on-error: true
     if: >-
       github.event_name == 'issues' ||
       (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true)
