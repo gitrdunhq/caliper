@@ -32,7 +32,7 @@ class TestAnalyzerRegistryPortIsProtocol:
 
         try:
             isinstance(object(), AnalyzerRegistryPort)
-        except TypeError as exc:
+        except TypeError as exc:  # noqa: CAL-002  # test assertion output
             pytest.fail(
                 f"AnalyzerRegistryPort is not @runtime_checkable — isinstance() raised: {exc}"
             )
@@ -105,7 +105,7 @@ class TestDecisionStorePortIsProtocol:
 
         try:
             isinstance(object(), DecisionStorePort)
-        except TypeError as exc:
+        except TypeError as exc:  # noqa: CAL-002  # test assertion output
             pytest.fail(f"DecisionStorePort is not @runtime_checkable — isinstance() raised: {exc}")
 
     def test_decision_store_port_has_save_decision_method(self) -> None:
@@ -173,7 +173,7 @@ class TestEvidenceStorePortIsProtocol:
 
         try:
             isinstance(object(), EvidenceStorePort)
-        except TypeError as exc:
+        except TypeError as exc:  # noqa: CAL-002  # test assertion output
             pytest.fail(f"EvidenceStorePort is not @runtime_checkable — isinstance() raised: {exc}")
 
     def test_evidence_store_port_has_write_artifact_method(self) -> None:
@@ -239,7 +239,7 @@ class TestPackageIndexPortIsProtocol:
 
         try:
             isinstance(object(), PackageIndexPort)
-        except TypeError as exc:
+        except TypeError as exc:  # noqa: CAL-002  # test assertion output
             pytest.fail(f"PackageIndexPort is not @runtime_checkable — isinstance() raised: {exc}")
 
     def test_package_index_port_has_get_package_info_method(self) -> None:
@@ -321,7 +321,7 @@ class TestRepoSnapshotPortIsProtocol:
 
         try:
             isinstance(object(), RepoSnapshotPort)
-        except TypeError as exc:
+        except TypeError as exc:  # noqa: CAL-002  # test assertion output
             pytest.fail(f"RepoSnapshotPort is not @runtime_checkable — isinstance() raised: {exc}")
 
     def test_repo_snapshot_port_has_checkout_ref_method(self) -> None:
@@ -426,7 +426,7 @@ class TestPullRequestPublisherPortIsProtocol:
 
         try:
             isinstance(object(), PullRequestPublisherPort)
-        except TypeError as exc:
+        except TypeError as exc:  # noqa: CAL-002  # test assertion output
             pytest.fail(
                 f"PullRequestPublisherPort is not @runtime_checkable — isinstance() raised: {exc}"
             )
@@ -617,7 +617,7 @@ class TestReportRendererPortIsProtocol:
 
         try:
             isinstance(object(), ReportRendererPort)
-        except TypeError as exc:
+        except TypeError as exc:  # noqa: CAL-002  # test assertion output
             pytest.fail(
                 f"ReportRendererPort is not @runtime_checkable — isinstance() raised: {exc}"
             )
@@ -692,7 +692,7 @@ class TestAuditSinkPortIsProtocol:
 
         try:
             isinstance(object(), AuditSinkPort)
-        except TypeError as exc:
+        except TypeError as exc:  # noqa: CAL-002  # test assertion output
             pytest.fail(f"AuditSinkPort is not @runtime_checkable — isinstance() raised: {exc}")
 
     def test_audit_sink_port_has_seal_method(self) -> None:

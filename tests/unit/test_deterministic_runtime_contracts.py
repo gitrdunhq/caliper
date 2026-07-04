@@ -703,7 +703,7 @@ def test_232_file_evidence_store_rejects_traversal_without_writing_outside(
 
     try:
         result = store.write_artifact("../escape.txt", b"owned")
-    except Exception as exc:  # pragma: no cover - documents the contract in failure output
+    except Exception as exc:  # noqa: CAL-002  # pragma: no cover - test assertion output
         pytest.fail(f"FileEvidenceStore must fail closed without raising: {exc}")
 
     assert result == ""

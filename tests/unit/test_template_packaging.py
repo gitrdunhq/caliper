@@ -29,7 +29,7 @@ def test_templates_accessible_via_importlib_resources():
             with importlib.resources.files("caliper.templates").joinpath(template_name).open() as f:
                 content = f.read()
                 assert len(content) > 0, f"Template {template_name} is empty"
-        except (ImportError, ModuleNotFoundError, FileNotFoundError) as e:
+        except (ImportError, ModuleNotFoundError, FileNotFoundError) as e:  # noqa: CAL-002
             pytest.fail(f"Cannot access template {template_name}: {e}")
 
 
@@ -96,7 +96,7 @@ def test_renderer_can_load_templates_in_installed_context():
             file_count=1,
         )
         assert isinstance(result, str)
-    except jinja2.TemplateNotFound as e:
+    except jinja2.TemplateNotFound as e:  # noqa: CAL-002  # test assertion output
         pytest.fail(f"Template not found - packaging issue: {e}")
 
 

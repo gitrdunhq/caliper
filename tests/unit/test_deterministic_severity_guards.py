@@ -97,7 +97,7 @@ def _analyze_file_for_cvss_thresholds(file_path: Path) -> list[tuple[int, int, s
     try:
         content = file_path.read_text()
         tree = ast.parse(content)
-    except (SyntaxError, UnicodeDecodeError) as e:
+    except (SyntaxError, UnicodeDecodeError) as e:  # noqa: CAL-002  # test skip message
         pytest.skip(f"Could not parse {file_path}: {e}")
         return findings
 

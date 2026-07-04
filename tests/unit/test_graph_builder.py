@@ -626,7 +626,7 @@ class TestWalkUpstreamNoneGuardRegression:
 
         try:
             results = graph.blast_radius("A")
-        except (TypeError, KeyError) as exc:
+        except (TypeError, KeyError) as exc:  # noqa: CAL-002  # test assertion output
             import pytest as _pytest
 
             _pytest.fail(

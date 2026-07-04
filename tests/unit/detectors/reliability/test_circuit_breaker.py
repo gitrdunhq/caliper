@@ -132,7 +132,7 @@ breaker = CircuitBreaker(**config)
 
             try:
                 findings = detector.detect(Path(f.name))
-            except AttributeError as exc:
+            except AttributeError as exc:  # noqa: CAL-002  # test assertion output
                 import pytest as _pytest
 
                 _pytest.fail(

@@ -168,7 +168,7 @@ class TestCircuitBreakerHalfOpenState:
 
         try:
             tree = ast.parse(source)
-        except SyntaxError as e:
+        except SyntaxError as e:  # noqa: CAL-002  # test assertion output
             pytest.fail(f"Failed to parse solver.py: {e}")
 
         visitor = CircuitBreakerVisitor()
@@ -253,7 +253,7 @@ class TestCircuitBreakerHalfOpenState:
 
         try:
             tree = ast.parse(source)
-        except SyntaxError as e:
+        except SyntaxError as e:  # noqa: CAL-002  # test assertion output
             pytest.fail(f"Failed to parse solver.py: {e}")
 
         # Find the _try_model function which has the retry loop

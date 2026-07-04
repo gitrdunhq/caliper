@@ -302,7 +302,7 @@ class TestGetAnnotationText:
         )
         try:
             result = get_annotation_text(subscript)
-        except TypeError as exc:
+        except TypeError as exc:  # noqa: CAL-002  # test assertion output
             import pytest
 
             pytest.fail(

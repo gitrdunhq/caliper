@@ -68,12 +68,12 @@ class TestTemplateSQLValidity:
             sql = sql.replace("{param}", "?")
             try:
                 conn.execute(sql, ("test_symbol",))
-            except sqlite3.OperationalError as exc:
+            except sqlite3.OperationalError as exc:  # noqa: CAL-002  # test assertion output
                 pytest.fail(f"SQL error in '{template.description}': {exc}")
         else:
             try:
                 conn.execute(sql)
-            except sqlite3.OperationalError as exc:
+            except sqlite3.OperationalError as exc:  # noqa: CAL-002  # test assertion output
                 pytest.fail(f"SQL error in '{template.description}': {exc}")
         conn.close()
 

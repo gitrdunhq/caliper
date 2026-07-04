@@ -204,7 +204,7 @@ class TestPolicyEnginePortIsProtocol:
         # This will raise TypeError if the Protocol is not @runtime_checkable.
         try:
             isinstance(object(), PolicyEnginePort)
-        except TypeError as exc:
+        except TypeError as exc:  # noqa: CAL-002  # test assertion output
             pytest.fail(f"PolicyEnginePort is not @runtime_checkable — isinstance() raised: {exc}")
 
     def test_policy_engine_port_has_evaluate_method(self):

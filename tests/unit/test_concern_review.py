@@ -538,7 +538,7 @@ class TestPostWithRetryValueErrorRegression:
                 timeout=5,
                 max_retries=1,
             )
-        except (ValueError, Exception) as exc:
+        except (ValueError, Exception) as exc:  # noqa: CAL-002  # test assertion output
             import pytest
 
             pytest.fail(
