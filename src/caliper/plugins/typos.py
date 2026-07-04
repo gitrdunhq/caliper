@@ -41,7 +41,9 @@ class TyposPlugin(ScannerPlugin):
             except ValueError:
                 rel_files.append(f)
 
-        cmd = ["typos", "--format", "json", *rel_files]
+        # --force-exclude: explicit file args on the CLI (rel_files) otherwise
+        # override _typos.toml's files.extend-exclude.
+        cmd = ["typos", "--format", "json", "--force-exclude", *rel_files]
 
         try:
             r = subprocess.run(

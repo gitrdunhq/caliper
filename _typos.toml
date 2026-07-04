@@ -1,0 +1,6 @@
+[files]
+extend-exclude = [
+  # Minified esbuild bundle (#441) — not human-authored source, garbled substrings
+  # from minification are not real typos.
+  "src/caliper/plugins/_runners/complexity_helper_dist/*",
+]
