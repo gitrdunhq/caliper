@@ -5,7 +5,7 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-07-02
+  LAST VERIFIED: 2026-07-04
   VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + OPA policy
   plugin (20 ScannerPlugin subclasses total); 22 detectors in src/caliper/detectors/;
   67 semgrep rule ids in policies/semgrep/.
@@ -81,7 +81,7 @@ wired separately — it consumes every other plugin's findings and runs last
 | Plugin | File | Detects |
 |--------|------|---------|
 | blast-radius | `plugins/blast_radius.py` | Code graph impact analysis. AST → SQLite, then 12 SQL checks (see below). Full + incremental indexing. Python + JS/TS. Extensible via `graph.register_check()`. |
-| complexity | `plugins/complexity.py` | Cyclomatic complexity (Lizard) + maintainability index (Radon). 10 languages. Per-function: CCN, NLOC, tokens, params, MI grade (A/B/C). |
+| complexity | `plugins/complexity.py` | Cyclomatic complexity (Lizard) + maintainability index (Radon for Python, bundled typhonjs-escomplex for JS/TS, Halstead fallback elsewhere). 10 languages. Per-function: CCN, NLOC, tokens, params, MI grade (A/B/C). |
 | typos | `plugins/typos.py` | Source-aware typo detection (crate-ci/typos). Single pinned Rust binary, very low false positives, identifier-aware (camelCase/snake_case splitting). Shows corrections. |
 | ls-lint | `plugins/ls_lint.py` | File naming convention enforcement. Only runs when `.ls-lint.yml` config exists. |
 
@@ -404,7 +404,7 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 67 custom rules + 22 deterministic detectors |
 | Stylistic code smells | Hundreds of built-in rules | Not primary focus |
 | Structural code smells | Limited | 12 graph checks (dead code, god functions, SRP, layer violations, circular deps, deep inheritance, stubs) |
-| Complexity | Cyclomatic + cognitive | Cyclomatic (Lizard) + MI (Radon) — parity |
+| Complexity | Cyclomatic + cognitive | Cyclomatic (Lizard) + MI (Radon for Python, escomplex for JS/TS) — parity |
 | Copy-paste | Built-in CPD | Built-in CPD (15 languages) — parity |
 | Coverage gating | Ingests lcov/cobertura, gates on % | **Not supported** |
 | Dependency vulns | Developer Edition only (paid) | OSV + Trivy (free) |

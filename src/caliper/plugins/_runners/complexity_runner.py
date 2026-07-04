@@ -1,14 +1,17 @@
-"""Lizard + Radon complexity subprocess runner.
+"""Lizard + Radon + escomplex complexity subprocess runner.
 # tested-by: tests/unit/test_complexity_runner.py
 
 Lizard (CCN/NLOC/Halstead) is the complexity source of record for every
-language caliper scans, JS/TS included: as of 2026 no actively maintained,
-permissively-licensed CLI computes a JS/TS-specific maintainability index.
-Revisit periodically (#441).
+language caliper scans. The maintainability index is then refined per
+language: Radon for Python, and a bundled typhonjs-escomplex helper for
+JS/TS (#441) — `complexity_helper_dist/mi.cjs`, a committed esbuild bundle
+that needs only the system `node` (source: scripts/complexity_helper/).
+Both overlays fail open to the Halstead approximation.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import subprocess
 from pathlib import Path
@@ -16,6 +19,11 @@ from pathlib import Path
 import structlog
 
 logger = structlog.get_logger(__name__)
+
+_JS_TS_EXTS = (".js", ".ts", ".jsx", ".tsx")
+
+# Committed esbuild bundle of typhonjs-escomplex (#441); ships as package data.
+_MI_HELPER = Path(__file__).parent / "complexity_helper_dist" / "mi.cjs"
 
 _SUPPORTED_EXTS = (
     ".py",
@@ -146,6 +154,34 @@ def run_complexity(
             logger.debug("complexity.radon_unavailable", error=str(exc))
         except Exception:
             logger.exception("complexity.radon_failed")
+
+    js_ts_files = [f for f in supported if Path(f).suffix in _JS_TS_EXTS]
+    if js_ts_files and _MI_HELPER.exists():
+        try:
+            result = subprocess.run(
+                ["node", str(_MI_HELPER), *js_ts_files],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=repo_path,
+                check=False,
+            )
+            for entry in json.loads(result.stdout or "[]"):
+                mi = float(entry["mi"])
+                grade = "A" if mi >= 20 else ("B" if mi >= 10 else "C")
+                score = f"{grade} ({mi:.1f})"
+                fpath = str(entry.get("file", ""))
+                try:
+                    rel = str(Path(fpath).relative_to(repo_path))
+                except ValueError:
+                    rel = fpath
+                for fn in functions:
+                    if fn["file"] in (fpath, rel):
+                        fn["maintainability_index"] = score
+        except (FileNotFoundError, subprocess.TimeoutExpired, ValueError) as exc:
+            logger.debug("complexity.js_ts_mi_unavailable", error=str(exc))
+        except Exception:
+            logger.exception("complexity.js_ts_mi_failed")
 
     functions.sort(
         key=lambda f: f.get("cyclomatic_complexity", 0),

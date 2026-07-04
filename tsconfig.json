@@ -14,5 +14,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["scripts/part_ui/**/*.ts"]
+  "include": ["scripts/part_ui/**/*.ts", "scripts/complexity_helper/**/*.ts"]
 }
