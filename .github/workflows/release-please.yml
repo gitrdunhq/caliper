@@ -24,6 +24,22 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
+      # An empty or expired RELEASE_PLEASE_TOKEN silently falls through the
+      # `||` fallback to GITHUB_TOKEN, whose PR pushes can't trigger Foreman's
+      # Gate check (GitHub's recursion guard) — auto-merge then blocks
+      # indefinitely (#451). Surface that misconfiguration loudly instead of
+      # failing the release: warn and continue (fail-open).
+      - name: Check release token identity
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          LOGIN=$(gh api user --jq .login 2>/dev/null || echo "")
+          if [ -z "$LOGIN" ] || [ "$LOGIN" = "github-actions[bot]" ]; then
+            echo "::warning title=RELEASE_PLEASE_TOKEN not in effect::The release token resolves to '${LOGIN:-<no identity>}'. An empty, expired, or under-scoped RELEASE_PLEASE_TOKEN secret silently falls back to GITHUB_TOKEN, so release PR pushes cannot trigger the Gate check and auto-merge stalls (#451). Re-mint a classic PAT with repo scope and run: gh secret set RELEASE_PLEASE_TOKEN"
+          else
+            echo "Release token identity: $LOGIN"
+          fi
+
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
