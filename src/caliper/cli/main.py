@@ -12,48 +12,18 @@ from pathlib import Path
 import click
 import structlog
 
+from caliper.cli.cli_shared import (  # noqa: F401
+    _AUDIT_SUFFIXES,
+    _REVIEW_SUFFIXES,
+    _collect_repo_files,
+    _read_diff,
+    _write_output,
+)
 from caliper.cli.watch import _IGNORE_DIRS, _WATCH_EXTENSIONS, DebounceTimer  # noqa: F401
 from caliper.core.models import OperatingMode
 from caliper.plugins import get_default_registry
 
 logger = structlog.get_logger()
-
-# Source-file suffixes the review/audit commands enumerate. Centralised so the
-# file source (git ls-files vs. walk) is the single place that decides *which*
-# files exist, and these decide which extensions we care about.
-_REVIEW_SUFFIXES: tuple[str, ...] = (
-    ".py",
-    ".ts",
-    ".js",
-    ".tf",
-    ".yaml",
-    ".yml",
-    ".json",
-    ".swift",
-)
-_AUDIT_SUFFIXES: tuple[str, ...] = tuple(s for s in _REVIEW_SUFFIXES if s != ".swift")
-
-
-def _collect_repo_files(
-    root: Path, suffixes: tuple[str, ...], *, prefer: str | None = None
-) -> list[str]:
-    """Enumerate scannable files under *root* via the resolved file source.
-
-    Replaces the ad-hoc ``rglob(ext)`` + ``should_ignore`` loops; the source
-    (git ls-files when *root* is a usable repo, else an ignore-aware walk)
-    applies caliper's exclusion rules uniformly.
-    """
-    from caliper.core.file_source import select_file_source
-
-    source = select_file_source(root, prefer=prefer)
-    return [str(p) for p in source.list_files(root, suffixes=suffixes)]
-
-
-def _write_output(path: str, content: str) -> None:
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content)
-
 
 _ALLOWED_TEAMS: frozenset[str] = frozenset(
     {"backend", "frontend", "platform", "infra", "security", "data", "unknown"}
@@ -155,14 +125,17 @@ def cli() -> None:
 
 
 def _register_subcommands() -> None:
+    from caliper.cli.audit_cmd import audit
     from caliper.cli.baseline_cmd import baseline
     from caliper.cli.eval_cmd import eval_cmd
     from caliper.cli.gauge_cmd import gauge
+    from caliper.cli.ground_cmd import ground
     from caliper.cli.inspect_cmd import inspect
     from caliper.cli.inspect_cmds import check_health, healthcheck, plugins, schema
     from caliper.cli.part_cmd import part
     from caliper.cli.query_cmd import query
     from caliper.cli.reinstall_cmd import reinstall_cmd
+    from caliper.cli.supply_chain_diff_cmd import supply_chain_diff
 
     cli.add_command(healthcheck)
     cli.add_command(check_health)
@@ -175,6 +148,9 @@ def _register_subcommands() -> None:
     cli.add_command(eval_cmd)
     cli.add_command(reinstall_cmd)
     cli.add_command(baseline)
+    cli.add_command(audit)
+    cli.add_command(supply_chain_diff)
+    cli.add_command(ground)
 
 
 _register_subcommands()
@@ -456,320 +432,6 @@ def review(
         from caliper.cli.watch import watch_and_rerun
 
         watch_and_rerun(repo_path=repo, run_review=run_review)
-
-
-@cli.command()
-@click.option("--repo-path", type=click.Path(exists=True), default=".", help="Repository root.")
-@click.option("--model", type=str, default="openai/gpt-oss-120b:free", help="LLM model ID.")
-@click.option(
-    "--api-key", type=str, default=None, help="API key (or OPENROUTER_CALIPER / ANTHROPIC_API_KEY)."
-)
-@click.option("--endpoint", type=str, default="https://openrouter.ai/api", help="LLM API base URL.")
-@click.option("--output", type=click.Path(), default=None, help="Write markdown report to file.")
-@click.option("--scanners", type=str, default=None, help="Comma-separated plugin names.")
-@click.option("--disable", type=str, default="", help="Comma-separated plugins to disable.")
-@click.option("--timeout", type=int, default=120, help="Per-concern API timeout in seconds.")
-@click.option("--max-tokens", type=int, default=12_000, help="Max tokens per concern cluster.")
-def audit(
-    repo_path: str,
-    model: str,
-    api_key: str | None,
-    endpoint: str,
-    output: str | None,
-    scanners: str | None,
-    disable: str,
-    timeout: int,
-    max_tokens: int,
-) -> None:
-    """Run a holistic trust audit — concern by concern via LLM (Alley-Oop)."""
-    import os as _os
-
-    from caliper.composition.bootstrap import bootstrap_review
-    from caliper.core.repo_config import RepoConfig, load_repo_config
-    from caliper.core.use_cases import ReviewOptions, review_repository
-    from caliper.data.concern_review import render_audit_markdown, run_audit
-
-    repo = Path(repo_path)
-    api_key = (
-        api_key or _os.environ.get("OPENROUTER_CALIPER") or _os.environ.get("ANTHROPIC_API_KEY")
-    )
-    _ctx = bootstrap_review(registry_factory=get_default_registry)
-    repo_config = load_repo_config(repo) if (repo / ".caliper.yaml").exists() else RepoConfig()
-    disabled_names = set(repo_config.plugins.disabled or [])
-    if disable:
-        disabled_names.update(d.strip() for d in disable.split(",") if d.strip())
-
-    files = _collect_repo_files(repo, _AUDIT_SUFFIXES)
-
-    names = scanners.split(",") if scanners else None
-    options = ReviewOptions(scanners=names, disabled=disabled_names)
-    click.echo(f"Running dom scanners on {len(files)} files…", err=True)
-    review_result = review_repository(_ctx, files, repo, options)
-
-    click.echo(f"Clustering and fanning out to {model}…", err=True)
-    report = run_audit(
-        repo_path=repo,
-        results=review_result.results,
-        files=files,
-        model=model,
-        api_key=api_key,
-        endpoint=endpoint,
-        timeout=timeout,
-        max_tokens_per_cluster=max_tokens,
-    )
-
-    md = render_audit_markdown(report)
-    if output:
-        _write_output(output, md)
-        click.echo(f"Audit written to {output} ({report.concern_count} concerns)")
-    else:
-        click.echo(md)
-
-
-def _render_supply_chain_markdown(findings: list[dict], decision: str, triggered: list[str]) -> str:
-    """Concise markdown report for the supply-chain-diff step."""
-    icon = {"reject": "🚫", "needs_review": "⚠️", "approve_with_constraints": "⚠️"}.get(
-        decision, "✅"
-    )
-    lines = [
-        "## Supply-chain version-bump analysis",
-        "",
-        f"**Gate decision:** {icon} `{decision}`",
-        "",
-    ]
-    if not findings:
-        lines.append("_No dependency version changes detected in the diff._")
-        return "\n".join(lines)
-    sev_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
-    for f in sorted(findings, key=lambda d: sev_order.get(d.get("severity", "info"), 9)):
-        sev = f.get("severity", "info").upper()
-        pkg = f"{f.get('package', '')}@{f.get('version', '')}"
-        lines.append(f"### {sev} — {f.get('id', '')} · `{pkg}`")
-        lines.append("")
-        lines.append(f.get("message", ""))
-        for ev in (f.get("evidence") or [])[:5]:
-            lines.append(f"- `{ev}`")
-        narrative = ((f.get("scribe") or {}).get("threat_analysis") or {}).get("narrative")
-        if narrative:
-            lines.append("")
-            lines.append(f"> **Threat analysis (advisory):** {narrative}")
-        lines.append("")
-    if triggered:
-        lines.append("---")
-        lines.append("**Triggered policy rules:** " + ", ".join(triggered))
-    return "\n".join(lines)
-
-
-@cli.command(name="supply-chain-diff")
-@click.option("--repo-path", type=click.Path(), default=".", help="Repository root (for context).")
-@click.option("--diff", required=True, type=str, help="Path to diff file, or '-' for stdin.")
-@click.option(
-    "--format",
-    "output_format",
-    type=click.Choice(["markdown", "json", "sarif"]),
-    default="markdown",
-    help="Output format.",
-)
-@click.option("--output", type=click.Path(), default=None, help="Write output to file.")
-@click.option(
-    "--operating-mode",
-    type=click.Choice(["monitor", "advise"]),
-    default="monitor",
-    help="advise: exit non-zero when the gate rejects.",
-)
-def supply_chain_diff(
-    repo_path: str,
-    diff: str,
-    output_format: str,
-    output: str | None,
-    operating_mode: str,
-) -> None:
-    """Threat-analyze dependency version bumps (separate, feature-flag-gated step).
-
-    Fetches the source of both versions of every upgraded dependency in the diff,
-    diffs them, scores deterministic supply-chain signals (which gate the build via
-    OPA), and — when the optional LLM scribe is enabled — attaches an advisory
-    data-driven narrative. NOT part of the normal scan; requires
-    CALIPER_SUPPLY_CHAIN_DIFF_ENABLED=1.
-    """
-    import orjson
-
-    try:
-        from caliper.core.config import CaliperSettings
-
-        settings = CaliperSettings()  # type: ignore[call-arg]
-    except Exception:
-        click.echo("supply-chain-diff skipped — configuration unavailable (fail-open).", err=True)
-        sys.exit(0)
-
-    if not settings.supply_chain_diff_enabled:
-        click.echo(
-            "supply-chain-diff is gated off. Enable it with "
-            "CALIPER_SUPPLY_CHAIN_DIFF_ENABLED=1 to run this step.",
-            err=True,
-        )
-        sys.exit(0)
-
-    from caliper.composition.bootstrap import run_supply_chain_scan
-    from caliper.core.plugin import PluginResult
-    from caliper.core.supply_chain_diff import evaluate_gate
-
-    diff_text = _read_diff(diff)
-    findings = run_supply_chain_scan(diff_text, settings)
-
-    # Optional advisory LLM narrative (opt-in; never affects the verdict).
-    if "supply_chain_threat" in settings.enabled_scribes and settings.llm_enabled:
-        from caliper.core.scribe import ScribeContext
-        from caliper.core.scribe_pass import scribe_findings
-        from caliper.data.llm_client import LlmClient
-        from caliper.plugins.scribes.supply_chain_threat import SupplyChainThreatScribe
-
-        scribe = SupplyChainThreatScribe(LlmClient(settings))
-        ctx = ScribeContext(repo_path=repo_path, scribe_timeout=settings.scribe_timeout)
-        findings = scribe_findings(findings, [scribe], ctx)
-
-    evaluation = evaluate_gate(findings, settings)
-    decision = evaluation.decision.value
-    result = PluginResult(
-        plugin_name="supply-chain-diff",
-        category="supply_chain",
-        findings=[f.to_dict() for f in findings],
-    )
-
-    if output_format == "json":
-        from caliper.core.json_report import render_json
-
-        text = render_json([result], repo=repo_path)
-    elif output_format == "sarif":
-        from caliper.core.sarif import to_sarif
-
-        text = orjson.dumps(
-            to_sarif([result], repo_path=repo_path), option=orjson.OPT_INDENT_2
-        ).decode()
-    else:
-        text = _render_supply_chain_markdown(result.findings, decision, evaluation.triggered_rules)
-
-    if output:
-        _write_output(output, text)
-        click.echo(f"Supply-chain analysis written to {output} ({decision})")
-    else:
-        click.echo(text)
-
-    if operating_mode == "advise" and decision in ("reject", "needs_review"):
-        sys.exit(1)
-    sys.exit(0)
-
-
-def _render_grounding_markdown(bundle: dict) -> str:
-    """Render a grounding bundle (fact sheet + type context) as markdown."""
-    fact_sheet = bundle.get("fact_sheet") or []
-    type_context = bundle.get("type_context") or []
-    lines = [
-        "# Grounding bundle",
-        "",
-        (
-            f"_provider: {bundle.get('provider', 'null')}; "
-            f"{len(fact_sheet)} in-file defs, {len(type_context)} referenced type defs._"
-        ),
-        "",
-        "## Fact sheet — symbols defined in the files under review",
-        "Trust these signatures over assumptions about the code's shape.",
-        "",
-    ]
-    if fact_sheet:
-        for s in fact_sheet:
-            sig = f" {s['signature']}" if s.get("signature") else ""
-            lines.append(
-                f"- `{s.get('kind', '')}` **{s.get('name', '')}**{sig} — "
-                f"{s.get('file', '')}:{s.get('line', 0)}"
-            )
-    else:
-        lines.append("_(no symbols resolved — fact sheet empty)_")
-    lines.append("")
-    lines.append("## Type context — contracts referenced from elsewhere")
-    lines.append(
-        "Before flagging a 'raw string', 'missing timeout', 'wrong type', or "
-        "'unvalidated value', check whether the contract below already constrains it."
-    )
-    lines.append("")
-    if type_context:
-        for s in type_context:
-            sig = f" {s['signature']}" if s.get("signature") else ""
-            lines.append(
-                f"- `{s.get('kind', '')}` **{s.get('name', '')}**{sig} — "
-                f"{s.get('file', '')}:{s.get('line', 0)}"
-            )
-    else:
-        lines.append("_(no cross-file type contracts resolved)_")
-    lines.append("")
-    return "\n".join(lines)
-
-
-@cli.command(name="ground")
-@click.option(
-    "--files",
-    "files",
-    multiple=True,
-    required=True,
-    help="File(s) under review to ground (repeatable).",
-)
-@click.option(
-    "--out",
-    type=click.Path(),
-    default=None,
-    help="Write the bundle JSON here; if omitted, print to stdout.",
-)
-def ground(files: tuple[str, ...], out: str | None) -> None:
-    """Produce a deterministic grounding bundle (separate, feature-flag-gated step).
-
-    Emits a fact sheet (symbols defined in the given files) plus type context
-    (type-like contracts referenced from elsewhere) so a downstream consumer
-    starts grounded. NOT part of the normal scan; requires
-    CALIPER_GROUNDING_ENABLED=1.
-    """
-    import json
-
-    from caliper.core.config import CaliperSettings
-
-    settings = CaliperSettings()  # type: ignore[call-arg]
-
-    if not settings.grounding_enabled:
-        click.echo(
-            "grounding is gated off. Enable with CALIPER_GROUNDING_ENABLED=1 to run this step.",
-            err=True,
-        )
-        sys.exit(0)
-
-    from caliper.composition.bootstrap import run_grounding
-
-    bundle = run_grounding(list(files), settings)
-    payload = json.dumps(bundle, indent=2)
-
-    if out:
-        _write_output(out, payload)
-        if out.endswith(".json"):
-            md_path = out[: -len(".json")] + ".md"
-            _write_output(md_path, _render_grounding_markdown(bundle))
-        click.echo(
-            f"Grounding bundle written to {out} "
-            f"({len(bundle.get('fact_sheet') or [])} defs, "
-            f"{len(bundle.get('type_context') or [])} type contexts)"
-        )
-    else:
-        click.echo(payload)
-    sys.exit(0)
-
-
-def _read_diff(diff_path: str) -> str:
-    if diff_path == "-":
-        return (
-            sys.stdin.read()
-        )  # nosemgrep: file-read-all-python — diff content must be fully buffered for parsing
-    path = Path(diff_path)
-    if not path.exists():
-        logger.warning("diff_file_not_found", path=diff_path)
-        return ""
-    return path.read_text()
 
 
 if __name__ == "__main__":
