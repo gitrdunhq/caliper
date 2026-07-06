@@ -43,7 +43,8 @@ test: test-build
 		--env CI \
 		--entrypoint "" \
 		$(TEST_IMAGE) \
-		/opt/test-venv/bin/python -m pytest tests/ -v
+		/opt/test-venv/bin/python -m pytest tests/ -v \
+		--cov=caliper.core --cov-report=term-missing
 
 # Explicit emulated CI-parity run (amd64 even on an arm64 host).
 test-amd64:
