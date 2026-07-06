@@ -131,19 +131,10 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Post release key
-        run: |
-          SHA=$(git rev-parse HEAD)
-          TOKEN=$(python3 -c "import hmac,hashlib,os; print(hmac.new(os.environ['RELEASE_UNLOCK_WORD'].encode(), os.environ['KEY_SHA'].encode(), hashlib.sha256).hexdigest())")
-          gh api "repos/${REPO}/statuses/${SHA}" \
-            --method POST \
-            -f state=success \
-            -f context=ci/release-key \
-            -f description="$TOKEN"
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          RELEASE_UNLOCK_WORD: ${{ secrets.RELEASE_UNLOCK_WORD }}
-          KEY_SHA: ${{ github.sha }}
+        uses: ./.github/actions/post-release-key
+        with:
+          release-unlock-word: ${{ secrets.RELEASE_UNLOCK_WORD }}
+          github-token: ${{ github.token }}
 
   # ── PR parallel jobs ──
 
@@ -160,18 +151,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-
-      - name: Cache uv packages
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      - name: Setup uv + install dependencies
+        uses: ./.github/actions/setup-uv-deps
         with:
-          path: /tmp/uv-cache
-          key: uv-lint-${{ hashFiles('uv.lock') }}
-          restore-keys: uv-lint-
-
-      - name: Install dependencies
-        run: uv sync --group dev
+          cache-key-suffix: lint
 
       - name: Ruff check
         run: uv run ruff check src/ tests/
@@ -242,18 +225,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-
-      - name: Cache uv packages
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      - name: Setup uv + install dependencies
+        uses: ./.github/actions/setup-uv-deps
         with:
-          path: /tmp/uv-cache
-          key: uv-api-contract-${{ hashFiles('uv.lock') }}
-          restore-keys: uv-api-contract-
-
-      - name: Install dependencies
-        run: uv sync --group dev
+          cache-key-suffix: api-contract
 
       - name: Run API contract tests
         run: uv run pytest tests/contract/ -v --tb=short
@@ -274,18 +249,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-
-      - name: Cache uv packages
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      - name: Setup uv + install dependencies
+        uses: ./.github/actions/setup-uv-deps
         with:
-          path: /tmp/uv-cache
-          key: uv-e2e-smoke-${{ hashFiles('uv.lock') }}
-          restore-keys: uv-e2e-smoke-
-
-      - name: Install dependencies
-        run: uv sync --group dev
+          cache-key-suffix: e2e-smoke
 
       - name: Run smoke e2e tests
         run: uv run pytest tests/e2e/test_smoke_review.py -v --tb=short
@@ -304,55 +271,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-
-      - name: Cache uv packages
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      - name: Setup uv + install dependencies
+        uses: ./.github/actions/setup-uv-deps
         with:
-          path: /tmp/uv-cache
-          key: uv-e2e-full-${{ hashFiles('uv.lock') }}
-          restore-keys: uv-e2e-full-
+          cache-key-suffix: e2e-full
 
-      - name: Cache scanner binaries
-        id: scanner-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
-        with:
-          path: /tmp/scanner-bin
-          key: scanners-${{ env.SCANNER_VERSIONS }}
-
-      - name: Cache trivy DB
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
-        with:
-          path: /tmp/trivy-cache
-          key: trivy-db-${{ github.run_id }}
-          restore-keys: trivy-db-
-
-      - name: Install dependencies
+      - name: Install additional e2e tooling
         run: |
-          uv sync --group dev
           uv pip install lizard mypy scancode-toolkit==32.3.0 || true
           curl -sSfL "https://github.com/crate-ci/typos/releases/download/v1.47.2/typos-v1.47.2-x86_64-unknown-linux-musl.tar.gz" | sudo tar -xz -C /usr/local/bin ./typos || true
 
-      - name: Install scanner binaries
-        if: steps.scanner-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p "$SCANNER_BIN"
-          curl -sSfL "https://github.com/aquasecurity/trivy/releases/download/v0.70.0/trivy_0.70.0_Linux-64bit.tar.gz" | tar xz -C "$SCANNER_BIN" trivy || true
-          curl -sSfL -o "$SCANNER_BIN/osv-scanner" "https://github.com/google/osv-scanner/releases/download/v2.3.5/osv-scanner_linux_amd64" && chmod +x "$SCANNER_BIN/osv-scanner" || true
-          curl -sSfL -o "$SCANNER_BIN/kube-linter" "https://github.com/stackrox/kube-linter/releases/download/v0.8.3/kube-linter-linux" && chmod +x "$SCANNER_BIN/kube-linter" || true
-          curl -sSfL "https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.9.0/pmd-dist-7.9.0-bin.zip" -o /tmp/pmd.zip && unzip -qo /tmp/pmd.zip -d /tmp && cp /tmp/pmd-bin-7.9.0/bin/pmd "$SCANNER_BIN/pmd" && cp -r /tmp/pmd-bin-7.9.0 "$SCANNER_BIN/pmd-bin-7.9.0" || true
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz" | tar xz -C "$SCANNER_BIN" gitleaks || true
-          curl -sSfL -o "$SCANNER_BIN/opengrep" "https://github.com/opengrep/opengrep/releases/download/v1.20.0/opengrep_manylinux_x86" && chmod +x "$SCANNER_BIN/opengrep" || true
-          curl -sSfL "https://github.com/anchore/syft/releases/download/v1.43.0/syft_1.43.0_linux_amd64.tar.gz" | tar xz -C "$SCANNER_BIN" syft || true
-
-      - name: Add scanners to PATH and warm trivy DB
-        run: |
-          echo "$SCANNER_BIN" >> "$GITHUB_PATH"
-          if [ -f "$SCANNER_BIN/pmd-bin-7.9.0/bin/pmd" ]; then
-            echo "$SCANNER_BIN/pmd-bin-7.9.0/bin" >> "$GITHUB_PATH"
-          fi
-          "$SCANNER_BIN/trivy" fs --download-db-only --cache-dir "$TRIVY_CACHE_DIR" || true
+      - name: Install scanners
+        uses: ./.github/actions/install-scanners
 
       - name: Run e2e tests
         run: uv run pytest tests/e2e/ -v --tb=short
@@ -376,56 +306,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-
-      - name: Cache uv packages
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      - name: Setup uv + install dependencies
+        uses: ./.github/actions/setup-uv-deps
         with:
-          path: /tmp/uv-cache
-          key: uv-review-${{ hashFiles('uv.lock') }}
-          restore-keys: uv-review-
+          cache-key-suffix: review
 
-      - name: Cache scanner binaries
-        id: scanner-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
-        with:
-          path: /tmp/scanner-bin
-          key: scanners-${{ env.SCANNER_VERSIONS }}
-
-      - name: Cache trivy DB
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
-        with:
-          path: /tmp/trivy-cache
-          key: trivy-db-${{ github.run_id }}
-          restore-keys: trivy-db-
-
-      - name: Install dependencies
+      - name: Install additional review tooling
         run: |
-          uv sync --group dev
           uv pip install lizard mypy
           curl -sSfL "https://github.com/crate-ci/typos/releases/download/v1.47.2/typos-v1.47.2-x86_64-unknown-linux-musl.tar.gz" | sudo tar -xz -C /usr/local/bin ./typos || true
           uv pip install scancode-toolkit==32.3.0 || true
 
-      - name: Install scanner binaries
-        if: steps.scanner-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p "$SCANNER_BIN"
-          curl -sSfL "https://github.com/aquasecurity/trivy/releases/download/v0.70.0/trivy_0.70.0_Linux-64bit.tar.gz" | tar xz -C "$SCANNER_BIN" trivy || true
-          curl -sSfL -o "$SCANNER_BIN/osv-scanner" "https://github.com/google/osv-scanner/releases/download/v2.3.5/osv-scanner_linux_amd64" && chmod +x "$SCANNER_BIN/osv-scanner" || true
-          curl -sSfL -o "$SCANNER_BIN/kube-linter" "https://github.com/stackrox/kube-linter/releases/download/v0.8.3/kube-linter-linux" && chmod +x "$SCANNER_BIN/kube-linter" || true
-          curl -sSfL "https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.9.0/pmd-dist-7.9.0-bin.zip" -o /tmp/pmd.zip && unzip -qo /tmp/pmd.zip -d /tmp && cp /tmp/pmd-bin-7.9.0/bin/pmd "$SCANNER_BIN/pmd" && cp -r /tmp/pmd-bin-7.9.0 "$SCANNER_BIN/pmd-bin-7.9.0" || true
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz" | tar xz -C "$SCANNER_BIN" gitleaks || true
-          curl -sSfL -o "$SCANNER_BIN/opengrep" "https://github.com/opengrep/opengrep/releases/download/v1.20.0/opengrep_manylinux_x86" && chmod +x "$SCANNER_BIN/opengrep" || true
-          curl -sSfL "https://github.com/anchore/syft/releases/download/v1.43.0/syft_1.43.0_linux_amd64.tar.gz" | tar xz -C "$SCANNER_BIN" syft || true
-
-      - name: Add scanners to PATH and warm trivy DB
-        run: |
-          echo "$SCANNER_BIN" >> "$GITHUB_PATH"
-          if [ -f "$SCANNER_BIN/pmd-bin-7.9.0/bin/pmd" ]; then
-            echo "$SCANNER_BIN/pmd-bin-7.9.0/bin" >> "$GITHUB_PATH"
-          fi
-          "$SCANNER_BIN/trivy" fs --download-db-only --cache-dir "$TRIVY_CACHE_DIR" || true
+      - name: Install scanners
+        uses: ./.github/actions/install-scanners
 
       - name: Generate PR diff
         if: github.event_name == 'pull_request'
