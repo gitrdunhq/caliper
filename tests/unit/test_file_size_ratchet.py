@@ -21,8 +21,6 @@ _LINE_CAP = 500
 # path -> line count recorded when the ratchet was added (or last tightened).
 # Shrinking a file below its recorded count is fine; growing past it is not.
 _ALLOWLIST = {
-    "cli/part_serve.py": 799,
-    "cli/main.py": 776,
     "plugins/_runners/graph_builder.py": 775,
     "detectors/ast_utils.py": 722,
     "core/models.py": 652,
