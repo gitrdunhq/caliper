@@ -90,6 +90,7 @@ def _norm(root: Path, p: str) -> str:
             return str(path.resolve().relative_to(Path(root).resolve())).replace("\\", "/")
         return pp
     except Exception:
+        logger.debug("grounding.norm_failed", path=pp)
         return pp
 
 
@@ -101,6 +102,7 @@ def _identifiers_in(root: Path, files: list[str]) -> set[str]:
         try:
             text = fp.read_text(encoding="utf-8", errors="replace")
         except Exception:
+            logger.debug("grounding.identifiers_read_failed", file=str(fp))
             continue
         idents.update(_IDENT_RE.findall(text))
     return idents
@@ -303,7 +305,8 @@ class CtagsGroundingProvider:
                 cmd, cwd=cwd, capture_output=True, text=True, timeout=120, check=False
             )
             return out.stdout
-        except Exception:  # fail-open: any failure -> no output from this source
+        except Exception as exc:  # fail-open: any failure -> no output from this source
+            logger.debug("grounding.subprocess_failed", cmd=cmd[0], error=str(exc))
             return ""
 
     def _ctags_tags(self, root: Path, paths: list[str] | None) -> list[dict]:
@@ -320,6 +323,7 @@ class CtagsGroundingProvider:
             try:
                 t = json.loads(line)
             except Exception:
+                logger.debug("grounding.ctags_json_parse_failed")
                 continue
             if t.get("_type") != "tag":
                 continue
@@ -400,6 +404,7 @@ class CtagsGroundingProvider:
                         continue
                     scan.append(str(p.relative_to(root)))
             except Exception:
+                logger.debug("grounding.py_tags_walk_failed", root=str(root))
                 return []
         else:
             scan = list(paths)
@@ -410,6 +415,7 @@ class CtagsGroundingProvider:
             try:
                 text = fp.read_text(encoding="utf-8", errors="replace")
             except Exception:
+                logger.debug("grounding.py_tags_read_failed", file=str(fp))
                 continue
             for lno, line in enumerate(text.splitlines(), 1):
                 nm = re.search(_RG_DEF, line)
