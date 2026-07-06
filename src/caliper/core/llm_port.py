@@ -8,7 +8,7 @@ calls a model directly — it resolves a backend from the ``INSPECT_BACKENDS``
 registry and calls :meth:`LLMPort.review`. Backends are swappable and fakeable.
 
 This module defines only the *interface* (no model call). The concrete backends
-live in the isolated ``caliper.plugins._inspect_llm`` module; the deterministic
+live in the isolated ``caliper.data._inspect_llm`` module; the deterministic
 tiers (Screen gauges, Adjudicate) must not import that path.
 """
 
@@ -83,3 +83,23 @@ class GaugeDraftPort(Protocol):
     """Structural contract for an LLM gauge-drafting backend (drafts, never promotes)."""
 
     def draft(self, request: DraftRequest) -> DraftResult: ...
+
+
+# ---------------------------------------------------------------------------
+# Chat-completions transport (task-fit advisory, supply-chain narrative, etc).
+# The concrete adapter is ``caliper.data.llm_client.LlmClient`` (DPS-101: core
+# stays free of the httpx transport, callers construct the adapter and inject
+# it through this port).
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class LLMTransportPort(Protocol):
+    """Structural contract for the shared chat-completions transport."""
+
+    @property
+    def enabled(self) -> bool: ...
+
+    def complete(self, messages: list[dict], *, max_tokens: int = 200) -> str: ...
+
+    def close(self) -> None: ...

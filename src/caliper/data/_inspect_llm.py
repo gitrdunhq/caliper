@@ -22,9 +22,9 @@ from __future__ import annotations
 import json
 
 from caliper.core.config import CaliperSettings
-from caliper.core.llm_client import LlmClient
 from caliper.core.llm_port import DraftRequest, DraftResult, LLMResult, LLMReview
 from caliper.core.port_registries import GAUGE_DRAFTERS, INSPECT_BACKENDS
+from caliper.data.llm_client import LlmClient
 
 # Claims can be long; the transport's 200-token default would truncate them.
 _REVIEW_MAX_TOKENS = 4000

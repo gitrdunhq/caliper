@@ -28,7 +28,7 @@ from caliper.core.port_registries import SCRIBES
 from caliper.core.scribe import merge_scribe
 
 if TYPE_CHECKING:
-    from caliper.core.llm_client import LlmClient
+    from caliper.core.llm_port import LLMTransportPort
     from caliper.core.plugin import PluginFinding
     from caliper.core.scribe import ScribeContext
 
@@ -105,22 +105,16 @@ class SupplyChainThreatScribe:
 
     name = "supply_chain_threat"
 
-    def __init__(self, llm_client: LlmClient | None = None) -> None:
+    def __init__(self, llm_client: LLMTransportPort | None = None) -> None:
+        # Transport is injected (DPS-101): plugins/ cannot construct the
+        # concrete caliper.data.llm_client.LlmClient itself. The composition
+        # root (composition/bootstrap.py:build_scribes) wires it in when this
+        # scribe is enabled; with no client injected, the scribe is disabled
+        # (fail-open — see _get_client).
         self._client = llm_client
-        self._resolved = llm_client is not None
 
-    def _get_client(self) -> LlmClient | None:
-        """Lazily build an LlmClient from settings; disabled (None) on any failure."""
-        if not self._resolved:
-            try:
-                from caliper.core.config import CaliperSettings
-                from caliper.core.llm_client import LlmClient
-
-                self._client = LlmClient(CaliperSettings())
-            except Exception:
-                logger.warning("scribe.supply_chain_threat.client_unavailable")
-                self._client = None
-            self._resolved = True
+    def _get_client(self) -> LLMTransportPort | None:
+        """Return the injected transport, or None if this scribe is disabled."""
         return self._client
 
     def applies_to(self, finding: PluginFinding) -> bool:

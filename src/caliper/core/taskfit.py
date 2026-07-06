@@ -14,10 +14,9 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from caliper.core.llm_client import LlmClient
-
 if TYPE_CHECKING:
     from caliper.core.config import CaliperSettings
+    from caliper.core.llm_port import LLMTransportPort
 
 logger = structlog.get_logger(__name__)
 
@@ -127,12 +126,14 @@ class TaskFitAdvisor:
     the review pipeline.
     """
 
-    def __init__(self, config: CaliperSettings) -> None:
+    def __init__(self, config: CaliperSettings, llm: LLMTransportPort) -> None:
         self._enabled = config.llm_enabled
         self._endpoint = config.llm_endpoint
         self._model = config.llm_model
-        # Transport is shared with the other LLM features via LlmClient (SoT).
-        self._llm = LlmClient(config)
+        # Transport is injected (DPS-101): the concrete adapter is
+        # caliper.data.llm_client.LlmClient, shared with the other LLM
+        # features, wired in by the caller (composition root/plugin).
+        self._llm = llm
 
     def assess(
         self,

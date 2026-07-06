@@ -64,12 +64,8 @@ class TestSendTelemetry:
     @pytest.mark.asyncio
     async def test_send_telemetry_silently_drops_on_network_error(self) -> None:
         """send_telemetry must not raise when the endpoint is unreachable."""
-        from caliper.core.telemetry import (
-            ConfigUsage,
-            PluginTelemetry,
-            TelemetryEvent,
-            send_telemetry,
-        )
+        from caliper.core.telemetry import ConfigUsage, PluginTelemetry, TelemetryEvent
+        from caliper.data.telemetry_sender import send_telemetry
 
         event = TelemetryEvent(
             caliper_version="1.0.0",
@@ -90,7 +86,8 @@ class TestSendTelemetry:
         """send_telemetry completes without exception on a well-formed event."""
         from unittest.mock import AsyncMock, patch
 
-        from caliper.core.telemetry import ConfigUsage, TelemetryEvent, send_telemetry
+        from caliper.core.telemetry import ConfigUsage, TelemetryEvent
+        from caliper.data.telemetry_sender import send_telemetry
 
         event = TelemetryEvent(
             caliper_version="2.0.0",

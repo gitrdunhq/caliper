@@ -21,10 +21,10 @@ from typing import TYPE_CHECKING
 import httpx  # noqa: F401 — used in HolisticReviewer
 import structlog
 
-from caliper.core.concern_prompt import SYSTEM_PROMPT as _SYSTEM_PROMPT
-from caliper.core.concern_prompt import post_with_retry as _post_with_retry
-from caliper.core.concern_prompt import render_audit_markdown as render_audit_markdown
 from caliper.core.config import CaliperSettings
+from caliper.data.concern_prompt import SYSTEM_PROMPT as _SYSTEM_PROMPT
+from caliper.data.concern_prompt import post_with_retry as _post_with_retry
+from caliper.data.concern_prompt import render_audit_markdown as render_audit_markdown
 
 if TYPE_CHECKING:
     from caliper.core.plugin import PluginResult

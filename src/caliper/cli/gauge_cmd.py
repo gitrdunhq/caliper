@@ -19,7 +19,7 @@ import orjson
 
 # The CLI tier registers the isolated LLM drafting backends (core may not import
 # the plugins tier). Never auto-discovered into the review pipeline.
-import caliper.plugins._inspect_llm  # noqa: E402,F401
+import caliper.data._inspect_llm  # noqa: E402,F401
 from caliper.core.backtest import RunOutput, backtest
 from caliper.core.flywheel import cluster_key, top_candidates
 from caliper.core.gauge import GaugeError
