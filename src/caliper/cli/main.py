@@ -485,9 +485,9 @@ def audit(
     import os as _os
 
     from caliper.composition.bootstrap import bootstrap_review
-    from caliper.core.concern_review import render_audit_markdown, run_audit
     from caliper.core.repo_config import RepoConfig, load_repo_config
     from caliper.core.use_cases import ReviewOptions, review_repository
+    from caliper.data.concern_review import render_audit_markdown, run_audit
 
     repo = Path(repo_path)
     api_key = (
@@ -619,9 +619,9 @@ def supply_chain_diff(
 
     # Optional advisory LLM narrative (opt-in; never affects the verdict).
     if "supply_chain_threat" in settings.enabled_scribes and settings.llm_enabled:
-        from caliper.core.llm_client import LlmClient
         from caliper.core.scribe import ScribeContext
         from caliper.core.scribe_pass import scribe_findings
+        from caliper.data.llm_client import LlmClient
         from caliper.plugins.scribes.supply_chain_threat import SupplyChainThreatScribe
 
         scribe = SupplyChainThreatScribe(LlmClient(settings))

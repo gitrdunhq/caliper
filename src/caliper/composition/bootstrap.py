@@ -282,12 +282,24 @@ def build_scribes(settings: CaliperSettings) -> list:
     ``core.scribe_pass.scribe_findings``) attaching deterministic context to each
     finding. Unknown keys are skipped so config can name scribes a given build
     doesn't ship. The factories do no I/O — scribes build tool state lazily.
+
+    ``supply_chain_threat`` is special-cased: it needs the shared
+    ``LlmClient`` transport (data/) injected, which plugins/ cannot import
+    directly (DPS-101) — this composition root is where the concrete
+    transport and the plugin are wired together.
     """
     from caliper.core.port_registries import SCRIBES
 
     scribes: list = []
     for name in settings.enabled_scribes:
-        if name in SCRIBES:
+        if name not in SCRIBES:
+            continue
+        if name == "supply_chain_threat":
+            from caliper.data.llm_client import LlmClient
+            from caliper.plugins.scribes.supply_chain_threat import SupplyChainThreatScribe
+
+            scribes.append(SupplyChainThreatScribe(LlmClient(settings)))
+        else:
             scribes.append(SCRIBES.create(name))
     return scribes
 

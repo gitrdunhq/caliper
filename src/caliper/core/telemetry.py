@@ -12,9 +12,9 @@ boundary — no field outside the schema can ever be sent.
 Opt-in
 ------
 Zero network calls are made unless ``telemetry.enabled: true`` is set in
-``.caliper.yaml``. The ``send_telemetry`` helper is fire-and-forget:
-any network or serialisation error is silently swallowed so telemetry never
-affects the review outcome.
+``.caliper.yaml``. The ``send_telemetry`` sender (``caliper.data.telemetry_sender``)
+is fire-and-forget: any network or serialisation error is silently swallowed so
+telemetry never affects the review outcome.
 """
 
 from __future__ import annotations
@@ -22,10 +22,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-import structlog
 from pydantic import BaseModel, ConfigDict, field_validator
-
-logger = structlog.get_logger()
 
 # ---------------------------------------------------------------------------
 # Allowed scan-time buckets (file-count based)
@@ -154,25 +151,3 @@ class TelemetryEvent(BaseModel):
     error_codes: list[str]
     # Signal 9
     crash_report: CrashReport | None = None
-
-
-# ---------------------------------------------------------------------------
-# Fire-and-forget sender
-# ---------------------------------------------------------------------------
-
-
-async def send_telemetry(event: TelemetryEvent, endpoint: str) -> None:
-    """POST *event* to *endpoint* as JSON.  Silently drops on any error.
-
-    This function is intentionally fire-and-forget: telemetry failures must
-    never affect the review outcome.  All exceptions are caught and logged at
-    debug level only.
-    """
-    try:
-        import httpx
-
-        payload = event.model_dump(mode="json")
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(endpoint, json=payload)
-    except Exception as exc:  # noqa: BLE001 — fire-and-forget, intentional broad catch
-        logger.debug("telemetry.send_failed", error=str(exc))

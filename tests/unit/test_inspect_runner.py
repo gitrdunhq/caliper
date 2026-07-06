@@ -10,14 +10,14 @@ Property domains (DPS-12):
 from __future__ import annotations
 
 # Register the isolated backends (the CLI does this in production; core may not).
-import caliper.plugins._inspect_llm  # noqa: E402,F401
+import caliper.data._inspect_llm  # noqa: E402,F401
 from caliper.core.inspect_cache import InspectCache
 from caliper.core.inspect_runner import render_prompt, run_review
 from caliper.core.inspect_view import PartView
 from caliper.core.llm_port import LLMResult, LLMReview
 from caliper.core.models import ChangeType, Kerf, Part
 from caliper.core.repo_config import InspectConfig
-from caliper.plugins._inspect_llm import OpenAICompatReviewer, parse_claims_json
+from caliper.data._inspect_llm import OpenAICompatReviewer, parse_claims_json
 
 
 def _part(files=("a.py",)) -> Part:

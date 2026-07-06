@@ -1,4 +1,4 @@
-"""Tests for caliper.core.concern_review — concern-by-concern holistic audit.
+"""Tests for caliper.data.concern_review — concern-by-concern holistic audit.
 
 Tests cover:
   - cluster_files: grouping, token splitting, tier classification, test exclusion
@@ -66,7 +66,7 @@ class TestClusterFiles:
         (tmp_path / "src" / "caliper" / "core" / "models.py").write_text("class Finding: pass\n")
         (tmp_path / "src" / "caliper" / "cli" / "main.py").write_text("import click\n")
 
-        from caliper.core.concern_review import cluster_files
+        from caliper.data.concern_review import cluster_files
 
         files = [
             str(tmp_path / "src" / "caliper" / "core" / "pipeline.py"),
@@ -85,7 +85,7 @@ class TestClusterFiles:
         (tmp_path / "src" / "caliper" / "core" / "x.py").write_text("x = 1\n")
         (tmp_path / "src" / "caliper" / "cli" / "y.py").write_text("y = 2\n")
 
-        from caliper.core.concern_review import cluster_files
+        from caliper.data.concern_review import cluster_files
 
         files = [
             str(tmp_path / "src" / "caliper" / "core" / "x.py"),
@@ -102,7 +102,7 @@ class TestClusterFiles:
         (tmp_path / "src" / "caliper" / "core" / "a.py").write_text(big_content)
         (tmp_path / "src" / "caliper" / "core" / "b.py").write_text(big_content)
 
-        from caliper.core.concern_review import cluster_files
+        from caliper.data.concern_review import cluster_files
 
         files = [
             str(tmp_path / "src" / "caliper" / "core" / "a.py"),
@@ -113,7 +113,7 @@ class TestClusterFiles:
         assert all("src/caliper/core" in c.name for c in clusters)
 
     def test_empty_file_list(self, tmp_path: Path) -> None:
-        from caliper.core.concern_review import cluster_files
+        from caliper.data.concern_review import cluster_files
 
         clusters = cluster_files(tmp_path, [])
         assert clusters == []
@@ -125,7 +125,7 @@ class TestClusterFiles:
         (tmp_path / "tests" / "unit" / "test_a.py").write_text("def test_a(): pass\n")
         (tmp_path / "src" / "caliper" / "core" / "x.py").write_text("x = 1\n")
 
-        from caliper.core.concern_review import cluster_files
+        from caliper.data.concern_review import cluster_files
 
         files = [
             str(tmp_path / "tests" / "unit" / "test_a.py"),
@@ -140,7 +140,7 @@ class TestClusterFiles:
         content = "def hello(): return 42\n"
         (tmp_path / "src" / "caliper" / "core" / "x.py").write_text(content)
 
-        from caliper.core.concern_review import cluster_files
+        from caliper.data.concern_review import cluster_files
 
         files = [str(tmp_path / "src" / "caliper" / "core" / "x.py")]
         clusters = cluster_files(tmp_path, files)
@@ -150,7 +150,7 @@ class TestClusterFiles:
 
 class TestAttachFindings:
     def test_findings_attached_to_correct_cluster(self, tmp_path: Path) -> None:
-        from caliper.core.concern_review import ConcernCluster, attach_findings
+        from caliper.data.concern_review import ConcernCluster, attach_findings
 
         cluster_core = ConcernCluster(
             name="src/caliper/core",
@@ -175,7 +175,7 @@ class TestAttachFindings:
         assert len(cluster_cli.findings) == 0
 
     def test_no_findings_when_no_match(self, tmp_path: Path) -> None:
-        from caliper.core.concern_review import ConcernCluster, attach_findings
+        from caliper.data.concern_review import ConcernCluster, attach_findings
 
         cluster = ConcernCluster(
             name="src/caliper/core",
@@ -190,7 +190,7 @@ class TestAttachFindings:
 
 class TestBuildPacket:
     def test_packet_has_required_fields(self, tmp_path: Path) -> None:
-        from caliper.core.concern_review import ConcernCluster, build_packet
+        from caliper.data.concern_review import ConcernCluster, build_packet
 
         cluster = ConcernCluster(
             name="src/caliper/core",
@@ -209,7 +209,7 @@ class TestBuildPacket:
         assert "src/caliper/core/x.py" in packet["source"]
 
     def test_source_paths_are_relative(self, tmp_path: Path) -> None:
-        from caliper.core.concern_review import ConcernCluster, build_packet
+        from caliper.data.concern_review import ConcernCluster, build_packet
 
         abs_path = str(tmp_path / "src" / "caliper" / "core" / "x.py")
         cluster = ConcernCluster(
@@ -226,7 +226,7 @@ class TestBuildPacket:
 class TestHolisticReviewer:
     @respx.mock
     def test_successful_review(self) -> None:
-        from caliper.core.concern_review import HolisticReviewer
+        from caliper.data.concern_review import HolisticReviewer
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(
@@ -251,7 +251,7 @@ class TestHolisticReviewer:
     def test_timeout_returns_empty(self) -> None:
         import httpx as _httpx
 
-        from caliper.core.concern_review import HolisticReviewer
+        from caliper.data.concern_review import HolisticReviewer
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             side_effect=_httpx.TimeoutException("timed out")
@@ -272,7 +272,7 @@ class TestHolisticReviewer:
 
     @respx.mock
     def test_api_error_returns_empty(self) -> None:
-        from caliper.core.concern_review import HolisticReviewer
+        from caliper.data.concern_review import HolisticReviewer
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(500, json={"error": "server error"})
@@ -293,7 +293,7 @@ class TestHolisticReviewer:
 
     @respx.mock
     def test_malformed_response_returns_empty(self) -> None:
-        from caliper.core.concern_review import HolisticReviewer
+        from caliper.data.concern_review import HolisticReviewer
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(200, json={"unexpected": "shape"})
@@ -314,7 +314,7 @@ class TestHolisticReviewer:
 
     @respx.mock
     def test_findings_included_in_request(self) -> None:
-        from caliper.core.concern_review import HolisticReviewer
+        from caliper.data.concern_review import HolisticReviewer
 
         route = respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(
@@ -351,7 +351,7 @@ class TestRunAudit:
         (tmp_path / "src" / "caliper" / "core").mkdir(parents=True)
         (tmp_path / "src" / "caliper" / "core" / "pipeline.py").write_text("def run(): pass\n")
 
-        from caliper.core.concern_review import run_audit
+        from caliper.data.concern_review import run_audit
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(
@@ -382,7 +382,7 @@ class TestRunAudit:
         (tmp_path / "src" / "caliper" / "core" / "a.py").write_text("a = 1\n")
         (tmp_path / "src" / "caliper" / "cli" / "b.py").write_text("b = 2\n")
 
-        from caliper.core.concern_review import run_audit
+        from caliper.data.concern_review import run_audit
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(500, json={"error": "down"})
@@ -410,7 +410,7 @@ class TestRunAudit:
         (tmp_path / "src" / "caliper" / "cli" / "b.py").write_text("b = 2\n")
         (tmp_path / "src" / "caliper" / "data" / "c.py").write_text("c = 3\n")
 
-        from caliper.core.concern_review import run_audit
+        from caliper.data.concern_review import run_audit
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(200, json=_anthropic_response("TRUST VERDICT: TRUSTED"))
@@ -434,7 +434,7 @@ class TestRunAudit:
         (tmp_path / "src" / "caliper" / "core").mkdir(parents=True)
         (tmp_path / "src" / "caliper" / "core" / "x.py").write_text("x = 1\n")
 
-        from caliper.core.concern_review import run_audit
+        from caliper.data.concern_review import run_audit
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(200, json=_anthropic_response(""))
@@ -451,7 +451,7 @@ class TestRunAudit:
 
 class TestRenderAuditMarkdown:
     def test_renders_header_and_verdicts(self) -> None:
-        from caliper.core.concern_review import AuditReport, ConcernVerdict, render_audit_markdown
+        from caliper.data.concern_review import AuditReport, ConcernVerdict, render_audit_markdown
 
         report = AuditReport(
             repo_path="/repo",
@@ -482,7 +482,7 @@ class TestRenderAuditMarkdown:
         assert "3 files" in md
 
     def test_renders_errors(self) -> None:
-        from caliper.core.concern_review import AuditReport, ConcernVerdict, render_audit_markdown
+        from caliper.data.concern_review import AuditReport, ConcernVerdict, render_audit_markdown
 
         report = AuditReport(
             repo_path="/repo",
@@ -520,7 +520,7 @@ class TestPostWithRetryValueErrorRegression:
         (regression for P08-3: ValueError was not in the except clause)."""
         import httpx
 
-        from caliper.core.concern_prompt import post_with_retry
+        from caliper.data.concern_prompt import post_with_retry
 
         # Build a mock client that returns a 200 with non-JSON text
         class _BadJsonTransport(httpx.BaseTransport):
@@ -552,7 +552,7 @@ class TestPostWithRetryValueErrorRegression:
         """Same regression test for the OpenAI path (is_anthropic=False)."""
         import httpx
 
-        from caliper.core.concern_prompt import post_with_retry
+        from caliper.data.concern_prompt import post_with_retry
 
         class _BadJsonTransport(httpx.BaseTransport):
             def handle_request(self, request):

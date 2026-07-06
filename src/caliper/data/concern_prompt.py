@@ -10,7 +10,7 @@ import httpx  # noqa: F401
 import structlog
 
 if TYPE_CHECKING:
-    from caliper.core.concern_review import AuditReport
+    from caliper.data.concern_review import AuditReport
 
 logger = structlog.get_logger(__name__)
 

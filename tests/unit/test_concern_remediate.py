@@ -1,4 +1,4 @@
-"""Tests for caliper.core.concern_remediate — Haiku-powered finding remediation."""
+"""Tests for caliper.data.concern_remediate — Haiku-powered finding remediation."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ class TestRemediator:
     @respx.mock
     def test_remediate_single_finding(self, tmp_path: Path) -> None:
         """Haiku returns a test + fix for one finding."""
-        from caliper.core.concern_remediate import Remediator
+        from caliper.data.concern_remediate import Remediator
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(200, json=_anthropic_response(SAMPLE_HAIKU_PATCH))
@@ -65,8 +65,8 @@ class TestRemediator:
     def test_remediate_uses_fix_suggestion_from_real_plugin_finding(self, tmp_path: Path) -> None:
         """fix_suggestion reaches Haiku's prompt from a real PluginFinding.to_dict(),
         not just a hand-authored test fixture dict (#276)."""
-        from caliper.core.concern_remediate import Remediator
         from caliper.core.plugin import PluginFinding
+        from caliper.data.concern_remediate import Remediator
 
         route = respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(200, json=_anthropic_response(SAMPLE_HAIKU_PATCH))
@@ -99,7 +99,7 @@ class TestRemediator:
         """Timeout returns empty, does not raise."""
         import httpx as _httpx
 
-        from caliper.core.concern_remediate import Remediator
+        from caliper.data.concern_remediate import Remediator
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             side_effect=_httpx.TimeoutException("timed out")
@@ -118,7 +118,7 @@ class TestRunRemediation:
     @respx.mock
     def test_canary_then_parallel(self, tmp_path: Path) -> None:
         """Canary finding runs first; rest fan out in parallel."""
-        from caliper.core.concern_remediate import RemediationReport, run_remediation
+        from caliper.data.concern_remediate import RemediationReport, run_remediation
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(200, json=_anthropic_response(SAMPLE_HAIKU_PATCH))
@@ -160,7 +160,7 @@ class TestRunRemediation:
     @respx.mock
     def test_canary_failure_aborts(self, tmp_path: Path) -> None:
         """If canary fails, remaining findings are skipped."""
-        from caliper.core.concern_remediate import run_remediation
+        from caliper.data.concern_remediate import run_remediation
 
         respx.post("https://api.anthropic.com/v1/messages").mock(
             return_value=respx.MockResponse(500, json={"error": "down"})

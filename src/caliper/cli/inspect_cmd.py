@@ -25,7 +25,7 @@ import structlog
 # The CLI tier wires the deterministic core to the plugins tier (core may not import
 # plugins). Importing the isolated LLM backend module triggers its registration into
 # INSPECT_BACKENDS; it is never auto-discovered into the review pipeline.
-import caliper.plugins._inspect_llm  # noqa: E402,F401
+import caliper.data._inspect_llm  # noqa: E402,F401
 from caliper.core import ledger as ledger_store
 from caliper.core.gauge_engine import run_gauge
 from caliper.core.inspect import adjudicate

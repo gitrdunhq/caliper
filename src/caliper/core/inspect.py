@@ -8,7 +8,7 @@ no LLM output reaches an inspection report except through this function. It is a
 randomness, so it is property-tested.
 
 This module is part of the deterministic decision path and MUST NOT import the LLM
-path (``core.llm_port`` backends, ``core.inspect_runner``, ``plugins._inspect_llm``).
+path (``core.llm_port`` backends, ``core.inspect_runner``, ``data._inspect_llm``).
 A structural test enforces that isolation, mirroring how the PARTING registry is
 isolated from the auto pipeline.
 

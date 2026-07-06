@@ -3,7 +3,7 @@
 # tested-by: tests/unit/test_inspect_isolation.py
 
 Invariant: Screen (gauges) and Adjudicate (the adjudicator) must be structurally
-unable to import the LLM path — the concrete backends (``plugins/_inspect_llm.py``),
+unable to import the LLM path — the concrete backends (``data/_inspect_llm.py``),
 the Review runner (``core/inspect_runner.py``), and the port (``core/llm_port.py``).
 This mirrors how the PARTING registry is isolated from the auto pipeline.
 
@@ -21,7 +21,7 @@ from pathlib import Path
 
 # The forbidden LLM-path modules (where a model is actually invoked or wired).
 _FORBIDDEN = {
-    "caliper.plugins._inspect_llm",
+    "caliper.data._inspect_llm",
     "caliper.core.inspect_runner",
     "caliper.core.llm_port",
 }
