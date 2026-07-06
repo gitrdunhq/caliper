@@ -123,3 +123,48 @@ def test_tier_boundaries_are_not_crossed() -> None:
     ), "Tier boundary violations (a module imported a tier it must not depend on):\n" + "\n".join(
         violations
     )
+
+
+# Third-party/stdlib modules that perform real I/O (network, DB, sockets).
+# core/ must stay functional-core/imperative-shell (DPS-101): these belong in
+# data/adapters, wired in via a port, never imported directly by core.
+_FORBIDDEN_IO_MODULES = ("httpx", "psycopg", "socket")
+
+
+def _imports_forbidden_io(tree: ast.Module) -> list[tuple[str, int]]:
+    hits: list[tuple[str, int]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                root = alias.name.split(".")[0]
+                if root in _FORBIDDEN_IO_MODULES:
+                    hits.append((root, node.lineno))
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                root = node.module.split(".")[0]
+                if root in _FORBIDDEN_IO_MODULES:
+                    hits.append((root, node.lineno))
+    return hits
+
+
+def test_core_has_no_direct_io_imports() -> None:
+    """core/ never imports httpx/psycopg/socket directly (DPS-101).
+
+    Side-effecting transport belongs in data/adapters behind a port
+    (see core/llm_port.py); core stays a pure functional core.
+    """
+    violations: list[str] = []
+    core_dir = _SRC / "core"
+
+    for path in sorted(core_dir.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        tree = ast.parse(path.read_text(), filename=str(path))
+        for module, lineno in _imports_forbidden_io(tree):
+            rel = path.relative_to(_REPO).as_posix()
+            violations.append(f"{rel}:{lineno}: core imports {module!r} directly")
+
+    assert violations == [], (
+        "core/ must not import I/O modules directly — route through a port "
+        "(data/adapters), wired in composition/bootstrap.py:\n" + "\n".join(violations)
+    )
