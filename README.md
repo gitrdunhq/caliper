@@ -2,12 +2,12 @@
   <img src="assets/hero.svg" alt="Caliper" width="900">
   <br>
   <strong>Fully deterministic dependency review for CI.</strong><br>
-  19 plugins. 21 detectors. 6 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
+  19 plugins. 22 detectors. 16 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
   <br><br>
 
   <a href="#quick-start"><img src="https://img.shields.io/badge/get_started-→-d4251a?style=flat-square" alt="Get Started"></a>
   <a href="#the-19-plugins"><img src="https://img.shields.io/badge/19_plugins-deterministic-f2c14a?style=flat-square&labelColor=0e0706" alt="19 Plugins"></a>
-  <a href="#opa-policy-rules"><img src="https://img.shields.io/badge/OPA-6_rules-1e3a8a?style=flat-square" alt="OPA Rules"></a>
+  <a href="#opa-policy-rules"><img src="https://img.shields.io/badge/OPA-16_rules-1e3a8a?style=flat-square" alt="OPA Rules"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm_Shield-7ae582?style=flat-square" alt="PolyForm Shield License"></a>
 </div>
 
@@ -246,7 +246,7 @@ Or use the composite action (`action.yml`):
 
 ## OPA Policy Rules
 
-6 rules in `policies/policy.rego`. All individually toggleable via `input.config.rules_enabled`.
+16 rules in `policies/policy.rego`. All individually toggleable via `input.config.rules_enabled`.
 
 | Rule | Type | Trigger | Default |
 |------|------|---------|---------|
@@ -254,8 +254,18 @@ Or use the composite action (`action.yml`):
 | `forbidden_license` | **deny** | License in forbidden list | GPL-3.0, AGPL-3.0, SSPL-1.0 |
 | `package_age` | **deny** | First published < N days ago | 30 days |
 | `malicious_package` | **deny** | Advisory ID starts with `MAL-` | Always on |
+| `supply_chain_diff` (critical/high) | **deny** | Malicious version-bump signal (install hooks, obfuscation, risky imports) | Always on |
+| `cisa_kev` | **deny** | Advisory ID in CISA KEV (actively exploited) list; never downgradable | Always on |
+| `copyleft_propagation` (strong, static/unknown link) | **deny** | Strong-copyleft license, statically or unknown-linked | Off |
+| `critical_vuln` (dev-scope exemption) | warn | Critical/high vuln downgraded — dev-scope package | Off (`dev_scope_exemption`) |
+| `critical_vuln` (unreachable exemption) | warn | Critical/high vuln downgraded — declared but never imported (ADR-009) | Off (`unreachable_vuln_exemption`) |
+| `forbidden_license` (dev-scope exemption) | warn | Forbidden license downgraded — dev-scope package | Off (`dev_scope_exemption`) |
+| `supply_chain_diff` (medium) | warn | Lower-severity supply-chain signal (e.g. maintainer change) | Always on |
 | `medium_vuln` | warn | Severity = medium | Always on |
 | `transitive_count` | warn | Transitive deps > threshold | 200 |
+| `unmaintained_package` | warn | No release in N days; fails open if release date unknown | Off (365 days) |
+| `copyleft_propagation` (strong, dynamic link) | warn | Strong-copyleft license, dynamically linked | Off |
+| `copyleft_propagation` (weak) | warn | Weak-copyleft license, any link type | Off |
 
 **Decision logic:**
 
