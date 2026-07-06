@@ -23,6 +23,7 @@ _PLUGINS = 20
 _SEMGREP = 67
 _CODEGRAPH = 12
 _OPA = 16
+_DETECTORS = 22
 
 
 def _semgrep_rule_count() -> int:
@@ -45,6 +46,13 @@ def _opa_rule_count() -> int:
     return len(re.findall(r"^(?:deny|warn) contains ", text, re.MULTILINE))
 
 
+def _detector_count() -> int:
+    from caliper.detectors._registry import DETECTORS, discover_detectors
+
+    discover_detectors()
+    return len(DETECTORS.keys())
+
+
 class TestCapabilityCounts:
     """Deterministic source counts match the canonical numbers."""
 
@@ -63,6 +71,9 @@ class TestCapabilityCounts:
     def test_opa_rule_count(self):
         assert _opa_rule_count() == _OPA
 
+    def test_detector_count(self):
+        assert _detector_count() == _DETECTORS
+
 
 class TestCapabilitiesDocInSync:
     """The docs/CAPABILITIES.md headline matches the canonical numbers."""
@@ -76,5 +87,34 @@ class TestCapabilitiesDocInSync:
             f"{_SEMGREP} custom semgrep rules",
             f"{_CODEGRAPH} code graph checks",
             f"{_OPA} OPA policy rules",
+            f"{_DETECTORS} detectors",
         ):
             assert needle in text, f"docs/CAPABILITIES.md missing/stale: {needle!r}"
+
+
+class TestReadmeDocInSync:
+    """README.md's headline claims match the canonical numbers (M1-3/M1-4)."""
+
+    def test_headline_counts_present(self):
+        text = " ".join((_REPO / "README.md").read_text().split())
+        for needle in (
+            f"{_PLUGINS - 1} plugins",  # README counts auto-discovered only, not "deterministic"
+            f"{_DETECTORS} detectors",
+            f"{_OPA} OPA policy rules",
+            f"{_SEMGREP} custom semgrep rules",
+        ):
+            assert needle in text, f"README.md missing/stale: {needle!r}"
+
+
+class TestClaudeMdHasNoHardcodedCounts:
+    """CLAUDE.md points at docs/CAPABILITIES.md instead of carrying its own counts
+    (M1-4) — a hardcoded count here is exactly the drift this test file exists to
+    prevent, just one file earlier."""
+
+    def test_no_capability_counts_in_claude_md(self):
+        claude_md = (_REPO / "CLAUDE.md").read_text()
+        assert not re.search(
+            r"\b\d+\+?\s+(scanner plugins?|deterministic detectors?|"
+            r"custom semgrep rules?|code graph checks?|OPA policy rules?)\b",
+            claude_md,
+        )
