@@ -379,6 +379,11 @@ def review(
     disabled_names, enabled_names = resolve_plugin_selection(
         repo_config, disable=disable, enable=enable
     )
+    # Naming a plugin explicitly via --scanners is itself a request to run it —
+    # it must win over a default-opt-out plugin (e.g. clamav) the same way
+    # --enable does.
+    if names:
+        enabled_names |= set(names)
 
     def run_review() -> None:
         from caliper.core.use_cases import ReviewOptions, review_repository

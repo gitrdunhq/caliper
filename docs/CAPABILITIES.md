@@ -68,7 +68,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 |--------|------|---------|
 | supply-chain | `plugins/supply_chain.py` | **Three sub-checks**: (1) Unpinned deps in package.json + requirements.txt. (2) Lockfile integrity — lockfile changed without manifest or vice versa, 10 lockfile-manifest pairs, SHA-256 fingerprinting. (3) Docker floating tags — `:latest` or no tag in Dockerfiles and docker-compose. Pure Python, no binary. |
 | gitleaks | `plugins/gitleaks.py` | Secret/credential detection, 800+ patterns. Custom config via `.caliper/gitleaks.toml`. Secrets never appear in findings — only rule ID, file, line, entropy, fingerprint. Always critical severity. |
-| clamav | `plugins/clamav.py` | Malware/virus scanning via ClamAV (`clamscan`). Recursive repo scan. |
+| clamav | `plugins/clamav.py` | Malware/virus scanning via ClamAV (`clamscan`). Recursive repo scan. **Opt-in** — excluded from `--all` by default (`DEFAULT_OPT_IN_PLUGINS`); enable via `--enable clamav`/`--scanners clamav` or `plugins.enable` in `.caliper.yaml`. |
 
 ### code (6)
 
