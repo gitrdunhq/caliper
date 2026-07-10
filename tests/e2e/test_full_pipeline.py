@@ -32,14 +32,13 @@ class TestFullReviewMarkdown:
 
         assert result.exit_code == 0
 
-        # clamav is opt-in (DEFAULT_OPT_IN_PLUGINS) — --all does not run it.
+        # clamav and scancode are opt-in (DEFAULT_OPT_IN_PLUGINS) — --all does not run them.
         expected_plugins = [
             "gitleaks",
             "semgrep",
             "osv-scanner",
             "trivy",
             "syft",
-            "scancode",
             "complexity",
             "cpd",
             "mypy",
@@ -73,6 +72,25 @@ class TestFullReviewMarkdown:
 
         assert result.exit_code == 0
         assert "clamav" in output.lower(), "--enable clamav must opt back in"
+
+    def test_full_review_excludes_opt_in_scancode_by_default(
+        self, vuln_repo: Path, tmp_path: Path
+    ) -> None:
+        result, output = run_review(vuln_repo, run_all=True, output_format="markdown")
+
+        assert result.exit_code == 0
+        assert "scancode" not in output.lower(), "scancode must be opt-in, not run by bare --all"
+
+    def test_full_review_enable_flag_runs_scancode(self, vuln_repo: Path, tmp_path: Path) -> None:
+        result, output = run_review(
+            vuln_repo,
+            run_all=True,
+            output_format="markdown",
+            extra_args=["--enable", "scancode"],
+        )
+
+        assert result.exit_code == 0
+        assert "scancode" in output.lower(), "--enable scancode must opt back in"
 
     def test_full_review_severity_counts(self, vuln_repo: Path, tmp_path: Path) -> None:
         result, parsed = run_review(vuln_repo, run_all=True, output_format="json")

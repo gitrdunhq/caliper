@@ -485,9 +485,11 @@ Reference](docs/CAPABILITIES.md#configuration-reference) for the full table.
 
 Drop `.caliper.yaml` at the root of any repo to enable/disable plugins and override thresholds:
 
-`clamav` is opt-in — it never runs by default (even under `--all`), because it's
-heavy and noisy. Turn it on for a repo via `plugins.enable` in config, or
-per-run via `--enable clamav` / `--scanners clamav` on the CLI.
+`clamav` and `scancode` are opt-in — they never run by default (even under
+`--all`), because clamav is heavy/noisy and scancode isn't installed in the
+default image. Turn either on for a repo via `plugins.enable` in config, or
+per-run via `--enable clamav` / `--scanners clamav` (same for `scancode`) on
+the CLI.
 
 ```yaml
 # .caliper.yaml
@@ -497,6 +499,7 @@ plugins:
   enable:
     - gitleaks       # always on, even if disabled globally
     # - clamav        # uncomment to turn on AV scanning for this repo
+    # - scancode      # uncomment to turn on license scanning for this repo
 
 thresholds:
   package_age_days: 14          # stricter than default 30
