@@ -3,23 +3,30 @@ set -euo pipefail
 
 # Build the caliper production container image.
 # Auto-detects podman vs docker and applies the right flags.
+# Defaults to the HOST's native architecture (no qemu emulation) — same
+# convention as `make test-build`'s HOST_ARCH detection. Pass an explicit
+# arch when you need the other one (e.g. building an amd64 image on an
+# arm64 Mac for GHCR-parity testing).
 #
 # Usage:
-#   bash scripts/build.sh                    # default: linux/amd64
+#   bash scripts/build.sh                    # default: native host arch
 #   bash scripts/build.sh arm64              # explicit arch
-#   bash scripts/build.sh --fast             # native arm64 (local dev)
+#   bash scripts/build.sh amd64              # explicit arch (e.g. GHCR parity on Apple Silicon)
+#   bash scripts/build.sh --fast             # alias for native arch (kept for back-compat)
 #   bash scripts/build.sh amd64 --no-cache   # force clean rebuild
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+HOST_ARCH="$(uname -m | sed -e 's/aarch64/arm64/' -e 's/x86_64/amd64/')"
+
 FAST=""
-ARCH="amd64"
+ARCH="$HOST_ARCH"
 EXTRA_ARGS=()
 
 for arg in "$@"; do
     case "$arg" in
-        --fast) FAST=1; ARCH="arm64" ;;
+        --fast) FAST=1; ARCH="$HOST_ARCH" ;;
         arm64|amd64) ARCH="$arg" ;;
         *) EXTRA_ARGS+=("$arg") ;;
     esac
