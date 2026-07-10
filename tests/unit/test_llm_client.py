@@ -1,4 +1,4 @@
-"""Tests for caliper.core.llm_client -- shared OpenAI-compatible LLM transport.
+"""Tests for caliper.data.llm_client -- shared OpenAI-compatible LLM transport.
 
 DPS-12 domains:
   Availability (LIVENESS): a valid, enabled, well-formed call eventually returns text.
@@ -18,7 +18,7 @@ import pytest
 import respx
 
 from caliper.core.config import CaliperSettings
-from caliper.core.llm_client import LlmClient
+from caliper.data.llm_client import LlmClient
 
 _ENDPOINT = "https://llm.example.com/v1"
 _URL = f"{_ENDPOINT}/chat/completions"

@@ -83,6 +83,7 @@ dev = [
     "respx==0.23.1",
     "hypothesis==6.155.3",
     "packaging==26.2",
+    "pytest-cov==7.1.0",
 ]
 
 [tool.ruff]
@@ -109,3 +110,10 @@ asyncio_mode = "auto"
 markers = [
     "contract: pure API contract tests that run without scanner binaries, network, or containers",
 ]
+
+[tool.coverage.run]
+source = ["src/caliper/core"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 75

@@ -282,10 +282,8 @@ def test_foreman_keeps_pr_ci_fast_and_full_e2e_manual_only() -> None:
     }
     assert "Run API contract tests" in contract_step_names
     assert "Run smoke e2e tests" in smoke_step_names
-    assert "Cache scanner binaries" not in smoke_step_names
-    assert "Add scanners to PATH and warm trivy DB" not in smoke_step_names
-    assert "Cache scanner binaries" in full_step_names
-    assert "Add scanners to PATH and warm trivy DB" in full_step_names
+    assert "Install scanners" not in smoke_step_names
+    assert "Install scanners" in full_step_names
 
     contract_run = _job_run_text(contract)
     smoke_run = _job_run_text(smoke)

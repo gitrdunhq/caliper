@@ -1,0 +1,46 @@
+name: Install scanner binaries
+description: >-
+  Restores (or installs) the pinned scanner binaries used by e2e/full-review
+  jobs — trivy, osv-scanner, kube-linter, pmd, gitleaks, opengrep, syft — adds
+  them to PATH, and warms the trivy vulnerability DB cache. Versions come from
+  the workflow-level SCANNER_VERSIONS env var, which is also the cache key, so
+  a version bump there naturally invalidates the cache.
+
+runs:
+  using: composite
+  steps:
+    - name: Cache scanner binaries
+      id: scanner-cache
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      with:
+        path: ${{ env.SCANNER_BIN }}
+        key: scanners-${{ env.SCANNER_VERSIONS }}
+
+    - name: Cache trivy DB
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      with:
+        path: ${{ env.TRIVY_CACHE_DIR }}
+        key: trivy-db-${{ github.run_id }}
+        restore-keys: trivy-db-
+
+    - name: Install scanner binaries
+      if: steps.scanner-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        mkdir -p "$SCANNER_BIN"
+        curl -sSfL "https://github.com/aquasecurity/trivy/releases/download/v0.70.0/trivy_0.70.0_Linux-64bit.tar.gz" | tar xz -C "$SCANNER_BIN" trivy || true
+        curl -sSfL -o "$SCANNER_BIN/osv-scanner" "https://github.com/google/osv-scanner/releases/download/v2.3.5/osv-scanner_linux_amd64" && chmod +x "$SCANNER_BIN/osv-scanner" || true
+        curl -sSfL -o "$SCANNER_BIN/kube-linter" "https://github.com/stackrox/kube-linter/releases/download/v0.8.3/kube-linter-linux" && chmod +x "$SCANNER_BIN/kube-linter" || true
+        curl -sSfL "https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.9.0/pmd-dist-7.9.0-bin.zip" -o /tmp/pmd.zip && unzip -qo /tmp/pmd.zip -d /tmp && cp /tmp/pmd-bin-7.9.0/bin/pmd "$SCANNER_BIN/pmd" && cp -r /tmp/pmd-bin-7.9.0 "$SCANNER_BIN/pmd-bin-7.9.0" || true
+        curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz" | tar xz -C "$SCANNER_BIN" gitleaks || true
+        curl -sSfL -o "$SCANNER_BIN/opengrep" "https://github.com/opengrep/opengrep/releases/download/v1.20.0/opengrep_manylinux_x86" && chmod +x "$SCANNER_BIN/opengrep" || true
+        curl -sSfL "https://github.com/anchore/syft/releases/download/v1.43.0/syft_1.43.0_linux_amd64.tar.gz" | tar xz -C "$SCANNER_BIN" syft || true
+
+    - name: Add scanners to PATH and warm trivy DB
+      shell: bash
+      run: |
+        echo "$SCANNER_BIN" >> "$GITHUB_PATH"
+        if [ -f "$SCANNER_BIN/pmd-bin-7.9.0/bin/pmd" ]; then
+          echo "$SCANNER_BIN/pmd-bin-7.9.0/bin" >> "$GITHUB_PATH"
+        fi
+        "$SCANNER_BIN/trivy" fs --download-db-only --cache-dir "$TRIVY_CACHE_DIR" || true

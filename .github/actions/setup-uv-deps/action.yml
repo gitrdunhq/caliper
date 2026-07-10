@@ -1,0 +1,26 @@
+name: Setup uv + install dependencies
+description: >-
+  Installs uv, restores the uv package cache keyed by a per-job suffix (so
+  parallel jobs don't thrash a shared cache entry), and runs `uv sync --group dev`.
+
+inputs:
+  cache-key-suffix:
+    description: Per-job suffix for the uv cache key (e.g. "lint", "e2e-full").
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
+
+    - name: Cache uv packages
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      with:
+        path: ${{ env.UV_CACHE_DIR }}
+        key: uv-${{ inputs.cache-key-suffix }}-${{ hashFiles('uv.lock') }}
+        restore-keys: uv-${{ inputs.cache-key-suffix }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: uv sync --group dev

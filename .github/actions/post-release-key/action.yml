@@ -1,0 +1,34 @@
+name: Post release key
+description: >-
+  Posts the ci/release-key commit status: an HMAC of the commit SHA keyed by
+  RELEASE_UNLOCK_WORD. release-please's PR workflow checks this status before
+  it will merge, so a passing Gate (or a push to main) is what unlocks a
+  release — the token itself proves *this* CI run computed it, not a forged
+  status update.
+
+inputs:
+  release-unlock-word:
+    description: Shared secret used to HMAC the commit SHA.
+    required: true
+  github-token:
+    description: Token with permission to post commit statuses.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Post release key
+      shell: bash
+      run: |
+        SHA=$(git rev-parse HEAD)
+        TOKEN=$(python3 -c "import hmac,hashlib,os; print(hmac.new(os.environ['RELEASE_UNLOCK_WORD'].encode(), os.environ['KEY_SHA'].encode(), hashlib.sha256).hexdigest())")
+        gh api "repos/${REPO}/statuses/${SHA}" \
+          --method POST \
+          -f state=success \
+          -f context=ci/release-key \
+          -f description="$TOKEN"
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ github.repository }}
+        RELEASE_UNLOCK_WORD: ${{ inputs.release-unlock-word }}
+        KEY_SHA: ${{ github.sha }}

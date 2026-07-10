@@ -59,7 +59,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 |--------|------|---------|
 | osv-scanner | `plugins/osv_scanner.py` | Known CVE/GHSA/OSV vulnerabilities. 22 manifest/lockfile formats. CVSS severity mapping. |
 | trivy | `plugins/trivy.py` | Vulnerability scanning via Trivy database (`trivy fs --scanners vuln`). |
-| scancode | `plugins/scancode.py` | License detection (SPDX extraction + confidence). **Orphaned/disabled** — transitive dep lacks arm64 wheels; not installed in the image nor enabled by default. Plugin code retained for re-enable. |
+| scancode | `plugins/scancode.py` | License detection (SPDX extraction + confidence). **Opt-in** — not installed in the default image and excluded from `--all` by default (`DEFAULT_OPT_IN_PLUGINS`); enable via `--enable scancode`/`--scanners scancode` or `plugins.enable` in `.caliper.yaml`. |
 | syft | `plugins/syft.py` | CycloneDX SBOM generation. 18 ecosystems (npm, PyPI, Cargo, Go, Ruby, Composer, Dart, Elixir, etc). |
 
 ### supply_chain (3)
@@ -68,7 +68,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 |--------|------|---------|
 | supply-chain | `plugins/supply_chain.py` | **Three sub-checks**: (1) Unpinned deps in package.json + requirements.txt. (2) Lockfile integrity — lockfile changed without manifest or vice versa, 10 lockfile-manifest pairs, SHA-256 fingerprinting. (3) Docker floating tags — `:latest` or no tag in Dockerfiles and docker-compose. Pure Python, no binary. |
 | gitleaks | `plugins/gitleaks.py` | Secret/credential detection, 800+ patterns. Custom config via `.caliper/gitleaks.toml`. Secrets never appear in findings — only rule ID, file, line, entropy, fingerprint. Always critical severity. |
-| clamav | `plugins/clamav.py` | Malware/virus scanning via ClamAV (`clamscan`). Recursive repo scan. |
+| clamav | `plugins/clamav.py` | Malware/virus scanning via ClamAV (`clamscan`). Recursive repo scan. **Opt-in** — excluded from `--all` by default (`DEFAULT_OPT_IN_PLUGINS`); enable via `--enable clamav`/`--scanners clamav` or `plugins.enable` in `.caliper.yaml`. |
 
 ### code (6)
 

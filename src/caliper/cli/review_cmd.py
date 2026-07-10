@@ -24,11 +24,19 @@ if TYPE_CHECKING:
     from caliper.core.review_summary import ReviewSummary
 
 
+# Plugins that are expensive or noisy enough that they should never run
+# just because a repo config or --disable list happens to be silent about
+# them. Off by default; --enable <name> (or repo config plugins.enabled)
+# overrides per run_all's disabled/enabled precedence rule.
+DEFAULT_OPT_IN_PLUGINS: frozenset[str] = frozenset({"clamav", "scancode"})
+
+
 def resolve_plugin_selection(
     repo_config: RepoConfig, *, disable: str, enable: str
 ) -> tuple[set[str], set[str]]:
     """Merge --disable/--enable CLI flags into the repo config's plugin lists."""
-    disabled_names: set[str] = set(repo_config.plugins.disabled or [])
+    disabled_names: set[str] = set(DEFAULT_OPT_IN_PLUGINS)
+    disabled_names |= set(repo_config.plugins.disabled or [])
     if disable:
         for _d in disable.split(","):
             disabled_names.add(_d.strip())

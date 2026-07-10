@@ -12,6 +12,7 @@ import respx
 
 from caliper.core.config import CaliperSettings
 from caliper.core.taskfit import TaskFitAdvisor
+from caliper.data.llm_client import LlmClient
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -52,7 +53,7 @@ class TestTaskFitAdvisorDisabled:
     def test_disabled_returns_empty_string(self) -> None:
         """When llm_enabled is False, assess returns empty string immediately."""
         config = _make_config(llm_enabled=False)
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         result = advisor.assess(
             package_name="httpx",
@@ -67,7 +68,7 @@ class TestTaskFitAdvisorDisabled:
     def test_missing_endpoint_returns_empty_string(self) -> None:
         """When endpoint is missing, returns empty string even if enabled."""
         config = _make_config(llm_enabled=True, llm_model="gpt-4o")
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         result = advisor.assess(
             package_name="httpx",
@@ -92,7 +93,7 @@ class TestTaskFitAdvisorEnabled:
             llm_model="gpt-4o",
             llm_api_key="sk-test",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         advisory_text = (
             "NECESSITY:    PASS — No stdlib alternative for async HTTP.\n"
@@ -132,7 +133,7 @@ class TestTaskFitAdvisorEnabled:
             llm_model="gpt-4o",
             llm_timeout=1,
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         respx.post("https://llm.example.com/v1/chat/completions").mock(
             side_effect=httpx.ReadTimeout("timed out")
@@ -156,7 +157,7 @@ class TestTaskFitAdvisorEnabled:
             llm_endpoint="https://llm.example.com/v1",
             llm_model="gpt-4o",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(500, text="Internal Server Error")
@@ -180,7 +181,7 @@ class TestTaskFitAdvisorEnabled:
             llm_endpoint="https://llm.example.com/v1",
             llm_model="gpt-4o",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         invalid_text = "This package looks fine to me. I approve it."
         respx.post("https://llm.example.com/v1/chat/completions").mock(
@@ -208,7 +209,7 @@ class TestTaskFitAdvisorEnabled:
             llm_endpoint="https://llm.example.com/v1",
             llm_model="gpt-4o",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(200, json={"choices": []})
@@ -234,7 +235,7 @@ class TestTaskFitAdvisorEnabled:
             llm_endpoint="https://llm.example.com/v1",
             llm_model="gpt-4o",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
@@ -264,7 +265,7 @@ class TestTaskFitAdvisorEnabled:
             llm_endpoint="https://llm.example.com/v1",
             llm_model="gpt-4o",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
@@ -297,7 +298,7 @@ class TestTaskFitAdvisorEnabled:
             llm_endpoint="https://llm.example.com/v1",
             llm_model="gpt-4o",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
@@ -327,7 +328,7 @@ class TestTaskFitAdvisorEnabled:
             llm_endpoint="https://llm.example.com/v1",
             llm_model="gpt-4o",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
@@ -365,7 +366,7 @@ class TestCallLlmResponseParsing:
             llm_endpoint="https://llm.example.com/v1",
             llm_model="gpt-4o",
         )
-        return TaskFitAdvisor(config)
+        return TaskFitAdvisor(config, LlmClient(config))
 
     def _mock_post(self, advisor: TaskFitAdvisor, json_data):
         """Return a context manager that patches advisor._client.post."""
@@ -417,7 +418,7 @@ class TestTaskFitPackageNameValidation:
             llm_model="gpt-4o",
             llm_api_key="sk-test",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
                 200,
@@ -445,7 +446,7 @@ class TestTaskFitPackageNameValidation:
             llm_model="gpt-4o",
             llm_api_key="sk-test",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
                 200,
@@ -483,7 +484,7 @@ class TestTaskFitPackageNameValidation:
             llm_model="gpt-4o",
             llm_api_key="sk-test",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
                 200,
@@ -511,7 +512,7 @@ class TestTaskFitPackageNameValidation:
             llm_model="gpt-4o",
             llm_api_key="sk-test",
         )
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         advisory_text = (
             "NECESSITY:    PASS — Needed.\n"

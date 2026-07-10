@@ -64,7 +64,7 @@ SCAN_CACHES: Registry[ScanCachePort] = Registry("scan_cache")
 PARTING: Registry[AnalyzerPort] = Registry("parting")
 # Inspect (caliper inspect) — Review backends. The LLM lives ONLY behind
 # this seam; the deterministic tiers (Screen gauges, Adjudicate) must never
-# import the concrete backends (plugins/_inspect_llm.py) or the runner. A structural
+# import the concrete backends (data/_inspect_llm.py) or the runner. A structural
 # test enforces that isolation.
 INSPECT_BACKENDS: Registry[LLMPort] = Registry("inspect_backend")
 # Gauge (caliper gauge) — the Review step of the flywheel: LLM backends that DRAFT candidate

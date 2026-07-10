@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the caliper scanner
 
 ## What This Is
 
-Caliper — fully deterministic dependency and code review for CI. 19 scanner plugins (+ OPA policy plugin), 22 deterministic detectors, 67 custom semgrep rules, 12 code graph checks, 16 OPA policy rules, 600+ tests, zero LLM in the decision path.
+Caliper — fully deterministic dependency and code review for CI: scanner plugins, deterministic detectors, custom semgrep rules, code graph checks, OPA policy rules, zero LLM in the decision path. See `docs/CAPABILITIES.md` for the current, verified counts — it is the single source of truth; do not duplicate counts here.
 
 ## Commands
 
@@ -96,9 +96,9 @@ Tier contents:
 - `src/caliper/core/` — all business logic. Pipeline, policy, plugin registry, renderer, SARIF, config, scribe seam.
 - `src/caliper/data/` — persistence and external calls. Scanners, DB, evidence, parquet, PyPI client.
 - `src/caliper/adapters/` — hexagonal-architecture port adapters (persistence, code-graph grounding, GitHub publishing).
-- `src/caliper/plugins/` — 19 scanner plugins (+ OPA policy plugin) with auto-discovery via `PluginRegistry`.
+- `src/caliper/plugins/` — scanner plugins (+ OPA policy plugin) with auto-discovery via `PluginRegistry`. See `docs/CAPABILITIES.md` for the current count.
 - `src/caliper/plugins/scribes/` — code-graph + opt-in semgrep finding scribes (ADR-006).
-- `src/caliper/detectors/` — 21 deterministic AST bug detectors (CAL-001..021), exposed as a `DeterministicScanner`. See `docs/detectors.md`.
+- `src/caliper/detectors/` — deterministic AST bug detectors (CAL-NNN), exposed as a `DeterministicScanner`. See `docs/detectors.md` for the list and `docs/CAPABILITIES.md` for the current count.
 - `src/caliper/templates/` — Jinja2 templates for PR comment rendering.
 
 **Detect-then-scribe (ADR-006)**: a post-detection, pre-policy pass decorates every finding's `metadata['scribe']` with deterministic context (enclosing symbol, blast-radius callers, nearby semgrep matches). Sequential, fail-open, time-bounded (`scribe_timeout`), verdict-independent. Registry: `SCRIBES` in `core/port_registries.py`.

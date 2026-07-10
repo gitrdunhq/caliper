@@ -175,9 +175,10 @@ class TestLLMPromptInjection:
     @respx.mock
     def test_prompt_uses_system_and_user_roles(self) -> None:
         from caliper.core.taskfit import TaskFitAdvisor
+        from caliper.data.llm_client import LlmClient
 
         config = _make_llm_config()
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
@@ -205,9 +206,10 @@ class TestLLMPromptInjection:
     @respx.mock
     def test_user_message_content_is_json(self) -> None:
         from caliper.core.taskfit import TaskFitAdvisor
+        from caliper.data.llm_client import LlmClient
 
         config = _make_llm_config()
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
@@ -235,9 +237,10 @@ class TestLLMPromptInjection:
     @respx.mock
     def test_pypi_summary_truncated_to_200_chars(self) -> None:
         from caliper.core.taskfit import TaskFitAdvisor
+        from caliper.data.llm_client import LlmClient
 
         config = _make_llm_config()
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
@@ -262,9 +265,10 @@ class TestLLMPromptInjection:
     @respx.mock
     def test_html_stripped_from_summary(self) -> None:
         from caliper.core.taskfit import TaskFitAdvisor
+        from caliper.data.llm_client import LlmClient
 
         config = _make_llm_config()
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(
@@ -290,9 +294,10 @@ class TestLLMPromptInjection:
     def test_instruction_not_in_user_message(self) -> None:
         """System instructions must not be repeated in the user message."""
         from caliper.core.taskfit import TaskFitAdvisor
+        from caliper.data.llm_client import LlmClient
 
         config = _make_llm_config()
-        advisor = TaskFitAdvisor(config)
+        advisor = TaskFitAdvisor(config, LlmClient(config))
 
         route = respx.post("https://llm.example.com/v1/chat/completions").mock(
             return_value=httpx.Response(

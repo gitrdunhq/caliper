@@ -20,7 +20,7 @@ class TestResolvePluginSelection:
 
         disabled, enabled = resolve_plugin_selection(repo_config, disable="", enable="")
 
-        assert disabled == {"osv"}
+        assert disabled == {"osv", "clamav", "scancode"}
         assert enabled == {"trivy"}
 
     def test_cli_flags_merge_with_repo_config(self) -> None:
@@ -30,7 +30,7 @@ class TestResolvePluginSelection:
             repo_config, disable="syft, cpd", enable="secrets"
         )
 
-        assert disabled == {"osv", "syft", "cpd"}
+        assert disabled == {"osv", "syft", "cpd", "clamav", "scancode"}
         assert enabled == {"secrets"}
 
     def test_empty_string_entries_are_discarded(self) -> None:
@@ -38,8 +38,42 @@ class TestResolvePluginSelection:
 
         disabled, enabled = resolve_plugin_selection(repo_config, disable="", enable="")
 
-        assert disabled == set()
+        assert disabled == {"clamav", "scancode"}
         assert enabled == set()
+
+    def test_clamav_is_opt_in_by_default(self) -> None:
+        """clamav is expensive/noisy — never on by default, only via --enable."""
+        repo_config = RepoConfig()
+
+        disabled, enabled = resolve_plugin_selection(repo_config, disable="", enable="")
+
+        assert "clamav" in disabled
+        assert "clamav" not in enabled
+
+    def test_clamav_enable_flag_overrides_default_opt_out(self) -> None:
+        repo_config = RepoConfig()
+
+        disabled, enabled = resolve_plugin_selection(repo_config, disable="", enable="clamav")
+
+        assert "clamav" in disabled  # still present, but...
+        assert "clamav" in enabled  # ...enabled wins per run_all's precedence rule
+
+    def test_scancode_is_opt_in_by_default(self) -> None:
+        """scancode isn't installed in the default image — never on by default."""
+        repo_config = RepoConfig()
+
+        disabled, enabled = resolve_plugin_selection(repo_config, disable="", enable="")
+
+        assert "scancode" in disabled
+        assert "scancode" not in enabled
+
+    def test_scancode_enable_flag_overrides_default_opt_out(self) -> None:
+        repo_config = RepoConfig()
+
+        disabled, enabled = resolve_plugin_selection(repo_config, disable="", enable="scancode")
+
+        assert "scancode" in disabled  # still present, but...
+        assert "scancode" in enabled  # ...enabled wins per run_all's precedence rule
 
 
 class TestBuildFileLists:
