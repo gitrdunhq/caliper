@@ -257,7 +257,7 @@ RUN set -eux; \
 # Stage 2: runtime
 # ════════════════════════════════════════════════════════════════════════════
 ARG TARGETARCH=amd64
-FROM python_base_${TARGETARCH}
+FROM python_base_${TARGETARCH} AS runtime
 
 ARG PMD_VERSION
 
@@ -350,3 +350,27 @@ HEALTHCHECK --interval=5m --timeout=30s --retries=3 \
   CMD caliper healthcheck || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+# ════════════════════════════════════════════════════════════════════════════
+# Stage 3: e2e-test — runtime + pytest, so tests/e2e/ can run against the full
+# scanner toolchain. Dockerfile.test's image has no external scanner binaries
+# (gitleaks, trivy, osv-scanner, etc.), so it can't exercise real findings;
+# this stage layers just enough onto the production runtime to run pytest
+# there instead. Never pushed/released — local/CI e2e verification only.
+# See issue #461.
+# ════════════════════════════════════════════════════════════════════════════
+FROM runtime AS e2e-test
+
+USER root
+COPY --from=ghcr.io/astral-sh/uv@sha256:3b7b60a81d3c57ef471703e5c83fd4aaa33abcd403596fb22ab07db85ae91347 /uv /usr/local/bin/uv
+# XDG_CACHE_HOME is already /home/caliper/.cache (inherited from the runtime
+# stage's ENV, used by trivy/mypy/opengrep at scan time) — installing as root
+# with that var set would create it root-owned and break the caliper user's
+# later writes there, so uv's own cache is pinned elsewhere for this RUN only.
+RUN --security=insecure --mount=type=cache,target=/root/.cache/uv \
+    XDG_CACHE_HOME=/root/.cache \
+    uv pip install --python /opt/caliper/.venv/bin/python pytest==9.1.0 pytest-asyncio==1.4.0
+USER caliper
+WORKDIR /workspace
+
+ENTRYPOINT []
