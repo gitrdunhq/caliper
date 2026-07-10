@@ -59,7 +59,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 |--------|------|---------|
 | osv-scanner | `plugins/osv_scanner.py` | Known CVE/GHSA/OSV vulnerabilities. 22 manifest/lockfile formats. CVSS severity mapping. |
 | trivy | `plugins/trivy.py` | Vulnerability scanning via Trivy database (`trivy fs --scanners vuln`). |
-| scancode | `plugins/scancode.py` | License detection (SPDX extraction + confidence). **Orphaned/disabled** — transitive dep lacks arm64 wheels; not installed in the image nor enabled by default. Plugin code retained for re-enable. |
+| scancode | `plugins/scancode.py` | License detection (SPDX extraction + confidence). **Opt-in** — not installed in the default image and excluded from `--all` by default (`DEFAULT_OPT_IN_PLUGINS`); enable via `--enable scancode`/`--scanners scancode` or `plugins.enable` in `.caliper.yaml`. |
 | syft | `plugins/syft.py` | CycloneDX SBOM generation. 18 ecosystems (npm, PyPI, Cargo, Go, Ruby, Composer, Dart, Elixir, etc). |
 
 ### supply_chain (3)
