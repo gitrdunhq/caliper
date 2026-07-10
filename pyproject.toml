@@ -20,7 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "click==8.4.1",
+    "click==8.4.2",
     "pydantic==2.13.4",
     "pydantic-settings==2.14.2",
     "structlog==26.1.0",
@@ -76,12 +76,12 @@ exclude-newer = "7 days"
 
 [dependency-groups]
 dev = [
-    "pytest==9.1.0",
+    "pytest==9.1.1",
     "pytest-asyncio==1.4.0",
     "black==26.5.1",
-    "ruff==0.15.17",
+    "ruff==0.15.20",
     "respx==0.23.1",
-    "hypothesis==6.155.3",
+    "hypothesis==6.155.7",
     "packaging==26.2",
     "pytest-cov==7.1.0",
 ]
