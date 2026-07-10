@@ -68,14 +68,15 @@ test-host:
 	@CALIPER_ALLOW_HOST_TESTS=1 CALIPER_I_KNOW_HOST_TESTS_LIE=1 uv run pytest tests/ -v
 
 test-e2e:
-	@bash scripts/build.sh $(HOST_ARCH)
+	@bash scripts/build-e2e-test.sh $(HOST_ARCH)
 	@$(CONTAINER_ENGINE) run --rm \
+		--platform linux/$(HOST_ARCH) \
 		-v "$(CURDIR):/workspace:ro" \
 		-w /workspace \
 		-e CALIPER_E2E=1 \
 		-e CALIPER_ALLOW_GLOBAL=1 \
 		--entrypoint "" \
-		caliper:latest \
+		caliper-e2e-test:$(HOST_ARCH) \
 		python3 -m pytest tests/e2e/ -v
 
 test-all: test test-e2e
