@@ -485,14 +485,18 @@ Reference](docs/CAPABILITIES.md#configuration-reference) for the full table.
 
 Drop `.caliper.yaml` at the root of any repo to enable/disable plugins and override thresholds:
 
+`clamav` is opt-in — it never runs by default (even under `--all`), because it's
+heavy and noisy. Turn it on for a repo via `plugins.enable` in config, or
+per-run via `--enable clamav` / `--scanners clamav` on the CLI.
+
 ```yaml
 # .caliper.yaml
 plugins:
   disable:
-    - clamav         # disable heavy AV scan in local dev
     - typos          # disable typo checking for this repo
   enable:
     - gitleaks       # always on, even if disabled globally
+    # - clamav        # uncomment to turn on AV scanning for this repo
 
 thresholds:
   package_age_days: 14          # stricter than default 30
@@ -669,14 +673,14 @@ Override config at the command line for one-off runs:
 
 ```bash
 # Disable specific plugins for this run
-uv run caliper review --repo-path . --all --disable clamav,typos
+uv run caliper review --repo-path . --all --disable typos
 
-# Enable a plugin that is disabled in config
-uv run caliper review --repo-path . --all --enable gitleaks
+# Enable a plugin that is disabled in config (or opt-in by default, like clamav)
+uv run caliper review --repo-path . --all --enable clamav
 
 # Combine flags
 uv run caliper evaluate --repo-path . --diff changes.diff \
-  --disable clamav --enable gitleaks \
+  --disable typos --enable clamav \
   --pr-url "https://github.com/org/repo/pull/1" \
   --team myteam --operating-mode advise
 ```
