@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -19,29 +20,38 @@ pytestmark = pytest.mark.skipif(not E2E_ENABLED, reason="E2E tests require CALIP
 
 
 class TestMissingScannerContinues:
-    def test_missing_scanner_continues(self, vuln_repo: Path, tmp_path: Path) -> None:
-        syft_path = None
-        for candidate in ("/usr/local/bin/syft", "/usr/bin/syft"):
-            if os.path.isfile(candidate):
-                syft_path = candidate
-                break
-
-        if syft_path is None:
+    def test_missing_scanner_continues(
+        self, vuln_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        syft_real = shutil.which("syft")
+        if syft_real is None:
             pytest.skip("syft not found — cannot test missing scanner")
 
-        backup = syft_path + ".e2e-bak"
-        try:
-            os.rename(syft_path, backup)
+        syft_dir = Path(syft_real).parent
 
-            result, parsed = run_review(vuln_repo, run_all=True, output_format="json")
-            breakpoint_dump(tmp_path, "fail_open_missing_syft", parsed)
+        # Shadow syft via PATH instead of mutating the filesystem: renaming the
+        # real binary needs write access to syft_dir, which is root-owned and
+        # deliberately not writable by the unprivileged container user the
+        # scanners run as. Symlink every sibling into a shim dir ahead of
+        # syft_dir in PATH so other scanners still resolve normally.
+        shim_dir = tmp_path / "path-shim"
+        shim_dir.mkdir()
+        for entry in syft_dir.iterdir():
+            if entry.name != "syft":
+                (shim_dir / entry.name).symlink_to(entry)
 
-            assert (
-                result.exit_code == 0
-            ), f"Pipeline must exit 0 even with missing scanner. Got {result.exit_code}"
-        finally:
-            if os.path.isfile(backup):
-                os.rename(backup, syft_path)
+        pruned = [
+            p for p in os.environ.get("PATH", "").split(os.pathsep) if p and Path(p) != syft_dir
+        ]
+        monkeypatch.setenv("PATH", os.pathsep.join([str(shim_dir), *pruned]))
+        assert shutil.which("syft") is None, "PATH shim failed to hide syft"
+
+        result, parsed = run_review(vuln_repo, run_all=True, output_format="json")
+        breakpoint_dump(tmp_path, "fail_open_missing_syft", parsed)
+
+        assert (
+            result.exit_code == 0
+        ), f"Pipeline must exit 0 even with missing scanner. Got {result.exit_code}"
 
     def test_scanner_timeout_continues(self, vuln_repo: Path, tmp_path: Path) -> None:
         result, parsed = run_review(vuln_repo, run_all=True, output_format="json")
