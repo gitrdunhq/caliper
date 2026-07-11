@@ -47,6 +47,37 @@ PYRIGHT_OUTPUT = json.dumps(
     }
 )
 
+PYREFLY_OUTPUT = json.dumps(
+    {
+        "errors": [
+            {
+                "line": 5,
+                "column": 10,
+                "stop_line": 5,
+                "stop_column": 20,
+                "path": "src/app.py",
+                "code": -2,
+                "name": "bad-argument-type",
+                "description": "Argument of type `Path` is not assignable to parameter of type `str`",
+                "concise_description": "Argument of type `Path` is not assignable to parameter of type `str`",
+                "severity": "error",
+            },
+            {
+                "line": 10,
+                "column": 1,
+                "stop_line": 10,
+                "stop_column": 5,
+                "path": "src/lib.py",
+                "code": -3,
+                "name": "unused-variable",
+                "description": "Variable is not accessed",
+                "concise_description": "Variable is not accessed",
+                "severity": "warning",
+            },
+        ]
+    }
+)
+
 
 class TestMypyPlugin:
     def test_name_and_category(self):
@@ -116,6 +147,45 @@ class TestMypyPlugin:
         assert result.findings[0]["severity"] == "high"
         assert result.findings[0]["rule"] == "reportArgumentType"
         assert result.findings[1]["severity"] == "medium"
+
+    @patch("caliper.plugins.mypy.subprocess.run")
+    @patch(
+        "caliper.plugins.mypy.shutil.which",
+        side_effect=lambda t: "/usr/bin/pyrefly" if t == "pyrefly" else None,
+    )
+    def test_pyrefly_parses_json(self, _which, mock_run):
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stdout = PYREFLY_OUTPUT
+        mock_run.return_value.stderr = ""
+
+        p = MypyPlugin()
+        result = p.run(["src/app.py"], Path("/workspace"))
+
+        assert len(result.findings) == 2
+        assert result.findings[0]["line"] == 5
+        assert result.findings[0]["file"] == "src/app.py"
+        assert result.findings[0]["rule"] == "bad-argument-type"
+        assert result.findings[0]["severity"] == "high"
+        assert result.findings[1]["severity"] == "medium"
+        assert result.summary["tool"] == "pyrefly"
+
+    @patch(
+        "caliper.plugins.mypy.shutil.which",
+        side_effect=lambda t: f"/usr/bin/{t}",
+    )
+    def test_pyrefly_preferred_over_pyright_and_mypy(self, _which):
+        p = MypyPlugin()
+
+        assert p._detect_tool() == "pyrefly"
+
+    @patch(
+        "caliper.plugins.mypy.shutil.which",
+        side_effect=lambda t: "/usr/bin/pyright" if t == "pyright" else None,
+    )
+    def test_falls_back_to_pyright_when_pyrefly_missing(self, _which):
+        p = MypyPlugin()
+
+        assert p._detect_tool() == "pyright"
 
     @patch("caliper.plugins.mypy.subprocess.run")
     @patch(
