@@ -22,6 +22,8 @@ opa test policies/ --ignore '*.yaml' --ignore '*.yml'  # OPA Rego policy tests (
 
 **Tests MUST run in a container.** `make test` handles this automatically. Never use `CALIPER_ALLOW_HOST_TESTS=1`.
 
+`make test`, `make test-host`, and `make test-e2e` all run pytest with `--pyspec` (the `pytest-pyspec` dev dependency) instead of `-v` — it renders RSpec-style output (docstrings/class names as spec descriptions, checkmarked lines) instead of pytest's default dotted/verbose format. Note: `--pyspec` formatting is disabled if `-v` is also passed, so don't add `-v` back alongside it.
+
 ## Container Builds
 
 **NEVER run `podman build` or `docker build` directly.** Use the build scripts — they handle the podman vs docker differences automatically.
@@ -319,6 +321,8 @@ Port range 12000-13000 only. Never use common ports.
 Every source file has a `# tested-by: tests/unit/test_X.py` comment. TDD red-green is mandatory. Hypothesis property-based tests cover boundary invariants.
 
 **Tests run in containers only.** Use `make test`. Never use `CALIPER_ALLOW_HOST_TESTS=1` — host environment can't guarantee parity with CI or other contributors.
+
+Output format is `pytest-pyspec` (RSpec-style, via `--pyspec`), not plain pytest `-v`.
 
 ### Split TDD Across Agents (Context Poisoning Prevention)
 
