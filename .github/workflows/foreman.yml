@@ -278,7 +278,8 @@ jobs:
 
       - name: Install additional e2e tooling
         run: |
-          uv pip install lizard mypy scancode-toolkit==32.3.0 || true
+          uv sync --group dev
+          uv pip install lizard mypy pyrefly scancode-toolkit==32.3.0 || true
           curl -sSfL "https://github.com/crate-ci/typos/releases/download/v1.47.2/typos-v1.47.2-x86_64-unknown-linux-musl.tar.gz" | sudo tar -xz -C /usr/local/bin ./typos || true
 
       - name: Install scanners
@@ -313,7 +314,8 @@ jobs:
 
       - name: Install additional review tooling
         run: |
-          uv pip install lizard mypy
+          uv sync --group dev
+          uv pip install lizard mypy pyrefly
           curl -sSfL "https://github.com/crate-ci/typos/releases/download/v1.47.2/typos-v1.47.2-x86_64-unknown-linux-musl.tar.gz" | sudo tar -xz -C /usr/local/bin ./typos || true
           uv pip install scancode-toolkit==32.3.0 || true
 

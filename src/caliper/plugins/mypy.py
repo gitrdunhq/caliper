@@ -1,7 +1,7 @@
-"""Mypy/Pyright plugin — deterministic cross-file type checking.
+"""Pyrefly/Pyright/Mypy plugin — deterministic cross-file type checking.
 # tested-by: tests/unit/test_mypy_plugin.py
 
-Prefers pyright (faster, stricter) when available, falls back to mypy.
+Prefers pyrefly (fastest) when available, falls back to pyright, then mypy.
 Only error-level findings are reported — notes are excluded.
 """
 
@@ -26,6 +26,7 @@ _MYPY_LINE_RE = re.compile(
 
 _MYPY_SEVERITY_MAP = {"error": "high", "warning": "medium", "note": "info"}
 _PYRIGHT_SEVERITY_MAP = {"error": "high", "warning": "medium", "information": "low"}
+_PYREFLY_SEVERITY_MAP = {"error": "high", "warning": "medium", "info": "info", "ignore": "info"}
 
 
 class MypyPlugin(ScannerPlugin):
@@ -38,7 +39,7 @@ class MypyPlugin(ScannerPlugin):
 
     @property
     def description(self) -> str:
-        return "Cross-file type checking (mypy/pyright)"
+        return "Cross-file type checking (pyrefly/pyright/mypy)"
 
     @property
     def category(self) -> PluginCategory:
@@ -50,7 +51,7 @@ class MypyPlugin(ScannerPlugin):
     def _detect_tool(self) -> str | None:
         if self._tool:
             return self._tool
-        for tool in ("pyright", "mypy"):
+        for tool in ("pyrefly", "pyright", "mypy"):
             if shutil.which(tool):
                 self._tool = tool
                 return tool
@@ -66,12 +67,64 @@ class MypyPlugin(ScannerPlugin):
         if not tool:
             return PluginResult(
                 plugin_name=self.name,
-                error=error_msg(ErrorCode.NOT_INSTALLED, "mypy/pyright"),
+                error=error_msg(ErrorCode.NOT_INSTALLED, "pyrefly/pyright/mypy"),
             )
 
+        if tool == "pyrefly":
+            return self._run_pyrefly(files, repo_path, timeout)
         if tool == "pyright":
             return self._run_pyright(files, repo_path, timeout)
         return self._run_mypy(files, repo_path, timeout)
+
+    def _run_pyrefly(self, files: list[str], repo_path: Path, timeout: int) -> PluginResult:
+        py_files = [f for f in files if f.endswith(".py")]
+        if not py_files:
+            return PluginResult(plugin_name=self.name)
+
+        try:
+            r = subprocess.run(
+                ["pyrefly", "check", "--output-format", "json", *py_files],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                cwd=str(repo_path),
+            )
+        except subprocess.TimeoutExpired:
+            return PluginResult(
+                plugin_name=self.name,
+                error=error_msg(ErrorCode.TIMEOUT, "pyrefly", timeout=timeout),
+            )
+
+        try:
+            data = json.loads(r.stdout)
+        except json.JSONDecodeError:
+            return PluginResult(
+                plugin_name=self.name,
+                error=error_msg(ErrorCode.PARSE_ERROR, "pyrefly"),
+            )
+
+        findings = []
+        for diag in data.get("errors", []):
+            severity = _PYREFLY_SEVERITY_MAP.get(diag.get("severity", ""), "info")
+            if severity == "info":
+                continue
+            findings.append(
+                {
+                    "file": diag.get("path", ""),
+                    "line": diag.get("line", 0),
+                    "severity": severity,
+                    "message": diag.get("description") or diag.get("concise_description", ""),
+                    "rule": diag.get("name", "pyrefly"),
+                    "category": "type-error",
+                }
+            )
+
+        return PluginResult(
+            plugin_name=self.name,
+            findings=findings,
+            summary={"errors": len(findings), "tool": "pyrefly"},
+        )
 
     def _run_mypy(self, files: list[str], repo_path: Path, timeout: int) -> PluginResult:
         py_files = [f for f in files if f.endswith(".py")]
