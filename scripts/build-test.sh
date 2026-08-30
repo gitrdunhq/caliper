@@ -30,7 +30,7 @@ case "$(uname -m)" in
 esac
 BUILD=true
 RUN=true
-PYTEST_ARGS=("tests/" "-v")
+PYTEST_ARGS=("tests/" "--pyspec")
 
 while [[ $# -gt 0 ]]; do
     case "$1" in

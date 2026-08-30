@@ -84,6 +84,7 @@ dev = [
     "hypothesis==6.155.7",
     "packaging==26.2",
     "pytest-cov==7.1.0",
+    "pytest-pyspec==1.1.1",
 ]
 
 [tool.ruff]

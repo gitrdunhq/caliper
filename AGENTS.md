@@ -92,6 +92,7 @@ Report: "Checklist: X/7"
 ## Testing Rules
 
 - **Container only.** Use `make test`. Never `CALIPER_ALLOW_HOST_TESTS=1`.
+- **Output format:** `make test` runs pytest with `--pyspec` (RSpec-style output via `pytest-pyspec`), not `-v`.
 - **TDD mandatory.** RED before GREEN. No exceptions.
 - **Every source file** has `# tested-by: tests/unit/test_X.py`.
 - **Regression check** after every change: full unit suite must pass.

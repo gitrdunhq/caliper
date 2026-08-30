@@ -43,7 +43,7 @@ test: test-build
 		--env CI \
 		--entrypoint "" \
 		$(TEST_IMAGE) \
-		/opt/test-venv/bin/python -m pytest tests/ -v \
+		/opt/test-venv/bin/python -m pytest tests/ --pyspec \
 		--cov=caliper.core --cov-report=term-missing
 
 # Explicit emulated CI-parity run (amd64 even on an arm64 host).
@@ -65,7 +65,7 @@ prod-smoke: prod-build
 test-host:
 	@echo "!!! WARNING: host test run — results are NOT authoritative (#216)." >&2
 	@echo "!!! Container parity with CI is not guaranteed. Use 'make test'." >&2
-	@CALIPER_ALLOW_HOST_TESTS=1 CALIPER_I_KNOW_HOST_TESTS_LIE=1 uv run pytest tests/ -v
+	@CALIPER_ALLOW_HOST_TESTS=1 CALIPER_I_KNOW_HOST_TESTS_LIE=1 uv run pytest tests/ --pyspec
 
 test-e2e:
 	@bash scripts/build-e2e-test.sh $(HOST_ARCH)
@@ -77,7 +77,7 @@ test-e2e:
 		-e CALIPER_ALLOW_GLOBAL=1 \
 		--entrypoint "" \
 		caliper-e2e-test:$(HOST_ARCH) \
-		python3 -m pytest tests/e2e/ -v
+		python3 -m pytest tests/e2e/ --pyspec
 
 test-all: test test-e2e
 
