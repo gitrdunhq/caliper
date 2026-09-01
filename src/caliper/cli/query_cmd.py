@@ -22,7 +22,7 @@ import click
     ),
 )
 def query(question: str, db_path: str | None) -> None:
-    """Query the code graph using natural language.
+    """Run a canned code graph query; keywords in QUESTION pick the template.
 
     Examples:
 

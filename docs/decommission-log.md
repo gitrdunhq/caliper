@@ -146,3 +146,7 @@ Thirteen-line re-export of four registered detectors "for framework demonstratio
 **Removed.** `src/caliper/cli/reinstall_cmd.py` (143 lines), `tests/unit/test_reinstall_cmd.py` (164 lines), the CLI registration, and the CAPABILITIES row (CLI command count 11 -> 10).
 
 **Kept.** `scripts/install-local.sh`, now invoked by the new `make reinstall` target.
+
+### 10. `caliper query` — KEPT, renamed in docs (2026-09-01)
+
+Reviewed and kept. Twelve canned SQL templates over the code graph, chosen by keyword overlap. Reachable, tested, deterministic. The docs called it a "natural language" / "NL query" system, which oversold keyword matching; README, CAPABILITIES, and the command docstring now describe it as code graph queries. Module and test file names (`nl_query`) are unchanged to avoid churn.

@@ -784,19 +784,19 @@ Drop `.caliper.yaml` inside any package directory to override the root config fo
 
 ---
 
-## Code Query
+## Code Graph Queries
 
-Query the CodeGraph SQLite database in plain English. Backed by 12 built-in query templates — no LLM required.
+Run one of 12 canned SQL queries against the CodeGraph SQLite database that `caliper review` maintains. Deterministic, no LLM.
 
 ```bash
-# Ask a natural language question
-caliper query "which functions have the highest fan-out?"
+# Run a query; keywords in the text pick the template
+caliper query "highest fan-out"
 
 # List all available query templates
 caliper query --list
 ```
 
-Fuzzy matching maps your question to the closest template by keyword overlap. Unrecognized questions fall back to `caliper query --list` with the full template menu.
+The template is chosen by keyword overlap with your text. If nothing matches, `caliper query` prints the template menu instead.
 
 ### Built-in query templates
 
