@@ -75,7 +75,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 | Plugin | File | Detects |
 |--------|------|---------|
 | deterministic | `composition/deterministic_plugin.py` | Wraps `DeterministicScanner` (`detectors/scanner.py`) — all 22 AST-based bug detectors (CAL-001..022). Composition-registered rather than auto-discovered, since `detectors/` may not import `plugins/` directly (#457). |
-| semgrep | `plugins/semgrep.py` | AST code pattern matching. Dynamic ruleset selection by file extension (Python, TS, JS, Go, Ruby, Java, Terraform, K8s, Shell, Docker, Swift). 67 custom org rules (see below). Supports pinned local rule snapshots. |
+| semgrep | `plugins/semgrep.py` | AST code pattern matching via opengrep. Community rules come ONLY from a semgrep-rules snapshot pinned by commit in the Dockerfile (`SEMGREP_RULES_COMMIT`, baked at `/opt/caliper/semgrep-rules`); language directories are selected by file type and registry packs are never fetched, so the scan path has no network dependency and the rule set cannot drift. The 67 custom org rules (see below) run against every target via `CALIPER_SEMGREP_ORG_RULES_DIR`. Host runs: `scripts/snapshot-semgrep-rules.sh`. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyrefly (fastest) when available, falls back to pyright, then mypy. Error + warning severity only. |
 | swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.caliper/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
@@ -86,7 +86,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 | Plugin | File | Detects |
 |--------|------|---------|
 | blast-radius | `plugins/blast_radius.py` | Code graph impact analysis. AST → SQLite, then 12 SQL checks (see below). Full + incremental indexing. Python + JS/TS. Extensible via `graph.register_check()`. |
-| complexity | `plugins/complexity.py` | Cyclomatic complexity (Lizard) + maintainability index (Radon for Python, bundled typhonjs-escomplex for JS/TS, Halstead fallback elsewhere). 10 languages. Per-function: CCN, NLOC, tokens, params, MI grade (A/B/C). |
+| complexity | `plugins/complexity.py` | Cyclomatic complexity (Lizard) + maintainability index (Radon for Python, bundled typhonjs-escomplex for JS/TS). A function is a finding only when its CCN exceeds `thresholds.complexity.ccn` (default 10, `.caliper.yaml`); every function still feeds the summary (`functions_scanned`, avg/max CCN, NLOC). |
 | typos | `plugins/typos.py` | Source-aware typo detection (crate-ci/typos). Single pinned Rust binary, very low false positives, identifier-aware (camelCase/snake_case splitting). Shows corrections. |
 | ls-lint | `plugins/ls_lint.py` | File naming convention enforcement. Only runs when `.ls-lint.yml` config exists. |
 

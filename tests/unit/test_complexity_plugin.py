@@ -171,3 +171,55 @@ class TestComplexityPluginTimeout:
         plugin.run(["a.py"], tmp_path)
 
         assert captured["timeout"] == 60
+
+
+class TestComplexityThreshold:
+    """Only functions above the CCN threshold are findings; the rest is summary metadata.
+
+    Before: one finding per function (6,113 on caliper's own repo), all at note
+    level, flooding the PR comment, the JSON report, and the SARIF upload.
+    """
+
+    @staticmethod
+    def _functions(ccns: list[int]) -> list[dict]:
+        return [_make_finding(f"f{i}", ccn=c) for i, c in enumerate(ccns)]
+
+    def _run_with(self, monkeypatch, tmp_path: Path, ccns: list[int], plugin=None):
+        def fake_run(files, repo_path, timeout=60):
+            return {
+                "functions": self._functions(ccns),
+                "summary": {"avg_cyclomatic_complexity": 4, "max_cyclomatic_complexity": max(ccns)},
+            }
+
+        monkeypatch.setattr(complexity_mod, "_run", fake_run)
+        return (plugin or ComplexityPlugin()).run(["a.py"], tmp_path)
+
+    def test_simple_functions_produce_no_findings(self, monkeypatch, tmp_path: Path) -> None:
+        result = self._run_with(monkeypatch, tmp_path, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        assert result.findings == []
+        assert result.summary["functions_scanned"] == 10
+        assert result.summary["ccn_threshold"] == 10
+        assert result.summary["max_cyclomatic_complexity"] == 10
+
+    def test_only_functions_above_threshold_are_findings(self, monkeypatch, tmp_path: Path) -> None:
+        result = self._run_with(monkeypatch, tmp_path, [3, 11, 25, 10])
+        assert sorted(f["cyclomatic_complexity"] for f in result.findings) == [11, 25]
+        assert result.summary["functions_scanned"] == 4
+
+    def test_threshold_from_repo_config(self, monkeypatch, tmp_path: Path) -> None:
+        """`thresholds.complexity.ccn` in .caliper.yaml overrides the default of 10."""
+        (tmp_path / ".caliper.yaml").write_text("thresholds:\n  complexity:\n    ccn: 5\n")
+        result = self._run_with(monkeypatch, tmp_path, [3, 6, 11])
+        assert sorted(f["cyclomatic_complexity"] for f in result.findings) == [6, 11]
+        assert result.summary["ccn_threshold"] == 5
+
+    def test_unparseable_ccn_is_not_a_finding(self, monkeypatch, tmp_path: Path) -> None:
+        def fake_run(files, repo_path, timeout=60):
+            f = _make_finding("weird", ccn=3)
+            f["cyclomatic_complexity"] = "not_a_number"
+            return {"functions": [f], "summary": {}}
+
+        monkeypatch.setattr(complexity_mod, "_run", fake_run)
+        result = ComplexityPlugin().run(["a.py"], tmp_path)
+        assert result.findings == []
+        assert result.summary["functions_scanned"] == 1
