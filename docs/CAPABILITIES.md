@@ -6,16 +6,16 @@
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
   LAST VERIFIED: 2026-07-10
-  VERIFICATION: 19 auto-discovered scanner plugins (@ANALYZERS.register) + the
+  VERIFICATION: 16 auto-discovered scanner plugins (@ANALYZERS.register) + the
   "deterministic" plugin (composition-registered, wraps DeterministicScanner,
-  #457) + OPA policy plugin (21 ScannerPlugin subclasses total); 22 detectors
+  #457) + OPA policy plugin (18 ScannerPlugin subclasses total); 22 detectors
   in src/caliper/detectors/; 67 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
-20 scanner plugins (19 auto-discovered + "deterministic", which wraps all 22
+17 scanner plugins (16 auto-discovered + "deterministic", which wraps all 22
 CAL-001..022 detectors), 67 custom semgrep rules, 10 code graph
 checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
@@ -24,7 +24,7 @@ supply-chain version-bump narrative is advisory metadata only).
 
 | Metric | Count |
 |--------|-------|
-| Scanner plugins | 20 (19 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
+| Scanner plugins | 17 (16 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
 | Deterministic detectors | 22 (CAL-001..CAL-022), run via the "deterministic" plugin during `caliper review` |
 | Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 10 |
@@ -46,10 +46,10 @@ supply-chain version-bump narrative is advisory metadata only).
 
 ## Plugins by Category
 
-The 19 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
+The 16 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
 five categories below, plus **deterministic** (also `@ANALYZERS.register`, but
 composition-registered — see `code (6)` below since `detectors/` may not import
-`plugins/` directly). The **OPA policy plugin** is the 21st `ScannerPlugin` subclass but
+`plugins/` directly). The **OPA policy plugin** is the 18th `ScannerPlugin` subclass but
 is wired separately — it consumes every other plugin's findings and runs last
 (`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-15-rules).
 
@@ -70,7 +70,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 | gitleaks | `plugins/gitleaks.py` | Secret/credential detection, 800+ patterns. Custom config via `.caliper/gitleaks.toml`. Secrets never appear in findings — only rule ID, file, line, entropy, fingerprint. Always critical severity. |
 | clamav | `plugins/clamav.py` | Malware/virus scanning via ClamAV (`clamscan`). Recursive repo scan. **Opt-in** — excluded from `--all` by default (`DEFAULT_OPT_IN_PLUGINS`); enable via `--enable clamav`/`--scanners clamav` or `plugins.enable` in `.caliper.yaml`. |
 
-### code (6)
+### code (5)
 
 | Plugin | File | Detects |
 |--------|------|---------|
@@ -79,7 +79,6 @@ is wired separately — it consumes every other plugin's findings and runs last
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyrefly (fastest) when available, falls back to pyright, then mypy. Error + warning severity only. |
 | swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.caliper/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
-| swiftformat | `plugins/swiftformat.py` | Swift formatting lint. Reports files that need reformatting (all auto-fixable with `swiftformat .`). INFO severity only. |
 
 ### quality (4)
 
@@ -90,12 +89,10 @@ is wired separately — it consumes every other plugin's findings and runs last
 | typos | `plugins/typos.py` | Source-aware typo detection (crate-ci/typos). Single pinned Rust binary, very low false positives, identifier-aware (camelCase/snake_case splitting). Shows corrections. |
 | ls-lint | `plugins/ls_lint.py` | File naming convention enforcement. Only runs when `.ls-lint.yml` config exists. |
 
-### infra (3)
+### infra (1)
 
 | Plugin | File | Detects |
 |--------|------|---------|
-| cfn-nag | `plugins/cfn_nag.py` | CloudFormation security — IAM wildcards, open security groups, unencrypted resources. Auto-detects CFN templates. |
-| cdk-nag | `plugins/cdk_nag.py` | CDK security — always runs `cdk synth` first (never stale `cdk.out/`), then scans synthesized templates. Triggers on `cdk.json` or `cdk.out/`. |
 | kube-linter | `plugins/kube_linter.py` | K8s/Helm security — privileged containers, missing resource limits, no liveness probes, host networking, NET_RAW. Shows remediation. |
 
 ---
@@ -348,7 +345,7 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | Webhook server | `src/caliper/webhook/server.py` | Starlette ASGI. GitHub PR webhooks (opened/synchronize/reopened). HMAC-SHA256 signature validation. Port 12800. |
 | Jenkins | `jenkins/vars/dependencyAdmission.groovy` | Shared library for Jenkins pipelines. |
 | Container | `Dockerfile` | Podman/Docker. Read-only workspace mount. |
-| Third-party plugin SDK | `src/caliper/plugins/__init__.py`, `docs/PLUGIN_SDK.md` | External packages publish `ScannerPlugin`/`AnalyzerPort` implementations under the `caliper.plugins` `importlib.metadata` entry-point group; `get_default_registry()` discovers them alongside the 19 in-tree plugins. Fail-open per entry point (a broken third-party plugin is logged and skipped, never crashes discovery) and fail-open on the entry-point lookup itself. |
+| Third-party plugin SDK | `src/caliper/plugins/__init__.py`, `docs/PLUGIN_SDK.md` | External packages publish `ScannerPlugin`/`AnalyzerPort` implementations under the `caliper.plugins` `importlib.metadata` entry-point group; `get_default_registry()` discovers them alongside the 16 in-tree plugins. Fail-open per entry point (a broken third-party plugin is logged and skipped, never crashes discovery) and fail-open on the entry-point lookup itself. |
 
 ---
 

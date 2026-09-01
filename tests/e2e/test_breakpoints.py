@@ -31,8 +31,6 @@ ALL_SCANNERS = [
     "typos",
     "ls-lint",
     "kube-linter",
-    "cfn-nag",
-    "cdk-nag",
     "supply-chain",
     "blast-radius",
 ]

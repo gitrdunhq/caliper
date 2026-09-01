@@ -18,12 +18,9 @@ ARG LIZARD_VERSION=1.17.13
 ARG MYPY_VERSION=1.15.0
 ARG PYREFLY_VERSION=1.1.1
 ARG TYPOS_VERSION=1.47.2
-ARG AWS_CDK_VERSION=2.1120.0
-ARG CFN_NAG_VERSION=0.8.10
 ARG LS_LINT_VERSION=2.3.1
 ARG PMD_VERSION=7.24.0
 ARG SWIFTLINT_VERSION=0.57.1
-ARG SWIFTFORMAT_VERSION=0.61.1
 # semgrep/semgrep-rules has no release tags; pin the community rule snapshot by
 # commit. Baked into the image so opengrep never fetches registry packs at scan
 # time (no network in the scan path, no rule drift between runs).
@@ -59,9 +56,6 @@ ARG PMD_SHA256=110934b36d39c19094d1b77386931978093f238f2c2f1851748822b69c7367ac
 ARG OPENGREP_SHA256_ARM64=3bade33c9aee60edf88899cac2b58086bf728caf0a93aced97dd77c272a740f1
 # SwiftLint — arm64 Linux binary not yet available; plugin degrades gracefully if missing
 ARG SWIFTLINT_SHA256_AMD64=81cb02135897dc982b4d1049dba8510db3e982b0b0e8e138293982d77e4154e0
-# SwiftFormat — linux binaries for both arches (0.61.1)
-ARG SWIFTFORMAT_SHA256_AMD64=7bc8706e3fd51963f1f29eb99098ebdf482f3497fa527c68e6cf75cbee29c77a
-ARG SWIFTFORMAT_SHA256_ARM64=42a35b557a6d56975fba3a48e78d39ab5388c8faac65d4819f25d3e20c7504c0
 
 # AMD64 checksums
 ARG SYFT_SHA256_AMD64=7b98251d2d08926bb5d4639b56b1f0996a58ef6667c5830e3fe3cd3ad5f4214a
@@ -169,25 +163,11 @@ RUN set -eux; \
     rm -f /tmp/*.tar.gz /tmp/*.zip; \
     chmod +x /staging/gobin/* /staging/jq/jq
 
-# ── SwiftFormat (amd64 + arm64) + SwiftLint (amd64 only) → /staging/swiftbin ──
-# SwiftFormat ships linux binaries for both arches. SwiftLint ships amd64 only;
-# it is best-effort and its plugin degrades to NOT_INSTALLED when absent. Both
-# land in /staging/swiftbin, which the runtime stage COPYs as a directory so a
-# missing (arm64) swiftlint does not break the build.
-ARG SWIFTFORMAT_VERSION SWIFTFORMAT_SHA256_AMD64 SWIFTFORMAT_SHA256_ARM64
+# ── SwiftLint (amd64 only) → /staging/swiftbin ────────────────────────────────
+# SwiftLint ships amd64 only; it is best-effort and its plugin degrades to
+# NOT_INSTALLED when absent. It lands in /staging/swiftbin, which the runtime
+# stage COPYs as a directory so a missing (arm64) swiftlint does not break the build.
 RUN set -eux; \
-    case "${TARGETARCH}" in \
-        "amd64") SF_ASSET="swiftformat_linux.zip";         SF_BIN="swiftformat_linux";         SF_SHA="${SWIFTFORMAT_SHA256_AMD64}" ;; \
-        "arm64") SF_ASSET="swiftformat_linux_aarch64.zip"; SF_BIN="swiftformat_linux_aarch64"; SF_SHA="${SWIFTFORMAT_SHA256_ARM64}" ;; \
-        *) echo "Unsupported arch: ${TARGETARCH}" >&2; exit 1 ;; \
-    esac; \
-    curl -sSfL -o /tmp/swiftformat.zip \
-        "https://github.com/nicklockwood/SwiftFormat/releases/download/${SWIFTFORMAT_VERSION}/${SF_ASSET}"; \
-    echo "${SF_SHA}  /tmp/swiftformat.zip" | sha256sum --strict -c -; \
-    unzip -q /tmp/swiftformat.zip "${SF_BIN}" -d /tmp/; \
-    mv "/tmp/${SF_BIN}" /staging/swiftbin/swiftformat; \
-    chmod +x /staging/swiftbin/swiftformat; \
-    rm /tmp/swiftformat.zip; \
     if [ "${TARGETARCH}" = "amd64" ] && [ "${SWIFTLINT_SHA256_AMD64}" != "FIXME_verify_sha256_before_building" ]; then \
         curl -sSfL -o /tmp/swiftlint.zip \
             "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/swiftlint_linux.zip"; \
@@ -294,26 +274,8 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
-      git clamav clamav-freshclam libicu76 libarchive13t64 ca-certificates curl gnupg \
-      default-jre-headless ruby ruby-dev build-essential
-
-# ── Node.js 22 — GPG-verified repo, no curl|bash ─────────────────────────────
-RUN mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-         | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
-         > /etc/apt/sources.list.d/nodesource.list
-
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g \
-         "aws-cdk@${AWS_CDK_VERSION}" \
-         --no-fund --no-audit \
-    && npm cache clean --force \
-    && gem install "cfn-nag" -v "${CFN_NAG_VERSION}" --no-document \
-    && apt-get purge -y build-essential ruby-dev curl gnupg \
-    && apt-get autoremove -y
+      git clamav clamav-freshclam libicu76 libarchive13t64 ca-certificates \
+      default-jre-headless
 
 # Non-root user — scanners must not run as root.
 RUN groupadd -r caliper && useradd -r -g caliper -m -d /home/caliper -s /bin/false caliper \
@@ -333,7 +295,7 @@ COPY --from=builder /staging/gobin/typos       /usr/local/bin/typos
 COPY --from=builder /usr/local/bin/opengrep   /usr/local/bin/opengrep
 COPY --from=builder /staging/pmd/              /opt/pmd/
 COPY --from=builder /staging/jq/jq             /usr/bin/jq
-# Swift tools (swiftformat always; swiftlint on amd64) — dir COPY tolerates absence.
+# Swift tools (swiftlint, amd64 only) — dir COPY tolerates absence.
 COPY --from=builder /staging/swiftbin/         /usr/local/bin/
 
 # Venv with all Python deps + caliper itself — console_scripts are in .venv/bin/
@@ -365,7 +327,7 @@ ENV PATH="/opt/caliper/.venv/bin:$PATH" \
     CALIPER_OPA_POLICY_PATH=/opt/caliper/policies \
     CALIPER_SEMGREP_RULES_DIR=/opt/caliper/semgrep-rules \
     CALIPER_SEMGREP_ORG_RULES_DIR=/opt/caliper/policies/semgrep \
-    CALIPER_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,typos,ls-lint,cdk-nag,cfn-nag
+    CALIPER_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,typos,ls-lint
 
 USER caliper
 WORKDIR /home/caliper
