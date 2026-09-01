@@ -127,6 +127,7 @@ def _register_subcommands() -> None:
     from caliper.cli.baseline_cmd import baseline
     from caliper.cli.ground_cmd import ground
     from caliper.cli.inspect_cmds import check_health, healthcheck, plugins, schema
+    from caliper.cli.install_cmd import install_scanners
     from caliper.cli.part_cmd import part
     from caliper.cli.query_cmd import query
     from caliper.cli.supply_chain_diff_cmd import supply_chain_diff
@@ -140,6 +141,7 @@ def _register_subcommands() -> None:
     cli.add_command(baseline)
     cli.add_command(supply_chain_diff)
     cli.add_command(ground)
+    cli.add_command(install_scanners)
 
 
 _register_subcommands()
@@ -419,6 +421,11 @@ def review(
             plugin_map=plugin_map,
             write_output=_write_output,
         )
+        if output_format == "markdown" and not output and not pr:
+            from caliper.cli.install_cmd import offer_install
+            from caliper.core.scanner_install import missing_binaries_from_results
+
+            offer_install(missing_binaries_from_results(review_result.results))
 
     run_review()
 

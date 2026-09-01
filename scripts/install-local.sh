@@ -43,5 +43,7 @@ sed -i.bak -E "/^\[project\]/,/^\[/ s|^version = \"[^\"]+\"|version = \"${DEV_VE
 rm -f "${PYPROJECT}.bak"
 
 echo ">> building + installing caliper ${DEV_VERSION}"
-uv tool install --reinstall --from "$REPO_ROOT" caliper
+# lizard (complexity) and pyrefly (type checking) are Python tools the plugins
+# shell out to; bundle them into the tool env so a native install has them.
+uv tool install --reinstall --from "$REPO_ROOT" --with lizard --with pyrefly --with radon caliper
 echo ">> installed caliper ${DEV_VERSION}  (run: caliper --version)"
