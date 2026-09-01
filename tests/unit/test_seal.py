@@ -280,7 +280,7 @@ _HASH_STRATEGY = st.text(
 
 
 @given(files=_FILES_STRATEGY, previous_hash=_HASH_STRATEGY)
-@settings(max_examples=200)
+@settings(max_examples=200, deadline=None)  # determinism property; wall-clock is irrelevant
 def test_seal_is_deterministic(files: dict[str, bytes], previous_hash: str) -> None:
     """Same directory content + same previous_seal_hash always produces the same seal_hash."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -300,7 +300,7 @@ def test_seal_is_deterministic(files: dict[str, bytes], previous_hash: str) -> N
     byte_idx=st.integers(min_value=0, max_value=199),
     delta=st.integers(min_value=1, max_value=255),
 )
-@settings(max_examples=200)
+@settings(max_examples=200, deadline=None)  # determinism property; wall-clock is irrelevant
 def test_any_single_byte_change_breaks_seal(
     content: bytes,
     byte_idx: int,
@@ -396,7 +396,7 @@ class TestPathTraversalRejected:
     hash1=st.text(alphabet="abcdef0123456789", min_size=4, max_size=64),
     hash2=st.text(alphabet="abcdef0123456789", min_size=4, max_size=64),
 )
-@settings(max_examples=200)
+@settings(max_examples=200, deadline=None)  # determinism property; wall-clock is irrelevant
 def test_seal_hash_changes_with_previous_hash(
     content: bytes,
     hash1: str,
