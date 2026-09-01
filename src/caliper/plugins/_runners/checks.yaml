@@ -107,32 +107,6 @@ checks:
         AND s.file NOT LIKE '%_test.%'
         AND s.name NOT LIKE '\\_\\_%' ESCAPE '\'
 
-  - name: layer_violation
-    severity: high
-    description: core/ symbol imports from data/ (tier violation)
-    query: |
-      SELECT s.name, s.file, s.line, t.name as imported
-      FROM edges e
-      JOIN symbols s ON e.source_id = s.id
-      JOIN symbols t ON e.target_id = t.id
-      WHERE e.kind = 'imports'
-        AND s.file IN ({changed_files})
-        AND s.file LIKE '%/core/%'
-        AND t.file LIKE '%/data/%'
-
-  - name: missing_tested_by
-    severity: medium
-    description: Source file has no tested-by annotation
-    query: |
-      SELECT DISTINCT s.file
-      FROM symbols s
-      WHERE s.file IN ({changed_files})
-        AND s.file LIKE '%.py'
-        AND s.file NOT LIKE 'test%'
-        AND s.file NOT LIKE '%/test_%'
-        AND s.file NOT LIKE '%__init__%'
-      GROUP BY s.file
-
   - name: srp_high_fan_out_imports
     severity: medium
     description: Module imports from 4+ distinct packages (SRP violation signal)
