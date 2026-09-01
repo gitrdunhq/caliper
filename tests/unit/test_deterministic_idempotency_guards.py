@@ -34,11 +34,7 @@ _SRC = _REPO / "src" / "caliper"
 
 
 # Files that contain job processing code
-_JOB_PROCESSING_PATHS = (
-    _SRC / "core" / "concern_remediate.py",
-    _SRC / "core" / "concern_review.py",
-    _SRC / "data" / "catalog.py",
-)
+_JOB_PROCESSING_PATHS = (_SRC / "data" / "catalog.py",)
 
 # Idempotency patterns that should be present in job processing code
 _IDEMPOTENCY_PATTERNS = (
@@ -134,92 +130,6 @@ def _find_queue_scan_inserts(tree: ast.Module) -> list[tuple[str, int]]:
             findings.append(("queue_scan_method", node.lineno))
 
     return findings
-
-
-@pytest.mark.xfail(reason="deterministic bug detector for #172", strict=False)
-def test_concern_remediate_lacks_job_idempotency() -> None:
-    """#172: Concern remediation parallel fan-out lacks idempotency keys.
-
-    The remediation code submits jobs to ThreadPoolExecutor without checking
-    if the same concern has already been processed. This can cause duplicate
-    remediation attempts when:
-    - The same concern appears in multiple batches
-    - Workers restart and reprocess
-    - Retries happen after partial failures
-
-    Target (concern_remediate.py:217-223):
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = {
-                pool.submit(_remediate_one, remediator, f, repo_path): ...
-                for f in remaining
-            }
-
-    Fix #172: Add idempotency key check before submitting to pool.
-    """
-    path = _SRC / "core" / "concern_remediate.py"
-    if not path.exists():
-        pytest.skip("concern_remediate.py not found")
-
-    source_text = path.read_text()
-    tree = _parse(path)
-
-    # Check if the file has idempotency patterns
-    has_idempotency = _has_idempotency_pattern(source_text)
-
-    # Find ThreadPoolExecutor job processing
-    job_sites = _find_threadpool_job_processing(tree)
-
-    # If there are job processing sites but no idempotency patterns, it's a bug
-    if job_sites and not has_idempotency:
-        pytest.fail(
-            f"BUG DETECTED: concern_remediate.py processes jobs without idempotency keys.\n"
-            f"Location: {_rel(path)}\n"
-            f"Found {len(job_sites)} job submission site(s) without idempotency checks.\n"
-            f"Issue: Parallel fan-out via ThreadPoolExecutor.submit() lacks deduplication.\n"
-            f"Risk: Duplicate processing on retries or restarts.\n"
-            f"Bug #172: Add idempotency key validation before job submission."
-        )
-
-
-@pytest.mark.xfail(reason="deterministic bug detector for #172", strict=False)
-def test_concern_review_lacks_job_idempotency() -> None:
-    """#172: Concern review parallel processing lacks idempotency keys.
-
-    The review code uses ThreadPoolExecutor to process concerns in parallel
-    without checking if concerns have already been reviewed. This can lead to:
-    - Duplicate AI calls for the same concern
-    - Wasted tokens and API quota
-    - Inconsistent review state
-
-    Target (concern_review.py:479+):
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = {pool.submit(_review_one, ...): ... for ...}
-
-    Fix #172: Add idempotency key check before submitting review jobs.
-    """
-    path = _SRC / "core" / "concern_review.py"
-    if not path.exists():
-        pytest.skip("concern_review.py not found")
-
-    source_text = path.read_text()
-    tree = _parse(path)
-
-    # Check if the file has idempotency patterns
-    has_idempotency = _has_idempotency_pattern(source_text)
-
-    # Find ThreadPoolExecutor job processing
-    job_sites = _find_threadpool_job_processing(tree)
-
-    # If there are job processing sites but no idempotency patterns, it's a bug
-    if job_sites and not has_idempotency:
-        pytest.fail(
-            f"BUG DETECTED: concern_review.py processes jobs without idempotency keys.\n"
-            f"Location: {_rel(path)}\n"
-            f"Found {len(job_sites)} job submission site(s) without idempotency checks.\n"
-            f"Issue: Parallel concern review lacks deduplication.\n"
-            f"Risk: Duplicate AI calls and wasted tokens.\n"
-            f"Bug #172: Add idempotency key validation before review submission."
-        )
 
 
 @pytest.mark.xfail(reason="deterministic bug detector for #172", strict=False)

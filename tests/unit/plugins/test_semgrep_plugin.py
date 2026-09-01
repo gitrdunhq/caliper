@@ -5,8 +5,8 @@ Opengrep/semgrep results may carry a native autofix in
 ``extra.fix``, or a custom rule-YAML convention in
 ``extra.metadata.fix_suggestion``. Both must survive into the finding dict
 (and, once normalized, into ``PluginFinding.fix_suggestion``) so
-``core/concern_remediate.py`` can act on a real remediation instead of a
-test-fixture-only value.
+downstream consumers see a real remediation instead of a test-fixture-only
+value.
 """
 
 from __future__ import annotations
