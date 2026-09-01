@@ -65,7 +65,7 @@ All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper t
 
 | # | Plugin | What it does |
 |---|--------|-------------|
-| 5 | **Semgrep** | AST pattern matching (dynamic rulesets + 61 custom org rules) |
+| 5 | **Semgrep** | AST pattern matching (pinned semgrep-rules snapshot + 67 custom org rules, no registry fetch) |
 | 6 | **PMD CPD** | Copy-paste detection (15 languages) |
 | 7 | **Mypy** | Deterministic cross-file Python type checking (prefers pyright) |
 | 8 | **SwiftLint** | Swift style + code smells (200+ rules + 13 custom) |

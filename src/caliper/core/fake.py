@@ -52,6 +52,8 @@ class FakeSemgrepRunner:
         timeout: int = 120,
         extra_config_dirs: list | None = None,
         exclude_rules: list | None = None,
+        rules_dir: str | None = None,
+        org_rules_dir: str | None = None,
     ) -> dict:
         return {"results": [], "errors": []}
 

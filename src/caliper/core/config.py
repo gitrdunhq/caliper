@@ -94,6 +94,15 @@ class CaliperSettings(BaseSettings):
     # OPA policy path
     opa_policy_path: str = "./policies/policy.rego"
 
+    # Semgrep/opengrep rule sources. Community rules come ONLY from a pinned local
+    # checkout of semgrep/semgrep-rules (the Dockerfile pins the commit and bakes
+    # it into the image at /opt/caliper/semgrep-rules); registry packs (``p/...``)
+    # are never fetched, so the scan path has no network dependency and the rule
+    # set cannot drift between runs. ``None`` = no community rules on this host.
+    # Org rules default to ``<policies dir>/semgrep`` beside ``opa_policy_path``.
+    semgrep_rules_dir: str | None = None
+    semgrep_org_rules_dir: str | None = None
+
     # Enabled scanners (comma-separated in env, e.g. "syft,trivy,osv-scanner")
     enabled_scanners: list[str] = Field(default=_SCANNERS_DEFAULT)
 

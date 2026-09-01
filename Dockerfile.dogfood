@@ -27,6 +27,7 @@ ARG OPA_VERSION=1.4.2
 ARG SEMGREP_VERSION=1.67.0
 ARG SCANCODE_VERSION=32.3.0
 ARG GITLEAKS_VERSION=8.24.3
+ARG SEMGREP_RULES_COMMIT=40b8c63f75dc7c22c8a77482d73bfb864b146f7e
 
 WORKDIR /tmp/scanners
 
@@ -49,6 +50,17 @@ RUN curl -sSfL -o /staging/bin/opa \
 RUN curl -sSfL -o gitleaks.tar.gz \
     "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_arm64.tar.gz" \
     && tar -xzf gitleaks.tar.gz gitleaks && mv gitleaks /staging/bin/ && rm gitleaks.tar.gz
+
+# semgrep-rules snapshot (same pin as the production Dockerfile) — never the registry
+RUN set -eux; \
+    mkdir -p /staging/semgrep-rules; \
+    curl -sSfL -o /tmp/semgrep-rules.tar.gz \
+      "https://github.com/semgrep/semgrep-rules/archive/${SEMGREP_RULES_COMMIT}.tar.gz"; \
+    tar -xzf /tmp/semgrep-rules.tar.gz -C /staging/semgrep-rules --strip-components=1 \
+      $(for d in bash csharp dockerfile generic go html java javascript json kotlin php python ruby rust swift terraform typescript yaml; do printf 'semgrep-rules-%s/%s ' "${SEMGREP_RULES_COMMIT}" "$d"; done); \
+    rm -f /tmp/semgrep-rules.tar.gz; \
+    find /staging/semgrep-rules -type f ! -name '*.yaml' ! -name '*.yml' -delete; \
+    printf '%s\n' "${SEMGREP_RULES_COMMIT}" > /staging/semgrep-rules/COMMIT
 
 # DHI Python lives at /opt/python — install deps into its site-packages
 ARG DHI_SITE=/opt/python/lib/python3.13/site-packages
@@ -86,6 +98,7 @@ COPY --from=builder /opt/python/lib/python3.13/site-packages/ /opt/python/lib/py
 # caliper source (NOT pip-installed — loaded via PYTHONPATH so templates resolve)
 COPY --from=builder /opt/caliper/src/ /opt/caliper/src/
 COPY --from=builder /opt/caliper/policies/ /opt/caliper/policies/
+COPY --from=builder /staging/semgrep-rules/ /opt/caliper/semgrep-rules/
 
 # Git (needed for repo scanning — git rev-parse, etc.)
 COPY --from=builder /usr/bin/git /usr/bin/git
@@ -102,6 +115,8 @@ COPY --from=builder /staging/clamav /var/lib/clamav
 # jq for OPA output parsing
 COPY --from=builder /usr/bin/jq /usr/bin/jq
 
+ENV CALIPER_SEMGREP_RULES_DIR=/opt/caliper/semgrep-rules \
+    CALIPER_SEMGREP_ORG_RULES_DIR=/opt/caliper/policies/semgrep
 ENV PATH="/opt/python/bin:/usr/local/bin:${PATH}" \
     PYTHONPATH="/opt/caliper/src"
 

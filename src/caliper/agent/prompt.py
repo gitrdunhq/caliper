@@ -69,7 +69,7 @@ _SEMGREP_GUIDANCE = """\
 You also run Semgrep on changed files to surface code-level issues.
 
 Semgrep runs 11 rulesets plus org-specific custom rules:
-- p/default, p/terraform, p/kubernetes, p/docker, p/ci (community)
+- pinned semgrep-rules snapshot (community; language dirs chosen by file type)
 - r/typescript.aws-cdk, r/javascript.aws-lambda, r/python.boto3 (AWS stack)
 - r/python.lang, r/bash.lang, r/dockerfile.security (language-specific)
 - policies/semgrep/org-code-smells.yaml (org custom rules)
