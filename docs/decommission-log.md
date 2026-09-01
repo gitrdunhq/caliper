@@ -55,3 +55,26 @@ Points at `17eb7d6` (main as of 2026-09-01, release 0.2.30 plus the pyrefly type
 | `tests/unit/test_solver.py` | 557 |
 
 **Also cleaned.** Nothing else referenced it.
+
+### 3. Task-fit LLM advisory (2026-09-01)
+
+**What it was.** `core/taskfit.py` asked an LLM whether a package was proportionate for its stated use across eight dimensions; `core/taskfit_validator.py` rejected any response missing a dimension. Gated behind `CALIPER_LLM_ENABLED`, default off.
+
+**Why it was cut.**
+
+- Unreachable: nothing in `src/` imported either module. The pipeline, renderer, and agent never called it, so the flag could not actually turn anything on. The Foreman agent's task-fit rubric is prompt text in `agent/prompt.py` and is unaffected.
+- README and CAPABILITIES advertised it as a live optional feature.
+- Off-thesis: an LLM judgment call inside the review package.
+
+**Removed.**
+
+| Path | Lines |
+|---|---|
+| `src/caliper/core/taskfit.py` | 250 |
+| `src/caliper/core/taskfit_validator.py` | 216 |
+| `tests/unit/test_taskfit.py` | 544 |
+| `tests/unit/test_taskfit_validator.py` | 323 |
+
+**Also cleaned.** The `TestLLMPromptInjection` class in `tests/unit/test_security.py` (it only exercised `TaskFitAdvisor`); stale `taskfit*.py` and never-existing `core/solver.py` entries in three deterministic guard tests; the README tree listing and kerf paragraph; the CAPABILITIES "Task-fit advisory" row.
+
+**Kept for now.** The `llm_enabled` / `llm_endpoint` / `llm_model` / `llm_api_key` settings and `data/llm_client.py` are still used by the supply-chain-threat scribe and `core/llm_port.py`. Revisit when that scribe is decided.

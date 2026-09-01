@@ -34,9 +34,7 @@ _WHITELIST_NAME_RE = re.compile(
 
 # Files that contain input validation logic
 _VALIDATION_FILES: tuple[Path, ...] = (
-    _SRC / "core" / "solver.py",
     _SRC / "core" / "config.py",
-    _SRC / "core" / "taskfit_validator.py",
     _SRC / "webhook" / "server.py",
 )
 
