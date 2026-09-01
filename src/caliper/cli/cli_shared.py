@@ -24,7 +24,6 @@ _REVIEW_SUFFIXES: tuple[str, ...] = (
     ".json",
     ".swift",
 )
-_AUDIT_SUFFIXES: tuple[str, ...] = tuple(s for s in _REVIEW_SUFFIXES if s != ".swift")
 
 
 def _collect_repo_files(

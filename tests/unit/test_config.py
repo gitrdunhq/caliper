@@ -133,24 +133,6 @@ class TestCaliperSettings:
         assert settings.llm_model is None
         assert settings.llm_api_key is None
 
-        # Concern-review LLM fan-out defaults (holistic audit + remediation) —
-        # distinct from the llm_* task-fit settings above.
-        assert settings.default_llm_model == "claude-haiku-4-5-20251001"
-        assert settings.default_llm_endpoint == "https://api.anthropic.com"
-
-    def test_default_llm_model_overridable_via_env(self) -> None:
-        """default_llm_model/default_llm_endpoint are configurable, not just hardcoded."""
-        from caliper.core.config import CaliperSettings
-
-        env = self._minimal_env()
-        env["CALIPER_DEFAULT_LLM_MODEL"] = "claude-sonnet-5"
-        env["CALIPER_DEFAULT_LLM_ENDPOINT"] = "https://llm.internal/v1"
-        with patch.dict(os.environ, env, clear=True):
-            settings = CaliperSettings()
-
-        assert settings.default_llm_model == "claude-sonnet-5"
-        assert settings.default_llm_endpoint == "https://llm.internal/v1"
-
     def test_minimal_config_loads_with_defaults(self) -> None:
         """Minimal config (just DB_DSN) loads successfully."""
         from caliper.core.config import CaliperSettings

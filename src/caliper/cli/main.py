@@ -13,7 +13,6 @@ import click
 import structlog
 
 from caliper.cli.cli_shared import (  # noqa: F401
-    _AUDIT_SUFFIXES,
     _REVIEW_SUFFIXES,
     _collect_repo_files,
     _read_diff,
@@ -125,7 +124,6 @@ def cli() -> None:
 
 
 def _register_subcommands() -> None:
-    from caliper.cli.audit_cmd import audit
     from caliper.cli.baseline_cmd import baseline
     from caliper.cli.eval_cmd import eval_cmd
     from caliper.cli.gauge_cmd import gauge
@@ -148,7 +146,6 @@ def _register_subcommands() -> None:
     cli.add_command(eval_cmd)
     cli.add_command(reinstall_cmd)
     cli.add_command(baseline)
-    cli.add_command(audit)
     cli.add_command(supply_chain_diff)
     cli.add_command(ground)
 
