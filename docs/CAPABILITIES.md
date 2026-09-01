@@ -16,7 +16,7 @@
 
 Caliper — fully deterministic dependency, security, and code review for CI.
 20 scanner plugins (19 auto-discovered + "deterministic", which wraps all 22
-CAL-001..022 detectors), 67 custom semgrep rules, 12 code graph
+CAL-001..022 detectors), 67 custom semgrep rules, 10 code graph
 checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
@@ -27,7 +27,7 @@ supply-chain version-bump narrative is advisory metadata only).
 | Scanner plugins | 20 (19 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
 | Deterministic detectors | 22 (CAL-001..CAL-022), run via the "deterministic" plugin during `caliper review` |
 | Custom semgrep rules | 67 (11 rule files) |
-| Code graph SQL checks | 12 |
+| Code graph SQL checks | 10 |
 | OPA Rego policy rules | 16 (7 deny, 9 warn) |
 | Code graph query templates | 12 |
 | Copilot agent tools | 6 |
@@ -85,7 +85,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 
 | Plugin | File | Detects |
 |--------|------|---------|
-| blast-radius | `plugins/blast_radius.py` | Code graph impact analysis. AST → SQLite, then 12 SQL checks (see below). Full + incremental indexing. Python + JS/TS. Extensible via `graph.register_check()`. |
+| blast-radius | `plugins/blast_radius.py` | Code graph impact analysis. AST → SQLite, then 10 SQL checks (see below). Full + incremental indexing. Python + JS/TS. Extensible via `graph.register_check()`. |
 | complexity | `plugins/complexity.py` | Cyclomatic complexity (Lizard) + maintainability index (Radon for Python, bundled typhonjs-escomplex for JS/TS). A function is a finding only when its CCN exceeds `thresholds.complexity.ccn` (default 10, `.caliper.yaml`); every function still feeds the summary (`functions_scanned`, avg/max CCN, NLOC). |
 | typos | `plugins/typos.py` | Source-aware typo detection (crate-ci/typos). Single pinned Rust binary, very low false positives, identifier-aware (camelCase/snake_case splitting). Shows corrections. |
 | ls-lint | `plugins/ls_lint.py` | File naming convention enforcement. Only runs when `.ls-lint.yml` config exists. |
@@ -217,7 +217,7 @@ By category: security 9, reliability 10, configuration 2, process 1.
 
 ---
 
-## Code Graph Checks (12 checks)
+## Code Graph Checks (10 checks)
 
 All in `plugins/_runners/checks.yaml`. Executed by the blast-radius plugin against a SQLite code graph built from AST analysis.
 
@@ -226,14 +226,12 @@ All in `plugins/_runners/checks.yaml`. Executed by the blast-radius plugin again
 | blast_radius_critical | critical | Symbol with >25 direct dependents |
 | blast_radius_high | high | Symbol with >10 direct dependents |
 | mock_stub_in_source | high | Stub/mock/noop patterns in non-test source files |
-| layer_violation | high | core/ importing from data/ (three-tier architecture breach) |
 | circular_dependency | medium | File import cycles (A imports B imports A) |
 | high_fan_out | medium | Function calling >8 other functions (god function) |
 | deep_inheritance | medium | Class inheritance chain deeper than 3 levels |
 | noop_function | medium | Functions that do nothing (pass/return None/stub/log_only) |
 | srp_high_fan_out_imports | medium | Module importing from 4+ distinct packages (SRP violation) |
 | srp_large_class | medium | Class with >15 methods (SRP violation) |
-| missing_tested_by | medium | Source file missing `# tested-by:` annotation |
 | orphan_symbol | info | Function with zero callers (potential dead code) |
 
 ### Code Graph Internals

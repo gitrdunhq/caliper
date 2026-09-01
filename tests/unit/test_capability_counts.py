@@ -21,7 +21,7 @@ _REPO = Path(__file__).resolve().parents[2]
 # Canonical capability counts — must match docs/CAPABILITIES.md.
 _PLUGINS = 20
 _SEMGREP = 67
-_CODEGRAPH = 12
+_CODEGRAPH = 10
 _OPA = 16
 _DETECTORS = 22
 
