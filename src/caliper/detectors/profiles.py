@@ -5,7 +5,7 @@ Two profiles, every detector in exactly one (a drift-guard test enforces this):
 
 * ``default`` — general bug patterns any Python service has: SQL injection,
   error exposure, secrets typed as ``str``, subprocess without timeout, ...
-* ``house-rules`` — caliper's own engineering conventions (``# tested-by:``
+* ``house-rules`` — caliper's own engineering conventions (CAL-013 retired with telemetry) (``# tested-by:``
   annotations, pathlib-only path building, atomic writes, rate-limit decorators
   on every route, ...). Correct for this repo, noise for most others; opt in via
   ``detectors.profiles`` in ``.caliper.yaml``.
@@ -43,7 +43,6 @@ PROFILES: dict[str, frozenset[str]] = {
             "CAL-008",  # path string concatenation
             "CAL-009",  # cache lookup without freshness check
             "CAL-011",  # health check without database verification
-            "CAL-013",  # config merge dropping telemetry
             "CAL-014",  # missing tested-by annotation
             "CAL-017",  # presentation tier imports data tier directly
             "CAL-019",  # nullable advisory_id in dedup key

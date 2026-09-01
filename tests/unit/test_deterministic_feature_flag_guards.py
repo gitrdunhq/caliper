@@ -27,14 +27,12 @@ _SRC = _REPO / "src" / "caliper"
 _FEATURE_FLAG_FILES: tuple[Path, ...] = (
     _SRC / "core" / "config.py",
     _SRC / "core" / "repo_config.py",
-    _SRC / "core" / "telemetry.py",
 )
 
 # Feature flag field name patterns (boolean fields indicating features)
 _FEATURE_FLAG_PATTERNS: tuple[str, ...] = (
     "enabled",
     "llm_enabled",
-    "telemetry_enabled",
 )
 
 # Kill switch patterns to look for
@@ -113,7 +111,7 @@ def _find_feature_flags(tree: ast.Module) -> list[tuple[str, int]]:
         if not isinstance(node, ast.ClassDef):
             continue
 
-        # Only look at Pydantic models (config/telemetry classes)
+        # Only look at Pydantic models (config classes)
         if not _is_pydantic_model(node):
             continue
 

@@ -235,3 +235,19 @@ Points at `a3e7eec` (2026-09-01, end of the scanner audit branch).
 **Also changed.** The `copilot` extra is now `webhook` (starlette + uvicorn only; the agent framework is gone from `uv.lock`). README, CLAUDE.md, WHY.md, ARCHITECTURE.md, CAPABILITIES, and the elevator pitch no longer describe a second entry point; the README workflow snippet runs `caliper review --diff ... --pr N` instead.
 
 **Kept.** `.github/workflows/foreman.yml` (the CI job, unrelated to the agent module), the webhook server, `docs/adr/001-004` as historical records.
+
+## Archive tag: `archive/pre-cut-telemetry`
+
+Points at `1d3736b` (2026-09-01, after the Foreman cut).
+
+### 16. Opt-in telemetry and the CAL-013 detector (2026-09-01)
+
+**What it was.** `core/telemetry.py` (a Pydantic `TelemetryEvent` with nine signals, `extra="forbid"`, file-path stripping) and `data/telemetry_sender.py` (fire-and-forget POST to `https://telemetry.caliper.dev/v1/events`), configured by `telemetry.enabled`/`telemetry.endpoint` in `.caliper.yaml`. `CAL-013` ("Config Merge Dropping Telemetry") existed solely to guard that config section against the #262 merge bug.
+
+**Why it was cut.**
+
+- Nothing in `src/` ever constructed an event or called the sender; only the config section and a cluster of guard tests referenced it. Dead code with a public endpoint in it.
+- No backend is known to listen at the endpoint.
+- CAL-013 had no purpose once the section it guarded was gone; its id is retired, never reused.
+
+**Removed.** `core/telemetry.py`, `data/telemetry_sender.py`, `detectors/config/config_merge.py`, `TelemetryConfig` and its merge handling in `core/repo_config.py`, and the tests: `test_telemetry.py`, `test_deterministic_telemetry_merge_guards.py`, `test_deterministic_metrics_guards.py`, `test_deterministic_config_guards.py`, `detectors/config/test_config_merge.py`, plus the telemetry cases in `test_repo_config_merge.py`, `test_deterministic_runtime_contracts.py`, and `test_deterministic_feature_flag_guards.py`. Detector count 22 -> 21 (house-rules profile 10 -> 9).

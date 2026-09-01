@@ -144,7 +144,7 @@ graph.register_check(
 
 ### Deterministic Bug Detectors (22 and growing)
 
-Beyond semgrep, caliper ships **22 deterministic AST bug detectors** (`CAL-001`…`CAL-022`) in `src/caliper/detectors/` — SQL injection via string formatting, JWT tokens with no audience claim, secrets typed as plain `str` instead of `SecretStr`, subprocess calls without a timeout, unbounded caches, non-atomic file writes, and more. They fire with no LLM, never crash a scan (fail-safe), and are suppressible per-line with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](docs/detectors.md).
+Beyond semgrep, caliper ships **21 deterministic AST bug detectors** (`CAL-001`…`CAL-022`) in `src/caliper/detectors/` — SQL injection via string formatting, JWT tokens with no audience claim, secrets typed as plain `str` instead of `SecretStr`, subprocess calls without a timeout, unbounded caches, non-atomic file writes, and more. They fire with no LLM, never crash a scan (fail-safe), and are suppressible per-line with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](docs/detectors.md).
 
 ### OPA Policy Rules (6 rules, pure Rego)
 

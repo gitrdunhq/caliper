@@ -58,13 +58,6 @@ class DetectorsConfig(BaseModel):
     disable: list[str] = Field(default_factory=list)
 
 
-class TelemetryConfig(BaseModel):
-    """Anonymous opt-in telemetry settings."""
-
-    enabled: bool = False
-    endpoint: str = "https://telemetry.caliper.dev/v1/events"
-
-
 # Default classification globs for parting. Matched (fnmatch-style) against the
 # posix relative path AND the basename, so both ``poetry.lock`` and
 # ``sub/dir/poetry.lock`` match. Order does not matter — classification in
@@ -359,7 +352,6 @@ class RepoConfig(BaseModel):
 
     plugins: PluginConfig = PluginConfig()
     thresholds: dict[str, dict[str, Any]] = {}
-    telemetry: TelemetryConfig = TelemetryConfig()
     parting: PartingConfig = PartingConfig()
     detectors: DetectorsConfig = DetectorsConfig()
     baseline: BaselineConfig = BaselineConfig()
@@ -398,14 +390,8 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
         ),
     )
     merged_thresholds = {**root_config.thresholds, **pkg_config.thresholds}
-    # Carry telemetry through the merge (package precedence when set, else root).
-    # Previously RepoConfig was built without telemetry, dropping root telemetry to
-    # defaults during a package merge (#262).
-    merged_telemetry = (
-        pkg_config.telemetry if pkg_config.telemetry != TelemetryConfig() else root_config.telemetry
-    )
     # Carry parting through the merge (package precedence when set, else root).
-    # Previously RepoConfig was rebuilt with only plugins/thresholds/telemetry,
+    # Previously RepoConfig was rebuilt with only plugins/thresholds,
     # silently dropping parting to defaults on a package merge — which would also
     # wipe a parting.overrides table (#442).
     merged_parting = (
@@ -425,7 +411,6 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
     return RepoConfig(
         plugins=merged_plugins,
         thresholds=merged_thresholds,
-        telemetry=merged_telemetry,
         parting=merged_parting,
         detectors=merged_detectors,
         baseline=merged_baseline,

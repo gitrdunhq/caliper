@@ -2,7 +2,7 @@
   <img src="assets/hero.svg" alt="Caliper" width="900">
   <br>
   <strong>Fully deterministic dependency review for CI.</strong><br>
-  16 plugins. 22 detectors. 16 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
+  16 plugins. 21 detectors. 16 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
   <br><br>
 
   <a href="#quick-start"><img src="https://img.shields.io/badge/get_started-→-d4251a?style=flat-square" alt="Get Started"></a>
@@ -101,7 +101,7 @@ All deterministic. Zero LLM. The 16 scanner plugins below feed their findings to
 
 ### Plus 22 deterministic detectors
 
-On changed source, caliper also runs **22 AST bug detectors** (`CAL-001`…`CAL-022`) — SQL injection, missing JWT audience claim, secrets typed as plain `str`, subprocess without timeout, unbounded caches, and more. The 12 general-bug detectors run by default; the 10 that encode caliper's own conventions (`# tested-by:` annotations, pathlib-only paths, atomic writes, …) are the opt-in `house-rules` profile in `.caliper.yaml`. Deterministic, fail-safe, suppressible with `# noqa: CAL-NNN`. See [`docs/detectors.md`](docs/detectors.md).
+On changed source, caliper also runs **21 AST bug detectors** (`CAL-001`…`CAL-022`, ids never reused) — SQL injection, missing JWT audience claim, secrets typed as plain `str`, subprocess without timeout, unbounded caches, and more. The 12 general-bug detectors run by default; the 9 that encode caliper's own conventions (`# tested-by:` annotations, pathlib-only paths, atomic writes, …) are the opt-in `house-rules` profile in `.caliper.yaml`. Deterministic, fail-safe, suppressible with `# noqa: CAL-NNN`. See [`docs/detectors.md`](docs/detectors.md).
 
 **Scanner disagreement:** When OSV-Scanner and Trivy report the same CVE, the normalizer deduplicates on `(advisory_id, category, package_name, version)`. Highest severity wins.
 
@@ -298,7 +298,7 @@ src/caliper/
 │   ├── mypy.py             #   Cross-file Python type checking
 │   ├── scribes/          #   Detect-then-scribe: code-graph + opt-in semgrep (ADR-006)
 │   └── ...                 #   + 13 more (one file per plugin, incl. _opa.py)
-├── detectors/              # 22 deterministic AST bug detectors (CAL-001..022)
+├── detectors/              # 21 deterministic AST bug detectors (CAL-001..022)
 │   ├── security/           #   8 detectors (SQL injection, JWT audience, SecretStr, ...)
 │   ├── reliability/        #   subprocess timeout, unbounded cache, atomic write, ...
 │   ├── scanner.py          #   DeterministicScanner (ScannerPort) — runs them in the pipeline
