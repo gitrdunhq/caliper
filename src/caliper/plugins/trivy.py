@@ -1,4 +1,9 @@
-"""Trivy plugin — vulnerability scanning.
+"""Trivy plugin — dependency vulnerabilities + IaC misconfigurations.
+
+The misconfig scanner (CloudFormation, Terraform, Kubernetes, Dockerfile, Helm)
+replaces the former cfn-nag (Ruby) and cdk-nag (Node + aws-cdk) plugins with a
+binary the image already ships. ``--skip-check-update`` pins the checks to the
+ones embedded in the pinned trivy release so results do not drift between runs.
 # tested-by: tests/unit/test_plugin_registry.py
 """
 
@@ -36,7 +41,7 @@ class TrivyPlugin(ScannerPlugin):
 
     @property
     def description(self) -> str:
-        return "Vulnerability scanning (Trivy database)"
+        return "Vulnerability scanning (Trivy database) + IaC misconfiguration checks"
 
     @property
     def category(self) -> PluginCategory:
@@ -46,7 +51,15 @@ class TrivyPlugin(ScannerPlugin):
         return True
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
-        cmd = ["trivy", "fs", "--format", "json", "--scanners", "vuln"]
+        cmd = [
+            "trivy",
+            "fs",
+            "--format",
+            "json",
+            "--scanners",
+            "vuln,misconfig",
+            "--skip-check-update",
+        ]
         for pattern in load_ignore_patterns(repo_path):
             stripped = pattern.rstrip("/")
             if stripped and not any(c in stripped for c in "*?["):
@@ -82,8 +95,30 @@ class TrivyPlugin(ScannerPlugin):
             )
 
         findings = []
+        misconfigs = 0
         for result in data.get("Results", []):
-            for vuln in result.get("Vulnerabilities", []):
+            target = result.get("Target", "")
+            for mc in result.get("Misconfigurations", []) or []:
+                if str(mc.get("Status", "FAIL")).upper() != "FAIL":
+                    continue  # PASS/EXCEPTION entries are not findings
+                misconfigs += 1
+                cause = mc.get("CauseMetadata") or {}
+                rule_id = mc.get("ID") or mc.get("AVDID") or "?"
+                findings.append(
+                    {
+                        "id": rule_id,
+                        "rule_id": rule_id,
+                        "url": mc.get("PrimaryURL", ""),
+                        "summary": mc.get("Title", ""),
+                        "message": mc.get("Message") or mc.get("Description", ""),
+                        "severity": _SEV_MAP.get(mc.get("Severity", ""), "info"),
+                        "category": "security",
+                        "file": target,
+                        "line": int(cause.get("StartLine") or 0),
+                        "fix_suggestion": mc.get("Resolution", ""),
+                    }
+                )
+            for vuln in result.get("Vulnerabilities", []) or []:
                 findings.append(
                     {
                         "id": vuln.get("VulnerabilityID", "?"),
@@ -100,7 +135,12 @@ class TrivyPlugin(ScannerPlugin):
         return PluginResult(
             plugin_name=self.name,
             findings=findings,
-            summary={"total": len(findings), "critical_high": crit},
+            summary={
+                "total": len(findings),
+                "vulnerabilities": len(findings) - misconfigs,
+                "misconfigurations": misconfigs,
+                "critical_high": crit,
+            },
         )
 
     def render(self, result: PluginResult, template_dir: Path | None = None) -> str:
@@ -108,7 +148,11 @@ class TrivyPlugin(ScannerPlugin):
             return f"**trivy**: {result.error}"
         if not result.findings:
             return ""
-        return f"Trivy: {len(result.findings)} vulnerabilities found"
+        s = result.summary
+        return (
+            f"Trivy: {s.get('vulnerabilities', len(result.findings))} vulnerabilities, "
+            f"{s.get('misconfigurations', 0)} IaC misconfigurations"
+        )
 
 
 from caliper.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)

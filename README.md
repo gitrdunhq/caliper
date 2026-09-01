@@ -58,7 +58,7 @@ All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper t
 |---|--------|-------------|
 | 1 | **Syft** | SBOM generation (CycloneDX, 18 ecosystems) |
 | 2 | **OSV-Scanner** | Known vulnerability database (CVE/GHSA) |
-| 3 | **Trivy** | Vulnerability scanning |
+| 3 | **Trivy** | Vulnerability scanning + IaC misconfigurations (CloudFormation, Terraform, K8s, Dockerfile) |
 | 4 | **ScanCode** | License detection (SPDX) |
 
 ### Code Analysis (run on changed source files)
