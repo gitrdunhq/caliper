@@ -21,8 +21,8 @@ from caliper.core.plugin import finding_get
 from caliper.core.port_registries import SCRIBES
 from caliper.core.scribe import merge_scribe
 from caliper.plugins._runners.semgrep_runner import (
-    _EXT_TO_RULESETS,
-    _NAME_TO_RULESETS,
+    _EXT_TO_RULE_DIRS,
+    _NAME_TO_RULE_DIRS,
     run_semgrep,
 )
 
@@ -38,7 +38,7 @@ _DEFAULT_TIMEOUT = 15  # per-file opengrep budget (seconds)
 
 
 def _supported(file: str) -> bool:
-    return Path(file).suffix in _EXT_TO_RULESETS or Path(file).name in _NAME_TO_RULESETS
+    return Path(file).suffix in _EXT_TO_RULE_DIRS or Path(file).name in _NAME_TO_RULE_DIRS
 
 
 @SCRIBES.register("semgrep")
@@ -47,8 +47,15 @@ class SemgrepScribe:
 
     name = "semgrep"
 
-    def __init__(self, timeout: int = _DEFAULT_TIMEOUT) -> None:
+    def __init__(
+        self,
+        timeout: int = _DEFAULT_TIMEOUT,
+        rules_dir: str | None = None,
+        org_rules_dir: str | None = None,
+    ) -> None:
         self._timeout = timeout
+        self._rules_dir = rules_dir
+        self._org_rules_dir = org_rules_dir
         self._cache: dict[tuple[str, str], list[dict]] = {}  # (repo, file) -> results
 
     def applies_to(self, finding: PluginFinding) -> bool:
@@ -62,7 +69,13 @@ class SemgrepScribe:
         if key in self._cache:
             return self._cache[key]
         try:
-            data = run_semgrep([rel_file], repo_path, timeout=self._timeout)
+            data = run_semgrep(
+                [rel_file],
+                repo_path,
+                timeout=self._timeout,
+                rules_dir=self._rules_dir,
+                org_rules_dir=self._org_rules_dir,
+            )
             results = data.get("results") or []
         except Exception:
             logger.exception("scribe.semgrep.run_failed", file=rel_file)

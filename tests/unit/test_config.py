@@ -120,6 +120,8 @@ class TestCaliperSettings:
         # Path defaults
         assert settings.evidence_path == "./evidence"
         assert settings.opa_policy_path == "./policies/policy.rego"
+        assert settings.semgrep_rules_dir is None
+        assert settings.semgrep_org_rules_dir is None
 
         # Scanner defaults
         assert settings.enabled_scanners == ["syft", "osv-scanner", "trivy"]
@@ -129,6 +131,19 @@ class TestCaliperSettings:
         assert settings.llm_endpoint is None
         assert settings.llm_model is None
         assert settings.llm_api_key is None
+
+    def test_semgrep_rule_dirs_overridable_via_env(self) -> None:
+        """The pinned community snapshot and the packaged org rules are env-configurable."""
+        from caliper.core.config import CaliperSettings
+
+        env = self._minimal_env()
+        env["CALIPER_SEMGREP_RULES_DIR"] = "/opt/caliper/semgrep-rules"
+        env["CALIPER_SEMGREP_ORG_RULES_DIR"] = "/opt/caliper/policies/semgrep"
+        with patch.dict(os.environ, env, clear=True):
+            settings = CaliperSettings()
+
+        assert settings.semgrep_rules_dir == "/opt/caliper/semgrep-rules"
+        assert settings.semgrep_org_rules_dir == "/opt/caliper/policies/semgrep"
 
     def test_minimal_config_loads_with_defaults(self) -> None:
         """Minimal config (just DB_DSN) loads successfully."""

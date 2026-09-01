@@ -24,6 +24,10 @@ ARG LS_LINT_VERSION=2.3.1
 ARG PMD_VERSION=7.24.0
 ARG SWIFTLINT_VERSION=0.57.1
 ARG SWIFTFORMAT_VERSION=0.61.1
+# semgrep/semgrep-rules has no release tags; pin the community rule snapshot by
+# commit. Baked into the image so opengrep never fetches registry packs at scan
+# time (no network in the scan path, no rule drift between runs).
+ARG SEMGREP_RULES_COMMIT=40b8c63f75dc7c22c8a77482d73bfb864b146f7e
 
 # ── Source revision pins ─────────────────────────────────────────────────────
 # GitHub release assets are still addressed by release version because that is
@@ -95,6 +99,7 @@ FROM python_base_${TARGETARCH} AS builder
 ARG SYFT_VERSION TRIVY_VERSION OSV_VERSION OPA_VERSION GITLEAKS_VERSION JQ_VERSION KUBE_LINTER_VERSION PMD_VERSION LS_LINT_VERSION SWIFTLINT_VERSION TYPOS_VERSION
 ARG SYFT_COMMIT TRIVY_COMMIT OSV_COMMIT OPA_COMMIT GITLEAKS_COMMIT KUBE_LINTER_COMMIT JQ_COMMIT LS_LINT_COMMIT TYPOS_COMMIT UV_COMMIT
 ARG OPENGREP_VERSION SCANCODE_VERSION LIZARD_VERSION MYPY_VERSION PYREFLY_VERSION
+ARG SEMGREP_RULES_COMMIT
 ARG SYFT_SHA256_ARM64 TRIVY_SHA256_ARM64 OSV_SHA256_ARM64 OPA_SHA256_ARM64 GITLEAKS_SHA256_ARM64 JQ_SHA256_ARM64 KUBE_LINTER_SHA256_ARM64 LS_LINT_SHA256_ARM64 TYPOS_SHA256_ARM64 PMD_SHA256
 ARG SYFT_SHA256_AMD64 TRIVY_SHA256_AMD64 OSV_SHA256_AMD64 OPA_SHA256_AMD64 GITLEAKS_SHA256_AMD64 JQ_SHA256_AMD64 KUBE_LINTER_SHA256_AMD64 LS_LINT_SHA256_AMD64 TYPOS_SHA256_AMD64 SWIFTLINT_SHA256_AMD64
 ARG TARGETARCH
@@ -212,7 +217,22 @@ RUN printf '%s\n' \
       "jq=${JQ_COMMIT}" \
       "ls-lint=${LS_LINT_COMMIT}" \
       "typos=${TYPOS_COMMIT}" \
+      "semgrep-rules=${SEMGREP_RULES_COMMIT}" \
     > /staging/scripts/release-revisions.txt
+
+# semgrep-rules snapshot — the ONLY source of community opengrep rules. Fetched
+# by commit (content-addressed) and reduced to the language directories the
+# runner maps file types to (see plugins/_runners/semgrep_runner.py).
+RUN set -eux; \
+    mkdir -p /staging/semgrep-rules; \
+    curl -sSfL -o /tmp/semgrep-rules.tar.gz \
+      "https://github.com/semgrep/semgrep-rules/archive/${SEMGREP_RULES_COMMIT}.tar.gz"; \
+    tar -xzf /tmp/semgrep-rules.tar.gz -C /staging/semgrep-rules --strip-components=1 \
+      $(for d in bash csharp dockerfile generic go html java javascript json kotlin php python ruby rust swift terraform typescript yaml; do printf 'semgrep-rules-%s/%s ' "${SEMGREP_RULES_COMMIT}" "$d"; done); \
+    rm -f /tmp/semgrep-rules.tar.gz; \
+    find /staging/semgrep-rules -type f ! -name '*.yaml' ! -name '*.yml' -delete; \
+    printf '%s\n' "${SEMGREP_RULES_COMMIT}" > /staging/semgrep-rules/COMMIT; \
+    test "$(find /staging/semgrep-rules -name '*.yaml' | wc -l)" -gt 100
 
 # ── Python: lockfile-based venv install ──────────────────────────────────────
 # astral-sh/uv revision:
@@ -319,6 +339,7 @@ COPY --from=builder /staging/swiftbin/         /usr/local/bin/
 # Venv with all Python deps + caliper itself — console_scripts are in .venv/bin/
 COPY --from=builder /opt/caliper/.venv /opt/caliper/.venv
 COPY --from=builder /opt/caliper/policies/ /opt/caliper/policies/
+COPY --from=builder /staging/semgrep-rules/ /opt/caliper/semgrep-rules/
 
 RUN mkdir -p /opt/caliper/scripts
 COPY --from=builder /staging/scripts/checksums.txt /opt/caliper/scripts/checksums.txt
@@ -342,6 +363,8 @@ ENV PATH="/opt/caliper/.venv/bin:$PATH" \
     XDG_CACHE_HOME=/home/caliper/.cache \
     CALIPER_OPERATING_MODE=monitor \
     CALIPER_OPA_POLICY_PATH=/opt/caliper/policies \
+    CALIPER_SEMGREP_RULES_DIR=/opt/caliper/semgrep-rules \
+    CALIPER_SEMGREP_ORG_RULES_DIR=/opt/caliper/policies/semgrep \
     CALIPER_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,typos,ls-lint,cdk-nag,cfn-nag
 
 USER caliper

@@ -26,7 +26,7 @@ class _FakeRunner:
 
     def run(self, *args, **kwargs) -> dict:
         if self._captured is not None:
-            self._captured["timeout"] = kwargs.get("timeout")
+            self._captured.update(kwargs)
         return self._data
 
 
@@ -133,3 +133,73 @@ class TestSemgrepPluginTimeout:
         plugin.run([str(target)], tmp_path)
 
         assert captured["timeout"] == 120
+
+
+def test_run_passes_pinned_rule_dirs_from_settings(monkeypatch, tmp_path: Path) -> None:
+    """The snapshot and org-rules dirs come from CaliperSettings, never a registry."""
+    captured: dict = {}
+    monkeypatch.setattr(RULE_RUNNERS, "create", lambda name: _FakeRunner({"results": []}, captured))
+    settings = CaliperSettings(
+        semgrep_rules_dir="/opt/caliper/semgrep-rules",
+        semgrep_org_rules_dir="/opt/caliper/policies/semgrep",
+    )
+    SemgrepPlugin(settings).run([str(tmp_path / "a.py")], tmp_path)
+
+    assert captured["rules_dir"] == "/opt/caliper/semgrep-rules"
+    assert captured["org_rules_dir"] == "/opt/caliper/policies/semgrep"
+
+
+def test_org_rules_dir_derived_from_opa_policy_path(monkeypatch, tmp_path: Path) -> None:
+    """Unset org dir falls back to <policies dir>/semgrep next to the OPA policy."""
+    captured: dict = {}
+    monkeypatch.setattr(RULE_RUNNERS, "create", lambda name: _FakeRunner({"results": []}, captured))
+    policies = tmp_path / "policies"
+    (policies / "semgrep").mkdir(parents=True)
+    settings = CaliperSettings(opa_policy_path=str(policies / "policy.rego"))
+    SemgrepPlugin(settings).run([str(tmp_path / "a.py")], tmp_path)
+
+    assert captured["org_rules_dir"] == str(policies / "semgrep")
+    assert captured["rules_dir"] is None
+
+
+def test_rule_ids_drop_configured_dir_prefixes(monkeypatch, tmp_path: Path) -> None:
+    """opengrep prefixes local rule ids with their dotted path; strip the configured dirs' prefixes."""
+    target = tmp_path / "a.py"
+    data = {
+        "status": "ok",
+        "results": [
+            {
+                "check_id": "opt.caliper.semgrep-rules.python.lang.security.audit.subprocess-shell-true",
+                "path": str(target),
+                "start": {"line": 1},
+                "end": {"line": 1},
+                "extra": {"severity": "WARNING", "message": "m"},
+            },
+            {
+                "check_id": "opt.caliper.policies.semgrep.org.kubernetes.no-latest-tag",
+                "path": str(target),
+                "start": {"line": 2},
+                "end": {"line": 2},
+                "extra": {"severity": "WARNING", "message": "m"},
+            },
+            {
+                "check_id": "policies.semgrep.first-test-no-assert",
+                "path": str(target),
+                "start": {"line": 3},
+                "end": {"line": 3},
+                "extra": {"severity": "INFO", "message": "m"},
+            },
+        ],
+    }
+    _install_fake_runner(monkeypatch, data)
+    settings = CaliperSettings(
+        semgrep_rules_dir="/opt/caliper/semgrep-rules",
+        semgrep_org_rules_dir="/opt/caliper/policies/semgrep",
+    )
+    result = SemgrepPlugin(settings).run([str(target)], tmp_path)
+    ids = [f["rule_id"] for f in result.findings]
+    assert ids == [
+        "python.lang.security.audit.subprocess-shell-true",
+        "org.kubernetes.no-latest-tag",
+        "policies.semgrep.first-test-no-assert",  # target-local rules keep their prefix
+    ]

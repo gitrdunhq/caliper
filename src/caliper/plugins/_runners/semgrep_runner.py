@@ -1,4 +1,13 @@
-"""Opengrep subprocess runner (semgrep-compatible, registry + local rules)."""
+"""Opengrep subprocess runner — pinned local rules only, never the registry.
+
+Community rules are read from a local checkout of semgrep/semgrep-rules whose
+commit is pinned in the Dockerfile (``SEMGREP_RULES_COMMIT``) and baked into the
+image at ``/opt/caliper/semgrep-rules``. Registry packs (``p/default``,
+``p/python``, ...) are never passed to opengrep: they are fetched over the network
+at scan time and change under you between runs, which a deterministic gate cannot
+tolerate. Org rules (caliper's own ``policies/semgrep``) are passed explicitly so
+they apply to every target, not only to caliper's own checkout.
+"""
 
 from __future__ import annotations
 
@@ -10,45 +19,87 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-_EXT_TO_RULESETS: dict[str, list[str]] = {
-    ".py": ["p/python"],
-    ".ts": ["r/typescript.lang"],
-    ".tsx": ["r/typescript.lang"],
-    ".js": ["r/javascript.lang"],
-    ".jsx": ["r/javascript.lang"],
-    ".tf": ["p/terraform"],
-    ".yaml": ["p/kubernetes", "p/docker"],
-    ".yml": ["p/kubernetes", "p/docker"],
-    ".go": ["p/golang"],
-    ".rb": ["p/ruby"],
-    ".java": ["p/java"],
-    ".sh": ["r/bash.lang"],
+# File suffix -> language directories inside the semgrep-rules snapshot.
+_EXT_TO_RULE_DIRS: dict[str, list[str]] = {
+    ".py": ["python"],
+    ".ts": ["typescript"],
+    ".tsx": ["typescript"],
+    ".js": ["javascript"],
+    ".jsx": ["javascript"],
+    ".tf": ["terraform"],
+    ".hcl": ["terraform"],
+    ".yaml": ["yaml"],
+    ".yml": ["yaml"],
+    ".go": ["go"],
+    ".rb": ["ruby"],
+    ".java": ["java"],
+    ".kt": ["kotlin"],
+    ".rs": ["rust"],
+    ".swift": ["swift"],
+    ".php": ["php"],
+    ".cs": ["csharp"],
+    ".sh": ["bash"],
+    ".json": ["json"],
+    ".html": ["html"],
 }
 
-_NAME_TO_RULESETS: dict[str, list[str]] = {
-    "Dockerfile": ["p/docker"],
-    "Jenkinsfile": ["p/ci"],
-    "docker-compose.yml": ["p/docker"],
-    "docker-compose.yaml": ["p/docker"],
+# Exact file name -> snapshot directories.
+_NAME_TO_RULE_DIRS: dict[str, list[str]] = {
+    "Dockerfile": ["dockerfile"],
+    "docker-compose.yml": ["yaml"],
+    "docker-compose.yaml": ["yaml"],
 }
 
-_ALWAYS_RULESETS = ["p/default", "p/ci"]
+# Cross-language rules (secrets, CI, templating) that always apply.
+_ALWAYS_RULE_DIRS = ["generic"]
 
 
-def detect_rulesets(changed_files: list[str]) -> list[str]:
-    rulesets = list(_ALWAYS_RULESETS)
+def detect_rule_dirs(changed_files: list[str]) -> list[str]:
+    """Return the snapshot sub-directory names the changed files call for, in order."""
+    dirs = list(_ALWAYS_RULE_DIRS)
     for f in changed_files:
-        ext = Path(f).suffix
-        if ext in _EXT_TO_RULESETS:
-            for rs in _EXT_TO_RULESETS[ext]:
-                if rs not in rulesets:
-                    rulesets.append(rs)
-        name = Path(f).name
-        if name in _NAME_TO_RULESETS:
-            for rs in _NAME_TO_RULESETS[name]:
-                if rs not in rulesets:
-                    rulesets.append(rs)
-    return rulesets
+        for d in _EXT_TO_RULE_DIRS.get(Path(f).suffix, []) + _NAME_TO_RULE_DIRS.get(
+            Path(f).name, []
+        ):
+            if d not in dirs:
+                dirs.append(d)
+    return dirs
+
+
+def _snapshot_configs(rules_dir: str | None, changed_files: list[str]) -> list[str]:
+    """Resolve snapshot sub-dirs to existing paths; fail-open to none (never the registry)."""
+    if not rules_dir:
+        return []
+    root = Path(rules_dir)
+    if not root.is_dir():
+        logger.warning(
+            "semgrep.rules_snapshot_missing",
+            path=str(root),
+            msg="community rules skipped; set CALIPER_SEMGREP_RULES_DIR to a rules checkout",
+        )
+        return []
+    out: list[str] = []
+    for d in detect_rule_dirs(changed_files):
+        p = root / d
+        if p.is_dir():
+            out.append(str(p))
+        else:
+            logger.debug("semgrep.rules_snapshot_dir_missing", path=str(p))
+    return out
+
+
+def _org_configs(org_rules_dir: str | None, repo_path: str) -> list[str]:
+    """Caliper's packaged org rules plus the target's own policies/semgrep, deduplicated."""
+    out: list[str] = []
+    seen: set[Path] = set()
+    for cand in (org_rules_dir, str(Path(repo_path) / "policies" / "semgrep")):
+        if not cand:
+            continue
+        p = Path(cand)
+        if p.is_dir() and p.resolve() not in seen:
+            seen.add(p.resolve())
+            out.append(str(p))
+    return out
 
 
 def _abort_detail(data: dict, returncode: int) -> str | None:
@@ -88,18 +139,17 @@ def run_semgrep(
     timeout: int = 120,
     extra_config_dirs: list[str] | None = None,
     exclude_rules: list[str] | None = None,
+    rules_dir: str | None = None,
+    org_rules_dir: str | None = None,
 ) -> dict:
     if not changed_files:
         return {"results": [], "errors": []}
 
-    rulesets = detect_rulesets(changed_files)
-    org_rules = Path(repo_path) / "policies" / "semgrep"
-
     config_args: list[str] = []
-    for rs in rulesets:
-        config_args.extend(["--config", rs])
-    if org_rules.is_dir():
-        config_args.extend(["--config", str(org_rules)])
+    for cfg in _snapshot_configs(rules_dir, changed_files):
+        config_args.extend(["--config", cfg])
+    for cfg in _org_configs(org_rules_dir, repo_path):
+        config_args.extend(["--config", cfg])
     for extra_dir in extra_config_dirs or []:
         if Path(extra_dir).is_dir():
             config_args.extend(["--config", extra_dir])
@@ -184,6 +234,8 @@ class OpengrepRunner:
         timeout: int = 120,
         extra_config_dirs: list | None = None,
         exclude_rules: list | None = None,
+        rules_dir: str | None = None,
+        org_rules_dir: str | None = None,
     ) -> dict:
         return run_semgrep(
             changed_files,
@@ -191,6 +243,8 @@ class OpengrepRunner:
             timeout=timeout,
             extra_config_dirs=extra_config_dirs,
             exclude_rules=exclude_rules,
+            rules_dir=rules_dir,
+            org_rules_dir=org_rules_dir,
         )
 
 

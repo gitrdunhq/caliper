@@ -299,6 +299,17 @@ def build_scribes(settings: CaliperSettings) -> list:
             from caliper.plugins.scribes.supply_chain_threat import SupplyChainThreatScribe
 
             scribes.append(SupplyChainThreatScribe(LlmClient(settings)))
+        elif name == "semgrep":
+            # Same pinned rule sources as the semgrep plugin — never the registry.
+            from caliper.plugins.semgrep import _resolve_org_rules_dir
+
+            scribes.append(
+                SCRIBES.create(
+                    name,
+                    rules_dir=settings.semgrep_rules_dir,
+                    org_rules_dir=_resolve_org_rules_dir(settings),
+                )
+            )
         else:
             scribes.append(SCRIBES.create(name))
     return scribes

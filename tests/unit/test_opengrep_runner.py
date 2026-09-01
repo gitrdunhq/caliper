@@ -21,37 +21,120 @@ class TestOpengrepBinaryName:
         assert "semgrep" not in cmd[0]
 
 
-class TestRegistryAndLocalRules:
-    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
-    def test_includes_default_registry_rulesets(self, mock_run):
-        """p/default and p/ci should always be present for max coverage."""
-        mock_run.return_value.stdout = '{"results": [], "errors": []}'
-        mock_run.return_value.returncode = 0
-        run_semgrep(["app.py"], "/workspace")
+class TestPinnedLocalRules:
+    """Community rules come ONLY from a pinned local snapshot — never the registry.
+
+    A ``p/...`` or ``r/...`` config makes opengrep fetch rules over the network at
+    scan time, which is both a network dependency in the scan path and a rule set
+    that drifts between runs. The snapshot is a checkout of semgrep/semgrep-rules
+    at a commit pinned in the Dockerfile.
+    """
+
+    @staticmethod
+    def _configs(mock_run) -> list[str]:
         cmd = mock_run.call_args[0][0]
-        config_values = [cmd[i + 1] for i, v in enumerate(cmd) if v == "--config"]
-        assert "p/default" in config_values
-        assert "p/ci" in config_values
+        return [cmd[i + 1] for i, v in enumerate(cmd) if v == "--config"]
+
+    @staticmethod
+    def _snapshot(tmp_path: Path) -> Path:
+        root = tmp_path / "semgrep-rules"
+        for d in ("python", "javascript", "typescript", "generic", "dockerfile", "yaml"):
+            (root / d).mkdir(parents=True)
+            (root / d / "rule.yaml").write_text("rules: []\n")
+        return root
 
     @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
-    def test_python_file_adds_python_ruleset(self, mock_run):
+    def test_never_passes_registry_packs(self, mock_run, tmp_path):
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        run_semgrep(
+            ["app.py", "web.ts", "Dockerfile", "deploy.yaml", "Jenkinsfile"],
+            "/workspace",
+            rules_dir=str(self._snapshot(tmp_path)),
+        )
+        for cfg in self._configs(mock_run):
+            assert not cfg.startswith(("p/", "r/")), f"registry pack leaked: {cfg}"
+
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_python_file_uses_snapshot_python_dir(self, mock_run, tmp_path):
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        root = self._snapshot(tmp_path)
+        run_semgrep(["app.py"], "/workspace", rules_dir=str(root))
+        configs = self._configs(mock_run)
+        assert str(root / "python") in configs
+        assert str(root / "generic") in configs  # always-on cross-language rules
+        assert str(root / "javascript") not in configs  # not triggered by a .py file
+
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_file_name_triggers_snapshot_dir(self, mock_run, tmp_path):
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        root = self._snapshot(tmp_path)
+        run_semgrep(["Dockerfile", "docker-compose.yml"], "/workspace", rules_dir=str(root))
+        configs = self._configs(mock_run)
+        assert str(root / "dockerfile") in configs
+        assert str(root / "yaml") in configs
+
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_missing_snapshot_dir_skips_community_rules_but_still_scans(self, mock_run):
+        """No snapshot on this host: fail-open to org/local rules only, never the registry."""
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        data = run_semgrep(["app.py"], "/workspace", rules_dir="/no/such/snapshot")
+        assert data.get("status") is None
+        configs = self._configs(mock_run)
+        assert not any(c.startswith(("p/", "r/")) or "/no/such/snapshot" in c for c in configs)
+
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_no_snapshot_configured_means_no_community_rules(self, mock_run):
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
         mock_run.return_value.returncode = 0
         run_semgrep(["app.py"], "/workspace")
-        cmd = mock_run.call_args[0][0]
-        config_values = [cmd[i + 1] for i, v in enumerate(cmd) if v == "--config"]
-        assert "p/python" in config_values
+        assert not any(c.startswith(("p/", "r/")) for c in self._configs(mock_run))
+
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_snapshot_subdir_missing_is_skipped(self, mock_run, tmp_path):
+        """A snapshot that lacks a language dir just skips that dir."""
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        root = tmp_path / "semgrep-rules"
+        (root / "generic").mkdir(parents=True)
+        run_semgrep(["main.go"], "/workspace", rules_dir=str(root))
+        configs = self._configs(mock_run)
+        assert str(root / "generic") in configs
+        assert str(root / "go") not in configs
+
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_org_rules_dir_added_when_present(self, mock_run, tmp_path):
+        """Caliper's packaged org rules run against every target, not only caliper itself."""
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        org = tmp_path / "policies" / "semgrep"
+        org.mkdir(parents=True)
+        (org / "security.yaml").write_text("rules: []\n")
+        run_semgrep(["app.py"], "/workspace", org_rules_dir=str(org))
+        assert str(org) in self._configs(mock_run)
+
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_org_rules_dir_not_duplicated_with_target_policies(self, mock_run):
+        """When the target IS caliper, its policies/semgrep is passed once, not twice."""
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        repo = Path(__file__).resolve().parent.parent.parent
+        org = repo / "policies" / "semgrep"
+        run_semgrep(["app.py"], str(repo), org_rules_dir=str(org))
+        configs = self._configs(mock_run)
+        assert sum(1 for c in configs if Path(c).resolve() == org.resolve()) == 1
 
     @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_uses_local_policies_dir(self, mock_run):
-        """Should use policies/semgrep/ when it exists."""
+        """Should use the target repo's policies/semgrep/ when it exists."""
         mock_run.return_value.stdout = '{"results": [], "errors": []}'
         mock_run.return_value.returncode = 0
         repo = str(Path(__file__).resolve().parent.parent.parent)
         run_semgrep(["app.py"], repo)
-        cmd = mock_run.call_args[0][0]
-        config_values = [cmd[i + 1] for i, v in enumerate(cmd) if v == "--config"]
-        assert any("policies/semgrep" in v for v in config_values)
+        assert any("policies/semgrep" in v for v in self._configs(mock_run))
 
 
 class TestExtraConfigDirs:

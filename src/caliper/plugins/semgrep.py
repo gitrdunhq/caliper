@@ -39,9 +39,50 @@ _CODE_EXTS = {
 }
 
 
+def _settings_from_env() -> CaliperSettings | None:
+    """Best-effort CaliperSettings from the environment; None if it cannot load."""
+    try:
+        return CaliperSettings()  # type: ignore[call-arg]
+    except Exception:  # noqa: BLE001 — fail-open: no env settings, no community rules
+        return None
+
+
+def _dotted_prefixes(*dirs: str | None) -> tuple[str, ...]:
+    """opengrep rewrites a local rule id to ``<dotted config path>.<id>``; these are ours."""
+    out = []
+    for d in dirs:
+        if d:
+            out.append(str(d).strip("/").replace("/", ".") + ".")
+    return tuple(out)
+
+
+def _strip_rule_prefix(check_id: str, prefixes: tuple[str, ...]) -> str:
+    for pre in prefixes:
+        if check_id.startswith(pre):
+            return check_id[len(pre) :]
+    return check_id
+
+
+def _resolve_org_rules_dir(settings: CaliperSettings | None) -> str | None:
+    """Explicit setting wins; else ``<policies dir>/semgrep`` beside the OPA policy."""
+    if settings is None:
+        return None
+    if settings.semgrep_org_rules_dir:
+        return settings.semgrep_org_rules_dir
+    policy = Path(settings.opa_policy_path)
+    base = policy if policy.is_dir() else policy.parent
+    cand = base / "semgrep"
+    return str(cand) if cand.is_dir() else None
+
+
 class SemgrepPlugin(ScannerPlugin):
     def __init__(self, settings: CaliperSettings | None = None) -> None:
+        # The registry constructs plugins bare, so env-driven settings (the image
+        # sets CALIPER_SEMGREP_RULES_DIR / _ORG_RULES_DIR) must still take effect.
         self._timeout = settings.scanner_timeout if settings is not None else _DEFAULT_TIMEOUT
+        resolved = settings if settings is not None else _settings_from_env()
+        self._rules_dir = resolved.semgrep_rules_dir if resolved is not None else None
+        self._org_rules_dir = _resolve_org_rules_dir(resolved)
 
     @property
     def name(self) -> str:
@@ -49,7 +90,7 @@ class SemgrepPlugin(ScannerPlugin):
 
     @property
     def description(self) -> str:
-        return "Code pattern analysis — AST matching via opengrep (local rules only)"
+        return "Code pattern analysis — opengrep over a pinned semgrep-rules snapshot + org rules"
 
     @property
     def category(self) -> PluginCategory:
@@ -75,6 +116,8 @@ class SemgrepPlugin(ScannerPlugin):
                 timeout=self._timeout,
                 extra_config_dirs=sg.extra_config_dirs,
                 exclude_rules=sg.exclude_rules,
+                rules_dir=self._rules_dir,
+                org_rules_dir=self._org_rules_dir,
             )
         except Exception as exc:
             return PluginResult(plugin_name=self.name, error=str(exc))
@@ -87,6 +130,7 @@ class SemgrepPlugin(ScannerPlugin):
                 error=f"scanner degraded: {msg}",
             )
 
+        prefixes = _dotted_prefixes(self._rules_dir, self._org_rules_dir)
         findings = []
         for r in data.get("results", []):
             raw_path = r.get("path", "?")
@@ -101,7 +145,7 @@ class SemgrepPlugin(ScannerPlugin):
             fix_suggestion = extra.get("fix") or extra.get("metadata", {}).get("fix_suggestion", "")
             findings.append(
                 {
-                    "rule_id": r.get("check_id", "?"),
+                    "rule_id": _strip_rule_prefix(r.get("check_id", "?"), prefixes),
                     "file": rel_path,
                     "start_line": r.get("start", {}).get("line", 0),
                     "end_line": r.get("end", {}).get("line", 0),
@@ -139,6 +183,6 @@ from caliper.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)
 
 
 @ANALYZERS.register("semgrep")
-def build_semgrep_plugin() -> SemgrepPlugin:
+def build_semgrep_plugin(settings: CaliperSettings | None = None) -> SemgrepPlugin:
     """Register this analyzer with the ANALYZERS registry."""
-    return SemgrepPlugin()
+    return SemgrepPlugin(settings=settings)
