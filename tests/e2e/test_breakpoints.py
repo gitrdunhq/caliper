@@ -27,7 +27,6 @@ ALL_SCANNERS = [
     "complexity",
     "cpd",
     "mypy",
-    "typos",
     "ls-lint",
     "kube-linter",
     "supply-chain",

@@ -2,11 +2,11 @@
   <img src="../assets/hero.svg" alt="Caliper" width="900">
   <br>
   <strong>Fully deterministic dependency review for CI.</strong><br>
-  15 plugins. 6 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
+  14 plugins. 6 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
   <br><br>
 
   <a href="../README.md#quick-start"><img src="https://img.shields.io/badge/get_started-→-d4251a?style=flat-square" alt="Get Started"></a>
-  <a href="../README.md#the-15-plugins"><img src="https://img.shields.io/badge/15_plugins-deterministic-f2c14a?style=flat-square&labelColor=0e0706" alt="15 Plugins"></a>
+  <a href="../README.md#the-14-plugins"><img src="https://img.shields.io/badge/14_plugins-deterministic-f2c14a?style=flat-square&labelColor=0e0706" alt="14 Plugins"></a>
   <a href="../README.md#opa-policy-rules"><img src="https://img.shields.io/badge/OPA-6_rules-1e3a8a?style=flat-square" alt="OPA Rules"></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-PolyForm_Shield-7ae582?style=flat-square" alt="PolyForm Shield License"></a>
 </div>
@@ -23,7 +23,7 @@ Meanwhile, the things that slip through — an unpinned dependency with a known 
 
 ## What caliper does
 
-Drop it into your CI pipeline. It runs 15 scanners on every PR, evaluates findings against policy rules you control, and posts a clear verdict: **BLOCKED**, **WARNINGS**, or **ALL CLEAR** with a 0-100 health score.
+Drop it into your CI pipeline. It runs 14 scanners on every PR, evaluates findings against policy rules you control, and posts a clear verdict: **BLOCKED**, **WARNINGS**, or **ALL CLEAR** with a 0-100 health score.
 
 Your engineers open the PR. The review is already there. They read the verdict, focus on the business logic, and skip the mechanical checklist. The cognitive burden shifts from "did anyone check the deps" to "the tool checked the deps, here's what it found."
 
@@ -35,7 +35,7 @@ Your engineers open the PR. The review is already there. They read the verdict, 
 | Secrets | API keys, tokens, passwords — 800+ patterns |
 | License risk | GPL, AGPL, SSPL in your dependency tree |
 | Supply chain | Unpinned deps, missing lockfiles, packages published < 30 days ago, malware |
-| Code quality | Cyclomatic complexity, copy-paste, naming conventions, spelling |
+| Code quality | Cyclomatic complexity, copy-paste, naming conventions |
 | Infrastructure | K8s resource limits, privileged containers, latest tags |
 | Code structure | Blast radius (what breaks if you change this), layer violations, dead code |
 
@@ -55,7 +55,7 @@ Most scanning tools produce a wall of findings and leave the engineer to triage.
 
 3. **Fail-open, fail-loud.** If a scanner times out or a binary is missing, the PR is NOT blocked. But the failure is visible in the comment — `[TIMEOUT] scancode timed out after 60s`. No silent passes. No phantom cleans.
 
-4. **One comment, not fifteen.** All 15 scanners produce one unified PR comment with a single verdict. Your engineers read one thing, not one alert per tool.
+4. **One comment, not fourteen.** All 14 scanners produce one unified PR comment with a single verdict. Your engineers read one thing, not one alert per tool.
 
 ## How to adopt it
 
@@ -81,9 +81,9 @@ podman run --rm -v $(pwd):/workspace caliper:latest \
 
 Everything. No vendor lock-in on policy.
 
-- **`.caliper.yaml`** — enable/disable any of the 15 plugins, set thresholds, configure per-repo
+- **`.caliper.yaml`** — enable/disable any of the 14 plugins, set thresholds, configure per-repo
 - **OPA rules** — 6 Rego rules, version-controlled, individually toggleable. Add your own.
-- **`--disable typos`** — turn off plugins per-run from the CLI
+- **`--disable ls-lint`** — turn off plugins per-run from the CLI
 - **Monorepo support** — auto-discovers packages, runs per-package, respects per-directory config overrides
 
 ## What it costs

@@ -73,21 +73,6 @@ Duplicate code is a quality signal: it is unlikely to pass a thorough human revi
 
 ---
 
-## typos
-
-Detects typos in identifiers, comments, and strings throughout the codebase
-using [crate-ci/typos](https://github.com/crate-ci/typos) — a deterministic,
-identifier-aware checker tuned for very low false positives (no dictionary
-maintenance, no noise on domain jargon).
-
-| Severity | Condition |
-|----------|-----------|
-| Info | Typo with one or more suggested corrections |
-
-Misspelled names are harder to grep, autocomplete, and explain in code review — a small fix with compounding payoff.
-
----
-
 ## ls-lint
 
 Enforces file and directory naming conventions across the project tree.

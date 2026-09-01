@@ -6,25 +6,8 @@ import shutil
 
 import click
 
+from caliper.core.scanner_pins import PLUGIN_BINARIES as _BINARY_MAP
 from caliper.plugins import get_default_registry
-
-_BINARY_MAP: dict[str, list[str] | None] = {
-    "blast-radius": None,
-    "complexity": ["lizard"],
-    "cpd": ["pmd"],
-    "gitleaks": ["gitleaks"],
-    "kube-linter": ["kube-linter"],
-    "ls-lint": ["ls-lint"],
-    "mypy": ["pyrefly", "pyright", "mypy"],
-    "opa": ["opa"],
-    "osv-scanner": ["osv-scanner"],
-    "scancode": ["scancode"],
-    "semgrep": ["semgrep"],
-    "supply-chain": None,
-    "syft": ["syft"],
-    "trivy": ["trivy"],
-    "typos": ["typos"],
-}
 
 
 @click.command()
@@ -48,6 +31,8 @@ def healthcheck() -> None:
             fail += 1
             click.echo(f"  MISSING  {p.name} (needs: {', '.join(binaries)})")
     click.echo(f"\n{ok}/{ok + fail} scanners available")
+    if fail:
+        click.echo("install the pinned binaries with: caliper install-scanners")
     raise SystemExit(1 if fail else 0)
 
 

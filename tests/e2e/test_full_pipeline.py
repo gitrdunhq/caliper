@@ -42,7 +42,6 @@ class TestFullReviewMarkdown:
             "complexity",
             "cpd",
             "mypy",
-            "typos",
             "ls-lint",
             "kube-linter",
             "supply-chain",
