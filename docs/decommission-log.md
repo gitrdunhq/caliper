@@ -34,3 +34,24 @@ Points at `17eb7d6` (main as of 2026-09-01, release 0.2.30 plus the pyrefly type
 **Also cleaned.** The `audit` registration in `cli/main.py`; the `_AUDIT_SUFFIXES` constant in `cli/cli_shared.py`; the `default_llm_model` / `default_llm_endpoint` settings in `core/config.py` (only these modules read them) and their two tests in `test_config.py`; the two always-skipping guard tests in `test_deterministic_idempotency_guards.py`; a docstring in `tests/unit/plugins/test_semgrep_plugin.py` that named the remediation module as its consumer.
 
 **Not touched.** `docs/llm-review/*` and `docs/reviews/*` still reference these modules as historical analysis; they are records, not live docs.
+
+### 2. Issue solver (2026-09-01)
+
+**What it was.** `data/solver.py` read a GitHub issue, built a prompt, and asked an OpenRouter-hosted model (free tier by default in the wrapper script) to generate a detector test, with a model fallback ladder and rate-limit backoff. Its only caller was `scripts/solve-issues.py`.
+
+**Why it was cut.**
+
+- Dev-automation experiment shipped inside the user-facing wheel under the `data` tier; no source, CLI, Action, README, or CAPABILITIES reference.
+- Second module found that posts source-derived prompts to a third-party free model endpoint by default.
+- Has an LLM write tests, which contradicts the repo's own RED-first TDD rule.
+- No feature work after its first day (2026-04-29); only tree-wide sweeps touched it since.
+
+**Removed.**
+
+| Path | Lines |
+|---|---|
+| `src/caliper/data/solver.py` | 559 |
+| `scripts/solve-issues.py` | 306 |
+| `tests/unit/test_solver.py` | 557 |
+
+**Also cleaned.** Nothing else referenced it.
