@@ -25,7 +25,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from caliper.composition.scribes import build_default_scribes, build_scribes
+from caliper.composition.scribes import build_scribes
 from caliper.core.context import ApplicationContext
 from caliper.core.port_registries import (
     DECISION_STORES,
@@ -49,7 +49,6 @@ if TYPE_CHECKING:
     from caliper.core.config import CaliperSettings
 
 __all__ = [
-    "build_default_scribes",
     "build_scribes",
     "ApplicationContext",
     "bootstrap",

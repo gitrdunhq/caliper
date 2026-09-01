@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-pytest.importorskip("starlette", reason="starlette not installed (caliper[copilot])")
+pytest.importorskip("starlette", reason="starlette not installed (caliper[webhook])")
 
 
 # ---------------------------------------------------------------------------

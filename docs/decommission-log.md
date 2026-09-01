@@ -215,3 +215,23 @@ Points at `07ee6d2` (main after the Tier 2 merge, 2026-09-01). The scanner audit
 ### 14. `caliper part` — KEPT, invest (2026-09-01)
 
 Tier 3 decision: keep `caliper part` in caliper and make it excellent rather than extract or cut it. Roadmap and definition of done in [#482](https://github.com/gitrdunhq/caliper/issues/482) (git-native restack, classification corpus + scoring, per-part diff preview in the SPA, PR push flow, docs). It remains isolated from the review pipeline via the `PARTING` registry.
+
+## Archive tag: `archive/pre-cut-foreman`
+
+Points at `a3e7eec` (2026-09-01, end of the scanner audit branch).
+
+### 15. Foreman Copilot agent (2026-09-01)
+
+**What it was.** `src/caliper/agent/`: a second presentation-tier entry point (`python -m caliper.agent.main`) wrapping the review pipeline as a GitHub Copilot Extension, with six `@tool` functions, an eight-dimension task-fit rubric in its system prompt, `FOREMAN_*` settings, and enforcement modes. ADR-001 through ADR-004 record its design.
+
+**Why it was cut.**
+
+- Pinned to `agent-framework-github-copilot==1.0.0rc1`, a release candidate, and never included in the container image.
+- No Copilot users; the CI workflow that carries the "Foreman" name (`.github/workflows/foreman.yml`) runs the CLI via composite actions and never invoked the agent.
+- Its `scan_code` tool was the only caller of `build_default_scribes`, and its prompt was the last home of the task-fit rubric cut in entry 3.
+
+**Removed.** `src/caliper/agent/` (6 files, ~1,400 lines); `tests/unit/test_agent_*.py`, `test_copilot_agent_profiles.py`, `test_deterministic_agent_block_mode_guards.py`, `test_deterministic_sbom_mutation_guards.py`; the agent-only tests in `test_deterministic_runtime_contracts.py` and `test_deterministic_eviction_guards.py`; `scripts/gauntlet.py` and `scripts/generate-pr-comment.py` (both imported the agent); `build_default_scribes`; the `agent` tier in `core/tier_map.py`.
+
+**Also changed.** The `copilot` extra is now `webhook` (starlette + uvicorn only; the agent framework is gone from `uv.lock`). README, CLAUDE.md, WHY.md, ARCHITECTURE.md, CAPABILITIES, and the elevator pitch no longer describe a second entry point; the README workflow snippet runs `caliper review --diff ... --pr N` instead.
+
+**Kept.** `.github/workflows/foreman.yml` (the CI job, unrelated to the agent module), the webhook server, `docs/adr/001-004` as historical records.

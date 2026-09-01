@@ -5,7 +5,7 @@
 review pipeline. This module is therefore underscore-prefixed so ``autodiscover``
 skips it, and it self-registers into the dedicated ``PARTING`` registry rather
 than ``ANALYZERS`` — it is structurally impossible for it to enter ``caliper
-review`` / Foreman / the webhook. The CLI (``caliper part``) is its only caller.
+review`` / the webhook. The CLI (``caliper part``) is its only caller.
 
 It is a single plugin (the consumer): :meth:`PartingPlugin.cut` invokes the stock
 *producer* (``core.part_stock.build_stock``, the impure git step) and feeds the

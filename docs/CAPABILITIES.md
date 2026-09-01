@@ -30,7 +30,6 @@ supply-chain version-bump narrative is advisory metadata only).
 | Code graph SQL checks | 10 |
 | OPA Rego policy rules | 16 (7 deny, 9 warn) |
 | Code graph query templates | 12 |
-| Copilot agent tools | 6 |
 | Finding scribes | 5 (enclosing-symbol, code-graph, reachability opt-in, semgrep opt-in, supply-chain-threat opt-in) |
 | CLI commands | 8 |
 | Parting taxonomy buckets | 16 ChangeTypes (4 code tiers, 7 non-code intent, `logic` residual, 4 structural/generated) |
@@ -342,7 +341,6 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | Integration | File | Description |
 |-------------|------|-------------|
 | GitHub Action | `action.yml` | Composite action: diff → evaluate → PR comment (upsert) → check warning on reject. |
-| GitHub Copilot Agent | `src/caliper/agent/` | Foreman — 6 tools (evaluate_change, check_package, scan_code, scan_duplicates, scan_k8s, analyze_complexity). 8-dimension task-fit rubric. |
 | Webhook server | `src/caliper/webhook/server.py` | Starlette ASGI. GitHub PR webhooks (opened/synchronize/reopened). HMAC-SHA256 signature validation. Port 12800. |
 | Jenkins | `jenkins/vars/dependencyAdmission.groovy` | Shared library for Jenkins pipelines. |
 | Container | `Dockerfile` | Podman/Docker. Read-only workspace mount. |
@@ -357,7 +355,7 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | Parallel scanning | `core/orchestrator.py` | ThreadPoolExecutor with combined wall-clock timeout. |
 | Cross-run scan cache | `core/caching_scanner.py`, `core/scan_cache_key.py`, `data/scan_cache.py` | Opt-in, fail-open read-through cache (ADR-010): keyed on `sha256(git tree SHA, scanner name, caliper version, scan-relevant config digest)`, sqlite-backed under the evidence dir (`ScanCachePort`, `SCAN_CACHES` registry, `NullScanCache` fallback). `CachingScanner` wraps each `ScannerPort` before orchestrator construction — the orchestrator itself is unchanged. Only `success` results are ever cached; failed/timeout/skipped scans always re-run. Skipped entirely for non-git targets. |
 | Unified verdict (SoT) | `core/review_summary.py` | One `summarize_review()` computes verdict + counts + scores; the markdown badge, JSON report, SARIF properties, and CI header/label all consume it (no divergent re-derivation). Diff-scoped gate: only PR-introduced security findings block; pre-existing dependency CVEs are advisory. |
-| Detect-then-scribe | `core/scribe.py`, `core/scribe.py` | Post-detection pass (ADR-006): every plugin finding is decorated with deterministic context in `metadata['scribe']` — enclosing symbol (`detectors` scribe), code-graph blast radius (`plugins` scribe), opt-in vulnerability reachability (`plugins` scribe, ADR-009 — declared-vs-imported via the code graph's import edges), opt-in nearby semgrep matches (`plugins` scribe), and the opt-in supply-chain-threat LLM narrative (`plugins` scribe). Sequential, fail-open, time-bounded (`scribe_timeout`); verdict-independent. Pluggable via the `SCRIBES` registry; also wired into the Foreman agent's `scan_code`. |
+| Detect-then-scribe | `core/scribe.py`, `core/scribe.py` | Post-detection pass (ADR-006): every plugin finding is decorated with deterministic context in `metadata['scribe']` — enclosing symbol (`detectors` scribe), code-graph blast radius (`plugins` scribe), opt-in vulnerability reachability (`plugins` scribe, ADR-009 — declared-vs-imported via the code graph's import edges), opt-in nearby semgrep matches (`plugins` scribe), and the opt-in supply-chain-threat LLM narrative (`plugins` scribe). Sequential, fail-open, time-bounded (`scribe_timeout`); verdict-independent. Pluggable via the `SCRIBES` registry. |
 | Vulnerability reachability | `plugins/scribes/reachability.py`, `core/import_resolution.py` | Opt-in scribe (ADR-009): resolves a vulnerable package's distribution name to its import name (curated map → `importlib.metadata` best-effort → heuristic fallback) and checks the code graph for an `imports` edge. Attaches `metadata.scribe.reachability = {reachable: bool\|None, evidence}`. `reachable=false` (declared, never imported) can downgrade a critical/high vuln deny to warn via the opt-in `unreachable_vuln_exemption` OPA rule (T-348); `reachable=None` (unresolved import name, no code graph) never downgrades — absence of evidence is not evidence of absence. |
 | Cross-scanner dedup | `core/normalizer.py` | Highest severity wins per (advisory_id, category, package, version). |
 | Evidence chain | `core/seal.py` | Blockchain-style SHA-256 seals. manifest hash + previous seal → seal hash. `verify_seal()` detects tampering. |

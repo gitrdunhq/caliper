@@ -40,8 +40,7 @@ db = [
 parquet = [
     "pyarrow==24.0.0",
 ]
-copilot = [
-    "agent-framework-github-copilot==1.0.0rc1",
+webhook = [
     "starlette==1.3.1",
     "uvicorn==0.49.0",
 ]
@@ -49,7 +48,7 @@ watch = [
     "watchdog==6.0.0",
 ]
 all = [
-    "caliper[db,parquet,copilot,watch]",
+    "caliper[db,parquet,webhook,watch]",
 ]
 
 [project.scripts]

@@ -33,7 +33,7 @@ try:
     from starlette.routing import Route
 except ImportError as _exc:
     raise ImportError(
-        "starlette is required for the webhook server. Install with: pip install caliper[copilot]"
+        "starlette is required for the webhook server. Install with: pip install caliper[webhook]"
     ) from _exc
 
 from caliper.core.use_cases import ReviewOptions, review_repository

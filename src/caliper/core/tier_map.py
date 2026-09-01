@@ -4,7 +4,7 @@ CAL-022 tier-boundary detector.
 
 Mirrors the ports-&-adapters layering (#404 Phase 6, closes #231):
 
-* presentation (``cli`` / ``agent`` / ``webhook`` / ``composition``) — may
+* presentation (``cli`` / ``webhook`` / ``composition``) — may
   import anything; this is where concrete adapters are wired.
 * ``core`` — may import only core + the shared kernel. Never presentation,
   never data/adapters/plugins/detectors.
@@ -27,7 +27,6 @@ from pathlib import Path
 # Top-level directory under src/caliper -> tier name.
 DEFAULT_TIER_BY_DIR: dict[str, str] = {
     "cli": "presentation",
-    "agent": "presentation",
     "webhook": "presentation",
     "composition": "presentation",
     "core": "core",

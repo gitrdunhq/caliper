@@ -14,7 +14,7 @@ The session (``PartingSession``, which owns the re-part/git IO) lives in
 ``part_session.py`` — split out so neither file grows past the repo's
 500-line cap. This module is the HTTP transport only: stdlib
 ``http.server`` (no uvicorn/starlette, so the sidecar works from any install
-without the ``caliper[copilot]`` extra), with routing delegated to the pure
+without the ``caliper[webhook]`` extra), with routing delegated to the pure
 ``dispatch()`` in ``part_routes.py`` (functional core) so it is exercised
 without ever binding a socket; ``BaseHTTPRequestHandler`` here is the thin
 imperative shell around it.
@@ -126,7 +126,7 @@ def load_assets(assets_dir: Path | None = None) -> Assets:
 # --------------------------------------------------------------------------- #
 #
 # The sidecar is loopback, single-reviewer, short-lived — it has no business
-# pulling in uvicorn/starlette (the caliper[copilot] extra). The whole transport
+# pulling in uvicorn/starlette (the caliper[webhook] extra). The whole transport
 # is Python's stdlib http.server. Routing is the pure `dispatch()` in
 # `part_routes.py` (functional core) so it is exercised without ever binding a
 # socket; the BaseHTTPRequestHandler here is the thin imperative shell around it.

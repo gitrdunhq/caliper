@@ -18,7 +18,7 @@ from caliper.core.models import OperatingMode
 _SCANNERS_DEFAULT = ["syft", "osv-scanner", "trivy"]
 
 # On-by-default finding scribes (ADR-006). Single source of truth shared by the
-# CaliperSettings default and the settings-free build_default_scribes() helper.
+# CaliperSettings default.
 # Semgrep scribe is opt-in (subprocess cost), so it is deliberately absent here.
 DEFAULT_SCRIBES = ("enclosing_symbol", "code_graph")
 
