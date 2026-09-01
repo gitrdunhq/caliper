@@ -46,6 +46,18 @@ class PluginConfig(BaseModel):
     semgrep: SemgrepConfig = SemgrepConfig()
 
 
+class DetectorsConfig(BaseModel):
+    """Which deterministic detectors (CAL-NNN) run — see ``detectors/profiles.py``.
+
+    ``profiles`` selects named sets (``default`` = general bugs, ``house-rules`` =
+    caliper's own conventions); ``enable``/``disable`` add or remove single ids.
+    """
+
+    profiles: list[str] = Field(default_factory=lambda: ["default"])
+    enable: list[str] = Field(default_factory=list)
+    disable: list[str] = Field(default_factory=list)
+
+
 class TelemetryConfig(BaseModel):
     """Anonymous opt-in telemetry settings."""
 
@@ -349,6 +361,7 @@ class RepoConfig(BaseModel):
     thresholds: dict[str, dict[str, Any]] = {}
     telemetry: TelemetryConfig = TelemetryConfig()
     parting: PartingConfig = PartingConfig()
+    detectors: DetectorsConfig = DetectorsConfig()
     baseline: BaselineConfig = BaselineConfig()
     architecture: ArchitectureConfig = ArchitectureConfig()
 
@@ -398,11 +411,15 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
     merged_parting = (
         pkg_config.parting if pkg_config.parting != PartingConfig() else root_config.parting
     )
+    merged_detectors = (
+        pkg_config.detectors if pkg_config.detectors != DetectorsConfig() else root_config.detectors
+    )
     return RepoConfig(
         plugins=merged_plugins,
         thresholds=merged_thresholds,
         telemetry=merged_telemetry,
         parting=merged_parting,
+        detectors=merged_detectors,
     )
 
 

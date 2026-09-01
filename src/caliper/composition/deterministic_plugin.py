@@ -14,13 +14,43 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import structlog
+
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
+from caliper.core.repo_config import DetectorsConfig, load_repo_config
+from caliper.detectors._registry import discover_detectors, get_all_detectors
+from caliper.detectors.profiles import DEFAULT_PROFILE, resolve_detector_ids
 from caliper.detectors.scanner import DeterministicScanner
 from caliper.plugins import ANALYZERS
 
+logger = structlog.get_logger(__name__)
+
+
+def _select_detectors(repo_path: Path) -> tuple[list[str], list[str]]:
+    """(detector ids, profiles used) from ``.caliper.yaml``; fail-open to the default profile."""
+    try:
+        cfg = load_repo_config(repo_path).detectors
+    except (ValueError, OSError):
+        cfg = DetectorsConfig()
+    discover_detectors()
+    known = {d.detector_id for d in get_all_detectors()}
+    try:
+        return (
+            resolve_detector_ids(cfg.profiles, enable=cfg.enable, disable=cfg.disable, known=known),
+            list(cfg.profiles),
+        )
+    except ValueError as exc:
+        logger.warning(
+            "detectors.profile_config_invalid", error=str(exc), msg="using default profile"
+        )
+        return (
+            resolve_detector_ids([DEFAULT_PROFILE], enable=[], disable=[], known=known),
+            [DEFAULT_PROFILE],
+        )
+
 
 class DeterministicPlugin(ScannerPlugin):
-    """Runs all 22 AST-based bug detectors (CAL-001..022) as a review plugin."""
+    """Runs the AST bug detectors (CAL-001..022) selected by ``detectors.profiles``."""
 
     @property
     def name(self) -> str:
@@ -28,7 +58,7 @@ class DeterministicPlugin(ScannerPlugin):
 
     @property
     def description(self) -> str:
-        return "Deterministic AST bug detectors (CAL-001..022)"
+        return "Deterministic AST bug detectors (CAL-001..022; default profile = general bugs)"
 
     @property
     def category(self) -> PluginCategory:
@@ -38,7 +68,8 @@ class DeterministicPlugin(ScannerPlugin):
         return bool(files)
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
-        scan_result = DeterministicScanner().scan(repo_path)
+        detector_ids, profiles = _select_detectors(repo_path)
+        scan_result = DeterministicScanner(specific_detectors=detector_ids).scan(repo_path)
         findings = [
             {
                 "id": f"{f.source_tool}:{f.file_path}:{f.line_number}",
@@ -54,7 +85,7 @@ class DeterministicPlugin(ScannerPlugin):
         return PluginResult(
             plugin_name=self.name,
             findings=findings,
-            summary={"total": len(findings)},
+            summary={"total": len(findings), "profiles": profiles, "detectors": detector_ids},
         )
 
 

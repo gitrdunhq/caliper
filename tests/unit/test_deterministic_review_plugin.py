@@ -45,3 +45,47 @@ class TestDeterministicPluginRun:
         assert isinstance(result, PluginResult)
         assert result.error == ""
         assert any(f["rule_id"] == "CAL-002" for f in result.findings), result.findings
+
+
+class TestDeterministicPluginProfiles:
+    """The plugin honours `detectors:` in .caliper.yaml; house rules are opt-in."""
+
+    @staticmethod
+    def _repo(tmp_path, yaml_text: str | None):
+        # No `# tested-by:` annotation -> CAL-014 (house-rules) fires on any .py file.
+        (tmp_path / "mod.py").write_text("def f():\n    return 1\n")
+        if yaml_text is not None:
+            (tmp_path / ".caliper.yaml").write_text(yaml_text)
+        return tmp_path
+
+    def test_default_profile_excludes_house_rules(self, tmp_path) -> None:
+        from caliper.composition.deterministic_plugin import DeterministicPlugin
+
+        repo = self._repo(tmp_path, None)
+        result = DeterministicPlugin().run([str(repo / "mod.py")], repo)
+        assert result.error == ""
+        assert not any(f["rule_id"] == "CAL-014" for f in result.findings), result.findings
+        assert result.summary["profiles"] == ["default"]
+
+    def test_house_rules_profile_enables_cal_014(self, tmp_path) -> None:
+        from caliper.composition.deterministic_plugin import DeterministicPlugin
+
+        repo = self._repo(tmp_path, "detectors:\n  profiles: [default, house-rules]\n")
+        result = DeterministicPlugin().run([str(repo / "mod.py")], repo)
+        assert any(f["rule_id"] == "CAL-014" for f in result.findings), result.findings
+
+    def test_enable_single_house_rule(self, tmp_path) -> None:
+        from caliper.composition.deterministic_plugin import DeterministicPlugin
+
+        repo = self._repo(tmp_path, "detectors:\n  enable: [CAL-014]\n")
+        result = DeterministicPlugin().run([str(repo / "mod.py")], repo)
+        assert any(f["rule_id"] == "CAL-014" for f in result.findings)
+
+    def test_bad_profile_falls_back_to_default(self, tmp_path) -> None:
+        """Fail-open: a typo in .caliper.yaml must not turn the detectors off or crash."""
+        from caliper.composition.deterministic_plugin import DeterministicPlugin
+
+        repo = self._repo(tmp_path, "detectors:\n  profiles: [defualt]\n")
+        result = DeterministicPlugin().run([str(repo / "mod.py")], repo)
+        assert result.error == ""
+        assert result.summary["profiles"] == ["default"]

@@ -74,7 +74,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 
 | Plugin | File | Detects |
 |--------|------|---------|
-| deterministic | `composition/deterministic_plugin.py` | Wraps `DeterministicScanner` (`detectors/scanner.py`) — all 22 AST-based bug detectors (CAL-001..022). Composition-registered rather than auto-discovered, since `detectors/` may not import `plugins/` directly (#457). |
+| deterministic | `composition/deterministic_plugin.py` | Wraps `DeterministicScanner` (`detectors/scanner.py`) — the 22 AST-based bug detectors (CAL-001..022) selected by `detectors.profiles` in `.caliper.yaml`: `default` (12 general bug patterns, on) and `house-rules` (10 caliper-convention rules, opt-in), plus `enable`/`disable` per id (`detectors/profiles.py`). Composition-registered rather than auto-discovered, since `detectors/` may not import `plugins/` directly (#457). |
 | semgrep | `plugins/semgrep.py` | AST code pattern matching via opengrep. Community rules come ONLY from a semgrep-rules snapshot pinned by commit in the Dockerfile (`SEMGREP_RULES_COMMIT`, baked at `/opt/caliper/semgrep-rules`); language directories are selected by file type and registry packs are never fetched, so the scan path has no network dependency and the rule set cannot drift. The 67 custom org rules (see below) run against every target via `CALIPER_SEMGREP_ORG_RULES_DIR`. Host runs: `scripts/snapshot-semgrep-rules.sh`. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyrefly (fastest) when available, falls back to pyright, then mypy. Error + warning severity only. |

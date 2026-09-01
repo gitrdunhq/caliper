@@ -6,6 +6,26 @@ to an external tool or queries an external database (CVEs, licenses, SBOMs), a *
 a small, self-contained, AST-driven rule that flags a specific bug pattern in source you
 own. No external binary, no network, no LLM — same input always yields the same finding.
 
+## Profiles — what runs by default
+
+Every detector belongs to exactly one profile (`src/caliper/detectors/profiles.py`, drift-guarded by a test):
+
+| Profile | On by default | What it holds |
+|---------|---------------|---------------|
+| `default` | yes | General bug patterns: CAL-001, 002, 004, 005, 006, 010, 012, 015, 016, 018, 020, 022 |
+| `house-rules` | no | Caliper's own conventions: CAL-003, 007, 008, 009, 011, 013, 014, 017, 019, 021 |
+
+Select them in `.caliper.yaml`; `enable`/`disable` adjust single ids on top:
+
+```yaml
+detectors:
+  profiles: [default, house-rules]   # everything
+  enable: []                          # e.g. [CAL-014] to add one house rule
+  disable: []                         # e.g. [CAL-006]
+```
+
+An unknown profile or id logs a warning and falls back to `default` (fail-open).
+
 ## Detector vs. plugin
 
 | | Detector | Plugin |

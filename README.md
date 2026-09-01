@@ -104,7 +104,7 @@ All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper t
 
 ### Plus 22 deterministic detectors
 
-On changed source, caliper also runs **22 AST bug detectors** (`CAL-001`…`CAL-022`) — SQL injection, missing JWT audience claim, secrets typed as plain `str`, subprocess without timeout, unbounded caches, non-atomic writes, and more. Deterministic, fail-safe, suppressible with `# noqa: CAL-NNN`. See [`docs/detectors.md`](docs/detectors.md).
+On changed source, caliper also runs **22 AST bug detectors** (`CAL-001`…`CAL-022`) — SQL injection, missing JWT audience claim, secrets typed as plain `str`, subprocess without timeout, unbounded caches, and more. The 12 general-bug detectors run by default; the 10 that encode caliper's own conventions (`# tested-by:` annotations, pathlib-only paths, atomic writes, …) are the opt-in `house-rules` profile in `.caliper.yaml`. Deterministic, fail-safe, suppressible with `# noqa: CAL-NNN`. See [`docs/detectors.md`](docs/detectors.md).
 
 **Scanner disagreement:** When OSV-Scanner and Trivy report the same CVE, the normalizer deduplicates on `(advisory_id, category, package_name, version)`. Highest severity wins.
 
