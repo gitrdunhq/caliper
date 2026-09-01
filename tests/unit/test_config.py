@@ -37,7 +37,6 @@ class TestCaliperSettings:
             "CALIPER_LLM_ENDPOINT": "https://llm.example.com/v1",
             "CALIPER_LLM_MODEL": "gpt-4o",
             "CALIPER_LLM_API_KEY": "sk-test-key",
-            "CALIPER_ALTERNATIVES_PATH": "/opt/alternatives.json",
         }
 
     def test_valid_config_loads_from_env(self) -> None:
@@ -62,7 +61,6 @@ class TestCaliperSettings:
         assert settings.llm_endpoint == "https://llm.example.com/v1"
         assert settings.llm_model == "gpt-4o"
         assert settings.llm_api_key.get_secret_value() == "sk-test-key"
-        assert settings.alternatives_path == "/opt/alternatives.json"
 
     def test_file_source_defaults_to_auto(self) -> None:
         """file_source defaults to 'auto' and is overridable via env."""
@@ -122,7 +120,6 @@ class TestCaliperSettings:
         # Path defaults
         assert settings.evidence_path == "./evidence"
         assert settings.opa_policy_path == "./policies/policy.rego"
-        assert settings.alternatives_path == "./alternatives.json"
 
         # Scanner defaults
         assert settings.enabled_scanners == ["syft", "osv-scanner", "trivy"]

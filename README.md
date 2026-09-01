@@ -336,8 +336,7 @@ src/caliper/
     ├── db.py               #   PostgreSQL + NullRepository fallback
     ├── evidence.py         #   Atomic file-based artifact store
     ├── pypi.py             #   PyPI JSON API client
-    ├── parquet_writer.py   #   Append-only Parquet audit log
-    └── alternatives.py     #   Approved alternatives catalog
+    └── parquet_writer.py   #   Append-only Parquet audit log
 ```
 
 **Three-tier, imports flow downward only.** Presentation → Logic → Data. No exceptions.

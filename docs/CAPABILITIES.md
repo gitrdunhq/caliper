@@ -392,7 +392,6 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Evidence store | `data/evidence.py` | File-based evidence bundles keyed by run_id + package. |
 | Parquet writer | `data/parquet_writer.py` | Append-only Parquet audit log per pipeline run. |
 | PyPI client | `data/pypi.py` | Package metadata: age, availability. |
-| Alternatives catalog | `data/alternatives.py` | 30+ packages mapped to 9 categories. Parses requirements.txt and pyproject.toml. |
 | Scanner wrappers | `data/scanners/` | Subprocess wrappers for osv, trivy, syft, scancode. |
 
 ---
