@@ -1,96 +1,16 @@
-"""LLMPort — the sealed seam for the Review.
+"""LLMTransportPort — the sealed seam for optional, advisory LLM calls.
 
-# tested-by: tests/unit/test_inspect_runner.py
+# tested-by: tests/unit/plugins/test_supply_chain_threat_scribe.py
 
-The LLM is isolated behind this port (the analog of ``ToolRunnerPort``): it sits
-between ``part()`` upstream and the pure adjudicator downstream. Tier code never
-calls a model directly — it resolves a backend from the ``INSPECT_BACKENDS``
-registry and calls :meth:`LLMPort.review`. Backends are swappable and fakeable.
-
-This module defines only the *interface* (no model call). The concrete backends
-live in the isolated ``caliper.data._inspect_llm`` module; the deterministic
-tiers (Screen gauges, Adjudicate) must not import that path.
+This module defines only the *interface* (no model call). The concrete adapter is
+``caliper.data.llm_client.LlmClient`` (DPS-101: core stays free of the httpx
+transport; callers construct the adapter and inject it through this port). The
+only consumer today is the opt-in supply-chain-threat scribe.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
-
-
-@dataclass(frozen=True)
-class LLMReview:
-    """The input to a single part review — a fully rendered, read-only request."""
-
-    part_id: str
-    bucket: str
-    prompt: str  # rendered: the part's changed hunks + compact lower-parts context
-    model_id: str
-    prompt_version: str
-
-
-@dataclass(frozen=True)
-class LLMResult:
-    """The output of a review — raw claims (not yet adjudicated) or unavailability.
-
-    ``raw_claims`` are the model's emissions as plain dicts; they are validated and
-    filtered only by the pure adjudicator. ``available=False`` means Review was
-    skipped (fail-soft): the report shows Screen results and notes the skip; no
-    claims are invented to fill the gap.
-    """
-
-    available: bool
-    raw_claims: list[dict] = field(default_factory=list)
-    note: str = ""
-
-
-@runtime_checkable
-class LLMPort(Protocol):
-    """Structural contract for an LLM review backend."""
-
-    def review(self, review: LLMReview) -> LLMResult: ...
-
-
-# ---------------------------------------------------------------------------
-# Gauge drafting (the flywheel's only LLM step). The LLM drafts a candidate gauge;
-# it never promotes one. The draft is gated downstream by a deterministic backtest
-# and an explicit human promotion.
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class DraftRequest:
-    """A request to draft a candidate gauge from a recurring claim cluster."""
-
-    cluster_key: str
-    category: str
-    assertions: list[str] = field(default_factory=list)  # representative claim text
-    examples: list[str] = field(default_factory=list)  # file:line references
-
-
-@dataclass(frozen=True)
-class DraftResult:
-    """A drafted candidate gauge, or unavailability (fail-soft: no candidate)."""
-
-    available: bool
-    kind: str = "manual"  # "semgrep" | "ast" | "manual"
-    draft: str = ""  # rule text, or a manual-implementation description
-    note: str = ""
-
-
-@runtime_checkable
-class GaugeDraftPort(Protocol):
-    """Structural contract for an LLM gauge-drafting backend (drafts, never promotes)."""
-
-    def draft(self, request: DraftRequest) -> DraftResult: ...
-
-
-# ---------------------------------------------------------------------------
-# Chat-completions transport (task-fit advisory, supply-chain narrative, etc).
-# The concrete adapter is ``caliper.data.llm_client.LlmClient`` (DPS-101: core
-# stays free of the httpx transport, callers construct the adapter and inject
-# it through this port).
-# ---------------------------------------------------------------------------
 
 
 @runtime_checkable

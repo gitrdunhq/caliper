@@ -323,7 +323,7 @@ class TestLoadMergedConfigSemgrepRegression:
         assert result.plugins.semgrep.exclude_rules == ["test.rule.one"]
 
 
-class TestPartingInspectGaugeSurviveMerge:
+class TestPartingSurvivesMerge:
     """Regression for #442: a package merge must not drop parting/inspect/gauge."""
 
     def test_root_parting_overrides_survive_package_merge(self, tmp_path: Path) -> None:
@@ -360,21 +360,3 @@ class TestPartingInspectGaugeSurviveMerge:
         result = load_merged_config(tmp_path, package_root=pkg_dir)
 
         assert result.parting.size_cap == 99
-
-    def test_root_inspect_and_gauge_survive_package_merge(self, tmp_path: Path) -> None:
-        """Root inspect/gauge tuning is not reset to defaults on a package merge."""
-        _write_config(
-            tmp_path,
-            {
-                "inspect": {"token_budget": 12345},
-                "gauge": {"recurrence_min_parts": 7},
-            },
-        )
-        pkg_dir = tmp_path / "packages" / "svc"
-        pkg_dir.mkdir(parents=True)
-        _write_config(pkg_dir, {"plugins": {"disabled": ["typos"]}})
-
-        result = load_merged_config(tmp_path, package_root=pkg_dir)
-
-        assert result.inspect.token_budget == 12345
-        assert result.gauge.recurrence_min_parts == 7
