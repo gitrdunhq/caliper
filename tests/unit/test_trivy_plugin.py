@@ -177,3 +177,112 @@ class TestTrivyPluginExitCode:
 
         assert result.error == ""
         assert len(result.findings) == 2
+
+
+_TRIVY_OUTPUT_MISCONFIG = json.dumps(
+    {
+        "SchemaVersion": 2,
+        "Results": [
+            {
+                "Target": "template.yaml",
+                "Class": "config",
+                "Type": "cloudformation",
+                "Misconfigurations": [
+                    {
+                        "ID": "AVD-AWS-0088",
+                        "AVDID": "AVD-AWS-0088",
+                        "Title": "Unencrypted S3 bucket.",
+                        "Description": "S3 Buckets should be encrypted.",
+                        "Message": "Bucket does not have encryption enabled",
+                        "Resolution": "Configure bucket encryption",
+                        "Severity": "HIGH",
+                        "PrimaryURL": "https://avd.aquasec.com/misconfig/avd-aws-0088",
+                        "Status": "FAIL",
+                        "CauseMetadata": {
+                            "Resource": "InsecureBucket",
+                            "StartLine": 12,
+                            "EndLine": 18,
+                        },
+                    },
+                    {
+                        "ID": "AVD-AWS-0090",
+                        "Title": "Versioning disabled.",
+                        "Severity": "MEDIUM",
+                        "Status": "PASS",
+                        "CauseMetadata": {"StartLine": 12},
+                    },
+                ],
+            },
+            {
+                "Target": "deployment.yaml",
+                "Class": "config",
+                "Type": "kubernetes",
+                "Misconfigurations": [
+                    {
+                        "ID": "KSV012",
+                        "Title": "Runs as root user",
+                        "Message": "Container should set runAsNonRoot",
+                        "Resolution": "Set securityContext.runAsNonRoot to true",
+                        "Severity": "MEDIUM",
+                        "PrimaryURL": "https://avd.aquasec.com/misconfig/ksv012",
+                        "Status": "FAIL",
+                        "CauseMetadata": {"StartLine": 20, "EndLine": 24},
+                    }
+                ],
+            },
+        ],
+    }
+)
+
+
+class TestTrivyMisconfig:
+    """Trivy also scans IaC (CloudFormation, Terraform, K8s, Dockerfile) for misconfigurations.
+
+    This replaces cfn-nag (a Ruby gem) and cdk-nag (Node + aws-cdk) with a binary
+    the image already carries.
+    """
+
+    @staticmethod
+    def _plugin_with(stdout: str):
+        runner = MagicMock()
+        runner.run.return_value = ToolResult(
+            stdout=stdout, stderr="", exit_code=0, timed_out=False, not_installed=False
+        )
+        return TrivyPlugin(tool_runner=runner), runner
+
+    def test_scanners_include_misconfig(self) -> None:
+        plugin, runner = self._plugin_with(_TRIVY_OUTPUT)
+        plugin.run([], Path("/repo"))
+        cmd = runner.run.call_args[0][0].cmd
+        i = cmd.index("--scanners")
+        assert set(cmd[i + 1].split(",")) == {"vuln", "misconfig"}
+
+    def test_failed_misconfigurations_become_findings_with_file_and_line(self) -> None:
+        plugin, _ = self._plugin_with(_TRIVY_OUTPUT_MISCONFIG)
+        result = plugin.run([], Path("/repo"))
+        assert result.error == ""
+        by_id = {f["id"]: f for f in result.findings}
+        assert "AVD-AWS-0090" not in by_id, "PASS status must not be reported"
+        s3 = by_id["AVD-AWS-0088"]
+        assert s3["file"] == "template.yaml"
+        assert s3["line"] == 12
+        assert s3["severity"] == "high"
+        assert s3["category"] == "security"
+        assert s3["rule_id"] == "AVD-AWS-0088"
+        assert "encryption" in s3["message"].lower()
+        assert s3["fix_suggestion"] == "Configure bucket encryption"
+        k8s = by_id["KSV012"]
+        assert k8s["file"] == "deployment.yaml" and k8s["line"] == 20
+
+    def test_summary_counts_vulns_and_misconfigs_separately(self) -> None:
+        plugin, _ = self._plugin_with(_TRIVY_OUTPUT_MISCONFIG)
+        result = plugin.run([], Path("/repo"))
+        assert result.summary["misconfigurations"] == 2
+        assert result.summary["vulnerabilities"] == 0
+        assert result.summary["total"] == 2
+
+    def test_vuln_only_output_still_works(self) -> None:
+        plugin, _ = self._plugin_with(_TRIVY_OUTPUT)
+        result = plugin.run([], Path("/repo"))
+        assert result.summary["vulnerabilities"] == 2
+        assert result.summary["misconfigurations"] == 0

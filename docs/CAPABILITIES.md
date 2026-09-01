@@ -58,7 +58,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 | Plugin | File | Detects |
 |--------|------|---------|
 | osv-scanner | `plugins/osv_scanner.py` | Known CVE/GHSA/OSV vulnerabilities. 22 manifest/lockfile formats. CVSS severity mapping. |
-| trivy | `plugins/trivy.py` | Vulnerability scanning via Trivy database (`trivy fs --scanners vuln`). |
+| trivy | `plugins/trivy.py` | Vulnerability scanning via the Trivy database plus IaC misconfiguration checks (`trivy fs --scanners vuln,misconfig --skip-check-update`): CloudFormation, Terraform, Kubernetes, Dockerfile, Helm. Misconfig findings carry file, line, and resolution. Checks are the ones embedded in the pinned trivy release (no bundle fetch), so results do not drift. |
 | scancode | `plugins/scancode.py` | License detection (SPDX extraction + confidence). **Opt-in** — not installed in the default image and excluded from `--all` by default (`DEFAULT_OPT_IN_PLUGINS`); enable via `--enable scancode`/`--scanners scancode` or `plugins.enable` in `.caliper.yaml`. |
 | syft | `plugins/syft.py` | CycloneDX SBOM generation. 18 ecosystems (npm, PyPI, Cargo, Go, Ruby, Composer, Dart, Elixir, etc). |
 
@@ -409,7 +409,7 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | License compliance | No | ScanCode SPDX extraction |
 | Secret detection | No | Gitleaks (800+ patterns) |
 | Supply chain integrity | No | Lockfile integrity, unpinned deps, Docker floating tags |
-| IaC security | No | cfn-nag + cdk-nag + kube-linter |
+| IaC security | No | trivy misconfig (CloudFormation/Terraform/K8s/Dockerfile/Helm) + kube-linter |
 | Malware scanning | No | ClamAV |
 | Policy-as-code | Built-in Java rules | OPA Rego (user-authored) |
 | Change impact analysis | No | Blast-radius code graph |
