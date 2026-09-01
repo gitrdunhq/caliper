@@ -78,3 +78,29 @@ Points at `17eb7d6` (main as of 2026-09-01, release 0.2.30 plus the pyrefly type
 **Also cleaned.** The `TestLLMPromptInjection` class in `tests/unit/test_security.py` (it only exercised `TaskFitAdvisor`); stale `taskfit*.py` and never-existing `core/solver.py` entries in three deterministic guard tests; the README tree listing and kerf paragraph; the CAPABILITIES "Task-fit advisory" row.
 
 **Kept for now.** The `llm_enabled` / `llm_endpoint` / `llm_model` / `llm_api_key` settings and `data/llm_client.py` are still used by the supply-chain-threat scribe and `core/llm_port.py`. Revisit when that scribe is decided.
+
+### 4. Org-wide package catalog (2026-09-01)
+
+**What it was.** `data/catalog.py` (`PackageCatalog`, `CatalogEntry`) and `migrations/002_package_catalog.sql`: a PostgreSQL + pgvector table design for scanning each package once org-wide and serving later evaluations as a lookup, with a `scan_queue` table and an embeddings column for semantic search.
+
+**Why it was cut.**
+
+- Unreachable: nothing in `src/` imported it; the pipeline never read or wrote the catalog. Present since the repo's first commit with no feature work since.
+- No embeddings are produced anywhere, so the pgvector column and the `CREATE EXTENSION vector` superuser requirement were pure cost and a hard failure on stock Postgres.
+- README listed it as a live component.
+- The on-thesis successor already exists: the ADR-010 scan cache (tree-SHA keyed, sqlite, no extension).
+
+**Removed.**
+
+| Path | Lines |
+|---|---|
+| `src/caliper/data/catalog.py` | 342 |
+| `migrations/002_package_catalog.sql` | 132 |
+| `tests/unit/test_catalog.py` | 422 |
+| `tests/unit/test_deterministic_cache_guards.py` | specimen-only guard |
+| `tests/unit/test_deterministic_queue_guards.py` | specimen-only guard |
+| `tests/unit/test_deterministic_idempotency_guards.py` | specimen-only guard (its other targets were cut in entry 1) |
+
+The three guard files were `xfail(strict=False)` bug detectors whose only specimens were `catalog.py` (and, before entry 1, the concern modules). They documented issue #172-era bugs in code nobody ran and could never fail.
+
+**Also cleaned.** The `catalog.py` entry in `test_deterministic_cache_key_guards.py`; the `catalog.py` and never-existing `core/solver.py` entries in `test_deterministic_eviction_guards.py`; the README data-tier tree line. `test_deterministic_migration_guards.py` still names the migration in a docstring example only.
