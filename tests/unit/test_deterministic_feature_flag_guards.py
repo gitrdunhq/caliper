@@ -28,7 +28,6 @@ _FEATURE_FLAG_FILES: tuple[Path, ...] = (
     _SRC / "core" / "config.py",
     _SRC / "core" / "repo_config.py",
     _SRC / "core" / "telemetry.py",
-    _SRC / "core" / "taskfit.py",
 )
 
 # Feature flag field name patterns (boolean fields indicating features)

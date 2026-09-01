@@ -310,8 +310,7 @@ src/caliper/
 │   ├── orchestrator.py     #   Parallel scanner runner (ThreadPoolExecutor)
 │   ├── decision.py         #   Pure assembler — OPA verdict → ReviewDecision
 │   ├── memo.py             #   Markdown PR comment generator
-│   ├── seal.py             #   SHA-256 evidence chain
-│   └── taskfit*.py         #   Optional LLM advisory (disabled by default)
+│   └── seal.py             #   SHA-256 evidence chain
 ├── plugins/                # 19 scanner plugins + OPA policy plugin + scribes
 │   ├── blast_radius.py     #   AST→SQLite code graph + SQL checks
 │   ├── semgrep.py          #   AST pattern matching
@@ -562,8 +561,7 @@ comments you run yourself.
 
 **v1 plugs in** at three named seams (none implemented in v0): the Blast Radius
 CodeGraph for the dependency graph and the R3 (layer) / R5 (risk) rules; the
-scribe + taskfit path for deterministic kerf rationale (disabled by default, no
-LLM in the decision); and a post-merge scorecard for the convergence metric.
+scribe path for deterministic kerf rationale (no LLM in the decision); and a post-merge scorecard for the convergence metric.
 
 ### Inspect — `caliper inspect`
 

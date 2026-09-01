@@ -379,7 +379,6 @@ File: `core/nl_query.py`. Keyword-matched SQL queries against the code graph. No
 | Topological ordering | `core/plugin_registry.py` | Plugins declare `depends_on` for execution order. `["*"]` = run last. Circular dep detection. |
 | Ignore patterns | `core/ignore.py` | `.caliperignore` with 6 built-in defaults (.git/, __pycache__/, node_modules/, .venv/, .claude/, .caliper/). |
 | Repo config | `core/repo_config.py` | `.caliper.yaml` — per-plugin enable/disable, thresholds, telemetry. Root + package-level merge. |
-| Task-fit advisory | `core/taskfit.py` | Optional LLM 8-dimension proportionality check (NECESSITY, MINIMALITY, MAINTENANCE, SECURITY, EXPOSURE, BLAST_RADIUS, ALTERNATIVES, BEHAVIORAL). |
 | Structured errors | `core/errors.py` | 10 error codes: NOT_INSTALLED, TIMEOUT, PARSE_ERROR, PERMISSION_DENIED, BINARY_CRASHED, NO_OUTPUT, SCANNER_DEGRADED, CONFIG_MISSING, INDEX_FAILED, NETWORK_ERROR. |
 | Telemetry | `core/telemetry.py` | Anonymous opt-in, 9 signals, Pydantic `extra="forbid"`, file-path stripping, fire-and-forget async. |
 

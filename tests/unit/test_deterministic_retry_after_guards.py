@@ -21,11 +21,7 @@ _REPO = Path(__file__).resolve().parents[2]
 _SRC = _REPO / "src" / "caliper"
 
 # Files with HTTP client code that must handle Retry-After (issue #192)
-_HTTP_CLIENT_FILES: tuple[Path, ...] = (
-    _SRC / "core" / "solver.py",
-    _SRC / "core" / "taskfit.py",
-    _SRC / "webhook" / "server.py",
-)
+_HTTP_CLIENT_FILES: tuple[Path, ...] = (_SRC / "webhook" / "server.py",)
 
 
 def _rel(path: Path) -> str:
