@@ -382,3 +382,52 @@ class TestDetectorsSurviveMerge:
         result = load_merged_config(tmp_path, package_root=pkg_dir)
 
         assert result.detectors.disable == ["CAL-005"]
+
+
+class TestBaselineAndArchitectureSurviveMerge:
+    """Same bug class as #442: sections not carried through the package merge silently
+    reset to defaults, which would drop a repo's baseline path/TTL and its declared
+    architecture tiers the moment a monorepo package is scanned."""
+
+    def test_root_baseline_survives_package_merge(self, tmp_path: Path) -> None:
+        _write_config(
+            tmp_path, {"baseline": {"path": ".suppressions.yaml", "default_ttl_days": 30}}
+        )
+        pkg_dir = tmp_path / "packages" / "svc"
+        pkg_dir.mkdir(parents=True)
+        _write_config(pkg_dir, {"plugins": {"disabled": ["typos"]}})
+
+        result = load_merged_config(tmp_path, package_root=pkg_dir)
+
+        assert result.baseline.path == ".suppressions.yaml"
+        assert result.baseline.default_ttl_days == 30
+
+    def test_root_architecture_survives_package_merge(self, tmp_path: Path) -> None:
+        _write_config(
+            tmp_path,
+            {
+                "architecture": {
+                    "package": "svc",
+                    "tiers": {"api": "svc/api"},
+                    "allow": {"api": ["core"]},
+                }
+            },
+        )
+        pkg_dir = tmp_path / "packages" / "svc"
+        pkg_dir.mkdir(parents=True)
+        _write_config(pkg_dir, {"plugins": {"disabled": ["typos"]}})
+
+        result = load_merged_config(tmp_path, package_root=pkg_dir)
+
+        assert result.architecture.tiers == {"api": "svc/api"}
+        assert result.architecture.allow == {"api": ["core"]}
+
+    def test_package_baseline_takes_precedence_when_set(self, tmp_path: Path) -> None:
+        _write_config(tmp_path, {"baseline": {"default_ttl_days": 30}})
+        pkg_dir = tmp_path / "packages" / "svc"
+        pkg_dir.mkdir(parents=True)
+        _write_config(pkg_dir, {"baseline": {"default_ttl_days": 7}})
+
+        result = load_merged_config(tmp_path, package_root=pkg_dir)
+
+        assert result.baseline.default_ttl_days == 7

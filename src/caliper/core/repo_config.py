@@ -414,12 +414,22 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
     merged_detectors = (
         pkg_config.detectors if pkg_config.detectors != DetectorsConfig() else root_config.detectors
     )
+    merged_baseline = (
+        pkg_config.baseline if pkg_config.baseline != BaselineConfig() else root_config.baseline
+    )
+    merged_architecture = (
+        pkg_config.architecture
+        if pkg_config.architecture != ArchitectureConfig()
+        else root_config.architecture
+    )
     return RepoConfig(
         plugins=merged_plugins,
         thresholds=merged_thresholds,
         telemetry=merged_telemetry,
         parting=merged_parting,
         detectors=merged_detectors,
+        baseline=merged_baseline,
+        architecture=merged_architecture,
     )
 
 
