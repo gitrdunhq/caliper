@@ -27,7 +27,6 @@ _SRC = _REPO / "src" / "caliper"
 _CACHE_KEY_FILES: tuple[Path, ...] = (
     _SRC / "core" / "registry.py",
     _SRC / "core" / "plugin.py",
-    _SRC / "data" / "catalog.py",
 )
 
 

@@ -30,8 +30,6 @@ _CACHE_RELEVANT_FILES: tuple[Path, ...] = (
     _SRC / "webhook" / "server.py",
     _SRC / "agent" / "tool_helpers.py",
     _SRC / "core" / "registry.py",
-    _SRC / "data" / "catalog.py",
-    _SRC / "core" / "solver.py",
 )
 
 # Cache-related function/class patterns that need eviction policies

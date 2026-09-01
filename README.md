@@ -337,7 +337,6 @@ src/caliper/
     ├── evidence.py         #   Atomic file-based artifact store
     ├── pypi.py             #   PyPI JSON API client
     ├── parquet_writer.py   #   Append-only Parquet audit log
-    ├── catalog.py          #   Org-wide package catalog (pgvector)
     └── alternatives.py     #   Approved alternatives catalog
 ```
 
