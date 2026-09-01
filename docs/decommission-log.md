@@ -124,3 +124,7 @@ The three guard files were `xfail(strict=False)` bug detectors whose only specim
 | `tests/unit/test_alternatives.py` | 451 |
 
 **Also cleaned.** The `alternatives_path` setting and its three assertions in `test_config.py`; the `categorize_package` determinism property test in `test_properties.py`; the README data-tier tree line; the CAPABILITIES "Alternatives catalog" row. The agent prompt's `alternatives` parameter is kept (harmless, independently tested, and the natural hook for #480).
+
+### 6. Grounding provider and `caliper ground` — KEPT (2026-09-01)
+
+Reviewed and kept. `adapters/grounding.py` is deterministic, fail-open, and properly ported, but its only in-product consumer is the `ground` CLI export for external LLM reviewers. Wiring it into the detect-then-scribe pass as an opt-in scribe is tracked as [#481](https://github.com/gitrdunhq/caliper/issues/481). Side note: `caliper ground` is not listed in the CAPABILITIES CLI table.
