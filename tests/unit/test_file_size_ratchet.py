@@ -23,10 +23,10 @@ _LINE_CAP = 500
 _ALLOWLIST = {
     "plugins/_runners/graph_builder.py": 775,
     "detectors/ast_utils.py": 722,
-    "core/models.py": 652,
+    "core/models.py": 450,
     "adapters/grounding.py": 649,
-    "composition/bootstrap.py": 638,
-    "core/repo_config.py": 606,
+    "composition/bootstrap.py":      599,
+    "core/repo_config.py": 468,
     "agent/tools.py": 545,
     "core/pipeline.py": 506,
 }
