@@ -28,7 +28,6 @@ _SRC = _REPO / "src" / "caliper"
 # Files that may contain cache implementations without eviction policies
 _CACHE_RELEVANT_FILES: tuple[Path, ...] = (
     _SRC / "webhook" / "server.py",
-    _SRC / "agent" / "tool_helpers.py",
     _SRC / "core" / "registry.py",
 )
 
@@ -284,51 +283,5 @@ def test_208_webhook_app_cache_has_eviction() -> None:
         "Webhook app cache lacks eviction policy.\n"
         "Module-level app instance should have TTL-based eviction for long-running processes.\n"
         "Consider using cachetools.TTLCache or periodic refresh logic.\n"
-        "See #208 and parent bug #174.\n\n" + "\n".join(violations)
-    )
-
-
-@pytest.mark.xfail(
-    reason="deterministic bug detector for #208 - agent settings cache without eviction",
-    strict=False,
-)
-def test_208_agent_settings_cache_has_eviction() -> None:
-    """#208: Agent settings cache must have TTL or size bounds.
-
-    The get_agent_settings() function in agent/tool_helpers.py uses
-    @functools.cache without an eviction policy. Settings should be
-    refreshed periodically to pick up configuration changes.
-
-    Parent bug: #174
-    Epic: #146
-    """
-    tool_helpers_path = _SRC / "agent" / "tool_helpers.py"
-    if not tool_helpers_path.exists():
-        pytest.skip("Tool helpers file not found")
-
-    tree = _parse(tool_helpers_path)
-
-    violations: list[str] = []
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef):
-            if node.name == "get_agent_settings":
-                # Check decorators
-                for decorator in node.decorator_list:
-                    decorator_str = ast.dump(decorator)
-
-                    # Check for @functools.cache or @cache without maxsize
-                    if "cache" in decorator_str.lower():
-                        if "maxsize" not in decorator_str and "ttl" not in decorator_str:
-                            violations.append(
-                                f"{_rel(tool_helpers_path)}:{node.lineno}: "
-                                f"Function 'get_agent_settings' uses cache without eviction policy\n"
-                                f"  Decorator: {ast.unparse(decorator) if hasattr(ast, 'unparse') else decorator_str}"
-                            )
-
-    assert violations == [], (
-        "Agent settings cache lacks eviction policy.\n"
-        "Settings cached with @functools.cache cannot be refreshed without process restart.\n"
-        "Use @lru_cache(maxsize=1) with cache_clear() or add TTL-based caching.\n"
         "See #208 and parent bug #174.\n\n" + "\n".join(violations)
     )

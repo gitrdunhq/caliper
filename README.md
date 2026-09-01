@@ -33,12 +33,12 @@ When a PR touches a dependency manifest — `requirements.txt`, `package.json`, 
 
 Every scanning tool is deterministic. The decision is deterministic. Nothing blocks the build unless OPA says so.
 
-**Two entry points, same pipeline:**
+**Entry points, same pipeline:**
 
 | Entry Point | Interface | Use Case |
 |-------------|-----------|----------|
 | **CLI** | `caliper evaluate` / `caliper review` | CI pipelines, local dev |
-| **Foreman** | `python -m caliper.agent.main` | GitHub Copilot Agent for reactive PR review |
+| **Webhook** | `caliper.webhook.server` (port 12800) | GitHub PR events, HMAC-verified |
 
 ---
 
@@ -50,7 +50,7 @@ Every scanning tool is deterministic. The decision is deterministic. Nothing blo
 
 <br>
 
-All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper that synthesizes results into PR comments — and even that is pluggable and removable. The 16 scanner plugins below feed their findings to a 20th **OPA policy plugin**, which runs last and makes the accept/reject decision.
+All deterministic. Zero LLM. The 16 scanner plugins below feed their findings to a 20th **OPA policy plugin**, which runs last and makes the accept/reject decision.
 
 ### Dependency (run on every evaluation)
 
@@ -169,20 +169,6 @@ podman run --rm -v "$(pwd):/workspace:ro" caliper:latest \
     --team myteam --operating-mode monitor
 ```
 
-### Foreman (GitHub Copilot Agent)
-
-```bash
-export FOREMAN_GITHUB_TOKEN="ghp_..."
-export FOREMAN_PR_NUMBER=123
-export FOREMAN_DIFF_PATH=./changes.diff
-export FOREMAN_REPO_OWNER=myorg
-export FOREMAN_REPO_NAME=myrepo
-
-uv run python -m caliper.agent.main
-```
-
----
-
 ## Enforcement Modes
 
 | Mode | PR Comment | Build Status | Use Case |
@@ -225,14 +211,10 @@ jobs:
         with:
           fetch-depth: 0
       - run: git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} > .temp/pr.diff
-      - run: uv run python -m caliper.agent.main
+      - run: caliper review --repo-path . --diff .temp/pr.diff --pr ${{ github.event.pull_request.number }}
         env:
-          FOREMAN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FOREMAN_ENFORCEMENT_MODE: warn
-          FOREMAN_DIFF_PATH: .temp/pr.diff
-          FOREMAN_PR_NUMBER: ${{ github.event.pull_request.number }}
-          FOREMAN_REPO_OWNER: ${{ github.repository_owner }}
-          FOREMAN_REPO_NAME: ${{ github.event.repository.name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 ```
 
 Or use the composite action (`action.yml`):
@@ -289,11 +271,6 @@ opa test policies/ --ignore '*.yaml' --ignore '*.yml'   # policy tests covering 
 ```
 src/caliper/
 ├── cli/                    # Presentation: Click CLI (150 lines)
-├── agent/                  # Presentation: Caliper Copilot Agent
-│   ├── main.py             #   Agent orchestrator + enforcement
-│   ├── tools.py            #   6 @tool functions for the LLM
-│   ├── tool_helpers.py     #   Subprocess runners (Semgrep, CPD, kube-linter, lizard)
-│   ├── config.py           #   FOREMAN_* env vars
 │   └── prompt.py           #   System prompt with 8-dimension rubric
 ├── core/                   # Logic: all business rules
 │   ├── pipeline.py         #   Main orchestrator — evaluate() and evaluate_sbom()
@@ -418,23 +395,6 @@ Nothing blocks the build unless OPA says so. Every external call has a timeout. 
 | `CALIPER_PIPELINE_TIMEOUT` | `300` | Per-package timeout (s) |
 | `CALIPER_LLM_ENABLED` | `false` | Enable optional LLM task-fit advisory |
 
-### Foreman (`FOREMAN_*` prefix)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `FOREMAN_GITHUB_TOKEN` | **(required)** | GitHub token for PR comments |
-| `FOREMAN_PR_NUMBER` | **(required)** | PR number to review |
-| `FOREMAN_DIFF_PATH` | — | Path to diff file |
-| `FOREMAN_REPO_OWNER` | — | Repository owner |
-| `FOREMAN_REPO_NAME` | — | Repository name |
-| `FOREMAN_ENFORCEMENT_MODE` | `warn` | `block` / `warn` / `log` |
-| `FOREMAN_LLM_MODEL` | `gpt-4.1` | Copilot agent model |
-| `FOREMAN_ENABLED_SCANNERS` | `syft,osv-scanner,trivy,scancode` | Pipeline scanners |
-| `FOREMAN_SEMGREP_TIMEOUT` | `120` | Semgrep timeout (s) |
-| `FOREMAN_PIPELINE_TIMEOUT` | `300` | Pipeline timeout (s) |
-| `FOREMAN_POLICY_VERSION` | `1.0.0` | Shown in PR comments |
-| `FOREMAN_MAX_COMMENT_LENGTH` | `3900` | Max PR comment chars |
-
 ### Running without a database (scanner-only mode)
 
 The full `evaluate` pipeline persists every decision to PostgreSQL for the
@@ -527,7 +487,7 @@ parting:                          # config for `caliper part` (manual diff cutti
 `caliper part` is a **manual, developer-invoked** operation that proposes how to
 cut a big working branch into an ordered *cut list* of small, reviewable *parts*,
 and emits a jj `restack.sh` that performs the cut non-destructively. It is **not**
-wired into the automatic review pipeline (no Foreman, no webhook, no Action), it
+wired into the automatic review pipeline (no webhook, no Action), it
 never gates a build, and its output is a proposal, not a verdict.
 
 ```bash

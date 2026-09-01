@@ -10,7 +10,7 @@ Tier map (mirrors datum-ax ``tests/test_architecture.py``); the resolution
 logic itself lives in ``caliper.core.tier_map`` (shared with the CAL-022
 tier-boundary detector):
 
-* presentation (``cli`` / ``agent`` / ``webhook`` / ``composition``) — may
+* presentation (``cli`` / ``webhook`` / ``composition``) — may
   import anything; this is where concrete adapters are wired.
 * ``core`` — may import only core + the shared kernel. Never presentation,
   never data/adapters/plugins/detectors.

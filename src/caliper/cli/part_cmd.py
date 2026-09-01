@@ -9,7 +9,7 @@ a jj ``restack.sh`` that hands the mechanics to jj.
 
 Manual gate: this command is the ONLY entry point to parting. The parting plugin
 lives in the dedicated PARTING registry, never in ANALYZERS, so it is never run
-by ``caliper review`` / Foreman / the webhook and never gates a build.
+by ``caliper review`` / the webhook and never gates a build.
 """
 
 from __future__ import annotations

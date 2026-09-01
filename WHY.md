@@ -12,7 +12,7 @@ It's also **fail-open by design**: every scanner runs in its own timeout envelop
 
 > **One deliberate exception — `caliper part` is fail-closed.** Parting (the manual diff-cutting subcommand) is the carve-out from the fail-open rule. Fail-open is correct for scanning because OPA still gates the decision; it would be wrong on the parting path, where a missing input, a classifier timeout, or any partial result would silently change the cut and break the determinism guarantee. There, a degraded input is a hard error, not a continue. Parting is also advisory — it never produces a verdict and never gates a build.
 
-Two entry points drive the same pipeline — a CLI for CI and a GitHub Copilot Agent (Foreman) for reactive PR review — and every run writes tamper-evident evidence sealed with a SHA-256 hash chain and appended to a Parquet audit lake queryable with DuckDB.
+A CLI for CI and a webhook server for PR events drive the same pipeline, and every run writes tamper-evident evidence sealed with a SHA-256 hash chain and appended to a Parquet audit lake queryable with DuckDB.
 
 ---
 

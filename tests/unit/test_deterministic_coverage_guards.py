@@ -28,8 +28,6 @@ _ROOT = Path(__file__).resolve().parents[2]
 _TESTS = _ROOT / "tests"
 
 _OPTIONAL_EXTRA_SURFACES = (
-    "src/caliper/agent/main.py",
-    "src/caliper/agent/tools.py",
     "src/caliper/webhook/config.py",
     "src/caliper/webhook/server.py",
     "src/caliper/data/parquet_writer.py",

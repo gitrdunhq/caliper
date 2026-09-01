@@ -119,19 +119,6 @@ Imports: `click`, `structlog`, `core.models.OperatingMode`, `core.pipeline.Revie
 The CLI catches `Exception` only at the outermost boundary to exit with code 1. Watch mode
 exits cleanly on `KeyboardInterrupt` with no stack trace.
 
-#### Foreman Copilot Agent (`src/caliper/agent/`)
-
-Second presentation-tier entry point (see ADR-001 through ADR-004 in `docs/adr/`).
-
-| Module | Responsibility |
-|--------|---------------|
-| `config.py` | `AgentSettings` with `FOREMAN_` prefix. `EnforcementMode`, GitHub token, Semgrep timeout. |
-| `prompt.py` | System prompt: 8-dimension rubric, comment format, Semgrep guidance. |
-| `tools.py` | `@tool` functions: `evaluate_change`, `check_package`, `scan_code`. All fail-open. |
-| `main.py` | `ForemanAgent` orchestrator. Copilot SDK session, PR comments, enforcement. |
-
-The agent catches all exceptions and exits 0 (fail-open). Pipeline failures never block a PR.
-
 ### Logic — `src/caliper/core/`
 
 | Module | Responsibility |

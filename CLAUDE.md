@@ -74,7 +74,7 @@ Ports-and-adapters, enforced by an AST-walking guard test
 `core/tier_map.py`) — **not** "imports flow downward"; the direction is
 **inward**, toward `core`:
 
-- **presentation** (`cli/`, `agent/`, `webhook/`, `composition/`) — may import
+- **presentation** (`cli/`, `webhook/`, `composition/`) — may import
   anything. This is where concrete adapters get wired together.
 - **`core/`** — all business logic (pipeline, policy, plugin registry,
   renderer, SARIF, config, scribe seam, ports/contracts). May import only
@@ -90,7 +90,6 @@ Ports-and-adapters, enforced by an AST-walking guard test
 Tier contents:
 
 - `src/caliper/cli/` — thin CLI adapter. Parses args, delegates to core, formats output.
-- `src/caliper/agent/` — Foreman Copilot Agent (second presentation-tier entry point).
 - `src/caliper/webhook/` — Starlette ASGI webhook server (GitHub PR events, HMAC-SHA256, port 12800).
 - `src/caliper/composition/` — composition root: `bootstrap()` wires adapters/scribes into an `ApplicationContext` (NullRepository fallback when no DB).
 - `src/caliper/core/` — all business logic. Pipeline, policy, plugin registry, renderer, SARIF, config, scribe seam.
@@ -196,7 +195,7 @@ reclassifies a file from the browser → `write_override` appends/updates a
 (`POST /repart`), bulk suggestion accept (`POST /suggest/apply`), and a
 client-side `--explain` viewer for a loaded `cutlist.json` round out CLI parity.
 The transport is **stdlib `http.server` only** — no uvicorn/starlette, so it runs
-from any install (no `caliper[copilot]` extra). Routing is the pure
+from any install (no `caliper[webhook]` extra). Routing is the pure
 `dispatch(session, method, path, body)` (functional core), tested without binding a
 socket; the `BaseHTTPRequestHandler` is the thin shell.
 
@@ -384,12 +383,3 @@ Do NOT use `feat:` for config tweaks, CI fixes, or internal refactors. If it doe
 - Enums for all state fields, never raw strings
 - Typed Pydantic models at every boundary
 - `# tested-by:` annotation on every source file
-
-## Foreman Copilot Agent
-
-The `agent/` module is a presentation-tier entry point parallel to `cli/`. It wraps the same pipeline as a GitHub Copilot Extension for reactive PR review.
-
-- Entry point: `python -m caliper.agent.main`
-- Config: `FOREMAN_*` env vars
-- Tools: `evaluate_change`, `check_package`, `scan_code`
-- ADRs: `docs/adr/001-004`

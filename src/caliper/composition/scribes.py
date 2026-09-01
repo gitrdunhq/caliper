@@ -53,19 +53,3 @@ def build_scribes(settings: CaliperSettings) -> list:
         else:
             scribes.append(SCRIBES.create(name))
     return scribes
-
-
-def build_default_scribes() -> list:
-    """Build the on-by-default scribes without a full settings object (ADR-006).
-
-    For standalone presentation paths (the Foreman agent's ``scan_code``) that run
-    a single plugin outside the wired ``ApplicationContext`` but still want findings
-    scribeed. Triggers ``load_adapters`` so the registry is populated, then resolves
-    the ``DEFAULT_SCRIBES`` keys (semgrep stays opt-in).
-    """
-    from caliper.composition.bootstrap import load_adapters  # noqa: PLC0415 — avoid import cycle
-    from caliper.core.config import DEFAULT_SCRIBES
-    from caliper.core.port_registries import SCRIBES
-
-    load_adapters()
-    return [SCRIBES.create(k) for k in DEFAULT_SCRIBES if k in SCRIBES]

@@ -6,9 +6,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -280,47 +278,6 @@ def test_204_production_bootstrap_does_not_wire_null_or_fake_adapters(tmp_path: 
         if type(adapter).__name__.startswith(("_Fake", "Fake", "Null"))
     }
     assert offenders == {}
-
-
-def test_205_block_mode_accepts_typed_review_decisions_not_llm_response_shape() -> None:
-    from caliper.agent.main import ForemanAgent
-    from caliper.core.models import DecisionVerdict
-
-    agent = ForemanAgent(config=object())
-    response = SimpleNamespace(value={"decisions": [_make_review_decision(DecisionVerdict.reject)]})
-
-    agent._extract_reject_from_tool_results(response)
-
-    assert agent._decisions_have_reject is True
-
-
-def test_206_base_sbom_generation_does_not_checkout_active_repo(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    from caliper.agent import tool_helpers
-
-    commands: list[list[str]] = []
-
-    @dataclass
-    class Completed:
-        stdout: str = ""
-        returncode: int = 0
-
-    def fake_run(cmd: list[str], **kwargs: object) -> Completed:
-        commands.append(cmd)
-        if cmd[:4] == ["git", "-C", str(tmp_path), "merge-base"]:
-            return Completed(stdout="base-sha\n")
-        if cmd[:4] == ["git", "-C", str(tmp_path), "rev-parse"]:
-            return Completed(stdout="current-sha\n")
-        return Completed()
-
-    monkeypatch.setattr(tool_helpers.subprocess, "run", fake_run)
-    monkeypatch.setattr(tool_helpers, "run_syft", lambda repo_path: {"components": []})
-
-    tool_helpers._generate_base_sbom(str(tmp_path))
-
-    checkout_commands = [cmd for cmd in commands if len(cmd) > 3 and cmd[3] == "checkout"]
-    assert checkout_commands == []
 
 
 def test_208_evidence_store_creates_parent_dirs_for_package_artifacts(tmp_path: Path) -> None:

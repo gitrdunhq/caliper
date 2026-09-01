@@ -77,10 +77,6 @@ podman run --rm -v $(pwd):/workspace caliper:latest \
   review --repo-path /workspace --all
 ```
 
-**Option 3 — GitHub Copilot Extension**
-
-Foreman wraps the same pipeline as an interactive Copilot agent — ask it about a specific package, run a targeted scan, get findings in chat.
-
 ## What your team controls
 
 Everything. No vendor lock-in on policy.
