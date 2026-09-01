@@ -2,7 +2,7 @@
 # tested-by: tests/unit/test_analyzer_port.py
 
 RED phase for issue #407 — imports `ANALYZERS` / `AnalyzerPort` which do not
-exist yet. The count test guards `docs/CAPABILITIES.md` (19 auto-discovered
+exist yet. The count test guards `docs/CAPABILITIES.md` (16 auto-discovered
 plugins) against a registry refactor silently dropping or adding one.
 
 Note: "deterministic" (#457) is registered into this same `ANALYZERS`
@@ -11,7 +11,7 @@ registry, but not via `autodiscover()` — it self-registers only once
 only tier allowed to bridge `plugins` and `detectors`). Any test module that
 calls `load_adapters()` at import time (e.g. `test_port_registries.py`,
 `test_scribe_registry.py`) makes it visible here too in a full-suite run —
-hence the count below is 20, not 19.
+hence the count below is 17, not 16.
 """
 
 from __future__ import annotations
@@ -19,12 +19,10 @@ from __future__ import annotations
 from caliper.core.plugin import AnalyzerPort
 from caliper.plugins import ANALYZERS, get_default_registry
 
-# The 19 auto-discovered plugins + "deterministic" (composition-registered,
+# The 16 auto-discovered plugins + "deterministic" (composition-registered,
 # see module docstring). "opa" is underscore-excluded, wired separately.
 _EXPECTED_PLUGINS = {
     "blast-radius",
-    "cdk-nag",
-    "cfn-nag",
     "clamav",
     "complexity",
     "cpd",
@@ -38,7 +36,6 @@ _EXPECTED_PLUGINS = {
     "scancode",
     "semgrep",
     "supply-chain",
-    "swiftformat",
     "swiftlint",
     "syft",
     "trivy",
@@ -46,12 +43,12 @@ _EXPECTED_PLUGINS = {
 
 
 class TestAnalyzerRegistry:
-    def test_capability_count_is_20(self):
+    def test_capability_count_is_17(self):
         from caliper.composition.bootstrap import load_adapters
 
         load_adapters()
         # Guards docs/CAPABILITIES.md — keep in lockstep with the inventory.
-        assert len(ANALYZERS.keys()) == 20
+        assert len(ANALYZERS.keys()) == 17
 
     def test_registered_keys_match_expected_plugins(self):
         from caliper.composition.bootstrap import load_adapters
@@ -85,12 +82,12 @@ class TestAnalyzerPortIsProtocol:
 
 
 class TestGetDefaultRegistryUsesDecoratorDiscovery:
-    def test_default_registry_has_20_plugins(self):
+    def test_default_registry_has_17_plugins(self):
         from caliper.composition.bootstrap import load_adapters
 
         load_adapters()
         registry = get_default_registry()
-        assert len(registry.list()) == 20
+        assert len(registry.list()) == 17
 
     def test_default_registry_names_match_registry_keys(self):
         registry = get_default_registry()

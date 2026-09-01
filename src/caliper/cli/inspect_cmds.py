@@ -10,8 +10,6 @@ from caliper.plugins import get_default_registry
 
 _BINARY_MAP: dict[str, list[str] | None] = {
     "blast-radius": None,
-    "cdk-nag": ["cdk"],
-    "cfn-nag": ["cfn_nag_scan"],
     "clamav": ["clamscan"],
     "complexity": ["lizard"],
     "cpd": ["pmd"],

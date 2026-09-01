@@ -36,33 +36,18 @@ class TestKubeLinter:
         ), f"Kube-linter should find privileged container. Findings: {json.dumps(findings, indent=2)}"
 
 
-class TestCfnNag:
-    @pytest.mark.xfail(
-        reason="Flaky test - cfn-nag scanner intermittently fails to find findings", strict=False
-    )
-    def test_cfn_nag_finds_unencrypted(self, vuln_repo: Path, tmp_path: Path) -> None:
-        result, parsed = run_review(vuln_repo, scanners="cfn-nag", output_format="json")
-        breakpoint_dump(tmp_path, "scanner_cfn_nag", parsed)
+class TestTrivyMisconfig:
+    def test_trivy_finds_iac_misconfig(self, vuln_repo: Path, tmp_path: Path) -> None:
+        """Trivy's misconfig scanner covers the CloudFormation/K8s ground cfn-nag and cdk-nag held."""
+        result, parsed = run_review(vuln_repo, scanners="trivy", output_format="json")
+        breakpoint_dump(tmp_path, "scanner_trivy_misconfig", parsed)
 
         assert result.exit_code == 0, f"Exit code {result.exit_code}: {result.output}"
 
-        findings = get_plugin_findings(parsed, "cfn-nag")
-        security_findings = [
-            f
-            for f in findings
-            if any(
-                k in json.dumps(f).lower()
-                for k in ("encryption", "security group", "ingress", "cidr", "0.0.0.0")
-            )
+        findings = get_plugin_findings(parsed, "trivy")
+        iac = [
+            f for f in findings if str(f.get("file", "")).endswith((".yaml", ".yml", "Dockerfile"))
         ]
         assert (
-            len(security_findings) >= 1
-        ), f"cfn-nag should find insecure resources. Findings: {json.dumps(findings, indent=2)}"
-
-
-class TestCdkNag:
-    def test_cdk_nag_completes(self, vuln_repo: Path, tmp_path: Path) -> None:
-        result, parsed = run_review(vuln_repo, scanners="cdk-nag", output_format="json")
-        breakpoint_dump(tmp_path, "scanner_cdk_nag", parsed)
-
-        assert result.exit_code == 0, f"cdk-nag crashed: {result.output}"
+            iac
+        ), f"trivy should flag template.yaml/deployment.yaml misconfigs. Findings: {findings[:3]}"

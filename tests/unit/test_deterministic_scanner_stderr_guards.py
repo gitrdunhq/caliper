@@ -30,8 +30,6 @@ _SUBPROCESS_SCANNER_FILES: tuple[Path, ...] = (
     _SRC / "plugins" / "_runners" / "semgrep_runner.py",
     _SRC / "plugins" / "_runners" / "cpd_runner.py",
     _SRC / "plugins" / "_runners" / "complexity_runner.py",
-    _SRC / "plugins" / "_runners" / "cdk_nag_runner.py",
-    _SRC / "plugins" / "_runners" / "cfn_nag_runner.py",
     _SRC / "plugins" / "_runners" / "kube_linter_runner.py",
 )
 

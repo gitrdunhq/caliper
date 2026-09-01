@@ -125,18 +125,6 @@ Advisory — surfaces patterns that are unlikely to pass thorough code review, m
 
 ---
 
-## swiftformat
-
-Reports Swift source files that need reformatting. All findings are auto-fixable with `swiftformat .`.
-
-| Severity | Condition |
-|----------|-----------|
-| Info | File does not match the configured formatting rules |
-
-Advisory — purely informational. Formatting consistency improves readability and reduces review friction.
-
----
-
 ## See also
 
 - [Deterministic detectors](../detectors.md) — 22 AST-based bug-pattern rules (CAL-001..CAL-022) that run alongside the plugins.

@@ -182,3 +182,36 @@ Roughly 2,600 source lines and 2,200 test lines.
 **Kept.** `cli/inspect_cmds.py` (despite the name it holds `healthcheck`, `check-health`, `plugins`, `schema`); `data/llm_client.py` and `tests/unit/test_llm_client.py`; `scripts/cutlist_report.py` (its inspect input was optional); ADR-008 and `docs/llm-review/` as historical records.
 
 **Worth salvaging later.** The Adjudicate filter's anchor-quote rule: a claim's quoted text had to appear verbatim in the part's changed text before its line numbers were trusted. It is a reusable anti-hallucination primitive for any future LLM consumer. It lived in `core/inspect.py` at the archive tag.
+
+## Archive tag: `archive/pre-scanner-audit`
+
+Points at `07ee6d2` (main after the Tier 2 merge, 2026-09-01). The scanner audit that followed the feature cuts; fixes and cuts land on `chore/scanner-audit-fixes`.
+
+### 12. cfn-nag, cdk-nag, swiftformat plugins (2026-09-01)
+
+**What they were.** `cfn-nag`: CloudFormation template scanning via the Ruby `cfn-nag` gem. `cdk-nag`: `cdk synth` of the target (Node + a pinned `aws-cdk`) followed by `cfn_nag_scan` over the output. `swiftformat`: Swift formatting lint reported as review findings.
+
+**Why they were cut.**
+
+- cfn-nag pulled Ruby into the image for one tool, and Trivy's config scanner covers CloudFormation natively; its e2e test was already `xfail` as flaky.
+- cdk-nag depended on `cfn_nag_scan`, required a full `cdk synth` of the target inside the scanner (Node, npm, aws-cdk in the image), and its e2e test only asserted that it completed. A CDK repo that commits or CI-synthesises `cdk.out/` gets the same coverage from Trivy.
+- swiftformat is a formatter; "file needs reformatting" belongs in pre-commit, not a CI review gate. swiftlint stays for Swift users.
+
+**Replacement.** `trivy fs --scanners vuln,misconfig --skip-check-update` (commit `96c9667`): CloudFormation, Terraform, Kubernetes, Dockerfile, Helm misconfigurations with file, line, and resolution, using the checks embedded in the pinned trivy release.
+
+**Removed.** `plugins/cfn_nag.py`, `plugins/cdk_nag.py`, `plugins/swiftformat.py`, `plugins/_runners/cfn_nag_runner.py`, `plugins/_runners/cdk_nag_runner.py`, their three unit test files, the cfn/cdk e2e tests (replaced by `test_trivy_finds_iac_misconfig`), and from the image: Node.js 22, npm, `aws-cdk`, Ruby, `ruby-dev`, `build-essential`, `gnupg`, the `cfn-nag` gem, and the SwiftFormat binary. Plugin count 19 -> 16 auto-discovered (17 with `deterministic`).
+
+### 13. Blast-radius `layer_violation` and `missing_tested_by` checks (2026-09-01)
+
+`layer_violation` duplicated the CAL-017/CAL-022 tier-boundary detectors and the architecture guard test. `missing_tested_by` could not see the annotation (the symbols table has none) and listed every changed `.py` file, so it was pure noise; CAL-014 owns that check in the `house-rules` profile. 12 -> 10 code graph checks (commit `5d7a627`).
+
+### Scanner audit fixes that were not cuts
+
+- Semgrep community rules pinned to a `semgrep-rules` commit baked into the image; registry packs never fetched; org rules applied to every target (`b948a18`).
+- Complexity reports only functions above `thresholds.complexity.ccn` (`b1e2e23`).
+- Detector profiles: `default` (12 general bugs) on, `house-rules` (10 caliper conventions) opt-in (`5f486fc`).
+- Review scope documented; dogfood D2 closed (`0a9fea8`).
+
+### 14. `caliper part` — KEPT, invest (2026-09-01)
+
+Tier 3 decision: keep `caliper part` in caliper and make it excellent rather than extract or cut it. Roadmap and definition of done in [#482](https://github.com/gitrdunhq/caliper/issues/482) (git-native restack, classification corpus + scoring, per-part diff preview in the SPA, PR push flow, docs). It remains isolated from the review pipeline via the `PARTING` registry.
