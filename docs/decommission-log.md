@@ -128,3 +128,7 @@ The three guard files were `xfail(strict=False)` bug detectors whose only specim
 ### 6. Grounding provider and `caliper ground` — KEPT (2026-09-01)
 
 Reviewed and kept. `adapters/grounding.py` is deterministic, fail-open, and properly ported, but its only in-product consumer is the `ground` CLI export for external LLM reviewers. Wiring it into the detect-then-scribe pass as an opt-in scribe is tracked as [#481](https://github.com/gitrdunhq/caliper/issues/481). Side note: `caliper ground` is not listed in the CAPABILITIES CLI table.
+
+### 7. Supply-chain-threat LLM scribe — KEPT (2026-09-01)
+
+Reviewed and kept as-is. Opt-in behind two switches (`llm_enabled` plus `supply_chain_threat` in `enabled_scribes`), advisory-only, fail-open, prompt-injection hardened, and reachable from `caliper supply-chain-diff`. It is the one deliberate LLM touchpoint in the scan path; the narrative never changes severity or verdict.
