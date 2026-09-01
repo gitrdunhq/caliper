@@ -63,6 +63,7 @@ if [[ "$ENGINE" == "podman" ]]; then
     echo "$DOCKERFILE_CONTENT" \
       | "$ENGINE" build \
           --platform "linux/$ARCH" \
+          --target runtime \
           -t "$IMAGE" \
           -t caliper:latest \
           "${EXTRA_ARGS[@]}" \
@@ -80,6 +81,7 @@ else
           --allow security.insecure \
           --load \
           --platform "linux/$ARCH" \
+          --target runtime \
           -t "$IMAGE" \
           -t caliper:latest \
           "${EXTRA_ARGS[@]}" \
