@@ -125,10 +125,7 @@ def cli() -> None:
 
 def _register_subcommands() -> None:
     from caliper.cli.baseline_cmd import baseline
-    from caliper.cli.eval_cmd import eval_cmd
-    from caliper.cli.gauge_cmd import gauge
     from caliper.cli.ground_cmd import ground
-    from caliper.cli.inspect_cmd import inspect
     from caliper.cli.inspect_cmds import check_health, healthcheck, plugins, schema
     from caliper.cli.part_cmd import part
     from caliper.cli.query_cmd import query
@@ -140,9 +137,6 @@ def _register_subcommands() -> None:
     cli.add_command(schema)
     cli.add_command(query)
     cli.add_command(part)
-    cli.add_command(inspect)
-    cli.add_command(gauge)
-    cli.add_command(eval_cmd)
     cli.add_command(baseline)
     cli.add_command(supply_chain_diff)
     cli.add_command(ground)

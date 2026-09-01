@@ -309,163 +309,6 @@ class PartingConfig(BaseModel):
         return self
 
 
-# Bucket -> admissible claim categories (research-fed default; rule 4). Empty list
-# means "drop all claims" for that bucket. A move part admits only behavioral-change.
-_ALL_CATEGORIES: list[str] = [
-    "correctness",
-    "security",
-    "behavioral-change",
-    "maintainability",
-    "performance",
-    "style",
-]
-_DEFAULT_ALLOWED_CATEGORIES: dict[str, list[str]] = {
-    "generated": [],
-    "binary": [],
-    "move": ["behavioral-change"],
-    "config": ["correctness", "security", "maintainability", "style"],
-    "test": ["correctness", "maintainability", "style"],
-    "logic": list(_ALL_CATEGORIES),
-    "delete": ["correctness", "behavioral-change"],
-    # Architectural tiers (code) — inherit the full logic category set.
-    "frontend": list(_ALL_CATEGORIES),
-    "business": list(_ALL_CATEGORIES),
-    "data": list(_ALL_CATEGORIES),
-    "infra": list(_ALL_CATEGORIES),
-    # Content intent (non-code).
-    "documentation": ["correctness", "maintainability", "style"],
-    "supply_chain": ["security", "correctness", "behavioral-change"],
-    "ci_cd": ["correctness", "security", "maintainability"],
-    "security_policy": ["security", "correctness", "behavioral-change"],
-    "schema_contracts": ["correctness", "behavioral-change", "security"],
-}
-
-# Bucket -> minimum admissible severity (rule 5). Default "nit" keeps everything;
-# research tunes per bucket.
-_DEFAULT_SEVERITY_FLOOR: dict[str, str] = {
-    "generated": "nit",
-    "binary": "nit",
-    "move": "nit",
-    "config": "nit",
-    "test": "nit",
-    "logic": "nit",
-    "delete": "nit",
-    "frontend": "nit",
-    "business": "nit",
-    "data": "nit",
-    "infra": "nit",
-    "documentation": "nit",
-    "supply_chain": "nit",
-    "ci_cd": "nit",
-    "security_policy": "nit",
-    "schema_contracts": "nit",
-}
-
-# Bucket -> Screen gauge routing (analyzer category names, run scoped to the part).
-# Research-fed default; reuses existing analyzers, never new scanners.
-_DEFAULT_BUCKET_GAUGES: dict[str, list[str]] = {
-    "generated": [],  # checksum/stamp handled structurally; no analyzers, no LLM
-    "binary": ["supply_chain"],  # malware/size
-    "move": [],  # structural-identity gauge handled structurally
-    "config": ["infra", "quality"],
-    "test": ["quality"],
-    "logic": ["code", "quality", "supply_chain"],  # full set + LLM
-    "delete": [],  # reference gauge where available (v0 cross-part gap)
-    # Architectural tiers (code).
-    "frontend": ["code", "quality"],
-    "business": ["code", "quality", "supply_chain"],
-    "data": ["code", "quality"],
-    "infra": ["infra", "quality"],
-    # Content intent (non-code).
-    "documentation": ["quality"],
-    "supply_chain": ["supply_chain"],
-    "ci_cd": ["infra", "quality"],
-    "security_policy": ["code", "quality"],
-    "schema_contracts": ["code", "quality"],
-}
-
-# Buckets whose parts get a Review pass. Others are Screen only. The code tiers
-# (and the contract/policy buckets) earn an LLM pass; pure non-code data buckets
-# (supply_chain manifests, ci_cd, documentation) stay Screen-only.
-_DEFAULT_LLM_BUCKETS: list[str] = [
-    "logic",
-    "config",
-    "test",
-    "frontend",
-    "business",
-    "data",
-    "infra",
-    "security_policy",
-    "schema_contracts",
-]
-
-# Claim category -> compatible Screen finding categories for evidence binding
-# (research-fed default). A blocking claim needs a binding to keep gate-shaped signal.
-_DEFAULT_CATEGORY_COMPAT: dict[str, list[str]] = {
-    "security": ["security", "vulnerability", "malicious", "malware", "supply_chain"],
-    "correctness": ["correctness", "behavioral", "code_smell", "bug"],
-    "behavioral-change": ["behavioral", "behavioral-change", "code_smell"],
-    "maintainability": ["code_smell", "maintainability", "quality"],
-    "performance": ["performance", "resource"],
-    "style": ["style", "code_smell"],
-}
-
-
-class InspectConfig(BaseModel):
-    """Configuration for ``caliper inspect`` (per-part review).
-
-    Every research-fed default is a knob here so a finding can replace it without
-    restructuring. The adjudicator is pure and reads only this config.
-    """
-
-    token_budget: int = 8000  # lower-parts context budget (research-fed)
-    backend: str = "null"  # LLMPort backend key (research-fed: oMLX + cloud fallback)
-    model_id: str = "unset"  # part of the cache key
-    prompt_version: str = "v0"  # part of the cache key
-    allowed_categories: dict[str, list[str]] = Field(
-        default_factory=lambda: dict(_DEFAULT_ALLOWED_CATEGORIES)
-    )
-    severity_floor: dict[str, str] = Field(default_factory=lambda: dict(_DEFAULT_SEVERITY_FLOOR))
-    bucket_gauges: dict[str, list[str]] = Field(
-        default_factory=lambda: dict(_DEFAULT_BUCKET_GAUGES)
-    )
-    llm_buckets: list[str] = Field(default_factory=lambda: list(_DEFAULT_LLM_BUCKETS))
-    category_compat: dict[str, list[str]] = Field(
-        default_factory=lambda: dict(_DEFAULT_CATEGORY_COMPAT)
-    )
-    # Fail-closed default: a Screen gauge that cannot run is a hard error. Relax
-    # only for local dev where scanner binaries are absent.
-    allow_missing_gauges: bool = False
-
-
-class GaugeConfig(BaseModel):
-    """Configuration for ``caliper gauge`` (the flywheel).
-
-    The bias guards are mandatory defaults, all config-tunable: only correctness/
-    security/behavioral-change claims are candidate-eligible, and a cluster must
-    recur across enough distinct parts and authors before it can be drafted. The
-    backtest thresholds are the deterministic gate.
-    """
-
-    # Candidacy floor: nits and pure-style claims are ineligible by default.
-    eligible_categories: list[str] = Field(
-        default_factory=lambda: ["correctness", "security", "behavioral-change"]
-    )
-    # Recurrence threshold: N distinct parts and M distinct authors/PRs.
-    recurrence_min_parts: int = 3
-    recurrence_min_authors: int = 2
-    # Backtest gates.
-    recall_floor: float = 0.7  # must catch at least this fraction of historical hits
-    precision_fp_ceiling: float = 0.05  # max false-positive rate on the clean corpus
-    runtime_budget_ms: int = 2000  # Screen time budget for a single gauge
-    # propose default.
-    top_default: int = 10
-    # LLM drafting backend (the only LLM step) + lineage stamps.
-    drafter: str = "null"
-    model_id: str = "unset"
-    prompt_version: str = "v0"
-
-
 class BaselineConfig(BaseModel):
     """Configuration for finding baseline/suppression (``caliper baseline``)."""
 
@@ -506,8 +349,6 @@ class RepoConfig(BaseModel):
     thresholds: dict[str, dict[str, Any]] = {}
     telemetry: TelemetryConfig = TelemetryConfig()
     parting: PartingConfig = PartingConfig()
-    inspect: InspectConfig = InspectConfig()
-    gauge: GaugeConfig = GaugeConfig()
     baseline: BaselineConfig = BaselineConfig()
     architecture: ArchitectureConfig = ArchitectureConfig()
 
@@ -550,24 +391,18 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
     merged_telemetry = (
         pkg_config.telemetry if pkg_config.telemetry != TelemetryConfig() else root_config.telemetry
     )
-    # Carry parting/inspect/gauge through the merge (package precedence when set,
-    # else root). Previously RepoConfig was rebuilt with only plugins/thresholds/
-    # telemetry, silently dropping these three to defaults on a package merge —
-    # which would also wipe a parting.overrides table (#442).
+    # Carry parting through the merge (package precedence when set, else root).
+    # Previously RepoConfig was rebuilt with only plugins/thresholds/telemetry,
+    # silently dropping parting to defaults on a package merge — which would also
+    # wipe a parting.overrides table (#442).
     merged_parting = (
         pkg_config.parting if pkg_config.parting != PartingConfig() else root_config.parting
     )
-    merged_inspect = (
-        pkg_config.inspect if pkg_config.inspect != InspectConfig() else root_config.inspect
-    )
-    merged_gauge = pkg_config.gauge if pkg_config.gauge != GaugeConfig() else root_config.gauge
     return RepoConfig(
         plugins=merged_plugins,
         thresholds=merged_thresholds,
         telemetry=merged_telemetry,
         parting=merged_parting,
-        inspect=merged_inspect,
-        gauge=merged_gauge,
     )
 
 

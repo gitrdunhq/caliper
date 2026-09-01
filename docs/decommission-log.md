@@ -150,3 +150,35 @@ Thirteen-line re-export of four registered detectors "for framework demonstratio
 ### 10. `caliper query` — KEPT, renamed in docs (2026-09-01)
 
 Reviewed and kept. Twelve canned SQL templates over the code graph, chosen by keyword overlap. Reachable, tested, deterministic. The docs called it a "natural language" / "NL query" system, which oversold keyword matching; README, CAPABILITIES, and the command docstring now describe it as code graph queries. Module and test file names (`nl_query`) are unchanged to avoid churn.
+
+## Archive tag: `archive/pre-cut-tier2`
+
+Points at `9f5de1d` (main after the Tier 1 merge plus the ratchet-allowlist fix, 2026-09-01).
+
+### 11. The flywheel: `caliper inspect`, `caliper gauge`, `caliper eval` (2026-09-01)
+
+**What it was.** Three commands built together on 2026-06-29. `inspect` took a `caliper part` cut list, ran deterministic "Screen" gauges per part, optionally asked an LLM for review claims, filtered them through a pure "Adjudicate" function, and appended survivors and drops to a claims ledger. `gauge` clustered the ledger, had an LLM draft candidate gauges, backtested them deterministically, and let a human promote one into a permanent Screen gauge. `eval` scored the Adjudicate filter against a seeded-bug corpus. ADR-008 and `docs/llm-review/` document the design.
+
+**Why it was cut.**
+
+- It never touched the gate: nothing in `review`, `evaluate`, the plugins, scribes, or composition root imported it. A promoted gauge became active only in inspect's own Screen tier, so the CI gate users run gained nothing from flywheel curation.
+- It could not run without Tier 3: `caliper inspect` required a `cutlist.json` from `caliper part`.
+- It was a research program for making LLM review trustworthy, which is the problem the product says it sidesteps. One-day build, no feature work since, no open issues.
+
+**Removed.**
+
+| Area | Files |
+|---|---|
+| `core/` | `inspect.py`, `inspect_eval.py`, `inspect_runner.py`, `inspect_gauges.py`, `inspect_view.py`, `inspect_cache.py`, `gauge.py`, `gauge_engine.py`, `gauge_propose.py`, `gauge_status.py`, `flywheel.py`, `ledger.py`, `tool_crib.py`, `backtest.py` |
+| `data/` | `_inspect_llm.py` |
+| `cli/` | `inspect_cmd.py`, `gauge_cmd.py`, `eval_cmd.py` |
+| `scripts/` | `try-caliper-on-pr.sh` (a `part` -> `inspect` runner; `caliper part --pr` covers the `part` half natively) |
+| tests | 14 unit files (`test_inspect_*`, `test_gauge_*`), 2 integration files (`test_inspect_cli.py`, `test_gauge_cli.py`) |
+
+Roughly 2,600 source lines and 2,200 test lines.
+
+**Also cleaned.** `core/llm_port.py` trimmed to just `LLMTransportPort` (the kept supply-chain-threat scribe's seam); `INSPECT_BACKENDS` and `GAUGE_DRAFTERS` registries; the inspect and gauge model section of `core/models.py` (`Severity`, `Category`, `Confidence`, `Claim`, `GaugeFinding`, `GaugeResult`, `DroppedClaim`, `InspectionReport`, `LedgerEntry`, `ClaimCluster`, `Backtest`, `CandidateGauge`, `Promotion`); `InspectConfig`, `GaugeConfig`, their research-fed default tables, and their merge handling in `core/repo_config.py`, which changes the published `.caliper.yaml` schema; the README Inspect and Gauge sections; three CAPABILITIES CLI rows (CLI command count 10 -> 7); the inspect/gauge merge test in `test_repo_config_merge.py`.
+
+**Kept.** `cli/inspect_cmds.py` (despite the name it holds `healthcheck`, `check-health`, `plugins`, `schema`); `data/llm_client.py` and `tests/unit/test_llm_client.py`; `scripts/cutlist_report.py` (its inspect input was optional); ADR-008 and `docs/llm-review/` as historical records.
+
+**Worth salvaging later.** The Adjudicate filter's anchor-quote rule: a claim's quoted text had to appear verbatim in the part's changed text before its line numbers were trusted. It is a reusable anti-hallucination primitive for any future LLM consumer. It lived in `core/inspect.py` at the archive tag.

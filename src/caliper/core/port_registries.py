@@ -16,7 +16,6 @@ directly.
 from __future__ import annotations
 
 from caliper.adapter_registry import Registry
-from caliper.core.llm_port import GaugeDraftPort, LLMPort
 from caliper.core.plugin import AnalyzerPort
 from caliper.core.policy_port import PolicyEnginePort
 from caliper.core.ports import (
@@ -62,15 +61,6 @@ SCAN_CACHES: Registry[ScanCachePort] = Registry("scan_cache")
 # be auto-discovered into the automatic review pipeline. It runs only when the
 # developer invokes `caliper part`. See caliper.plugins._parting.
 PARTING: Registry[AnalyzerPort] = Registry("parting")
-# Inspect (caliper inspect) — Review backends. The LLM lives ONLY behind
-# this seam; the deterministic tiers (Screen gauges, Adjudicate) must never
-# import the concrete backends (data/_inspect_llm.py) or the runner. A structural
-# test enforces that isolation.
-INSPECT_BACKENDS: Registry[LLMPort] = Registry("inspect_backend")
-# Gauge (caliper gauge) — the Review step of the flywheel: LLM backends that DRAFT candidate
-# gauges. The LLM drafts but never promotes; drafts are gated by the deterministic
-# backtest and explicit human promotion. Isolated like INSPECT_BACKENDS.
-GAUGE_DRAFTERS: Registry[GaugeDraftPort] = Registry("gauge_drafter")
 
 __all__ = [
     "CODEGRAPH_CHECKS",
@@ -78,9 +68,7 @@ __all__ = [
     "SCRIBES",
     "EVIDENCE_STORES",
     "FILE_SOURCES",
-    "GAUGE_DRAFTERS",
     "GROUNDING_PROVIDERS",
-    "INSPECT_BACKENDS",
     "PACKAGE_INDEXES",
     "PACKAGE_SOURCES",
     "PARTING",
