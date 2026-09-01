@@ -612,29 +612,6 @@ def test_223_json_report_omits_full_sbom_payloads() -> None:
     assert sensitive_component not in output
 
 
-def test_228_package_config_merge_preserves_root_telemetry(tmp_path: Path) -> None:
-    from caliper.core.repo_config import load_merged_config
-
-    (tmp_path / ".caliper.yaml").write_text(
-        "telemetry:\n"
-        "  enabled: true\n"
-        "  endpoint: https://telemetry.example.test/v1/events\n"
-        "plugins:\n"
-        "  disabled:\n"
-        "    - trivy\n"
-    )
-    package_root = tmp_path / "packages" / "api"
-    package_root.mkdir(parents=True)
-    (package_root / ".caliper.yaml").write_text(
-        "thresholds:\n" "  semgrep:\n" "    max_findings: 0\n"
-    )
-
-    merged = load_merged_config(tmp_path, package_root=package_root)
-
-    assert merged.telemetry.enabled is True
-    assert merged.telemetry.endpoint == "https://telemetry.example.test/v1/events"
-
-
 def test_230_seal_verification_fails_on_unexpected_added_files(tmp_path: Path) -> None:
     from caliper.core.seal import create_seal, verify_seal
 

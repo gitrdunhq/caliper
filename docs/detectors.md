@@ -1,6 +1,6 @@
 # Deterministic Detectors
 
-Caliper ships **22 deterministic bug detectors** (`CAL-001` … `CAL-022`) in
+Caliper ships **21 deterministic bug detectors** (`CAL-001` … `CAL-022`; CAL-013 was retired with telemetry, ids are never reused) in
 `src/caliper/detectors/`. They complement the 19 scanner plugins: where a plugin shells out
 to an external tool or queries an external database (CVEs, licenses, SBOMs), a *detector* is
 a small, self-contained, AST-driven rule that flags a specific bug pattern in source you
@@ -13,7 +13,7 @@ Every detector belongs to exactly one profile (`src/caliper/detectors/profiles.p
 | Profile | On by default | What it holds |
 |---------|---------------|---------------|
 | `default` | yes | General bug patterns: CAL-001, 002, 004, 005, 006, 010, 012, 015, 016, 018, 020, 022 |
-| `house-rules` | no | Caliper's own conventions: CAL-003, 007, 008, 009, 011, 013, 014, 017, 019, 021 |
+| `house-rules` | no | Caliper's own conventions: CAL-003, 007, 008, 009, 011, 014, 017, 019, 021 |
 
 Select them in `.caliper.yaml`; `enable`/`disable` adjust single ids on top:
 
@@ -110,11 +110,10 @@ Shared helpers live in `src/caliper/detectors/ast_utils.py`: a content-addressed
 | CAL-019 | Nullable advisory_id in Dedup Key | low | dedup-key tuples with an unguarded `advisory_id` (None collapses findings) |
 | CAL-021 | Non-Atomic File Write | medium | `.write_bytes()/.write_text()` with no `os.rename()`/`.replace()` swap |
 
-### Configuration (2)
+### Configuration (1)
 
 | ID | Name | Severity | Catches |
 |----|------|----------|---------|
-| CAL-013 | Config Merge Dropping Telemetry | low | `{**base, **override}` / `.update()` merges that drop telemetry keys |
 | CAL-018 | Dockerfile Pin Drift | medium | hardcoded `pip install pkg==x` or `:latest` image tags (reproducibility drift) |
 
 ### Process (1)

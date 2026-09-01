@@ -8,15 +8,15 @@
   LAST VERIFIED: 2026-07-10
   VERIFICATION: 16 auto-discovered scanner plugins (@ANALYZERS.register) + the
   "deterministic" plugin (composition-registered, wraps DeterministicScanner,
-  #457) + OPA policy plugin (18 ScannerPlugin subclasses total); 22 detectors
+  #457) + OPA policy plugin (18 ScannerPlugin subclasses total); 21 detectors
   in src/caliper/detectors/; 67 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
-17 scanner plugins (16 auto-discovered + "deterministic", which wraps all 22
-CAL-001..022 detectors), 67 custom semgrep rules, 10 code graph
+17 scanner plugins (16 auto-discovered + "deterministic", which wraps all 21
+CAL-001..021 detectors), 67 custom semgrep rules, 10 code graph
 checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
@@ -25,7 +25,7 @@ supply-chain version-bump narrative is advisory metadata only).
 | Metric | Count |
 |--------|-------|
 | Scanner plugins | 17 (16 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
-| Deterministic detectors | 22 (CAL-001..CAL-022), run via the "deterministic" plugin during `caliper review` |
+| Deterministic detectors | 21 (CAL-001..CAL-022, CAL-013 retired), run via the "deterministic" plugin during `caliper review` |
 | Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 10 |
 | OPA Rego policy rules | 16 (7 deny, 9 warn) |
@@ -73,7 +73,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 
 | Plugin | File | Detects |
 |--------|------|---------|
-| deterministic | `composition/deterministic_plugin.py` | Wraps `DeterministicScanner` (`detectors/scanner.py`) — the 22 AST-based bug detectors (CAL-001..022) selected by `detectors.profiles` in `.caliper.yaml`: `default` (12 general bug patterns, on) and `house-rules` (10 caliper-convention rules, opt-in), plus `enable`/`disable` per id (`detectors/profiles.py`). Composition-registered rather than auto-discovered, since `detectors/` may not import `plugins/` directly (#457). |
+| deterministic | `composition/deterministic_plugin.py` | Wraps `DeterministicScanner` (`detectors/scanner.py`) — the 21 AST-based bug detectors (CAL-001..022, CAL-013 retired) selected by `detectors.profiles` in `.caliper.yaml`: `default` (12 general bug patterns, on) and `house-rules` (9 caliper-convention rules, opt-in), plus `enable`/`disable` per id (`detectors/profiles.py`). Composition-registered rather than auto-discovered, since `detectors/` may not import `plugins/` directly (#457). |
 | semgrep | `plugins/semgrep.py` | AST code pattern matching via opengrep. Community rules come ONLY from a semgrep-rules snapshot pinned by commit in the Dockerfile (`SEMGREP_RULES_COMMIT`, baked at `/opt/caliper/semgrep-rules`); language directories are selected by file type and registry packs are never fetched, so the scan path has no network dependency and the rule set cannot drift. The 67 custom org rules (see below) run against every target via `CALIPER_SEMGREP_ORG_RULES_DIR`. Host runs: `scripts/snapshot-semgrep-rules.sh`. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyrefly (fastest) when available, falls back to pyright, then mypy. Error + warning severity only. |
@@ -205,7 +205,6 @@ with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](detectors.md).
 | CAL-019 | Nullable advisory_id in Dedup Key | reliability | low |
 | CAL-021 | Non-Atomic File Write | reliability | medium |
 | CAL-022 | Architecture Tier Boundary Violation | security | medium |
-| CAL-013 | Config Merge Dropping Telemetry | configuration | low |
 | CAL-018 | Dockerfile Pin Drift | configuration | medium |
 | CAL-014 | Missing Tested-By Annotation | process | low |
 
@@ -368,9 +367,8 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | Policy engine | `core/policy.py` | OPA subprocess wrapper with fail-open degradation. |
 | Topological ordering | `core/plugin_registry.py` | Plugins declare `depends_on` for execution order. `["*"]` = run last. Circular dep detection. |
 | Ignore patterns | `core/ignore.py` | `.caliperignore` with 6 built-in defaults (.git/, __pycache__/, node_modules/, .venv/, .claude/, .caliper/). |
-| Repo config | `core/repo_config.py` | `.caliper.yaml` — per-plugin enable/disable, thresholds, telemetry. Root + package-level merge. |
+| Repo config | `core/repo_config.py` | `.caliper.yaml` — per-plugin enable/disable, thresholds. Root + package-level merge. |
 | Structured errors | `core/errors.py` | 10 error codes: NOT_INSTALLED, TIMEOUT, PARSE_ERROR, PERMISSION_DENIED, BINARY_CRASHED, NO_OUTPUT, SCANNER_DEGRADED, CONFIG_MISSING, INDEX_FAILED, NETWORK_ERROR. |
-| Telemetry | `core/telemetry.py` | Anonymous opt-in, 9 signals, Pydantic `extra="forbid"`, file-path stripping, fire-and-forget async. |
 
 ---
 
@@ -429,7 +427,7 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | Mechanism | File | Scope |
 |-----------|------|-------|
 | Env vars | `CALIPER_*` prefix | Global: operating_mode, db_dsn, evidence_path, 7 timeouts, enabled_scanners, LLM settings |
-| Repo config | `.caliper.yaml` | Per-repo: plugin enable/disable, per-plugin thresholds, telemetry, `baseline.path`/`baseline.default_ttl_days`. Root + package-level merge. |
+| Repo config | `.caliper.yaml` | Per-repo: plugin enable/disable, per-plugin thresholds, `baseline.path`/`baseline.default_ttl_days`. Root + package-level merge. |
 | Finding baseline | `.caliper-baseline.yaml` (path configurable) | Per-repo: deterministic finding suppressions (fingerprint, reason, added, expires), written by `caliper baseline update`. |
 | Ignore patterns | `.caliperignore` | Per-repo: fnmatch exclusions, layered on top of every file source. |
 | File source | `CALIPER_FILE_SOURCE` | Global: `auto` (git ls-files when usable, else walk), `git`, or `walk`. |
