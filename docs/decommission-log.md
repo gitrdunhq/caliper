@@ -251,3 +251,19 @@ Points at `1d3736b` (2026-09-01, after the Foreman cut).
 - CAL-013 had no purpose once the section it guarded was gone; its id is retired, never reused.
 
 **Removed.** `core/telemetry.py`, `data/telemetry_sender.py`, `detectors/config/config_merge.py`, `TelemetryConfig` and its merge handling in `core/repo_config.py`, and the tests: `test_telemetry.py`, `test_deterministic_telemetry_merge_guards.py`, `test_deterministic_metrics_guards.py`, `test_deterministic_config_guards.py`, `detectors/config/test_config_merge.py`, plus the telemetry cases in `test_repo_config_merge.py`, `test_deterministic_runtime_contracts.py`, and `test_deterministic_feature_flag_guards.py`. Detector count 22 -> 21 (house-rules profile 10 -> 9).
+
+## Archive tag: `archive/pre-cut-telemetry` (continued) — container slimming branch
+
+### 17. ClamAV plugin (2026-09-01)
+
+**What it was.** `plugins/clamav.py`: recursive `clamscan` over the repo, opt-in via `--enable clamav`. The image installed `clamav` + `clamav-freshclam` (44 MB) but, correctly, no signature database, so `/var/lib/clamav` was empty and the plugin could never run as shipped without a runtime `freshclam` download.
+
+**Why it was cut.** Opt-in, unusable without network at scan time, 44 MB of packages plus libarchive for a scanner nobody enabled. Source repos are not the threat model malware AV was built for.
+
+**Removed.** The plugin, its unit test, the e2e `TestClamav`, the clamscan and no-stale-signature checks in `tests/integration/test_dockerfile.py`, `clamav` from `DEFAULT_OPT_IN_PLUGINS`, the binary map and renderer order, `.caliper.yaml`, both Dockerfiles, and all docs. Plugin count 16 -> 15 auto-discovered (16 with `deterministic`).
+
+### Container slimming (branch `chore/slim-container`)
+
+Measured before: 1.46 GB. Biggest items: `openjdk-21-jre-headless` 199 MB + PMD 78 MB (CPD), pyarrow 135 MB (parquet extra), mypy 58 MB, `uv` 48 MB, ClamAV 44 MB, libicu 37 MB, and the production tag was actually the `e2e-test` stage (`scripts/build.sh` passed no `--target`), so it also carried pytest and an empty ENTRYPOINT that bypassed the checksum-verifying `entrypoint.sh`.
+
+Changes: `build.sh` targets `runtime`; a jlink'd JRE sized by `jdeps` over PMD's own jars replaces the full JRE; mypy dropped from the venv (pyrefly is the type checker, mypy was the last fallback); ClamAV and libarchive gone; libicu only on amd64 where swiftlint needs it.

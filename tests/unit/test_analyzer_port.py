@@ -11,7 +11,7 @@ registry, but not via `autodiscover()` — it self-registers only once
 only tier allowed to bridge `plugins` and `detectors`). Any test module that
 calls `load_adapters()` at import time (e.g. `test_port_registries.py`,
 `test_scribe_registry.py`) makes it visible here too in a full-suite run —
-hence the count below is 17, not 16.
+hence the count below is 16, not 15.
 """
 
 from __future__ import annotations
@@ -19,11 +19,10 @@ from __future__ import annotations
 from caliper.core.plugin import AnalyzerPort
 from caliper.plugins import ANALYZERS, get_default_registry
 
-# The 16 auto-discovered plugins + "deterministic" (composition-registered,
+# The 15 auto-discovered plugins + "deterministic" (composition-registered,
 # see module docstring). "opa" is underscore-excluded, wired separately.
 _EXPECTED_PLUGINS = {
     "blast-radius",
-    "clamav",
     "complexity",
     "cpd",
     "typos",
@@ -43,12 +42,12 @@ _EXPECTED_PLUGINS = {
 
 
 class TestAnalyzerRegistry:
-    def test_capability_count_is_17(self):
+    def test_capability_count_is_16(self):
         from caliper.composition.bootstrap import load_adapters
 
         load_adapters()
         # Guards docs/CAPABILITIES.md — keep in lockstep with the inventory.
-        assert len(ANALYZERS.keys()) == 17
+        assert len(ANALYZERS.keys()) == 16
 
     def test_registered_keys_match_expected_plugins(self):
         from caliper.composition.bootstrap import load_adapters
@@ -82,12 +81,12 @@ class TestAnalyzerPortIsProtocol:
 
 
 class TestGetDefaultRegistryUsesDecoratorDiscovery:
-    def test_default_registry_has_17_plugins(self):
+    def test_default_registry_has_16_plugins(self):
         from caliper.composition.bootstrap import load_adapters
 
         load_adapters()
         registry = get_default_registry()
-        assert len(registry.list()) == 17
+        assert len(registry.list()) == 16
 
     def test_default_registry_names_match_registry_keys(self):
         registry = get_default_registry()

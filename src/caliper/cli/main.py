@@ -369,7 +369,7 @@ def review(
         repo_config, disable=disable, enable=enable
     )
     # Naming a plugin explicitly via --scanners is itself a request to run it —
-    # it must win over a default-opt-out plugin (e.g. clamav) the same way
+    # it must win over a default-opt-out plugin (e.g. scancode) the same way
     # --enable does.
     if names:
         enabled_names |= set(names)

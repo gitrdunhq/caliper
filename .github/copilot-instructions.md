@@ -34,4 +34,3 @@ The Foreman Review CI job runs 16 deterministic plugins. Its findings appear as 
 | Blast Radius | Fan-out, layer violations |
 | OPA | Policy verdict (6 Rego rules) |
 | Syft | SBOM generation |
-| ClamAV | Malware scanning |

@@ -83,7 +83,7 @@ class TestJsonReport:
     def test_includes_error(self) -> None:
         from caliper.core.json_report import render_json
 
-        results = [_make_result("clamav", error="TIMEOUT after 60s")]
+        results = [_make_result("gitleaks", error="TIMEOUT after 60s")]
         output = json.loads(render_json(results))
         plugin = output["plugins"][0]
         assert plugin["status"] == "error"

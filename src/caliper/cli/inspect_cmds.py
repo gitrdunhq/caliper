@@ -10,13 +10,12 @@ from caliper.plugins import get_default_registry
 
 _BINARY_MAP: dict[str, list[str] | None] = {
     "blast-radius": None,
-    "clamav": ["clamscan"],
     "complexity": ["lizard"],
     "cpd": ["pmd"],
     "gitleaks": ["gitleaks"],
     "kube-linter": ["kube-linter"],
     "ls-lint": ["ls-lint"],
-    "mypy": ["mypy", "pyright"],
+    "mypy": ["pyrefly", "pyright", "mypy"],
     "opa": ["opa"],
     "osv-scanner": ["osv-scanner"],
     "scancode": ["scancode"],

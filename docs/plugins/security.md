@@ -59,18 +59,6 @@ Blocks for the same reason as trivy: a known vulnerable package in the dependenc
 
 ---
 
-## clamav
-
-Scans committed files for malware signatures using the ClamAV engine and signature database.
-
-| Severity | Condition |
-|----------|-----------|
-| Critical | Any positive malware signature match |
-
-Blocks unconditionally — a malware detection in source code or bundled assets means the commit must not land under any circumstances.
-
----
-
 ## supply-chain
 
 Validates package provenance: rejects newly published packages, unpinned versions, and missing lockfiles before they enter the dependency graph.

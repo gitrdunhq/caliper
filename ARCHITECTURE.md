@@ -293,7 +293,6 @@ category since `PluginCategory` has no policy value.
 | `syft` | dependency | SBOM generation — CycloneDX JSON (18 ecosystems) |
 | `supply-chain` | supply_chain | Unpinned dependency + lockfile integrity + Docker latest-tag detection |
 | `gitleaks` | supply_chain | Secret and credential detection (800+ patterns) |
-| `clamav` | supply_chain | Malware/virus scanning (ClamAV) |
 | `semgrep` | code | Code pattern analysis — AST matching with dynamic rulesets |
 | `cpd` | code | Copy-paste detection — token-based duplication (12 languages) |
 | `mypy` | code | Static type checking for Python (type-error findings) |
