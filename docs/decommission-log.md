@@ -132,3 +132,7 @@ Reviewed and kept. `adapters/grounding.py` is deterministic, fail-open, and prop
 ### 7. Supply-chain-threat LLM scribe — KEPT (2026-09-01)
 
 Reviewed and kept as-is. Opt-in behind two switches (`llm_enabled` plus `supply_chain_threat` in `enabled_scribes`), advisory-only, fail-open, prompt-injection hardened, and reachable from `caliper supply-chain-diff`. It is the one deliberate LLM touchpoint in the scan path; the narrative never changes severity or verdict.
+
+### 8. `detectors/_sample_detectors.py` (2026-09-01)
+
+Thirteen-line re-export of four registered detectors "for framework demonstration". No references anywhere, no `# tested-by:` annotation. Deleted; the detectors themselves are unaffected.
