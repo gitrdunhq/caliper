@@ -104,3 +104,23 @@ Points at `17eb7d6` (main as of 2026-09-01, release 0.2.30 plus the pyrefly type
 The three guard files were `xfail(strict=False)` bug detectors whose only specimens were `catalog.py` (and, before entry 1, the concern modules). They documented issue #172-era bugs in code nobody ran and could never fail.
 
 **Also cleaned.** The `catalog.py` entry in `test_deterministic_cache_key_guards.py`; the `catalog.py` and never-existing `core/solver.py` entries in `test_deterministic_eviction_guards.py`; the README data-tier tree line. `test_deterministic_migration_guards.py` still names the migration in a docstring example only.
+
+### 5. Approved-alternatives catalog (2026-09-01)
+
+**What it was.** `data/alternatives.py`: a Pydantic schema for a JSON file mapping packages to categories and "approved alternatives", `requirements.txt` / `pyproject.toml` parsers, a ~30-name hardcoded category table, and `scripts/bootstrap_alternatives.py` to generate the JSON. Meant to let the Foreman agent suggest safer substitutes.
+
+**Why it was cut.**
+
+- Unreachable: nothing in `src/` imported it. `CaliperSettings.alternatives_path` was read by no code; no `alternatives.json` existed; `agent/main.py` never passed `alternatives=` to `build_system_prompt`, so the agent's ALTERNATIVES rubric had no data source.
+- First-commit code, untouched except by the rename.
+- Wrong home: if it returns, it belongs in OPA data next to the rest of policy. Tracked as [#480](https://github.com/gitrdunhq/caliper/issues/480).
+
+**Removed.**
+
+| Path | Lines |
+|---|---|
+| `src/caliper/data/alternatives.py` | 197 |
+| `scripts/bootstrap_alternatives.py` | 67 |
+| `tests/unit/test_alternatives.py` | 451 |
+
+**Also cleaned.** The `alternatives_path` setting and its three assertions in `test_config.py`; the `categorize_package` determinism property test in `test_properties.py`; the README data-tier tree line; the CAPABILITIES "Alternatives catalog" row. The agent prompt's `alternatives` parameter is kept (harmless, independently tested, and the natural hook for #480).

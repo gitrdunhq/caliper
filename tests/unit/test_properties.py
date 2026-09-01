@@ -27,7 +27,6 @@ from caliper.core.models import (
     ScanResultStatus,
 )
 from caliper.core.normalizer import _SEVERITY_RANK, normalize_findings
-from caliper.data.alternatives import categorize_package
 from caliper.data.scanners.osv import _cvss_score_to_severity
 
 # ---------------------------------------------------------------------------
@@ -356,21 +355,3 @@ def test_requirements_parse_round_trip(packages: list[str]) -> None:
     parsed = _parse_requirements(content)
     # All unique package names from input must appear in the parsed output
     assert set(packages) == set(parsed.keys())
-
-
-# ---------------------------------------------------------------------------
-# 8. Package categorization is stable (deterministic)
-# ---------------------------------------------------------------------------
-
-
-@given(name=st.text(min_size=1, max_size=50))
-@settings(max_examples=200)
-def test_categorize_is_deterministic(name: str) -> None:
-    """Same package name always gets the same category.
-
-    categorize_package is a pure function backed by a static lookup table
-    with a deterministic 'unknown' fallback — no state, no I/O.
-    """
-    cat1 = categorize_package(name)
-    cat2 = categorize_package(name)
-    assert cat1 == cat2

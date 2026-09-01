@@ -129,9 +129,6 @@ class CaliperSettings(BaseSettings):
     grounding_max_symbols: int = 40
     gitnexus_graph_path: str | None = None
 
-    # Alternatives catalog
-    alternatives_path: str = "./alternatives.json"
-
     # ScanCode-specific tuning (closes #335)
     scancode_timeout: int = 60
     scancode_license_score: int = 0
