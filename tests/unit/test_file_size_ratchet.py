@@ -27,7 +27,6 @@ _ALLOWLIST = {
     "adapters/grounding.py": 649,
     "composition/bootstrap.py": 638,
     "core/repo_config.py": 606,
-    "data/solver.py": 559,
     "agent/tools.py": 545,
     "core/pipeline.py": 506,
 }
