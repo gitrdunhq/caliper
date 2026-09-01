@@ -136,3 +136,13 @@ Reviewed and kept as-is. Opt-in behind two switches (`llm_enabled` plus `supply_
 ### 8. `detectors/_sample_detectors.py` (2026-09-01)
 
 Thirteen-line re-export of four registered detectors "for framework demonstration". No references anywhere, no `# tested-by:` annotation. Deleted; the detectors themselves are unaffected.
+
+### 9. `caliper reinstall` moved to `make reinstall` (2026-09-01)
+
+**What it was.** A CLI subcommand that located the caliper checkout via `git rev-parse`, validated it, and ran `scripts/install-local.sh` to rebuild and reinstall the `caliper` uv tool with a unique local version suffix.
+
+**Why it moved.** Dev-only, but shipped in the public CLI: every PyPI/container user got a subcommand that assumes a git checkout of caliper's own source and rewrites `pyproject.toml`. The script already did all the work.
+
+**Removed.** `src/caliper/cli/reinstall_cmd.py` (143 lines), `tests/unit/test_reinstall_cmd.py` (164 lines), the CLI registration, and the CAPABILITIES row (CLI command count 11 -> 10).
+
+**Kept.** `scripts/install-local.sh`, now invoked by the new `make reinstall` target.
