@@ -69,20 +69,6 @@ class TestMypy:
         ), f"Mypy should find type error. Findings: {json.dumps(findings, indent=2)}"
 
 
-class TestTypos:
-    def test_typos_finds_typo(self, vuln_repo: Path, tmp_path: Path) -> None:
-        """Typos detects misspelled words."""
-        result, parsed = run_review(vuln_repo, scanners="typos", output_format="json")
-        breakpoint_dump(tmp_path, "scanner_typos", parsed)
-
-        assert result.exit_code == 0, f"Exit code {result.exit_code}: {result.output}"
-
-        findings = get_plugin_findings(parsed, "typos")
-        assert (
-            len(findings) >= 1
-        ), f"Typos should find typos. Findings: {json.dumps(findings, indent=2)}"
-
-
 class TestLsLint:
     def test_ls_lint_finds_naming_violation(self, vuln_repo: Path, tmp_path: Path) -> None:
         result, parsed = run_review(vuln_repo, scanners="ls-lint", output_format="json")

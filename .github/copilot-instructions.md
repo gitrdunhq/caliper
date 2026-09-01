@@ -26,7 +26,6 @@ The Foreman Review CI job runs 16 deterministic plugins. Its findings appear as 
 | Supply Chain | Unpinned deps, package age, malware |
 | Lizard + Radon | Cyclomatic complexity |
 | PMD CPD | Copy-paste duplication |
-| typos | Typo detection |
 | ls-lint | File naming conventions |
 | kube-linter | K8s security |
 | Semgrep | AST code patterns |

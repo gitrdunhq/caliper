@@ -267,3 +267,15 @@ Points at `1d3736b` (2026-09-01, after the Foreman cut).
 Measured before: 1.46 GB. Biggest items: `openjdk-21-jre-headless` 199 MB + PMD 78 MB (CPD), pyarrow 135 MB (parquet extra), mypy 58 MB, `uv` 48 MB, ClamAV 44 MB, libicu 37 MB, and the production tag was actually the `e2e-test` stage (`scripts/build.sh` passed no `--target`), so it also carried pytest and an empty ENTRYPOINT that bypassed the checksum-verifying `entrypoint.sh`.
 
 Changes: `build.sh` targets `runtime`; a jlink'd JRE sized by `jdeps` over PMD's own jars replaces the full JRE; mypy dropped from the venv (pyrefly is the type checker, mypy was the last fallback); ClamAV and libarchive gone; libicu only on amd64 where swiftlint needs it.
+
+### 18. typos spell-check plugin (2026-09-01)
+
+**What it was.** `plugins/typos.py` wrapping the crate-ci `typos` binary (29 MB) to flag misspelled identifiers, comments, and strings.
+
+**Why it was cut.** The user's call: spell-checking is not review-gate material. Removed the plugin, its test, the e2e case, the binary and its pins from the Dockerfile and CI workflows, the repo's `_typos.toml`, and all docs. Plugin count 15 -> 14 auto-discovered (15 with `deterministic`). Open issue #431 ("replace cspell with typos") is moot.
+
+### Container slimming, round 2
+
+- **pyarrow out of the default image (135 MB).** The image now syncs `db`, `webhook`, and `watch` extras only. The Parquet audit-log writer fails open without pyarrow; `pip install caliper[parquet]` restores it. Documented in CAPABILITIES.
+- **PMD pruned to CPD's languages.** After unzip the Dockerfile keeps `pmd-core`, `pmd-cli`, and the `pmd-<lang>` modules for the languages `cpd_runner` maps (python, java, typescript, javascript, go, ruby, kotlin, swift, rust, cpp, cs, php, scala, dart, lua, groovy, perl) and deletes the rest plus the Apex toolchain jars and the JavaFX designer. jlink's `jdeps` runs after the prune, so the JRE shrinks to match.
+- **Next:** move the base to Wolfi (glibc, vendor-maintained CVE hygiene, and a `git` without the 51 MB Perl dependency) once this round is verified.

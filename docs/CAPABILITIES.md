@@ -6,16 +6,16 @@
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
   LAST VERIFIED: 2026-07-10
-  VERIFICATION: 15 auto-discovered scanner plugins (@ANALYZERS.register) + the
+  VERIFICATION: 14 auto-discovered scanner plugins (@ANALYZERS.register) + the
   "deterministic" plugin (composition-registered, wraps DeterministicScanner,
-  #457) + OPA policy plugin (17 ScannerPlugin subclasses total); 21 detectors
+  #457) + OPA policy plugin (16 ScannerPlugin subclasses total); 21 detectors
   in src/caliper/detectors/; 67 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
-16 scanner plugins (15 auto-discovered + "deterministic", which wraps all 21
+15 scanner plugins (14 auto-discovered + "deterministic", which wraps all 21
 CAL-001..021 detectors), 67 custom semgrep rules, 10 code graph
 checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
@@ -24,14 +24,14 @@ supply-chain version-bump narrative is advisory metadata only).
 
 | Metric | Count |
 |--------|-------|
-| Scanner plugins | 16 (15 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
+| Scanner plugins | 15 (14 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
 | Deterministic detectors | 21 (CAL-001..CAL-022, CAL-013 retired), run via the "deterministic" plugin during `caliper review` |
 | Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 10 |
 | OPA Rego policy rules | 16 (7 deny, 9 warn) |
 | Code graph query templates | 12 |
 | Finding scribes | 5 (enclosing-symbol, code-graph, reachability opt-in, semgrep opt-in, supply-chain-threat opt-in) |
-| CLI commands | 8 |
+| CLI commands | 9 |
 | Parting taxonomy buckets | 16 ChangeTypes (4 code tiers, 7 non-code intent, `logic` residual, 4 structural/generated) |
 | Output formats | 5 |
 | Supported ecosystems (SBOM) | 18 |
@@ -39,16 +39,15 @@ supply-chain version-bump narrative is advisory metadata only).
 | Supported languages (complexity) | 10 |
 | Supported languages (semgrep) | 14 file extensions |
 | Gitleaks patterns | 800+ |
-| Spell check dictionaries | 15 |
 
 ---
 
 ## Plugins by Category
 
-The 15 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
+The 14 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
 five categories below, plus **deterministic** (also `@ANALYZERS.register`, but
 composition-registered — see `code (6)` below since `detectors/` may not import
-`plugins/` directly). The **OPA policy plugin** is the 17th `ScannerPlugin` subclass but
+`plugins/` directly). The **OPA policy plugin** is the 16th `ScannerPlugin` subclass but
 is wired separately — it consumes every other plugin's findings and runs last
 (`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-15-rules).
 
@@ -78,13 +77,12 @@ is wired separately — it consumes every other plugin's findings and runs last
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyrefly (fastest) when available, falls back to pyright, then mypy. Error + warning severity only. |
 | swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.caliper/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
 
-### quality (4)
+### quality (3)
 
 | Plugin | File | Detects |
 |--------|------|---------|
 | blast-radius | `plugins/blast_radius.py` | Code graph impact analysis. AST → SQLite, then 10 SQL checks (see below). Full + incremental indexing. Python + JS/TS. Extensible via `graph.register_check()`. |
 | complexity | `plugins/complexity.py` | Cyclomatic complexity (Lizard) + maintainability index (Radon for Python, bundled typhonjs-escomplex for JS/TS). A function is a finding only when its CCN exceeds `thresholds.complexity.ccn` (default 10, `.caliper.yaml`); every function still feeds the summary (`functions_scanned`, avg/max CCN, NLOC). |
-| typos | `plugins/typos.py` | Source-aware typo detection (crate-ci/typos). Single pinned Rust binary, very low false positives, identifier-aware (camelCase/snake_case splitting). Shows corrections. |
 | ls-lint | `plugins/ls_lint.py` | File naming convention enforcement. Only runs when `.ls-lint.yml` config exists. |
 
 ### infra (1)
@@ -317,6 +315,7 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | `caliper query` | Run one of 12 canned code graph queries against the SQLite code graph. Keyword match picks the template; `--list` shows them. |
 | `caliper supply-chain-diff` | Separate, feature-flag-gated step (`CALIPER_SUPPLY_CHAIN_DIFF_ENABLED=1`). Fetches the source of both versions of every dependency bump in a diff, scores deterministic supply-chain signals (which gate via OPA), and optionally attaches an advisory LLM narrative. Formats: markdown, json, sarif. Modes: monitor/advise. NOT part of the normal scan. |
 | `caliper ground` | Deterministic grounding bundle for a set of files (fact sheet of defined symbols + type contracts referenced from elsewhere) as JSON, plus a markdown twin with `--out`. Feature-flag gated (`CALIPER_GROUNDING_ENABLED=1`); providers: code graph, universal-ctags, ripgrep fallback. Not part of the normal scan; wiring into the scribe pass is tracked in #481. |
+| `caliper install-scanners` | Install the pinned scanner binaries for this machine (`syft`, `trivy`, `osv-scanner`, `opa`, `gitleaks`, `kube-linter`, `ls-lint`, `jq`, `opengrep`) into `$CALIPER_BIN_DIR` or `~/.local/bin`, sha256-verified against `core/scanner_pins.py`, the same releases the container bakes in (a drift-guard test keeps them identical). `caliper review` on a terminal offers this when a plugin reports NOT_INSTALLED; `caliper healthcheck` prints the command. Not covered: pmd (needs a JRE), scancode, swiftlint, lizard/pyrefly. |
 | `caliper part` | Manual, developer-invoked diff-cutting. Computes the stock (`--base..--head`, or `--pr <url\|number>` to clone a GitHub PR in isolation and auto-resolve base..head), runs a pure deterministic `part()` to propose an ordered cut list of reviewable parts (rules R1 generated/binary isolation, R2 move/logic separation, R4 size cap), and emits a jj `restack.sh` (`--target stack\|series`). The default cut is **one commit per labelled bucket of concern** (`size_cap` defaults to `None`); `--size-cap N` is opt-in and only splits *within* a bucket by accumulated line count. Files are classified into a two-axis taxonomy — architectural code tiers (frontend/business/data/infra) + non-code intent buckets (documentation/supply_chain/ci_cd/security_policy/config/schema_contracts), with `logic` as the honest untiered residual a human should label. A version-controlled `parting.overrides` table (glob→bucket, in `.caliper.yaml`) sits above the heuristic globs so a reviewer can correct a tier; it is part of the `config_digest` provenance. Fail-closed and advisory: never gates a build, never enters the decision audit lake, lives in a dedicated PARTING registry (NOT in the review pipeline). A non-destructive precondition gate + rollback header make it fully reversible. `--explain` re-prints a saved cut list. `--serve [--port N]` runs a loopback sidecar (127.0.0.1:12700) serving a full TypeScript SPA (`scripts/part_ui/`, esbuild-bundled and committed as package data under `src/caliper/cli/part_ui_dist/` — zero Node needed at runtime) with **CLI/web parity**: live retargeting (`POST /range`, `POST /pr` — paste a base/head or a GitHub PR URL/number without restarting the sidecar), reclassify (writes a `parting.overrides` entry and re-parts, deterministic feedback loop, no LLM), bulk suggestion accept (`POST /suggest/apply`), live `--size-cap`/`--target` settings (`POST /repart`), a client-side `--explain` viewer for a loaded `cutlist.json`, and **restack generation + execution** (`POST /restack` builds `restack.sh` + the rollback header via the same `core/part_pipeline.run_part` orchestrator the CLI uses; `POST /apply` — beyond what the CLI itself does — runs that script for real from the browser behind a one-shot CSRF token (`hmac.compare_digest`) and a loopback Origin/Host check, gated behind an in-page confirm modal that echoes the backup bookmark; `POST /rollback` runs `jj op restore <rescue_op_id>` to undo it). `--serve --lan <ip> --cert <path> --key <path>` additionally binds a second, TLS-wrapped, read-only server (mkcert-issued cert/key) on a LAN-routable IP and a separate port (`12701` default) so a reviewer can browse the cut list from another device; its handler implements only `do_GET`, so every mutating route (reclassify/repart/restack/apply/rollback/range/pr/suggest-apply, all POST-only) is structurally unreachable off the loopback server. Under `--pr --serve` reclassifications persist to a durable per-PR sidecar store OUTSIDE the throwaway clone, so they survive the next run's clean-slate wipe and re-layer onto the cut. The served report headlines the cut shape (`N parts across M buckets · cap none|<n>`) so a no-cap cut reads as intentional. `--describe/--no-describe` (and `--describe-model`) is an optional advisory pass that names each commit's subject line with a local OpenAI-compatible model (Ollama/OMLX/llama.cpp via `CALIPER_DESCRIBER_*` env); fail-soft to the deterministic per-bucket subject. The model only rewrites the cosmetic prose tail — caliper prepends the deterministic `type(scope):` prefix and the describer config stays OUT of `config_digest`, so the cut, classification, and provenance remain 100% deterministic and LLM-free. `--suggest/--no-suggest` (and `--suggest-model`, `--suggest-apply`) is an optional "Sorting Hat" pass that asks a local OpenAI-compatible model to propose `parting.overrides` globs for the untiered `logic` residual; the model is OFF the decision path and only authors glob strings, while the deterministic boundary (`core/tier_suggester.validate_suggestions`) enforces a subset guard (a suggested glob may only tier currently-`logic` files, never steal an already-tiered one), dedupe, existing-glob drop, and a 25-rule cap. Fail-soft to `[]`; suggester config is env/CLI-driven and stays OUT of `config_digest` (only globs a human accepts change provenance). Print-only by default; `--suggest-apply` writes the accepted globs and re-parts. Under `--serve`, a "✨ suggest tiers" button (`POST /suggest`) renders each proposal as an accept chip that reuses `/reclassify`. |
 | `caliper baseline` | Deterministic finding suppression with expiry, no LLM. Subcommand `update` scans the repo the same way `caliper evaluate` does (ScanOrchestrator + `normalize_findings`) and writes a sha256 fingerprint (source_tool, category, package_name, version, advisory_id-or-description, normalized file path — **not** line_number, so line drift never invalidates a suppression) for every unbaselined finding into `.caliper-baseline.yaml`, each entry requiring `--reason` and defaulting to `baseline.default_ttl_days` (90) from `.caliper.yaml`. Re-running against an unchanged finding set is a no-op. `core/pipeline.ReviewPipeline._run_requests` filters findings against the baseline before policy evaluation; an expired entry fails **safe** — the finding returns to the policy-evaluated set rather than being silently dropped — and `ReviewDecision.baseline_suppressed_count`/`baseline_expired_count` plus a per-package `baseline.json` evidence artifact record what was filtered. |
 
@@ -342,7 +341,7 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | Webhook server | `src/caliper/webhook/server.py` | Starlette ASGI. GitHub PR webhooks (opened/synchronize/reopened). HMAC-SHA256 signature validation. Port 12800. |
 | Jenkins | `jenkins/vars/dependencyAdmission.groovy` | Shared library for Jenkins pipelines. |
 | Container | `Dockerfile` | Podman/Docker. Read-only workspace mount. |
-| Third-party plugin SDK | `src/caliper/plugins/__init__.py`, `docs/PLUGIN_SDK.md` | External packages publish `ScannerPlugin`/`AnalyzerPort` implementations under the `caliper.plugins` `importlib.metadata` entry-point group; `get_default_registry()` discovers them alongside the 15 in-tree plugins. Fail-open per entry point (a broken third-party plugin is logged and skipped, never crashes discovery) and fail-open on the entry-point lookup itself. |
+| Third-party plugin SDK | `src/caliper/plugins/__init__.py`, `docs/PLUGIN_SDK.md` | External packages publish `ScannerPlugin`/`AnalyzerPort` implementations under the `caliper.plugins` `importlib.metadata` entry-point group; `get_default_registry()` discovers them alongside the 14 in-tree plugins. Fail-open per entry point (a broken third-party plugin is logged and skipped, never crashes discovery) and fail-open on the entry-point lookup itself. |
 
 ---
 
@@ -357,7 +356,7 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | Vulnerability reachability | `plugins/scribes/reachability.py`, `core/import_resolution.py` | Opt-in scribe (ADR-009): resolves a vulnerable package's distribution name to its import name (curated map → `importlib.metadata` best-effort → heuristic fallback) and checks the code graph for an `imports` edge. Attaches `metadata.scribe.reachability = {reachable: bool\|None, evidence}`. `reachable=false` (declared, never imported) can downgrade a critical/high vuln deny to warn via the opt-in `unreachable_vuln_exemption` OPA rule (T-348); `reachable=None` (unresolved import name, no code graph) never downgrades — absence of evidence is not evidence of absence. |
 | Cross-scanner dedup | `core/normalizer.py` | Highest severity wins per (advisory_id, category, package, version). |
 | Evidence chain | `core/seal.py` | Blockchain-style SHA-256 seals. manifest hash + previous seal → seal hash. `verify_seal()` detects tampering. |
-| Parquet audit log | `data/parquet_writer.py` | Append-only per-run audit trail. |
+| Parquet audit log | `data/parquet_writer.py` | Append-only per-run audit trail. Requires the `parquet` extra (`pip install caliper[parquet]`); not in the default container image, where the writer fails open. |
 | SBOM diff | `core/sbom_diff.py` | Diff two CycloneDX SBOMs: added/removed/upgraded/downgraded across 18 ecosystems. |
 | Dependency diff | `core/diff.py` | Git diff parsing for requirements.txt, pyproject.toml, and package.json (npm). |
 | Supply-chain version-bump analysis | `core/supply_chain_diff.py`, `data/pkgsrc.py`, `data/supply_chain_scan.py` | Separate gated step (`caliper supply-chain-diff`): fetches both versions of every dependency bump (PyPI sdist / npm tarball, safe extraction with traversal + zip-bomb defenses), diffs the source, and scores deterministic signals — new install hooks (critical), obfuscation/encoded payloads (high), newly introduced network/exec capability (high), publisher change (medium). Signals gate via the OPA `supply_chain_diff` rule; the optional `supply_chain_threat` scribe attaches an advisory LLM narrative (zero-LLM decision path preserved). Fail-open. |

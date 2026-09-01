@@ -300,7 +300,6 @@ category since `PluginCategory` has no policy value.
 | `swiftformat` | code | Swift formatting drift detection |
 | `blast-radius` | quality | Code graph impact analysis — AST to SQLite, SQL checks |
 | `complexity` | quality | Cyclomatic complexity (Lizard) + maintainability index (Radon) |
-| `typos` | quality | Source-aware typo detection (crate-ci/typos, low false positives) |
 | `ls-lint` | quality | File naming convention linter |
 | `cfn-nag` | infra | CloudFormation security linting (insecure resource patterns) |
 | `cdk-nag` | infra | AWS CDK / synthesized-template policy checks |
@@ -1044,7 +1043,7 @@ plugins:
     - semgrep
     - gitleaks
   disabled:
-    - typos
+    - ls-lint
     - ls-lint
 
 thresholds:
@@ -1070,8 +1069,8 @@ schema violations.
 runtime:
 
 ```bash
-# Disable typos and ls-lint for this run
-uv run caliper review --repo-path . --disable typos,ls-lint
+# Disable ls-lint for this run
+uv run caliper review --repo-path . --disable ls-lint
 
 # Force-enable a plugin even if config disables it
 uv run caliper review --repo-path . --enable gitleaks
