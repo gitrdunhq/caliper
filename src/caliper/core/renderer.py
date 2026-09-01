@@ -39,7 +39,6 @@ _SECURITY_PLUGINS: set[str] = {
     "semgrep",
     "trivy",
     "osv-scanner",
-    "clamav",
     "supply-chain",
     "opa",
     "scancode",

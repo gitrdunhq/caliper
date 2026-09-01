@@ -2,11 +2,11 @@
   <img src="assets/hero.svg" alt="Caliper" width="900">
   <br>
   <strong>Fully deterministic dependency review for CI.</strong><br>
-  16 plugins. 21 detectors. 16 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
+  15 plugins. 21 detectors. 16 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
   <br><br>
 
   <a href="#quick-start"><img src="https://img.shields.io/badge/get_started-→-d4251a?style=flat-square" alt="Get Started"></a>
-  <a href="#the-16-plugins"><img src="https://img.shields.io/badge/16_plugins-deterministic-f2c14a?style=flat-square&labelColor=0e0706" alt="16 Plugins"></a>
+  <a href="#the-15-plugins"><img src="https://img.shields.io/badge/15_plugins-deterministic-f2c14a?style=flat-square&labelColor=0e0706" alt="15 Plugins"></a>
   <a href="#opa-policy-rules"><img src="https://img.shields.io/badge/OPA-16_rules-1e3a8a?style=flat-square" alt="OPA Rules"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm_Shield-7ae582?style=flat-square" alt="PolyForm Shield License"></a>
 </div>
@@ -29,7 +29,7 @@ Both outcomes cost real money. One costs velocity. The other costs incidents.
 
 ---
 
-When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 16 plugins in parallel (plus 22 deterministic AST detectors and 67 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
+When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 15 plugins in parallel (plus 22 deterministic AST detectors and 67 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
 
 Every scanning tool is deterministic. The decision is deterministic. Nothing blocks the build unless OPA says so.
 
@@ -42,7 +42,7 @@ Every scanning tool is deterministic. The decision is deterministic. Nothing blo
 
 ---
 
-## The 16 Plugins
+## The 15 Plugins
 
 <div align="center">
   <img src="assets/scanners.svg" alt="Scanner lineup" width="700">
@@ -50,7 +50,7 @@ Every scanning tool is deterministic. The decision is deterministic. Nothing blo
 
 <br>
 
-All deterministic. Zero LLM. The 16 scanner plugins below feed their findings to a 20th **OPA policy plugin**, which runs last and makes the accept/reject decision.
+All deterministic. Zero LLM. The 15 scanner plugins below feed their findings to a 20th **OPA policy plugin**, which runs last and makes the accept/reject decision.
 
 ### Dependency (run on every evaluation)
 
@@ -90,8 +90,7 @@ All deterministic. Zero LLM. The 16 scanner plugins below feed their findings to
 | # | Plugin | What it does |
 |---|--------|-------------|
 | 14 | **Supply Chain** | Unpinned deps + lockfile integrity + latest tag detection |
-| 15 | **ClamAV** | Malware/virus scanning |
-| 16 | **Gitleaks** | Secret/credential detection (800+ patterns) |
+| 15 | **Gitleaks** | Secret/credential detection (800+ patterns) |
 
 ### Policy
 
@@ -290,10 +289,9 @@ src/caliper/
 │   ├── decision.py         #   Pure assembler — OPA verdict → ReviewDecision
 │   ├── memo.py             #   Markdown PR comment generator
 │   └── seal.py             #   SHA-256 evidence chain
-├── plugins/                # 16 scanner plugins + OPA policy plugin + scribes
+├── plugins/                # 15 scanner plugins + OPA policy plugin + scribes
 │   ├── blast_radius.py     #   AST→SQLite code graph + SQL checks
 │   ├── semgrep.py          #   AST pattern matching
-│   ├── clamav.py           #   Malware/virus scanning
 │   ├── gitleaks.py         #   Secret detection (800+ patterns)
 │   ├── mypy.py             #   Cross-file Python type checking
 │   ├── scribes/          #   Detect-then-scribe: code-graph + opt-in semgrep (ADR-006)
@@ -442,11 +440,9 @@ Reference](docs/CAPABILITIES.md#configuration-reference) for the full table.
 
 Drop `.caliper.yaml` at the root of any repo to enable/disable plugins and override thresholds:
 
-`clamav` and `scancode` are opt-in — they never run by default (even under
-`--all`), because clamav is heavy/noisy and scancode isn't installed in the
-default image. Turn either on for a repo via `plugins.enable` in config, or
-per-run via `--enable clamav` / `--scanners clamav` (same for `scancode`) on
-the CLI.
+`scancode` is opt-in — it never runs by default (even under `--all`) because it
+is not installed in the default image. Turn it on for a repo via `plugins.enable`
+in config, or per-run via `--enable scancode` / `--scanners scancode` on the CLI.
 
 ```yaml
 # .caliper.yaml
@@ -455,7 +451,7 @@ plugins:
     - typos          # disable typo checking for this repo
   enable:
     - gitleaks       # always on, even if disabled globally
-    # - clamav        # uncomment to turn on AV scanning for this repo
+    # - scancode      # uncomment to turn on license detection for this repo
     # - scancode      # uncomment to turn on license scanning for this repo
 
 thresholds:
@@ -529,12 +525,12 @@ Override config at the command line for one-off runs:
 # Disable specific plugins for this run
 uv run caliper review --repo-path . --all --disable typos
 
-# Enable a plugin that is disabled in config (or opt-in by default, like clamav)
-uv run caliper review --repo-path . --all --enable clamav
+# Enable a plugin that is disabled in config (or opt-in by default, like scancode)
+uv run caliper review --repo-path . --all --enable scancode
 
 # Combine flags
 uv run caliper evaluate --repo-path . --diff changes.diff \
-  --disable typos --enable clamav \
+  --disable typos --enable scancode \
   --pr-url "https://github.com/org/repo/pull/1" \
   --team myteam --operating-mode advise
 ```
@@ -607,7 +603,7 @@ Watch mode debounces file-system events (500 ms default). Press `Ctrl+C` to stop
 
 ## Monorepo Support
 
-Caliper auto-discovers packages across a monorepo and runs all 16 plugins per-package.
+Caliper auto-discovers packages across a monorepo and runs all 15 plugins per-package.
 
 ### Package discovery
 

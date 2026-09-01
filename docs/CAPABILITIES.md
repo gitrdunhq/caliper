@@ -6,16 +6,16 @@
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
   LAST VERIFIED: 2026-07-10
-  VERIFICATION: 16 auto-discovered scanner plugins (@ANALYZERS.register) + the
+  VERIFICATION: 15 auto-discovered scanner plugins (@ANALYZERS.register) + the
   "deterministic" plugin (composition-registered, wraps DeterministicScanner,
-  #457) + OPA policy plugin (18 ScannerPlugin subclasses total); 21 detectors
+  #457) + OPA policy plugin (17 ScannerPlugin subclasses total); 21 detectors
   in src/caliper/detectors/; 67 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
-17 scanner plugins (16 auto-discovered + "deterministic", which wraps all 21
+16 scanner plugins (15 auto-discovered + "deterministic", which wraps all 21
 CAL-001..021 detectors), 67 custom semgrep rules, 10 code graph
 checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
@@ -24,7 +24,7 @@ supply-chain version-bump narrative is advisory metadata only).
 
 | Metric | Count |
 |--------|-------|
-| Scanner plugins | 17 (16 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
+| Scanner plugins | 16 (15 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
 | Deterministic detectors | 21 (CAL-001..CAL-022, CAL-013 retired), run via the "deterministic" plugin during `caliper review` |
 | Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 10 |
@@ -45,10 +45,10 @@ supply-chain version-bump narrative is advisory metadata only).
 
 ## Plugins by Category
 
-The 16 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
+The 15 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
 five categories below, plus **deterministic** (also `@ANALYZERS.register`, but
 composition-registered — see `code (6)` below since `detectors/` may not import
-`plugins/` directly). The **OPA policy plugin** is the 18th `ScannerPlugin` subclass but
+`plugins/` directly). The **OPA policy plugin** is the 17th `ScannerPlugin` subclass but
 is wired separately — it consumes every other plugin's findings and runs last
 (`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-15-rules).
 
@@ -61,13 +61,12 @@ is wired separately — it consumes every other plugin's findings and runs last
 | scancode | `plugins/scancode.py` | License detection (SPDX extraction + confidence). **Opt-in** — not installed in the default image and excluded from `--all` by default (`DEFAULT_OPT_IN_PLUGINS`); enable via `--enable scancode`/`--scanners scancode` or `plugins.enable` in `.caliper.yaml`. |
 | syft | `plugins/syft.py` | CycloneDX SBOM generation. 18 ecosystems (npm, PyPI, Cargo, Go, Ruby, Composer, Dart, Elixir, etc). |
 
-### supply_chain (3)
+### supply_chain (2)
 
 | Plugin | File | Detects |
 |--------|------|---------|
 | supply-chain | `plugins/supply_chain.py` | **Three sub-checks**: (1) Unpinned deps in package.json + requirements.txt. (2) Lockfile integrity — lockfile changed without manifest or vice versa, 10 lockfile-manifest pairs, SHA-256 fingerprinting. (3) Docker floating tags — `:latest` or no tag in Dockerfiles and docker-compose. Pure Python, no binary. |
 | gitleaks | `plugins/gitleaks.py` | Secret/credential detection, 800+ patterns. Custom config via `.caliper/gitleaks.toml`. Secrets never appear in findings — only rule ID, file, line, entropy, fingerprint. Always critical severity. |
-| clamav | `plugins/clamav.py` | Malware/virus scanning via ClamAV (`clamscan`). Recursive repo scan. **Opt-in** — excluded from `--all` by default (`DEFAULT_OPT_IN_PLUGINS`); enable via `--enable clamav`/`--scanners clamav` or `plugins.enable` in `.caliper.yaml`. |
 
 ### code (5)
 
@@ -343,7 +342,7 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | Webhook server | `src/caliper/webhook/server.py` | Starlette ASGI. GitHub PR webhooks (opened/synchronize/reopened). HMAC-SHA256 signature validation. Port 12800. |
 | Jenkins | `jenkins/vars/dependencyAdmission.groovy` | Shared library for Jenkins pipelines. |
 | Container | `Dockerfile` | Podman/Docker. Read-only workspace mount. |
-| Third-party plugin SDK | `src/caliper/plugins/__init__.py`, `docs/PLUGIN_SDK.md` | External packages publish `ScannerPlugin`/`AnalyzerPort` implementations under the `caliper.plugins` `importlib.metadata` entry-point group; `get_default_registry()` discovers them alongside the 16 in-tree plugins. Fail-open per entry point (a broken third-party plugin is logged and skipped, never crashes discovery) and fail-open on the entry-point lookup itself. |
+| Third-party plugin SDK | `src/caliper/plugins/__init__.py`, `docs/PLUGIN_SDK.md` | External packages publish `ScannerPlugin`/`AnalyzerPort` implementations under the `caliper.plugins` `importlib.metadata` entry-point group; `get_default_registry()` discovers them alongside the 15 in-tree plugins. Fail-open per entry point (a broken third-party plugin is logged and skipped, never crashes discovery) and fail-open on the entry-point lookup itself. |
 
 ---
 
@@ -404,7 +403,6 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | Secret detection | No | Gitleaks (800+ patterns) |
 | Supply chain integrity | No | Lockfile integrity, unpinned deps, Docker floating tags |
 | IaC security | No | trivy misconfig (CloudFormation/Terraform/K8s/Dockerfile/Helm) + kube-linter |
-| Malware scanning | No | ClamAV |
 | Policy-as-code | Built-in Java rules | OPA Rego (user-authored) |
 | Change impact analysis | No | Blast-radius code graph |
 | Evidence chain | No | SHA-256 sealed evidence bundles |

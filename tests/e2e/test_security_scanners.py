@@ -47,11 +47,3 @@ class TestSemgrep:
         assert (
             len(findings) >= 1
         ), f"Semgrep should find at least 1 finding. Output: {result.output[:500]}"
-
-
-class TestClamav:
-    def test_clamav_completes(self, vuln_repo: Path, tmp_path: Path) -> None:
-        result, parsed = run_review(vuln_repo, scanners="clamav", output_format="json")
-        breakpoint_dump(tmp_path, "scanner_clamav", parsed)
-
-        assert result.exit_code == 0, f"ClamAV crashed: {result.output}"

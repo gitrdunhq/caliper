@@ -2,7 +2,6 @@ plugins:
   disabled:
     - mypy
     - blast-radius
-    - clamav
   semgrep:
     exclude_rules:
       # caliper is Python 3.12+ — py3.7 backwards-compat rules are inapplicable

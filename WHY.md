@@ -4,7 +4,7 @@ Caliper (caliper) is a fully deterministic dependency and code review engine for
 
 Every PR that touches a dependency manifest or source file triggers the same tedious checklist: known CVEs, license compatibility, package age, leaked secrets, copy-paste duplication, cyclomatic complexity — caliper runs all of it in under ten minutes, without a human.
 
-The pipeline detects changed packages across 18 ecosystems, fans out across 16 specialist plugins in parallel (Syft, OSV-Scanner, Trivy, ScanCode, Semgrep, Gitleaks, ClamAV, and more), deduplicates overlapping findings by advisory ID with highest-severity-wins logic, then hands the normalized result set to an OPA policy engine that makes the accept/reject decision in pure Rego — no prompts, no probability, no "it depends on the model's mood today."
+The pipeline detects changed packages across 18 ecosystems, fans out across 15 specialist plugins in parallel (Syft, OSV-Scanner, Trivy, ScanCode, Semgrep, Gitleaks, and more), deduplicates overlapping findings by advisory ID with highest-severity-wins logic, then hands the normalized result set to an OPA policy engine that makes the accept/reject decision in pure Rego — no prompts, no probability, no "it depends on the model's mood today."
 
 What makes caliper different is the constraint it refuses to break: **zero LLM in the decision path.** The build passes or fails on deterministic rules that any engineer can read, audit, and debate — not on a language model's interpretation of those rules.
 
@@ -170,7 +170,7 @@ Drop `.caliper.yaml` at the repo root:
 
 ```yaml
 plugins:
-  disabled: [clamav, typos]     # skip heavy scanners locally
+  disabled: [typos]             # skip noisy scanners locally
   enabled: [gitleaks]           # always on, even if globally disabled
 
 thresholds:

@@ -15,7 +15,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl git jq \
-    clamav clamav-freshclam \
     pkg-config libicu-dev build-essential python3-dev \
   && rm -rf /var/lib/apt/lists/*
 
@@ -80,9 +79,6 @@ COPY src/ src/
 COPY policies/ policies/
 RUN pip install --no-cache-dir --target=${DHI_SITE} pydantic pydantic-settings structlog click orjson httpx PyYAML pyarrow watchdog
 
-# ClamAV database
-RUN mkdir -p /staging/clamav \
-    && freshclam --datadir=/staging/clamav --quiet || echo "freshclam update attempted"
 
 RUN rm -rf /tmp/scanners
 
@@ -105,12 +101,6 @@ COPY --from=builder /usr/bin/git /usr/bin/git
 COPY --from=builder /usr/lib/git-core/ /usr/lib/git-core/
 COPY --from=builder /usr/lib/aarch64-linux-gnu/libpcre2* /usr/lib/aarch64-linux-gnu/
 
-# ClamAV binary + database
-COPY --from=builder /usr/bin/clamscan /usr/bin/clamscan
-COPY --from=builder /usr/lib/aarch64-linux-gnu/libclamav* /usr/lib/aarch64-linux-gnu/
-COPY --from=builder /usr/lib/aarch64-linux-gnu/libmspack* /usr/lib/aarch64-linux-gnu/
-COPY --from=builder /usr/lib/aarch64-linux-gnu/libjson-c* /usr/lib/aarch64-linux-gnu/
-COPY --from=builder /staging/clamav /var/lib/clamav
 
 # jq for OPA output parsing
 COPY --from=builder /usr/bin/jq /usr/bin/jq

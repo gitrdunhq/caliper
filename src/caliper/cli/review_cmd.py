@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 # just because a repo config or --disable list happens to be silent about
 # them. Off by default; --enable <name> (or repo config plugins.enabled)
 # overrides per run_all's disabled/enabled precedence rule.
-DEFAULT_OPT_IN_PLUGINS: frozenset[str] = frozenset({"clamav", "scancode"})
+DEFAULT_OPT_IN_PLUGINS: frozenset[str] = frozenset({"scancode"})
 
 
 def resolve_plugin_selection(

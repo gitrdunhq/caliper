@@ -157,35 +157,6 @@ class TestScannerBinaries:
             result.returncode == 0
         ), f"gitleaks not found or failed.\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
-    def test_clamscan_version(self, container_run):
-        """clamscan --version exits 0 — ClamAV malware scanner present."""
-        result = container_run(["--version"], entrypoint="clamscan")
-        assert (
-            result.returncode == 0
-        ), f"clamscan not found or failed.\nstdout: {result.stdout}\nstderr: {result.stderr}"
-
-
-# ---------------------------------------------------------------------------
-# TestDynamicLinking — no missing shared libs
-# ---------------------------------------------------------------------------
-
-
-@_runtime_missing
-class TestDynamicLinking:
-    """Verify no 'not found' entries from ldd on copied binaries.
-
-    The DHI runtime base image does not include the full Debian package tree.
-    Any binary copied from the builder stage must have all its shared libs
-    present — either by explicit COPY of the required .so files, or by using
-    a statically compiled binary.
-
-    These tests FAIL on the current Dockerfile because the DHI multi-stage
-    build has not been implemented (binaries aren't copied to a clean runtime).
-
-    The 'not found' pattern in ldd output signals a broken binary that will
-    segfault or throw 'No such file or directory' at runtime.
-    """
-
     @staticmethod
     def _assert_ldd_ran(result: subprocess.CompletedProcess, binary: str) -> None:
         """Guard: fail fast if the container itself couldn't start.
@@ -214,18 +185,6 @@ class TestDynamicLinking:
         assert (
             "not found" not in result.stdout
         ), f"git has missing shared libs:\n{result.stdout}\nstderr: {result.stderr}"
-
-    def test_no_missing_libs_clamscan(self, container_run):
-        """ldd /usr/bin/clamscan shows no 'not found' — all ClamAV libs present.
-
-        ClamAV requires libclamav, libmspack, libjson-c, and their transitive
-        deps. These must all be copied alongside the clamscan binary.
-        """
-        result = container_run(["/usr/bin/clamscan"], entrypoint="ldd")
-        self._assert_ldd_ran(result, "/usr/bin/clamscan")
-        assert (
-            "not found" not in result.stdout
-        ), f"clamscan has missing shared libs:\n{result.stdout}\nstderr: {result.stderr}"
 
     def test_no_missing_libs_jq(self, container_run):
         """ldd /usr/bin/jq shows no 'not found' OR jq is statically linked.
@@ -482,53 +441,3 @@ class TestChecksumVerification:
 
 
 # ---------------------------------------------------------------------------
-# TestNoStaleSignatures — ClamAV DBs must NOT be baked into the image
-# ---------------------------------------------------------------------------
-
-
-@_runtime_missing
-class TestNoStaleSignatures:
-    """Verify ClamAV signature databases are fetched at runtime, not baked in.
-
-    Baking freshclam output into the image creates a container with stale
-    virus definitions that will never update unless the image is rebuilt.
-    The hardened Dockerfile removes freshclam from the build stage and uses
-    an entrypoint wrapper (scripts/entrypoint.sh) or an init-container to
-    run freshclam on first start.
-
-    This test FAILS on the current Dockerfile because freshclam IS run during
-    the build (line 75 of Dockerfile: freshclam --quiet || ...) and the
-    database files are baked into the image layer.
-    """
-
-    def test_no_clamav_db_in_image(self, container_run):
-        """/var/lib/clamav/ is empty or absent in the image.
-
-        Virus signatures must be fetched at container startup via an
-        entrypoint script, not during the Docker build. Stale baked-in
-        signatures provide false security — the DBs go stale within days.
-
-        Acceptable states:
-        - Directory does not exist (freshclam not run at build time)
-        - Directory exists but contains no .cvd or .cld files
-        """
-        result = container_run(
-            [
-                "-c",
-                (
-                    "import os, sys\n"
-                    "db_dir = '/var/lib/clamav'\n"
-                    "if not os.path.exists(db_dir): sys.exit(0)\n"
-                    "db_files = [f for f in os.listdir(db_dir) if f.endswith(('.cvd', '.cld'))]\n"
-                    "print(f'Found DB files: {db_files}')\n"
-                    "sys.exit(1 if db_files else 0)"
-                ),
-            ],
-            entrypoint="python3",
-        )
-        assert result.returncode == 0, (
-            f"ClamAV database files are baked into the image — they will go stale.\n"
-            f"Remove freshclam from the Dockerfile build stage and use an entrypoint\n"
-            f"wrapper (scripts/entrypoint.sh) to fetch signatures at container startup.\n"
-            f"stdout: {result.stdout}\nstderr: {result.stderr}"
-        )

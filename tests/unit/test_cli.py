@@ -1003,7 +1003,7 @@ class TestReviewDisableEnable:
             )
         assert result.exit_code == 0
         kwargs = mock_reg.run_all.call_args.kwargs
-        assert kwargs.get("disabled_names") == {"semgrep", "typos", "clamav", "scancode"}
+        assert kwargs.get("disabled_names") == {"semgrep", "typos", "scancode"}
 
     def test_enable_flag_passes_enabled_names_to_run_all(self) -> None:
         runner = CliRunner()
@@ -1037,14 +1037,14 @@ class TestReviewDisableEnable:
         assert "typos" in kwargs.get("enabled_names", set())
 
     def test_no_disable_enable_passes_default_opt_in_disabled(self) -> None:
-        """Omitting --disable/--enable still disables opt-in-only plugins (clamav, scancode)."""
+        """Omitting --disable/--enable still disables opt-in-only plugins (scancode)."""
         runner = CliRunner()
         mock_reg = self._make_mock_registry()
         with patch(self._PATCH_TARGET, return_value=mock_reg), runner.isolated_filesystem():
             result = runner.invoke(cli, ["review", "--repo-path", "."])
         assert result.exit_code == 0
         kwargs = mock_reg.run_all.call_args.kwargs
-        assert kwargs.get("disabled_names") == {"clamav", "scancode"}
+        assert kwargs.get("disabled_names") == {"scancode"}
         assert kwargs.get("enabled_names") == set()
 
     def test_disable_composes_with_scanners_flag(self) -> None:
@@ -1067,7 +1067,7 @@ class TestReviewDisableEnable:
         assert result.exit_code == 0
         kwargs = mock_reg.run_all.call_args.kwargs
         assert kwargs.get("names") == ["semgrep", "trivy"]
-        assert kwargs.get("disabled_names") == {"trivy", "clamav", "scancode"}
+        assert kwargs.get("disabled_names") == {"trivy", "scancode"}
 
 
 class TestReviewRepoConfigWiring:

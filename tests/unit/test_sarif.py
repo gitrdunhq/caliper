@@ -329,7 +329,7 @@ class TestRuleIdFallbacks:
 
     def test_missing_id_falls_back_to_plugin_name(self) -> None:
         result = PluginResult(
-            plugin_name="clamav",
+            plugin_name="gitleaks",
             findings=[
                 {
                     "file": "malware.zip",
@@ -340,7 +340,7 @@ class TestRuleIdFallbacks:
             summary={},
         )
         out = to_sarif([result])
-        assert out["runs"][0]["results"][0]["ruleId"] == "clamav"
+        assert out["runs"][0]["results"][0]["ruleId"] == "gitleaks"
 
 
 class TestMessageFallbacks:
@@ -357,7 +357,7 @@ class TestMessageFallbacks:
 
     def test_description_key(self) -> None:
         result = PluginResult(
-            plugin_name="clamav",
+            plugin_name="gitleaks",
             findings=[{"rule_id": "r", "severity": "critical", "description": "desc text"}],
             summary={},
         )
@@ -375,7 +375,7 @@ class TestMessageFallbacks:
 
     def test_empty_message_is_string(self) -> None:
         result = PluginResult(
-            plugin_name="clamav",
+            plugin_name="gitleaks",
             findings=[{"severity": "low"}],
             summary={},
         )

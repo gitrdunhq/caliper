@@ -20,7 +20,6 @@ pytestmark = pytest.mark.skipif(not E2E_ENABLED, reason="E2E tests require CALIP
 ALL_SCANNERS = [
     "gitleaks",
     "semgrep",
-    "clamav",
     "osv-scanner",
     "trivy",
     "syft",
