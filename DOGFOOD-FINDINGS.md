@@ -9,7 +9,7 @@ Verdict: PASS WITH WARNINGS | Security: 100/100 | Quality: 100/100
 | # | Finding | Severity | Detail | Regression Test | Status |
 |---|---------|----------|--------|-----------------|--------|
 | D1 | OPA parse error on semgrep YAML | bug | OPA eval `-d ./policies` includes non-Rego files | `test_opa_ignores_non_rego_files` | **FIXED** (config.py → policy.rego) |
-| D2 | Semgrep 2279 findings on self-scan | noise | Runs against entire repo | `test_semgrep_respects_file_scoping` | OPEN |
+| D2 | Semgrep 2279 findings on self-scan | noise | Runs against entire repo | `test_repo_files_code_plugin_gets_diff_files` | **RESOLVED** (diff scope routes code plugins to changed files; `--all` is the deliberate full scan; 2026-09-01 semgrep snapshot pin + org-rule review cut the rest) |
 | D3 | Actionability: all code findings "blocked" | bug | No fixed_version → classified as blocked | `test_actionability_handles_code_findings` | OPEN |
 | D4 | MI score 38/100 with 163 grade-C | info | Expected for subprocess-heavy plugins | KNOWN |
 | D5 | cspell NOT_INSTALLED | env | Host only | N/A |
@@ -22,7 +22,7 @@ Verdict: PASS WITH WARNINGS | Security: 100/100 | Quality: 100/100 | Findings: 4
 | # | Finding | Severity | Detail | Regression Test | Status |
 |---|---------|----------|--------|-----------------|--------|
 | D1 | OPA parse error | — | — | — | **FIXED** |
-| D2 | Semgrep 2353 findings | noise | +74 from new files (policy_port, tool_runner, etc) | OPEN |
+| D2 | Semgrep 2353 findings | noise | +74 from new files (policy_port, tool_runner, etc) | **RESOLVED** (see run 1) |
 | D3 | Actionability: code findings "blocked" | bug | Same as run 1 | OPEN |
 | D7 | scancode TIMEOUT after 60s | env | Slow on full repo — fail-open working correctly | KNOWN |
 | D8 | gitleaks: 0 findings | good | Allowlist working | OK |

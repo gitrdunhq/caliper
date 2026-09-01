@@ -86,7 +86,7 @@ All deterministic. Zero LLM. The only AI is the optional Copilot agent wrapper t
 | 13 | **Lizard + Radon** | Cyclomatic complexity + maintainability index |
 | 14 | **typos** | Source-aware typo detection (crate-ci/typos, low false positives) |
 | 15 | **ls-lint** | File naming conventions |
-| 16 | **Blast Radius** | AST→SQLite code graph, 12 SQL checks |
+| 16 | **Blast Radius** | AST→SQLite code graph, 10 SQL checks |
 
 ### Supply Chain
 
@@ -119,7 +119,12 @@ On changed source, caliper also runs **22 AST bug detectors** (`CAL-001`…`CAL-
 ```bash
 uv sync --group dev
 
-# Review all files in the current repo
+# Review only the files a diff touches (code/quality plugins are scoped to the
+# diff; dependency/infra/supply-chain plugins still see the whole repo)
+git diff origin/main...HEAD > .temp/pr.diff
+uv run caliper review --repo-path . --diff .temp/pr.diff
+
+# Review every file in the repo (full scan; this is what dogfood runs)
 uv run caliper review --repo-path . --all
 
 # Review only code analysis plugins
