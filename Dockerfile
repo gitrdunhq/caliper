@@ -15,7 +15,6 @@ ARG KUBE_LINTER_VERSION=0.8.3
 ARG OPENGREP_VERSION=1.20.0
 ARG SCANCODE_VERSION=32.3.0
 ARG LIZARD_VERSION=1.17.13
-ARG MYPY_VERSION=1.15.0
 ARG PYREFLY_VERSION=1.1.1
 ARG TYPOS_VERSION=1.47.2
 ARG LS_LINT_VERSION=2.3.1
@@ -92,7 +91,7 @@ FROM python_base_${TARGETARCH} AS builder
 
 ARG SYFT_VERSION TRIVY_VERSION OSV_VERSION OPA_VERSION GITLEAKS_VERSION JQ_VERSION KUBE_LINTER_VERSION PMD_VERSION LS_LINT_VERSION SWIFTLINT_VERSION TYPOS_VERSION
 ARG SYFT_COMMIT TRIVY_COMMIT OSV_COMMIT OPA_COMMIT GITLEAKS_COMMIT KUBE_LINTER_COMMIT JQ_COMMIT LS_LINT_COMMIT TYPOS_COMMIT UV_COMMIT
-ARG OPENGREP_VERSION SCANCODE_VERSION LIZARD_VERSION MYPY_VERSION PYREFLY_VERSION
+ARG OPENGREP_VERSION SCANCODE_VERSION LIZARD_VERSION PYREFLY_VERSION
 ARG SEMGREP_RULES_COMMIT
 ARG SYFT_SHA256_ARM64 TRIVY_SHA256_ARM64 OSV_SHA256_ARM64 OPA_SHA256_ARM64 GITLEAKS_SHA256_ARM64 JQ_SHA256_ARM64 KUBE_LINTER_SHA256_ARM64 LS_LINT_SHA256_ARM64 TYPOS_SHA256_ARM64 PMD_SHA256
 ARG SYFT_SHA256_AMD64 TRIVY_SHA256_AMD64 OSV_SHA256_AMD64 OPA_SHA256_AMD64 GITLEAKS_SHA256_AMD64 JQ_SHA256_AMD64 KUBE_LINTER_SHA256_AMD64 LS_LINT_SHA256_AMD64 TYPOS_SHA256_AMD64 SWIFTLINT_SHA256_AMD64
@@ -104,7 +103,8 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
-      curl ca-certificates unzip pkg-config libicu-dev gcc g++ python3-dev
+      curl ca-certificates unzip pkg-config libicu-dev gcc g++ python3-dev \
+      openjdk-21-jdk-headless
 
 RUN mkdir -p /staging/gobin /staging/jq /staging/pmd /staging/scripts /staging/swiftbin
 
@@ -162,6 +162,23 @@ RUN set -eux; \
     echo "${JQ_SHA}  /staging/jq/jq" | sha256sum --strict -c -; \
     rm -f /tmp/*.tar.gz /tmp/*.zip; \
     chmod +x /staging/gobin/* /staging/jq/jq
+
+# ── Minimal JRE for PMD/CPD via jlink ────────────────────────────────────────
+# default-jre-headless is ~200 MB; jlink keeps only the modules PMD's jars
+# actually reference (jdeps, deterministic for the pinned PMD_VERSION) plus
+# jdk.unsupported (guava/jna use sun.misc.Unsafe). Falls back to a fixed
+# module list if jdeps cannot analyse a jar.
+RUN set -eux; \
+    PMD_LIB="$(echo /staging/pmd/pmd-bin-*/lib)"; \
+    MODS="$(jdeps -R --multi-release 21 --ignore-missing-deps --print-module-deps \
+              --class-path "${PMD_LIB}/*" "${PMD_LIB}"/*.jar 2>/dev/null \
+            | grep -E '^[a-z][a-z0-9.]*(,[a-z][a-z0-9.]*)*$' | tail -1 || true)"; \
+    MODS="${MODS:-java.base,java.desktop,java.logging,java.management,java.naming,java.sql,java.xml}"; \
+    echo "jlink modules: ${MODS},jdk.unsupported"; \
+    jlink --add-modules "${MODS},jdk.unsupported" --strip-debug --no-man-pages --no-header-files \
+          --compress=2 --output /staging/jre; \
+    /staging/jre/bin/java -version; \
+    du -sh /staging/jre
 
 # ── SwiftLint (amd64 only) → /staging/swiftbin ────────────────────────────────
 # SwiftLint ships amd64 only; it is best-effort and its plugin degrades to
@@ -236,7 +253,7 @@ RUN --security=insecure --mount=type=cache,target=/root/.cache/uv \
 # "scancode-toolkit==${SCANCODE_VERSION}" to this install, restore the deferred-import
 # wrapper, and add "scancode" back to CALIPER_ENABLED_SCANNERS below.
 RUN --security=insecure --mount=type=cache,target=/root/.cache/uv \
-    uv pip install "lizard==${LIZARD_VERSION}" "mypy==${MYPY_VERSION}" "pyrefly==${PYREFLY_VERSION}"
+    uv pip install "lizard==${LIZARD_VERSION}" "pyrefly==${PYREFLY_VERSION}"
 
 # opengrep — self-contained binary, sha256-verified
 ARG OPENGREP_SHA256_ARM64 OPENGREP_SHA256_AMD64
@@ -261,6 +278,7 @@ ARG TARGETARCH=amd64
 FROM python_base_${TARGETARCH} AS runtime
 
 ARG PMD_VERSION
+ARG TARGETARCH
 
 LABEL org.opencontainers.image.title="Caliper" \
       org.opencontainers.image.description="DHI hardened multi-stage production scanner" \
@@ -274,14 +292,11 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
-      git clamav clamav-freshclam libicu76 libarchive13t64 ca-certificates \
-      default-jre-headless
+      git ca-certificates \
+      $( [ "${TARGETARCH}" = "amd64" ] && echo libicu76 )  # swiftlint (amd64-only) links ICU
 
 # Non-root user — scanners must not run as root.
-RUN groupadd -r caliper && useradd -r -g caliper -m -d /home/caliper -s /bin/false caliper \
-    && mkdir -p /var/lib/clamav /var/log/clamav \
-    && chown -R caliper:caliper /var/lib/clamav /var/log/clamav \
-    && chmod 0750 /var/lib/clamav /var/log/clamav
+RUN groupadd -r caliper && useradd -r -g caliper -m -d /home/caliper -s /bin/false caliper
 
 # ── Staged artifacts from builder ────────────────────────────────────────────
 COPY --from=builder /staging/gobin/syft        /usr/local/bin/syft
@@ -294,6 +309,7 @@ COPY --from=builder /staging/gobin/ls-lint    /usr/local/bin/ls-lint
 COPY --from=builder /staging/gobin/typos       /usr/local/bin/typos
 COPY --from=builder /usr/local/bin/opengrep   /usr/local/bin/opengrep
 COPY --from=builder /staging/pmd/              /opt/pmd/
+COPY --from=builder /staging/jre/              /opt/jre/
 COPY --from=builder /staging/jq/jq             /usr/bin/jq
 # Swift tools (swiftlint, amd64 only) — dir COPY tolerates absence.
 COPY --from=builder /staging/swiftbin/         /usr/local/bin/
@@ -310,7 +326,7 @@ COPY scripts/verify-checksums.sh /opt/caliper/scripts/verify-checksums.sh
 RUN chmod +x /opt/caliper/scripts/verify-checksums.sh
 
 # PMD wrapper — Java-based, not in the venv
-RUN printf '#!/bin/sh\nexec /opt/pmd/pmd-bin-%s/bin/pmd "$@"\n' "${PMD_VERSION}" > /usr/local/bin/pmd \
+RUN printf '#!/bin/sh\nexport JAVA_HOME=/opt/jre\nexport PATH=/opt/jre/bin:$PATH\nexec /opt/pmd/pmd-bin-%s/bin/pmd "$@"\n' "${PMD_VERSION}" > /usr/local/bin/pmd \
     && chmod +x /usr/local/bin/pmd
 
 # Entrypoint verifies binary integrity before running caliper
