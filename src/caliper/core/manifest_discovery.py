@@ -273,8 +273,21 @@ def _direct_deps_package_json(text: str) -> set[str]:
     return deps
 
 
+# pom.xml is repo-controlled input parsed with the stdlib parser: refuse any
+# DOCTYPE/ENTITY declaration (entity expansion, external entities) and oversized
+# documents up-front rather than trusting expat's limits. No extra dependency.
+_POM_XML_MAX_BYTES = 2 * 1024 * 1024
+_POM_XML_FORBIDDEN = re.compile(r"<!(?:DOCTYPE|ENTITY)", re.IGNORECASE)
+
+
 def _direct_deps_pom_xml(text: str) -> set[str]:
     deps: set[str] = set()
+    if len(text) > _POM_XML_MAX_BYTES:
+        logger.warning("pom_xml_rejected_oversized", size=len(text), limit=_POM_XML_MAX_BYTES)
+        return deps
+    if _POM_XML_FORBIDDEN.search(text):
+        logger.warning("pom_xml_rejected_doctype_or_entity_declaration")
+        return deps
     try:
         root = ElementTree.fromstring(text)
     except ElementTree.ParseError:

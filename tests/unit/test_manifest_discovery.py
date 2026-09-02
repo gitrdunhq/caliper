@@ -16,18 +16,21 @@ from __future__ import annotations
 
 import re
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
+from structlog.testing import capture_logs
 
 from caliper.core.manifest_discovery import (
     MANIFEST_MAP,
     ManifestCache,
     PackageUnit,
     _appears_in_lockfile,
+    _direct_deps_pom_xml,
     _lockfile_pattern,
     classify_dependency_kind,
     discover_packages,
@@ -949,3 +952,66 @@ class TestLockfileMatchNormalized:
         _write(manifest, '[project]\ndependencies = ["requests"]\n')
         _write(tmp_path / "uv.lock", '[[package]]\nname = "foo-bar-baz"\n')
         assert classify_dependency_kind(tmp_path, "foo_bar", manifest) == "unknown"
+
+
+class TestPomXmlHardening:
+    """SEC-001: pom.xml is repo-controlled input parsed with xml.etree — reject
+    DOCTYPE/ENTITY declarations and oversized documents before parsing instead
+    of adding a dependency."""
+
+    _BILLION_LAUGHS = (
+        '<?xml version="1.0"?>\n'
+        "<!DOCTYPE lolz [\n"
+        ' <!ENTITY lol "lol">\n'
+        ' <!ENTITY lol1 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">\n'
+        ' <!ENTITY lol2 "&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;">\n'
+        ' <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">\n'
+        ' <!ENTITY lol4 "&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;">\n'
+        ' <!ENTITY lol5 "&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;">\n'
+        ' <!ENTITY lol6 "&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;">\n'
+        ' <!ENTITY lol7 "&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;">\n'
+        ' <!ENTITY lol8 "&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;">\n'
+        ' <!ENTITY lol9 "&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;">\n'
+        "]>\n"
+        "<project><dependencies><dependency>"
+        "<artifactId>&lol9;</artifactId>"
+        "</dependency></dependencies></project>\n"
+    )
+
+    _NORMAL_POM = (
+        "<project>\n  <dependencies>\n    <dependency>\n"
+        "      <groupId>org.example</groupId>\n      <artifactId>example-lib</artifactId>\n"
+        "    </dependency>\n  </dependencies>\n</project>\n"
+    )
+
+    def test_billion_laughs_returns_no_deps_without_expanding(self) -> None:
+        started = time.monotonic()
+        assert _direct_deps_pom_xml(self._BILLION_LAUGHS) == set()
+        assert time.monotonic() - started < 1.0
+
+    def test_billion_laughs_logs_a_warning(self, capsys) -> None:
+        with capture_logs() as logs:
+            _direct_deps_pom_xml(self._BILLION_LAUGHS)
+        assert any(
+            entry["log_level"] == "warning" and "pom_xml" in entry["event"] for entry in logs
+        ), logs
+
+    def test_doctype_without_entities_is_rejected(self) -> None:
+        text = '<!DOCTYPE project SYSTEM "file:///etc/passwd">\n' + self._NORMAL_POM
+        assert _direct_deps_pom_xml(text) == set()
+
+    def test_lowercase_doctype_is_rejected(self) -> None:
+        text = "<!doctype project>\n" + self._NORMAL_POM
+        assert _direct_deps_pom_xml(text) == set()
+
+    def test_oversized_pom_is_rejected(self) -> None:
+        padding = "<!-- " + ("x" * (2 * 1024 * 1024)) + " -->\n"
+        assert _direct_deps_pom_xml(padding + self._NORMAL_POM) == set()
+
+    def test_normal_pom_still_parses(self) -> None:
+        assert _direct_deps_pom_xml(self._NORMAL_POM) == {"example-lib"}
+
+    def test_normal_pom_classifies_direct_end_to_end(self, tmp_path: Path) -> None:
+        manifest = tmp_path / "pom.xml"
+        _write(manifest, self._NORMAL_POM)
+        assert classify_dependency_kind(tmp_path, "example-lib", manifest) == "direct"
