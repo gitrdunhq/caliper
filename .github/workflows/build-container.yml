@@ -74,6 +74,7 @@ jobs:
           docker buildx build \
             --builder caliper-builder \
             --allow security.insecure \
+            --target runtime \
             --push \
             --tag "$TAG" \
             --tag "$TAG_LATEST" \
