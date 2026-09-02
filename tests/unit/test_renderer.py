@@ -569,3 +569,179 @@ class TestRenderCommentTruncation:
 
         if "*[comment truncated — full report in artifacts]*" in output:
             assert output.rstrip().endswith("*[comment truncated — full report in artifacts]*")
+
+
+# ---------------------------------------------------------------------------
+# task-002 RED: skipped-plugin summary, path relativization, detector
+# sections, severity/alpha ordering, hard truncation cap.
+# ---------------------------------------------------------------------------
+
+
+class TestTask002RendererBehaviors:
+    def test_ac1_skipped_plugins_summarized_in_single_line_not_own_table_row(self):
+        """PROP-001: skipped plugins never get their own table row; a single
+        'skipped: <name> (<reason>), ...' line summarizes all of them once."""
+        skipped_result = PluginResult(
+            plugin_name="typos",
+            summary={"status": "skipped", "reason": "not installed"},
+        )
+        active_result = PluginResult(
+            plugin_name="osv-scanner",
+            category="dependency",
+            findings=[{"severity": "low", "message": "minor", "file": "a.py"}],
+        )
+        md = render_comment(
+            [skipped_result, active_result],
+            repo="org/repo",
+            pr_num=1,
+            title="test",
+        )
+
+        # The skipped plugin must never appear as its own "| typos | ... |" row.
+        assert "| typos |" not in md
+
+        # Exactly one summary line naming the skipped plugin and its reason.
+        assert md.count("typos") == 1
+        assert "skipped: typos (not installed)" in md
+
+    def test_ac2_render_comment_never_emits_workspace_prefixed_paths(self):
+        """PROP-002: render_comment() never emits a path beginning with
+        '/workspace/'; all finding paths are relative to repo_path."""
+        result = PluginResult(
+            plugin_name="semgrep",
+            category="code",
+            findings=[
+                {
+                    "severity": "high",
+                    "message": "issue in workspace file",
+                    "file": "/workspace/src/foo.py",
+                    "line": 10,
+                }
+            ],
+        )
+        md = render_comment(
+            [result],
+            repo="org/repo",
+            pr_num=1,
+            title="test",
+            repo_path="/workspace",
+        )
+
+        assert "/workspace" not in md
+        assert "src/foo.py" in md
+
+    def test_ac3_detector_finding_renders_in_dedicated_section(self):
+        """PROP-003: a detector finding (rule_id starting 'CAL-') renders in its
+        own section with severity icon, 'file:line', rule id, one-line message,
+        and fix suggestion — distinct from the plain semgrep section."""
+        detector_result = PluginResult(
+            plugin_name="detectors",
+            category="code",
+            findings=[
+                {
+                    "rule_id": "CAL-001",
+                    "severity": "high",
+                    "file": "src/foo.py",
+                    "line": 42,
+                    "message": "mutable default argument",
+                    "fix_suggestion": "use None and initialize inside the function",
+                }
+            ],
+        )
+        semgrep_result = PluginResult(
+            plugin_name="semgrep",
+            category="code",
+            findings=[
+                {
+                    "rule_id": "",
+                    "severity": "medium",
+                    "file": "src/bar.py",
+                    "line": 5,
+                    "message": "generic semgrep issue",
+                }
+            ],
+        )
+        md = render_comment(
+            [detector_result, semgrep_result],
+            repo="org/repo",
+            pr_num=1,
+            title="test",
+        )
+
+        assert "CAL-001" in md
+        assert "src/foo.py:42" in md
+        assert "mutable default argument" in md
+        assert "use None and initialize inside the function" in md
+
+        # Detector section must be distinct from the semgrep section.
+        detector_idx = md.index("CAL-001")
+        semgrep_idx = md.index("generic semgrep issue")
+        detector_section_header = md.rfind("###", 0, detector_idx)
+        semgrep_section_header = md.rfind("###", 0, semgrep_idx)
+        assert detector_section_header != semgrep_section_header
+
+    def test_ac4_findings_ordered_by_severity_then_alphabetically_by_file(self):
+        """PROP-004: within a section, findings are ordered critical, high,
+        medium, low, info, then alphabetically by file."""
+        result = PluginResult(
+            plugin_name="semgrep",
+            category="code",
+            findings=[
+                {
+                    "severity": "info",
+                    "message": "MSG_INFO_ITEM",
+                    "file": "a_first.py",
+                    "line": 1,
+                },
+                {
+                    "severity": "critical",
+                    "message": "MSG_CRITICAL_ITEM",
+                    "file": "z_last.py",
+                    "line": 1,
+                },
+            ],
+        )
+        md = render_comment(
+            [result],
+            repo="org/repo",
+            pr_num=1,
+            title="test",
+        )
+
+        assert "MSG_CRITICAL_ITEM" in md
+        assert "MSG_INFO_ITEM" in md
+        assert md.index("MSG_CRITICAL_ITEM") < md.index(
+            "MSG_INFO_ITEM"
+        ), "critical severity finding must render before info severity finding"
+
+    def test_ac5_output_truncated_to_65536_with_omitted_count_message(self):
+        """PROP-005: render_comment() output is truncated to 65536 chars max,
+        and a truncated section states how many findings were omitted, e.g.
+        '(12 more findings omitted)'."""
+        big_result = PluginResult(
+            plugin_name="osv-scanner",
+            category="dependency",
+            findings=[
+                {
+                    "id": f"CVE-2024-{i:04d}",
+                    "severity": "high",
+                    "package": f"pkg{i}",
+                    "version": "1.0.0",
+                    "url": f"https://example.com/{i}",
+                    "summary": f"Vulnerability number {i} with a long padded description",
+                    "file": f"pkg{i}.py",
+                    "line": 1,
+                }
+                for i in range(3000)
+            ],
+            summary={"total": 3000, "critical_high": 3000},
+        )
+        md = render_comment(
+            [big_result],
+            repo="org/repo",
+            pr_num=1,
+            title="test",
+        )
+
+        assert len(md) <= 65536
+        assert "more findings omitted)" in md

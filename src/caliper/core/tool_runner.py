@@ -28,7 +28,10 @@ class ToolResult:
 
     exit_code: int
     stdout: str
-    stderr: str
+    # Defaults to "" so a result can be built from just an exit code and stdout —
+    # the common shape for a probe (e.g. `podman --version`) that only signals
+    # presence. Every other field already defaults; this makes stderr consistent.
+    stderr: str = ""
     timed_out: bool = field(default=False)
     duration_ms: int = field(default=0)
     not_installed: bool = field(default=False)

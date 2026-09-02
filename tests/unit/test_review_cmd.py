@@ -11,6 +11,7 @@ from caliper.cli.review_cmd import (
     resolve_plugin_selection,
 )
 from caliper.core.repo_config import PluginConfig, RepoConfig
+from caliper.core.tool_runner import ToolInvocation, ToolResult
 from caliper.core.use_cases import ScanScope
 
 
@@ -280,3 +281,212 @@ class SystemExitCapture:
             self.code = exc_value.code
             return True
         return False
+
+
+class _RecordingToolRunner:
+    """Fake ToolRunnerPort that records every invocation and answers from a
+    canned response table keyed by a command-prefix tuple. Never touches a
+    real subprocess/container — used to prove task-022's AC5 (no test spawns
+    a real container).
+    """
+
+    def __init__(
+        self,
+        responses: dict[tuple[str, ...], ToolResult] | None = None,
+        default: ToolResult | None = None,
+    ) -> None:
+        self.invocations: list[ToolInvocation] = []
+        self._responses = responses or {}
+        self._default = default or ToolResult(
+            exit_code=127, stdout="", stderr="not found", not_installed=True
+        )
+
+    def run(self, invocation: ToolInvocation) -> ToolResult:
+        self.invocations.append(invocation)
+        for prefix, result in self._responses.items():
+            if tuple(invocation.cmd[: len(prefix)]) == tuple(prefix):
+                return result
+        return self._default
+
+
+class TestReviewRunnerFlag:
+    """task-022: `caliper review --runner auto|container|native`."""
+
+    def test_ac1_runner_auto_picks_container_when_podman_and_image_present(self) -> None:
+        """PROP-001: --runner auto with a fake ToolRunnerPort reporting podman
+        present and the image pullable resolves to the container path."""
+        from caliper.cli.review_cmd import resolve_runner_choice
+
+        responses = {
+            ("podman", "--version"): ToolResult(exit_code=0, stdout="podman version 4.9.0"),
+            ("podman", "image", "exists"): ToolResult(exit_code=0, stdout=""),
+        }
+        fake_runner = _RecordingToolRunner(responses=responses)
+
+        choice = resolve_runner_choice("auto", fake_runner)
+
+        assert choice == "container"
+
+    def test_ac1_runner_auto_falls_back_to_native_with_one_line_stderr_notice(self, capsys) -> None:
+        """PROP-001: with neither podman nor docker on PATH, --runner auto
+        falls back to native and prints a one-line stderr notice."""
+        from caliper.cli.review_cmd import resolve_runner_choice
+
+        fake_runner = _RecordingToolRunner()  # default: not_installed for every probe
+
+        choice = resolve_runner_choice("auto", fake_runner)
+
+        captured = capsys.readouterr()
+        assert choice == "native"
+        stderr_lines = [line for line in captured.err.splitlines() if line.strip()]
+        assert len(stderr_lines) == 1
+        assert "native" in stderr_lines[0].lower()
+
+    def test_ac2_container_invocation_mounts_repo_ro_and_temp_rw(self, tmp_path: Path) -> None:
+        """PROP-002: the assembled container command mounts repo_path
+        read-only at /workspace and .temp read-write."""
+        from caliper.cli.review_cmd import build_container_invocation
+
+        repo_path = tmp_path / "repo"
+        repo_path.mkdir()
+        temp_path = repo_path / ".temp"
+        temp_path.mkdir()
+
+        invocation = build_container_invocation(
+            repo_path=repo_path,
+            temp_path=temp_path,
+            env={},
+            cli_args=["review", "--repo-path", "/workspace"],
+        )
+
+        cmd = invocation.cmd
+        assert "-v" in cmd
+        mount_args = [cmd[i + 1] for i, tok in enumerate(cmd) if tok == "-v"]
+        assert f"{repo_path}:/workspace:ro" in mount_args
+        assert any(
+            arg.startswith(f"{temp_path}:/workspace/.temp") and arg.endswith(":ro") is False
+            for arg in mount_args
+        )
+
+    def test_ac2_container_invocation_forwards_caliper_env_vars_only(self, tmp_path: Path) -> None:
+        """PROP-002: every CALIPER_* env var present in the process
+        environment is forwarded; unrelated env vars are not."""
+        from caliper.cli.review_cmd import build_container_invocation
+
+        env = {
+            "CALIPER_LOG_LEVEL": "debug",
+            "CALIPER_WEBHOOK_SECRET": "shh",
+            "UNRELATED_VAR": "nope",
+            "PATH": "/usr/bin",
+        }
+
+        invocation = build_container_invocation(
+            repo_path=tmp_path, temp_path=tmp_path / ".temp", env=env, cli_args=["review"]
+        )
+
+        cmd = invocation.cmd
+        env_pairs = [cmd[i + 1] for i, tok in enumerate(cmd) if tok == "-e"]
+        assert "CALIPER_LOG_LEVEL=debug" in env_pairs
+        assert "CALIPER_WEBHOOK_SECRET=shh" in env_pairs
+        assert not any(pair.startswith("UNRELATED_VAR") for pair in env_pairs)
+        assert not any(pair.startswith("PATH=") for pair in env_pairs)
+
+    def test_ac2_container_invocation_forwards_cli_args_verbatim(self, tmp_path: Path) -> None:
+        """PROP-002: the original CLI args are forwarded verbatim to the
+        containerized invocation."""
+        from caliper.cli.review_cmd import build_container_invocation
+
+        cli_args = ["review", "--repo-path", "/workspace", "--output-format", "sarif"]
+
+        invocation = build_container_invocation(
+            repo_path=tmp_path, temp_path=tmp_path / ".temp", env={}, cli_args=cli_args
+        )
+
+        assert invocation.cmd[-len(cli_args) :] == cli_args
+
+    def test_ac3_container_invocation_runs_as_non_root_user(self, tmp_path: Path) -> None:
+        """PROP-003: the container invocation runs as the image's non-root
+        user, never root/uid 0."""
+        from caliper.cli.review_cmd import build_container_invocation
+
+        invocation = build_container_invocation(
+            repo_path=tmp_path, temp_path=tmp_path / ".temp", env={}, cli_args=["review"]
+        )
+
+        cmd = invocation.cmd
+        assert "--user" in cmd
+        user_idx = cmd.index("--user")
+        user_value = cmd[user_idx + 1]
+        assert user_value not in {"0", "root", "0:0"}
+
+    def test_ac3_cli_returns_container_exit_code_and_stdout_unchanged(self, tmp_path: Path) -> None:
+        """PROP-003: the CLI returns the container process's exit code and
+        stdout unchanged, via the fake ToolRunnerPort."""
+        from caliper.cli.review_cmd import run_review_via_container
+
+        fake_result = ToolResult(exit_code=7, stdout="42 findings\n", stderr="", duration_ms=42)
+        fake_runner = _RecordingToolRunner(default=fake_result)
+
+        result = run_review_via_container(
+            fake_runner,
+            repo_path=tmp_path,
+            temp_path=tmp_path / ".temp",
+            env={},
+            cli_args=["review", "--repo-path", "/workspace"],
+        )
+
+        assert result.exit_code == 7
+        assert result.stdout == "42 findings\n"
+
+    def test_ac4_review_accepts_runner_but_part_command_does_not(self) -> None:
+        """PROP-004: `caliper review` gains a --runner option; `caliper part`
+        does not accept it and is unaffected by it — it always runs natively."""
+        from caliper.cli.main import cli
+
+        review_param_names = {p.name for p in cli.commands["review"].params}
+        part_param_names = {p.name for p in cli.commands["part"].params}
+
+        assert "runner" in review_param_names
+        assert "runner" not in part_param_names
+
+    def test_ac5_runner_flow_never_touches_a_real_subprocess(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """PROP-005: the whole auto -> container-invocation -> execution flow
+        is driven entirely by a fake ToolRunnerPort; no test in this module
+        ever spawns a real container/subprocess."""
+        from caliper.cli.review_cmd import (
+            build_container_invocation,
+            resolve_runner_choice,
+            run_review_via_container,
+        )
+
+        def _boom(*args, **kwargs):
+            raise AssertionError("real subprocess.run must never be called; use ToolRunnerPort")
+
+        monkeypatch.setattr("subprocess.run", _boom)
+        monkeypatch.setattr("subprocess.Popen", _boom)
+
+        responses = {
+            ("podman", "--version"): ToolResult(exit_code=0, stdout="podman version 4.9.0"),
+            ("podman", "image", "exists"): ToolResult(exit_code=0, stdout=""),
+        }
+        fake_runner = _RecordingToolRunner(
+            responses=responses, default=ToolResult(exit_code=0, stdout="ok", stderr="")
+        )
+
+        choice = resolve_runner_choice("auto", fake_runner)
+        build_container_invocation(
+            repo_path=tmp_path, temp_path=tmp_path / ".temp", env={}, cli_args=["review"]
+        )
+        result = run_review_via_container(
+            fake_runner,
+            repo_path=tmp_path,
+            temp_path=tmp_path / ".temp",
+            env={},
+            cli_args=["review"],
+        )
+
+        assert choice == "container"
+        assert result.stdout == "ok"
+        assert len(fake_runner.invocations) >= 2

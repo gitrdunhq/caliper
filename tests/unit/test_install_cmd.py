@@ -106,3 +106,84 @@ class TestOfferInstall:
 
 def _plan_of(names: list[str]) -> InstallPlan:  # keep the import used for type clarity
     return InstallPlan(items=[], already_present=names, unsupported=[])
+
+
+class TestInstallScannersPresentElsewhereOnPath:
+    """task-023: a same-named binary elsewhere on PATH must not silently make
+    install-scanners skip --bin-dir installation — that must be opt-in via
+    --skip-present, and the plan must say exactly where the shadowing binary
+    lives and that --bin-dir needs to come first on PATH to take effect.
+    """
+
+    def test_ac1_default_still_installs_into_bin_dir_when_present_elsewhere(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        fake = _FakeInstaller()
+        elsewhere = "/usr/local/bin/trivy"
+        monkeypatch.setattr("caliper.cli.install_cmd._installer", lambda: fake)
+        monkeypatch.setattr(
+            "caliper.cli.install_cmd._which", lambda n: elsewhere if n == "trivy" else None
+        )
+        monkeypatch.setattr("caliper.cli.install_cmd._platform", lambda: "linux-amd64")
+        monkeypatch.setenv("PATH", "/usr/local/bin")
+        result = CliRunner().invoke(
+            install_scanners, ["trivy", "--bin-dir", str(tmp_path), "--yes"]
+        )
+        assert result.exit_code == 0, result.output
+        assert fake.installed == ["trivy"]
+
+    def test_ac2_skip_present_flag_skips_install_and_notes_why(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        fake = _FakeInstaller()
+        elsewhere = "/usr/local/bin/trivy"
+        monkeypatch.setattr("caliper.cli.install_cmd._installer", lambda: fake)
+        monkeypatch.setattr(
+            "caliper.cli.install_cmd._which", lambda n: elsewhere if n == "trivy" else None
+        )
+        monkeypatch.setattr("caliper.cli.install_cmd._platform", lambda: "linux-amd64")
+        monkeypatch.setenv("PATH", "/usr/local/bin")
+        result = CliRunner().invoke(
+            install_scanners,
+            ["trivy", "--bin-dir", str(tmp_path), "--yes", "--skip-present"],
+        )
+        assert result.exit_code == 0, result.output
+        assert fake.installed == []
+        assert "skipped" in result.output.lower()
+        assert "present elsewhere" in result.output.lower()
+
+    def test_ac3_plan_reports_exact_present_elsewhere_string(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        fake = _FakeInstaller()
+        elsewhere = "/usr/local/bin/trivy"
+        monkeypatch.setattr("caliper.cli.install_cmd._installer", lambda: fake)
+        monkeypatch.setattr(
+            "caliper.cli.install_cmd._which", lambda n: elsewhere if n == "trivy" else None
+        )
+        monkeypatch.setattr("caliper.cli.install_cmd._platform", lambda: "linux-amd64")
+        monkeypatch.setenv("PATH", "/usr/local/bin")
+        result = CliRunner().invoke(
+            install_scanners, ["trivy", "--bin-dir", str(tmp_path), "--dry-run"]
+        )
+        assert result.exit_code == 0, result.output
+        assert f"present elsewhere: {elsewhere} (version mismatch unknown)" in result.output
+
+    def test_ac4_plan_includes_path_hint_that_bin_dir_must_precede_elsewhere(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        fake = _FakeInstaller()
+        elsewhere = "/usr/local/bin/trivy"
+        monkeypatch.setattr("caliper.cli.install_cmd._installer", lambda: fake)
+        monkeypatch.setattr(
+            "caliper.cli.install_cmd._which", lambda n: elsewhere if n == "trivy" else None
+        )
+        monkeypatch.setattr("caliper.cli.install_cmd._platform", lambda: "linux-amd64")
+        monkeypatch.setenv("PATH", "/usr/local/bin")
+        result = CliRunner().invoke(
+            install_scanners, ["trivy", "--bin-dir", str(tmp_path), "--dry-run"]
+        )
+        assert result.exit_code == 0, result.output
+        assert str(tmp_path) in result.output
+        assert "must precede" in result.output.lower()
+        assert "/usr/local/bin" in result.output
