@@ -203,3 +203,56 @@ def test_rule_ids_drop_configured_dir_prefixes(monkeypatch, tmp_path: Path) -> N
         "org.kubernetes.no-latest-tag",
         "policies.semgrep.first-test-no-assert",  # target-local rules keep their prefix
     ]
+
+
+def test_run_passes_community_rules_dir_from_settings(monkeypatch, tmp_path: Path) -> None:
+    """The baked eedom-community-rules snapshot is a third rule source, set by the image env."""
+    captured: dict = {}
+    monkeypatch.setattr(RULE_RUNNERS, "create", lambda name: _FakeRunner({"results": []}, captured))
+    settings = CaliperSettings(
+        semgrep_rules_dir="/opt/caliper/semgrep-rules",
+        semgrep_org_rules_dir="/opt/caliper/policies/semgrep",
+        semgrep_community_rules_dir="/opt/caliper/community-rules",
+    )
+    SemgrepPlugin(settings).run([str(tmp_path / "a.py")], tmp_path)
+
+    assert captured["community_rules_dir"] == "/opt/caliper/community-rules"
+
+
+def test_community_rules_dir_unset_by_default(monkeypatch, tmp_path: Path) -> None:
+    """No snapshot configured -> None reaches the runner (fail-open, nothing extra loaded)."""
+    captured: dict = {}
+    monkeypatch.setattr(RULE_RUNNERS, "create", lambda name: _FakeRunner({"results": []}, captured))
+    SemgrepPlugin(CaliperSettings()).run([str(tmp_path / "a.py")], tmp_path)
+
+    assert captured["community_rules_dir"] is None
+
+
+def test_community_rule_ids_drop_snapshot_prefix(monkeypatch, tmp_path: Path) -> None:
+    """A community rule id comes back as its Kirby rule id, not the dotted snapshot path."""
+    target = tmp_path / "a.ts"
+    data = {
+        "status": "ok",
+        "results": [
+            {
+                "check_id": (
+                    "opt.caliper.community-rules.rules.infrastructure.semgrep."
+                    "cdk-custom-resource-oncreate-without-onupdate"
+                ),
+                "path": str(target),
+                "start": {"line": 1},
+                "end": {"line": 1},
+                "extra": {"severity": "ERROR", "message": "m"},
+            },
+        ],
+    }
+    _install_fake_runner(monkeypatch, data)
+    settings = CaliperSettings(
+        semgrep_rules_dir="/opt/caliper/semgrep-rules",
+        semgrep_org_rules_dir="/opt/caliper/policies/semgrep",
+        semgrep_community_rules_dir="/opt/caliper/community-rules",
+    )
+    result = SemgrepPlugin(settings).run([str(target)], tmp_path)
+    assert [f["rule_id"] for f in result.findings] == [
+        "rules.infrastructure.semgrep.cdk-custom-resource-oncreate-without-onupdate"
+    ]

@@ -24,6 +24,9 @@ ARG SWIFTLINT_VERSION=0.57.1
 # commit. Baked into the image so opengrep never fetches registry packs at scan
 # time (no network in the scan path, no rule drift between runs).
 ARG SEMGREP_RULES_COMMIT=40b8c63f75dc7c22c8a77482d73bfb864b146f7e
+# gitrdunhq/eedom-community-rules: shared Kirby-annotated org rules. Pinned by
+# commit like semgrep-rules; bump with scripts/snapshot-community-rules.sh --bump.
+ARG COMMUNITY_RULES_COMMIT=22a9ade89a737a36270696f882698e947bee2c2a
 
 # ── Source revision pins ─────────────────────────────────────────────────────
 # GitHub release assets are still addressed by release version because that is
@@ -85,6 +88,7 @@ ARG SYFT_VERSION TRIVY_VERSION OSV_VERSION OPA_VERSION GITLEAKS_VERSION JQ_VERSI
 ARG SYFT_COMMIT TRIVY_COMMIT OSV_COMMIT OPA_COMMIT GITLEAKS_COMMIT KUBE_LINTER_COMMIT JQ_COMMIT LS_LINT_COMMIT UV_COMMIT
 ARG OPENGREP_VERSION SCANCODE_VERSION LIZARD_VERSION PYREFLY_VERSION RADON_VERSION
 ARG SEMGREP_RULES_COMMIT
+ARG COMMUNITY_RULES_COMMIT
 ARG SYFT_SHA256_ARM64 TRIVY_SHA256_ARM64 OSV_SHA256_ARM64 OPA_SHA256_ARM64 GITLEAKS_SHA256_ARM64 JQ_SHA256_ARM64 KUBE_LINTER_SHA256_ARM64 LS_LINT_SHA256_ARM64 PMD_SHA256
 ARG SYFT_SHA256_AMD64 TRIVY_SHA256_AMD64 OSV_SHA256_AMD64 OPA_SHA256_AMD64 GITLEAKS_SHA256_AMD64 JQ_SHA256_AMD64 KUBE_LINTER_SHA256_AMD64 LS_LINT_SHA256_AMD64 SWIFTLINT_SHA256_AMD64
 ARG TARGETARCH
@@ -209,6 +213,7 @@ RUN printf '%s\n' \
       "jq=${JQ_COMMIT}" \
       "ls-lint=${LS_LINT_COMMIT}" \
       "semgrep-rules=${SEMGREP_RULES_COMMIT}" \
+      "community-rules=${COMMUNITY_RULES_COMMIT}" \
     > /staging/scripts/release-revisions.txt
 
 # semgrep-rules snapshot — the ONLY source of community opengrep rules. Fetched
@@ -224,6 +229,22 @@ RUN set -eux; \
     find /staging/semgrep-rules -type f ! -name '*.yaml' ! -name '*.yml' -delete; \
     printf '%s\n' "${SEMGREP_RULES_COMMIT}" > /staging/semgrep-rules/COMMIT; \
     test "$(find /staging/semgrep-rules -name '*.yaml' | wc -l)" -gt 100
+
+# eedom-community-rules snapshot — only the opengrep-loadable rule files
+# (rules/**/semgrep/*.yaml and rules/**/dockerfile-semgrep/*.yaml); fixtures
+# under tests/ and every other scanner's config are dropped so opengrep never
+# sees a non-rule YAML. Fetched by commit, so two builds of the same pin are
+# byte-identical and the scan path stays offline.
+RUN set -eux; \
+    mkdir -p /staging/community-rules /tmp/community-rules; \
+    curl -sSfL -o /tmp/community-rules.tar.gz \
+      "https://github.com/gitrdunhq/eedom-community-rules/archive/${COMMUNITY_RULES_COMMIT}.tar.gz"; \
+    tar -xzf /tmp/community-rules.tar.gz -C /tmp/community-rules --strip-components=1; \
+    find /tmp/community-rules/rules -type f \( -path '*/semgrep/*.yaml' -o -path '*/dockerfile-semgrep/*.yaml' \) \
+      ! -path '*/tests/*' -exec sh -c 'd="/staging/community-rules/${1#/tmp/community-rules/}"; mkdir -p "$(dirname "$d")"; cp "$1" "$d"' _ {} \; ; \
+    rm -rf /tmp/community-rules /tmp/community-rules.tar.gz; \
+    printf '%s\n' "${COMMUNITY_RULES_COMMIT}" > /staging/community-rules/COMMIT; \
+    test "$(find /staging/community-rules -name '*.yaml' | wc -l)" -gt 5
 
 # ── Python: lockfile-based venv install ──────────────────────────────────────
 # astral-sh/uv revision:
@@ -314,6 +335,7 @@ COPY --from=builder /staging/swiftbin/         /usr/local/bin/
 COPY --from=builder /opt/caliper/.venv /opt/caliper/.venv
 COPY --from=builder /opt/caliper/policies/ /opt/caliper/policies/
 COPY --from=builder /staging/semgrep-rules/ /opt/caliper/semgrep-rules/
+COPY --from=builder /staging/community-rules/ /opt/caliper/community-rules/
 
 RUN mkdir -p /opt/caliper/scripts
 COPY --from=builder /staging/scripts/checksums.txt /opt/caliper/scripts/checksums.txt
@@ -339,6 +361,7 @@ ENV PATH="/opt/caliper/.venv/bin:$PATH" \
     CALIPER_OPA_POLICY_PATH=/opt/caliper/policies \
     CALIPER_SEMGREP_RULES_DIR=/opt/caliper/semgrep-rules \
     CALIPER_SEMGREP_ORG_RULES_DIR=/opt/caliper/policies/semgrep \
+    CALIPER_SEMGREP_COMMUNITY_RULES_DIR=/opt/caliper/community-rules \
     CALIPER_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,ls-lint
 
 # /workspace is the conventional repo mount; making it the cwd means relative
