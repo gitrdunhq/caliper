@@ -101,12 +101,17 @@ class TestMakefileTestTarget:
         """
         content = _read("Makefile")
         recipe = _extract_makefile_target(content, "test")
-        assert "/opt/test-venv" in recipe, (
-            "The make test recipe does not reference /opt/test-venv. "
-            "The test target must invoke /opt/test-venv/bin/python directly "
-            "to guarantee it uses the container-built venv. "
-            "Regression of #203: host state can shadow the container environment. "
-            "Fix: use /opt/test-venv/bin/python -m pytest tests/ -v in the recipe."
+        # The recipe may delegate to the warm-runner script; the anchor must then
+        # live on that script's container run line instead.
+        anchored_in = recipe
+        if "scripts/test-run.sh" in recipe:
+            anchored_in = _read("scripts/test-run.sh")
+        assert "/opt/test-venv/bin/python" in anchored_in, (
+            "Neither the make test recipe nor scripts/test-run.sh references "
+            "/opt/test-venv/bin/python. The test path must invoke the container-built "
+            "venv directly. Regression of #203: host state can shadow the container "
+            "environment. Fix: use /opt/test-venv/bin/python -m pytest in the recipe "
+            "or in scripts/test-run.sh."
         )
 
     def test_make_test_does_not_bind_mount_workspace_without_venv_guard(self) -> None:
