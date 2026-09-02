@@ -1,0 +1,37 @@
+{
+  "task_id": "r3-sarif-dependency-manifest-location",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_sarif.py",
+      "kind": "pytest",
+      "purpose": "Verify to_sarif() for a dependency Finding (osv-scanner or trivy or",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_to_sarif_for_a_dependency_finding_osv_scanner_or_trivy_origi",
+      "skeleton_written": false,
+      "content": "# Skeleton: r3-sarif-dependency-manifest-location AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_to_sarif_for_a_dependency_finding_osv_scanner_or_trivy_origi \u2192 tests/unit/test_sarif.py\n\nimport pytest\n\n\nclass Testr3_sarif_dependency_manifest_location_AC1:\n    def test_ac1_to_sarif_for_a_dependency_finding_osv_scanner_or_trivy_origi(self):\n        \"\"\"\n        PROP-001: to_sarif() for a dependency Finding (osv-scanner or trivy origin) emits a physic\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_sarif.py",
+      "kind": "pytest",
+      "purpose": "Verify existing non-dependency findings (semgrep/detectors) keep th",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_existing_non_dependency_findings_semgrep_detectors_keep_thei",
+      "skeleton_written": false,
+      "content": "# Skeleton: r3-sarif-dependency-manifest-location AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_existing_non_dependency_findings_semgrep_detectors_keep_thei \u2192 tests/unit/test_sarif.py\n\nimport pytest\n\n\nclass Testr3_sarif_dependency_manifest_location_AC2:\n    def test_ac2_existing_non_dependency_findings_semgrep_detectors_keep_thei(self):\n        \"\"\"\n        PROP-002: existing non-dependency findings (semgrep/detectors) keep their current SARIF lo\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/core/sarif.py": "# tested-by: tests/unit/test_sarif.py\n\nfrom __future__ import annotations\n\nimport contextlib\nimport json\nfrom pathlib import Path\n\nfrom caliper.core.plugin import PluginFinding, PluginResult\nfrom caliper.core.review_summary import SEVERITY_TO_LEVEL, ReviewSummary, summarize_review\nfrom caliper.core.version import get_version\n\n_SARIF_SCHEMA = (\n)\n\n# Severity -> SARIF level uses the canonical map (review_summary), so SARIF, the\n# JSON report, and the verdict all classify severities identically.\n_SEVERITY_TO_LEVEL = SEVERITY_TO_LEVEL\n\n# Synthetic rule IDs emitted for degraded-plugin conditions (a crashed plugin or a\n# findings cap being hit), NOT real findings. They carry level=\"error\"/\"note\" so\n# they render visibly in SARIF consumers, but they must never count toward a\n# blocking verdict recount downstream (#211) \u2014 a plugin crash is fail-open, not\n# a reason to block a PR.\nSENTINEL_RULE_IDS = frozenset({\"caliper-plugin-error\", \"caliper-truncated\"})\n\n\ndef _as_dict(finding: PluginFinding | dict) -> dict:\n    ...\n\n\ndef _rule_id(finding: dict, plugin_name: str) -> str:\n    ...\n\n\ndef _message_text(finding: dict) -> str:\n    ...\n\n\ndef _level(finding: dict) -> str:\n    ...\n\n\ndef _make_locations(finding: dict, repo_path: str | None) -> list[dict]:\n    ...\n\n\n\n\ndef _scribe(finding: dict) -> dict | None:\n    ...\n\n\ndef _plugin_to_run(\n    result: PluginResult,\n    max_findings: int = 0,\n) -> dict:\n    findings = result.findings\n    truncated = 0\n        truncated = len(findings) - max_findings\n        findings = findings[:max_findings]\n\n    sarif_results: list[dict] = []\n        finding = _as_dict(raw)\n        sarif_result: dict = {\n        locations = _make_locations(finding, repo_path)\n            sarif_result[\"locations\"] = locations\n        scribe = _scribe(finding)\n            sarif_result[\"properties\"] = {\"scribe\": scribe}\n\n\n\n    tool_name = (\n\n\ndef to_sarif(\n    results: list[PluginResult],\n    max_findings_per_run: int = 0,\n) -> dict:\n        summary = summarize_review(results)\n    doc = {\n\n\nclass SarifRenderer:\n    ...\n\n\n\nfrom caliper.core.port_registries import RENDERERS  # noqa: E402  (registration wiring)\n\n\n@RENDERERS.register(\"sarif\")\ndef build_sarif_renderer() -> SarifRenderer:\n    ...\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

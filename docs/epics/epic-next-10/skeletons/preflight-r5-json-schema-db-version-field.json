@@ -1,0 +1,50 @@
+{
+  "task_id": "r5-json-schema-db-version-field",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_report_schema.py",
+      "kind": "pytest",
+      "purpose": "Verify docs/schema/report-v1.0.json defines an optional 'db_updated",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_docs_schema_report_v1_0_json_defines_an_optional_db_updated",
+      "skeleton_written": false,
+      "content": "# Skeleton: r5-json-schema-db-version-field AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_docs_schema_report_v1_0_json_defines_an_optional_db_updated \u2192 tests/unit/test_report_schema.py\n\nimport pytest\n\n\nclass Testr5_json_schema_db_version_field_AC1:\n    def test_ac1_docs_schema_report_v1_0_json_defines_an_optional_db_updated(self):\n        \"\"\"\n        PROP-001: docs/schema/report-v1.0.json defines an optional 'db_updated_at' (and 'db_versio\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_report_schema.py",
+      "kind": "pytest",
+      "purpose": "Verify core/json_report.py serializes metadata.db_version/db_update",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_core_json_report_py_serializes_metadata_db_version_db_update",
+      "skeleton_written": false,
+      "content": "# Skeleton: r5-json-schema-db-version-field AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_core_json_report_py_serializes_metadata_db_version_db_update \u2192 tests/unit/test_report_schema.py\n\nimport pytest\n\n\nclass Testr5_json_schema_db_version_field_AC2:\n    def test_ac2_core_json_report_py_serializes_metadata_db_version_db_update(self):\n        \"\"\"\n        PROP-002: core/json_report.py serializes metadata.db_version/db_updated_at into the JSON r\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_report_schema.py",
+      "kind": "pytest",
+      "purpose": "Verify a JSON report with no db_updated_at metadata still validates",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_a_json_report_with_no_db_updated_at_metadata_still_validates",
+      "skeleton_written": false,
+      "content": "# Skeleton: r5-json-schema-db-version-field AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_a_json_report_with_no_db_updated_at_metadata_still_validates \u2192 tests/unit/test_report_schema.py\n\nimport pytest\n\n\nclass Testr5_json_schema_db_version_field_AC3:\n    def test_ac3_a_json_report_with_no_db_updated_at_metadata_still_validates(self):\n        \"\"\"\n        PROP-003: a JSON report with no db_updated_at metadata still validates against the updated\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/core/json_report.py": "# tested-by: tests/unit/test_json_report.py\n# tested-by: tests/unit/test_report_schema.py\n\nfrom __future__ import annotations\n\nimport dataclasses\nfrom datetime import UTC, datetime\n\nimport orjson\n\nfrom caliper.core.models import normalize_severity\nfrom caliper.core.plugin import PluginResult\nfrom caliper.core.report_schema import (\n)\nfrom caliper.core.review_summary import ReviewSummary, summarize_review\n\n# Plugin summaries are meant to be small, renderer-friendly metadata (counts,\n# flags, short strings) \u2014 not full documents. A plugin that inlines a large\n# nested payload (e.g. syft embedding a full SBOM under \"sbom\") would bloat\n# every JSON report and risk over-disclosing internal data unconditionally\n# (#223 / #257). This is the one sanitization seam all plugin summaries pass\n# through on the way into the report.\n_SUMMARY_DENYLIST_KEYS = frozenset({\"sbom\", \"sbom_data\", \"bom\", \"cyclonedx\"})\n_SUMMARY_MAX_VALUE_CHARS = 1000\n\n\ndef _sanitize_summary(summary: dict, *, include_sbom: bool = False) -> dict:\n    ...\n\n\n\ndef _plugin_status(result: PluginResult) -> str:\n    ...\n\n\ndef _finding_to_dict(finding: object) -> dict:\n    ...\n\n\ndef render_json(\n    results: list[PluginResult],\n    repo: str = \"\",\n    commit: str = \"\",\n    include_sbom: bool = False,\n) -> str:\n        summary = summarize_review(results)\n\n    total_findings = sum(len(r.findings) for r in results)\n\n    plugins = []\n                name=r.plugin_name,\n                category=r.category,\n                status=PluginStatus(_plugin_status(r)),\n                skip_reason=r.skip_reason or None,\n                skip_remediation=r.skip_remediation or None,\n                findings_count=len(r.findings),\n                findings=[_finding_to_dict(f) for f in r.findings],\n                summary=_sanitize_summary(r.summary, include_sbom=include_sbom),\n                error=r.error or None,\n\n    report = ReportModel(\n        schema_version=REPORT_SCHEMA_VERSION,\n        timestamp=datetime.now(UTC).isoformat(),\n        repo=repo,\n        commit=commit,\n        verdict=ReportVerdict(summary.verdict.value),\n        security_score=summary.security_score,\n        quality_score=summary.quality_score,\n        error_count=summary.error_count,\n        warning_count=summary.warning_count,\n        note_count=summary.note_count,\n        crashed_count=summary.crashed_count,\n        skipped_count=summary.skipped_count,\n        blocking_count=summary.blocking_count,\n        total_findings=total_findings,\n        total_plugins=len(results),\n        plugins=plugins,\n\n\n\nclass JsonRenderer:\n    ...\n\n\n\nfrom caliper.core.port_registries import RENDERERS  # noqa: E402  (registration wiring)\n\n\n@RENDERERS.register(\"json\")\ndef build_json_renderer() -> JsonRenderer:\n    ...\n",
+    "docs/schema/report-v1.0.json": "{\n}\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

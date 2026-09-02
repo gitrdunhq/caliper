@@ -1,0 +1,62 @@
+{
+  "task_id": "r2-caliperignore-rule-scope",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_ignore.py",
+      "kind": "pytest",
+      "purpose": "Verify load_ignore_patterns() parses a line 'compatibility-tests/**",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_load_ignore_patterns_parses_a_line_compatibility_tests_ds_in",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-caliperignore-rule-scope AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_load_ignore_patterns_parses_a_line_compatibility_tests_ds_in \u2192 tests/unit/test_ignore.py\n\nimport pytest\n\n\nclass Testr2_caliperignore_rule_scope_AC1:\n    def test_ac1_load_ignore_patterns_parses_a_line_compatibility_tests_ds_in(self):\n        \"\"\"\n        PROP-001: load_ignore_patterns() parses a line 'compatibility-tests/** !DS-' into a RuleSc\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_ignore.py",
+      "kind": "pytest",
+      "purpose": "Verify load_ignore_patterns() parses 'tools/docs/** !CAL-002' into ",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_load_ignore_patterns_parses_tools_docs_cal_002_into_rulescop",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-caliperignore-rule-scope AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_load_ignore_patterns_parses_tools_docs_cal_002_into_rulescop \u2192 tests/unit/test_ignore.py\n\nimport pytest\n\n\nclass Testr2_caliperignore_rule_scope_AC2:\n    def test_ac2_load_ignore_patterns_parses_tools_docs_cal_002_into_rulescop(self):\n        \"\"\"\n        PROP-002: load_ignore_patterns() parses 'tools/docs/** !CAL-002' into RuleScope(glob='tool\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_ignore.py",
+      "kind": "pytest",
+      "purpose": "Verify a line with '!' but malformed syntax (e.g. missing glob, or ",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_a_line_with_but_malformed_syntax_e_g_missing_glob_or_with_no",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-caliperignore-rule-scope AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_a_line_with_but_malformed_syntax_e_g_missing_glob_or_with_no \u2192 tests/unit/test_ignore.py\n\nimport pytest\n\n\nclass Testr2_caliperignore_rule_scope_AC3:\n    def test_ac3_a_line_with_but_malformed_syntax_e_g_missing_glob_or_with_no(self):\n        \"\"\"\n        PROP-003: a line with '!' but malformed syntax (e.g. missing glob, or '!' with no followin\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_ignore.py",
+      "kind": "pytest",
+      "purpose": "Verify core/normalizer.py drops a Finding whose file matches a Rule",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_core_normalizer_py_drops_a_finding_whose_file_matches_a_rule",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-caliperignore-rule-scope AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_core_normalizer_py_drops_a_finding_whose_file_matches_a_rule \u2192 tests/unit/test_ignore.py\n\nimport pytest\n\n\nclass Testr2_caliperignore_rule_scope_AC4:\n    def test_ac4_core_normalizer_py_drops_a_finding_whose_file_matches_a_rule(self):\n        \"\"\"\n        PROP-004: core/normalizer.py drops a Finding whose file matches a RuleScope's glob and who\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/core/ignore.py": "\n# tested-by: tests/unit/test_ignore.py\n\nfrom __future__ import annotations\n\nimport fnmatch\nfrom pathlib import Path\n\n_GLOB_CHARS = frozenset(\"*?[\")\n\n# ---------------------------------------------------------------------------\n# Built-in defaults \u2014 always applied even without a .caliperignore file.\n# These mirror the hard-coded exclusion sets already present in cli/main.py.\n# ---------------------------------------------------------------------------\nDEFAULT_PATTERNS: list[str] = [\n]\n\n# Test code, excluded unless CaliperSettings.include_tests. Directory names are\n# matched as whole path components; file globs against the basename. `spec/`\n# is deliberately absent (OpenAPI specs live there); `fixtures/` too (too broad).\nTEST_PATTERNS: list[str] = [\n]\n\n\ndef load_ignore_patterns(repo_path: Path, *, include_tests: bool | None = None) -> list[str]:\n    ...\n\n\n\n\n\n\ndef should_ignore(file_path: str, patterns: list[str]) -> bool:\n    ...\n\n\n\n",
+    "src/caliper/core/normalizer.py": "\n# tested-by: tests/unit/test_normalizer.py\n\nfrom __future__ import annotations\n\nfrom caliper.core.models import (\n)\n\n_SEVERITY_RANK: dict[FindingSeverity, int] = {\n}\n\n\ndef normalize_findings(\n    scan_results: list[ScanResult],\n) -> tuple[list[Finding], dict[str, int]]:\n    all_findings: list[Finding] = []\n\n    vuln_findings: list[Finding] = []\n    non_vuln_findings: list[Finding] = []\n\n    deduped: dict[tuple, Finding] = {}\n            key = (f.advisory_id, f.category, f.package_name, f.version)\n            key = (\n        existing = deduped.get(key)\n            deduped[key] = f\n\n    merged = list(deduped.values()) + non_vuln_findings\n\n    summary: dict[str, int] = {s.value: 0 for s in FindingSeverity}\n\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

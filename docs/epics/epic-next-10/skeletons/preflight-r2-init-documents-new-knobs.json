@@ -1,0 +1,37 @@
+{
+  "task_id": "r2-init-documents-new-knobs",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_init_cmd.py",
+      "kind": "pytest",
+      "purpose": "Verify the config template/comments written by 'caliper init' (cli/",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_the_config_template_comments_written_by_caliper_init_cli_ini",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-init-documents-new-knobs AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_the_config_template_comments_written_by_caliper_init_cli_ini \u2192 tests/unit/test_init_cmd.py\n\nimport pytest\n\n\nclass Testr2_init_documents_new_knobs_AC1:\n    def test_ac1_the_config_template_comments_written_by_caliper_init_cli_ini(self):\n        \"\"\"\n        PROP-001: the config template/comments written by 'caliper init' (cli/init_cmd.py) include\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_init_cmd.py",
+      "kind": "pytest",
+      "purpose": "Verify the config template written by 'caliper init' includes a com",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_the_config_template_written_by_caliper_init_includes_a_comme",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-init-documents-new-knobs AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_the_config_template_written_by_caliper_init_includes_a_comme \u2192 tests/unit/test_init_cmd.py\n\nimport pytest\n\n\nclass Testr2_init_documents_new_knobs_AC2:\n    def test_ac2_the_config_template_written_by_caliper_init_includes_a_comme(self):\n        \"\"\"\n        PROP-002: the config template written by 'caliper init' includes a commented thresholds.se\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/cli/init_cmd.py": "\nfrom __future__ import annotations\n\nimport sys\nfrom pathlib import Path\n\nimport click\n\nfrom caliper.core.repo_config import _CONFIG_FILENAME\n\n_DEFAULT_CONFIG = \"\"\"\\\n# .caliper.yaml \u2014 caliper's standard configuration.\n#\n# Every value in this file is the default. A bare `caliper review` behaves\n# exactly like this file; edit only what you want to change from the standard.\n# Schema: `caliper schema`. Docs: docs/configuration.md.\n\n# Which scanner plugins run. `enabled: null` means \"all default plugins\".\n# `scancode` (license detection) is opt-in \u2014 list it under `enabled` to run it.\nplugins:\n\n# Numeric gates. Keys are plugin names; values are that plugin's knobs.\n# Example: `complexity: {ccn: 10}` \u2014 the cyclomatic-complexity threshold (default 10).\nthresholds: {}\n\n# Deterministic AST detectors (CAL-NNN). `default` is the standard profile;\n# add `house-rules` for the stricter opinionated set. `enable`/`disable`\n# take individual detector ids and win over the profile.\ndetectors:\n\n# Known findings that are accepted for a while (`caliper baseline`).\nbaseline:\n\n# Import-direction rules for the architecture check. Leave `package` empty\n# to skip it; see docs/configuration.md for `tiers` and `allow`.\narchitecture:\n\n# `caliper part` \u2014 how a change is cut into reviewable commits.\nparting:\n\n\n@click.command(\"init\")\n@click.option(\n    type=click.Path(exists=True, file_okay=False, path_type=Path),\n    default=\".\",\n    show_default=True,\n    help=\"Repository to write the config into.\",\n)\n@click.option(\"--force\", is_flag=True, help=\"Overwrite an existing .caliper.yaml.\")\n@click.option(\n)\ndef init(repo_path: Path, force: bool, print_only: bool) -> None:\n    ...\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

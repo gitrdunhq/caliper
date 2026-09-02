@@ -1,0 +1,49 @@
+{
+  "task_id": "r3-osv-scanner-file-line-and-kind",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_osv_plugin.py",
+      "kind": "pytest",
+      "purpose": "Verify parsing an osv-scanner JSON result with results[0].source.pa",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_parsing_an_osv_scanner_json_result_with_results_0_source_pat",
+      "skeleton_written": false,
+      "content": "# Skeleton: r3-osv-scanner-file-line-and-kind AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_parsing_an_osv_scanner_json_result_with_results_0_source_pat \u2192 tests/unit/test_osv_plugin.py\n\nimport pytest\n\n\nclass Testr3_osv_scanner_file_line_and_kind_AC1:\n    def test_ac1_parsing_an_osv_scanner_json_result_with_results_0_source_pat(self):\n        \"\"\"\n        PROP-001: parsing an osv-scanner JSON result with results[0].source.path='requirements.txt\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_osv_plugin.py",
+      "kind": "pytest",
+      "purpose": "Verify when the OSV result includes a line number for the vulnerabl",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_when_the_osv_result_includes_a_line_number_for_the_vulnerabl",
+      "skeleton_written": false,
+      "content": "# Skeleton: r3-osv-scanner-file-line-and-kind AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_when_the_osv_result_includes_a_line_number_for_the_vulnerabl \u2192 tests/unit/test_osv_plugin.py\n\nimport pytest\n\n\nclass Testr3_osv_scanner_file_line_and_kind_AC2:\n    def test_ac2_when_the_osv_result_includes_a_line_number_for_the_vulnerabl(self):\n        \"\"\"\n        PROP-002: when the OSV result includes a line number for the vulnerable line, Finding.line\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_osv_plugin.py",
+      "kind": "pytest",
+      "purpose": "Verify every osv-scanner Finding has metadata['dependency_kind'] in",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_every_osv_scanner_finding_has_metadata_dependency_kind_in_di",
+      "skeleton_written": false,
+      "content": "# Skeleton: r3-osv-scanner-file-line-and-kind AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_every_osv_scanner_finding_has_metadata_dependency_kind_in_di \u2192 tests/unit/test_osv_plugin.py\n\nimport pytest\n\n\nclass Testr3_osv_scanner_file_line_and_kind_AC3:\n    def test_ac3_every_osv_scanner_finding_has_metadata_dependency_kind_in_di(self):\n        \"\"\"\n        PROP-003: every osv-scanner Finding has metadata['dependency_kind'] in {'direct','transiti\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/plugins/osv_scanner.py": "\nfrom __future__ import annotations\n\nimport contextlib\nimport json\nimport subprocess\nfrom pathlib import Path\n\nimport structlog\n\nfrom caliper.core.config import CaliperSettings\nfrom caliper.core.errors import ErrorCode, error_msg\nfrom caliper.core.ignore import load_ignore_patterns\nfrom caliper.core.plugin import (\n)\n\nlogger = structlog.get_logger()\n\n_MAX_FINDINGS = 1000\n\n_SEV_MAP = {\n}\n\n_MANIFEST_NAMES = {\n}\n\n\ndef _advisory_url(vuln_id: str) -> str:\n    ...\n\n\nclass OsvScannerPlugin(ScannerPlugin):\n    ...\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nfrom caliper.plugins import ANALYZERS  # noqa: E402  (self-registration wiring)\n\n\n@ANALYZERS.register(\"osv-scanner\")\ndef build_osv_scanner_plugin() -> OsvScannerPlugin:\n    ...\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

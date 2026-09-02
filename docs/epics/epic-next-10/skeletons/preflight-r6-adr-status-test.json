@@ -1,0 +1,35 @@
+{
+  "task_id": "r6-adr-status-test",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_adr_status.py",
+      "kind": "pytest",
+      "purpose": "Verify test_adr_status parses every file in docs/adr/*.md and asser",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_test_adr_status_parses_every_file_in_docs_adr_md_and_asserts",
+      "skeleton_written": false,
+      "content": "# Skeleton: r6-adr-status-test AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_test_adr_status_parses_every_file_in_docs_adr_md_and_asserts \u2192 tests/unit/test_adr_status.py\n\nimport pytest\n\n\nclass Testr6_adr_status_test_AC1:\n    def test_ac1_test_adr_status_parses_every_file_in_docs_adr_md_and_asserts(self):\n        \"\"\"\n        PROP-001: test_adr_status parses every file in docs/adr/*.md and asserts each has a '## St\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_adr_status.py",
+      "kind": "pytest",
+      "purpose": "Verify for every ADR whose Status is Accepted, any backtick-quoted ",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_for_every_adr_whose_status_is_accepted_any_backtick_quoted_p",
+      "skeleton_written": false,
+      "content": "# Skeleton: r6-adr-status-test AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_for_every_adr_whose_status_is_accepted_any_backtick_quoted_p \u2192 tests/unit/test_adr_status.py\n\nimport pytest\n\n\nclass Testr6_adr_status_test_AC2:\n    def test_ac2_for_every_adr_whose_status_is_accepted_any_backtick_quoted_p(self):\n        \"\"\"\n        PROP-002: for every ADR whose Status is Accepted, any backtick-quoted path under src/calip\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {},
+  "target_context": null,
+  "no_skeletons_reason": null
+}

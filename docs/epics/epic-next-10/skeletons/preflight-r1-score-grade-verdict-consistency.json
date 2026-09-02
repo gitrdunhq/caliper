@@ -1,0 +1,61 @@
+{
+  "task_id": "r1-score-grade-verdict-consistency",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_review_summary.py",
+      "kind": "pytest",
+      "purpose": "Verify build_review_summary() never returns a summary where quality",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_build_review_summary_never_returns_a_summary_where_quality_s",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-score-grade-verdict-consistency AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_build_review_summary_never_returns_a_summary_where_quality_s \u2192 tests/unit/test_review_summary.py\n\nimport pytest\n\n\nclass Testr1_score_grade_verdict_consistency_AC1:\n    def test_ac1_build_review_summary_never_returns_a_summary_where_quality_s(self):\n        \"\"\"\n        PROP-001: build_review_summary() never returns a summary where quality_score == 0 and main\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_review_summary.py",
+      "kind": "pytest",
+      "purpose": "Verify verdict text contains the word 'blocked' only when the polic",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_verdict_text_contains_the_word_blocked_only_when_the_policy",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-score-grade-verdict-consistency AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_verdict_text_contains_the_word_blocked_only_when_the_policy \u2192 tests/unit/test_review_summary.py\n\nimport pytest\n\n\nclass Testr1_score_grade_verdict_consistency_AC2:\n    def test_ac2_verdict_text_contains_the_word_blocked_only_when_the_policy(self):\n        \"\"\"\n        PROP-002: verdict text contains the word 'blocked' only when the policy verdict is an actu\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_review_summary.py",
+      "kind": "pytest",
+      "purpose": "Verify when one or more plugins fail to complete (timeout/not_insta",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_when_one_or_more_plugins_fail_to_complete_timeout_not_instal",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-score-grade-verdict-consistency AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_when_one_or_more_plugins_fail_to_complete_timeout_not_instal \u2192 tests/unit/test_review_summary.py\n\nimport pytest\n\n\nclass Testr1_score_grade_verdict_consistency_AC3:\n    def test_ac3_when_one_or_more_plugins_fail_to_complete_timeout_not_instal(self):\n        \"\"\"\n        PROP-003: when one or more plugins fail to complete (timeout/not_installed/crashed), revie\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_review_summary.py",
+      "kind": "pytest",
+      "purpose": "Verify ValueError is not raised for a fully-successful scan; the in",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_valueerror_is_not_raised_for_a_fully_successful_scan_the_inc",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-score-grade-verdict-consistency AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_valueerror_is_not_raised_for_a_fully_successful_scan_the_inc \u2192 tests/unit/test_review_summary.py\n\nimport pytest\n\n\nclass Testr1_score_grade_verdict_consistency_AC4:\n    def test_ac4_valueerror_is_not_raised_for_a_fully_successful_scan_the_inc(self):\n        \"\"\"\n        PROP-004: ValueError is not raised for a fully-successful scan; the incomplete path is onl\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/core/review_summary.py": "# tested-by: tests/unit/test_review_summary.py\n\nfrom __future__ import annotations\n\nfrom enum import StrEnum\n\nfrom caliper._base import Contract\nfrom caliper.core.plugin import finding_get\n\n# Canonical severity -> SARIF-style level map. The one mapping the whole system uses\n# (SARIF imports this); unmapped severities fall back to \"note\" (least alarming).\nSEVERITY_TO_LEVEL: dict[str, str] = {\n}\n\n# Categories whose findings gate a merge (\"security blocks, quality advises\").\nSECURITY_CATEGORIES = frozenset({\"dependency\", \"supply_chain\", \"infra\"})\n\n\nclass ReviewVerdict(StrEnum):\n    ...\n\n\n\nclass ReviewSummary(Contract):\n    ...\n\n\n\ndef level_for(severity: object) -> str:\n    ...\n\n\ndef _norm(path: object) -> str:\n    ...\n\n\ndef summarize_review(\n    results: list,\n) -> ReviewSummary:\n    from caliper.core.renderer import calculate_quality_score, calculate_severity_score\n\n    changed = {_norm(f) for f in changed_files} if changed_files is not None else None\n\n    errors = warnings = notes = crashed = skipped = blocking = 0\n        is_security = str(getattr(r, \"category\", \"\") or \"\") in SECURITY_CATEGORIES\n            level = level_for(finding_get(finding, \"severity\"))\n            elif level == \"warning\":\n                file = finding_get(finding, \"file\")\n                attributable = changed is None or (bool(file) and _norm(file) in changed)\n\n        verdict = ReviewVerdict.blocked\n        verdict = ReviewVerdict.incomplete\n        verdict = ReviewVerdict.warnings\n        verdict = ReviewVerdict.clear\n\n        verdict=verdict,\n        error_count=errors,\n        warning_count=warnings,\n        note_count=notes,\n        crashed_count=crashed,\n        skipped_count=skipped,\n        blocking_count=blocking,\n        security_score=calculate_severity_score(results),\n        quality_score=calculate_quality_score(results),\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

@@ -1,0 +1,133 @@
+{
+  "batch": true,
+  "language": "python",
+  "tasks_processed": 25,
+  "output_dir": "docs/epics/epic-next-10/skeletons",
+  "tasks": {
+    "r1-score-grade-verdict-consistency": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r1-score-grade-verdict-consistency.json",
+      "skeleton_count": 4,
+      "framework": "pytest"
+    },
+    "r1-renderer-report-shape": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r1-renderer-report-shape.json",
+      "skeleton_count": 5,
+      "framework": "pytest"
+    },
+    "r1-golden-and-property-tests": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r1-golden-and-property-tests.json",
+      "skeleton_count": 2,
+      "framework": "pytest"
+    },
+    "r2-test-patterns-directory-components": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r2-test-patterns-directory-components.json",
+      "skeleton_count": 6,
+      "framework": "pytest"
+    },
+    "r2-caliperignore-rule-scope": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r2-caliperignore-rule-scope.json",
+      "skeleton_count": 4,
+      "framework": "pytest"
+    },
+    "r2-semgrep-severity-floor": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r2-semgrep-severity-floor.json",
+      "skeleton_count": 4,
+      "framework": "pytest"
+    },
+    "r2-init-documents-new-knobs": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r2-init-documents-new-knobs.json",
+      "skeleton_count": 2,
+      "framework": "pytest"
+    },
+    "r3-manifest-discovery-dependency-kind": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r3-manifest-discovery-dependency-kind.json",
+      "skeleton_count": 4,
+      "framework": "pytest"
+    },
+    "r3-osv-scanner-file-line-and-kind": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r3-osv-scanner-file-line-and-kind.json",
+      "skeleton_count": 3,
+      "framework": "pytest"
+    },
+    "r3-trivy-dependency-kind": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r3-trivy-dependency-kind.json",
+      "skeleton_count": 1,
+      "framework": "pytest"
+    },
+    "r3-dependency-report-grouping-fixfirst": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r3-dependency-report-grouping-fixfirst.json",
+      "skeleton_count": 4,
+      "framework": "pytest"
+    },
+    "r3-sarif-dependency-manifest-location": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r3-sarif-dependency-manifest-location.json",
+      "skeleton_count": 2,
+      "framework": "pytest"
+    },
+    "r4-pypi-distribution-name": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r4-pypi-distribution-name.json",
+      "skeleton_count": 4,
+      "framework": "pytest"
+    },
+    "r4-release-docs-name-update": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r4-release-docs-name-update.json",
+      "skeleton_count": 4,
+      "framework": "pytest"
+    },
+    "r5-scanner-db-metadata": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r5-scanner-db-metadata.json",
+      "skeleton_count": 3,
+      "framework": "pytest"
+    },
+    "r5-scan-cache-key-includes-db-version": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r5-scan-cache-key-includes-db-version.json",
+      "skeleton_count": 2,
+      "framework": "pytest"
+    },
+    "r5-json-schema-db-version-field": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r5-json-schema-db-version-field.json",
+      "skeleton_count": 3,
+      "framework": "pytest"
+    },
+    "r6-supersede-stale-adrs": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r6-supersede-stale-adrs.json",
+      "skeleton_count": 1,
+      "framework": "pytest"
+    },
+    "r6-new-adrs-for-current-practice": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r6-new-adrs-for-current-practice.json",
+      "skeleton_count": 5,
+      "framework": "pytest"
+    },
+    "r6-adr-status-test": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r6-adr-status-test.json",
+      "skeleton_count": 2,
+      "framework": "pytest"
+    },
+    "r7-ci-host-tests-policy": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r7-ci-host-tests-policy.json",
+      "skeleton_count": 3,
+      "framework": "pytest"
+    },
+    "r8-container-runner-flag": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r8-container-runner-flag.json",
+      "skeleton_count": 5,
+      "framework": "pytest"
+    },
+    "r9-install-scanners-pins-win-over-path": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r9-install-scanners-pins-win-over-path.json",
+      "skeleton_count": 4,
+      "framework": "pytest"
+    },
+    "r10-dogfood-baseline-file": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r10-dogfood-baseline-file.json",
+      "skeleton_count": 3,
+      "framework": "pytest"
+    },
+    "r10-dogfood-ci-fails-on-blocked": {
+      "path": "docs/epics/epic-next-10/skeletons/preflight-r10-dogfood-ci-fails-on-blocked.json",
+      "skeleton_count": 2,
+      "framework": "pytest"
+    }
+  }
+}

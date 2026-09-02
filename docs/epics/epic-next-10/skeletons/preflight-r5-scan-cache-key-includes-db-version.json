@@ -1,0 +1,37 @@
+{
+  "task_id": "r5-scan-cache-key-includes-db-version",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_scan_cache_key.py",
+      "kind": "pytest",
+      "purpose": "Verify compute_scan_cache_key(..., db_versions={'trivy': '2026-01-0",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_compute_scan_cache_key_db_versions_trivy_2026_01_01t00_00_00",
+      "skeleton_written": false,
+      "content": "# Skeleton: r5-scan-cache-key-includes-db-version AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_compute_scan_cache_key_db_versions_trivy_2026_01_01t00_00_00 \u2192 tests/unit/test_scan_cache_key.py\n\nimport pytest\n\n\nclass Testr5_scan_cache_key_includes_db_version_AC1:\n    def test_ac1_compute_scan_cache_key_db_versions_trivy_2026_01_01t00_00_00(self):\n        \"\"\"\n        PROP-001: compute_scan_cache_key(..., db_versions={'trivy': '2026-01-01T00:00:00Z', 'osv-s\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_scan_cache_key.py",
+      "kind": "pytest",
+      "purpose": "Verify compute_scan_cache_key(...) called twice with identical db_v",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_compute_scan_cache_key_called_twice_with_identical_db_versio",
+      "skeleton_written": false,
+      "content": "# Skeleton: r5-scan-cache-key-includes-db-version AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_compute_scan_cache_key_called_twice_with_identical_db_versio \u2192 tests/unit/test_scan_cache_key.py\n\nimport pytest\n\n\nclass Testr5_scan_cache_key_includes_db_version_AC2:\n    def test_ac2_compute_scan_cache_key_called_twice_with_identical_db_versio(self):\n        \"\"\"\n        PROP-002: compute_scan_cache_key(...) called twice with identical db_versions produces an \n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/core/scan_cache_key.py": "\nfrom __future__ import annotations\n\nimport hashlib\nfrom typing import TYPE_CHECKING\n\nimport orjson\n\nif TYPE_CHECKING:\n    from caliper.core.config import CaliperSettings\n\n# The CaliperSettings fields that affect what a scanner does or produces. Anything\n# outside this list (LLM config, publisher tokens, evidence path, ...) must not\n# invalidate the scan cache.\n_SCAN_RELEVANT_FIELDS = (\n)\n\n\ndef settings_digest(config: CaliperSettings) -> str:\n    ...\n\n\ndef compute_cache_key(\n    tree_sha: str, scanner_name: str, tool_version: str, config_digest: str\n) -> str:\n    h = hashlib.sha256()\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

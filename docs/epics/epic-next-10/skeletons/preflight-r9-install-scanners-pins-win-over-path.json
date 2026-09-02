@@ -1,0 +1,61 @@
+{
+  "task_id": "r9-install-scanners-pins-win-over-path",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_install_cmd.py",
+      "kind": "pytest",
+      "purpose": "Verify install-scanners with a fake PATH containing an existing 'tr",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_install_scanners_with_a_fake_path_containing_an_existing_tri",
+      "skeleton_written": false,
+      "content": "# Skeleton: r9-install-scanners-pins-win-over-path AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_install_scanners_with_a_fake_path_containing_an_existing_tri \u2192 tests/unit/test_install_cmd.py\n\nimport pytest\n\n\nclass Testr9_install_scanners_pins_win_over_path_AC1:\n    def test_ac1_install_scanners_with_a_fake_path_containing_an_existing_tri(self):\n        \"\"\"\n        PROP-001: install-scanners with a fake PATH containing an existing 'trivy' binary elsewher\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_install_cmd.py",
+      "kind": "pytest",
+      "purpose": "Verify install-scanners --skip-present with the same fake PATH skip",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_install_scanners_skip_present_with_the_same_fake_path_skips",
+      "skeleton_written": false,
+      "content": "# Skeleton: r9-install-scanners-pins-win-over-path AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_install_scanners_skip_present_with_the_same_fake_path_skips \u2192 tests/unit/test_install_cmd.py\n\nimport pytest\n\n\nclass Testr9_install_scanners_pins_win_over_path_AC2:\n    def test_ac2_install_scanners_skip_present_with_the_same_fake_path_skips(self):\n        \"\"\"\n        PROP-002: install-scanners --skip-present with the same fake PATH skips installing trivy a\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_install_cmd.py",
+      "kind": "pytest",
+      "purpose": "Verify the plan output for a tool found elsewhere on PATH (without ",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_the_plan_output_for_a_tool_found_elsewhere_on_path_without_s",
+      "skeleton_written": false,
+      "content": "# Skeleton: r9-install-scanners-pins-win-over-path AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_the_plan_output_for_a_tool_found_elsewhere_on_path_without_s \u2192 tests/unit/test_install_cmd.py\n\nimport pytest\n\n\nclass Testr9_install_scanners_pins_win_over_path_AC3:\n    def test_ac3_the_plan_output_for_a_tool_found_elsewhere_on_path_without_s(self):\n        \"\"\"\n        PROP-003: the plan output for a tool found elsewhere on PATH (without --skip-present) incl\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_install_cmd.py",
+      "kind": "pytest",
+      "purpose": "Verify the plan/output includes a path_hint telling the user --bin-",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_the_plan_output_includes_a_path_hint_telling_the_user_bin_di",
+      "skeleton_written": false,
+      "content": "# Skeleton: r9-install-scanners-pins-win-over-path AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_the_plan_output_includes_a_path_hint_telling_the_user_bin_di \u2192 tests/unit/test_install_cmd.py\n\nimport pytest\n\n\nclass Testr9_install_scanners_pins_win_over_path_AC4:\n    def test_ac4_the_plan_output_includes_a_path_hint_telling_the_user_bin_di(self):\n        \"\"\"\n        PROP-004: the plan/output includes a path_hint telling the user --bin-dir must precede the\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/cli/install_cmd.py": "\nfrom __future__ import annotations\n\nimport os\nimport platform\nimport shutil\nimport sys\nfrom pathlib import Path\n\nimport click\n\nfrom caliper.core.scanner_install import (\n)\nfrom caliper.core.scanner_pins import SCANNER_PINS, platform_key\n\n\n# Seams (monkeypatched in tests).\ndef _installer():\n    ...\n\n\n\ndef _which(name: str) -> str | None:\n    ...\n\n\ndef _platform() -> str:\n    ...\n\n\ndef _isatty() -> bool:\n    ...\n\n\ndef _confirm(message: str) -> bool:\n    ...\n\n\ndef _run_plan(plan: InstallPlan, bin_dir: Path) -> int:\n    ...\n\n\n@click.command(\"install-scanners\")\n@click.argument(\"names\", nargs=-1)\n@click.option(\n    type=click.Path(),\n    default=None,\n    help=\"Install dir (default: $CALIPER_BIN_DIR or ~/.local/bin).\",\n)\n@click.option(\"--dry-run\", is_flag=True, help=\"Show what would be installed.\")\n@click.option(\"--yes\", \"-y\", is_flag=True, help=\"Do not prompt.\")\ndef install_scanners(names: tuple[str, ...], bin_dir: str | None, dry_run: bool, yes: bool) -> None:\n    ...\n\n\n\ndef offer_install(missing: list[str]) -> bool:\n    ...\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}
