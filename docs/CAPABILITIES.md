@@ -5,18 +5,18 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-07-10
+  LAST VERIFIED: 2026-09-02
   VERIFICATION: 14 auto-discovered scanner plugins (@ANALYZERS.register) + the
   "deterministic" plugin (composition-registered, wraps DeterministicScanner,
   #457) + OPA policy plugin (16 ScannerPlugin subclasses total); 21 detectors
-  in src/caliper/detectors/; 67 semgrep rule ids in policies/semgrep/.
+  in src/caliper/detectors/; 72 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
 15 scanner plugins (14 auto-discovered + "deterministic", which wraps all 21
-CAL-001..021 detectors), 67 custom semgrep rules, 10 code graph
+CAL-001..021 detectors), 72 custom semgrep rules, 10 code graph
 checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
@@ -30,7 +30,7 @@ unchanged.
 |--------|-------|
 | Scanner plugins | 15 (14 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
 | Deterministic detectors | 21 (CAL-001..CAL-022, CAL-013 retired), run via the "deterministic" plugin during `caliper review` |
-| Custom semgrep rules | 67 (11 rule files) |
+| Custom semgrep rules | 72 (12 rule files) |
 | Code graph SQL checks | 10 |
 | OPA Rego policy rules | 16 (7 deny, 9 warn) |
 | Code graph query templates | 12 |
@@ -76,7 +76,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 | Plugin | File | Detects |
 |--------|------|---------|
 | deterministic | `composition/deterministic_plugin.py` | Wraps `DeterministicScanner` (`detectors/scanner.py`) — the 21 AST-based bug detectors (CAL-001..022, CAL-013 retired) selected by `detectors.profiles` in `.caliper.yaml`: `default` (12 general bug patterns, on) and `house-rules` (9 caliper-convention rules, opt-in), plus `enable`/`disable` per id (`detectors/profiles.py`). Composition-registered rather than auto-discovered, since `detectors/` may not import `plugins/` directly (#457). |
-| semgrep | `plugins/semgrep.py` | AST code pattern matching via opengrep. Community rules come ONLY from a semgrep-rules snapshot pinned by commit in the Dockerfile (`SEMGREP_RULES_COMMIT`, baked at `/opt/caliper/semgrep-rules`); language directories are selected by file type and registry packs are never fetched, so the scan path has no network dependency and the rule set cannot drift. The 67 custom org rules (see below) run against every target via `CALIPER_SEMGREP_ORG_RULES_DIR`. Host runs: `scripts/snapshot-semgrep-rules.sh`. Severities are canonical at the boundary: ERROR→high, WARNING→medium, INFO→info. |
+| semgrep | `plugins/semgrep.py` | AST code pattern matching via opengrep. Community rules come ONLY from a semgrep-rules snapshot pinned by commit in the Dockerfile (`SEMGREP_RULES_COMMIT`, baked at `/opt/caliper/semgrep-rules`); language directories are selected by file type and registry packs are never fetched, so the scan path has no network dependency and the rule set cannot drift. The 72 custom org rules (see below) run against every target via `CALIPER_SEMGREP_ORG_RULES_DIR`. Host runs: `scripts/snapshot-semgrep-rules.sh`. Severities are canonical at the boundary: ERROR→high, WARNING→medium, INFO→info. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyrefly (fastest) when available, falls back to pyright, then mypy. Error + warning severity only. |
 | swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.caliper/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
@@ -97,7 +97,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 
 ---
 
-## Custom Semgrep Rules (67 rules, 11 files)
+## Custom Semgrep Rules (72 rules, 12 files)
 
 All in `policies/semgrep/`.
 
@@ -148,9 +148,16 @@ All in `policies/semgrep/`.
 - `first-test-no-assert` — test function with no assert or pytest.raises
 - `ocp-isinstance-chain` — isinstance chain with 4+ branches (OCP violation)
 
-### testing.yaml (2)
+### testing.yaml (3)
 - `org.testing.weak-assertion-defined` — assert X is not None (weak)
 - `org.testing.weak-assertion-truthy` — bare assert X without comparison
+- `org.testing.empty-test-body` — JS/TS `test()`/`it()` with an empty body (the untouched `cdk init` template)
+
+### aws-cdk.yaml (4)
+- `org.aws-cdk.custom-resource-oncreate-without-onupdate` — AwsCustomResource with onCreate but no onUpdate (later parameter changes silently ignored)
+- `org.aws-cdk.code-fromasset-relative-literal` — Code.fromAsset with a cwd-relative string literal
+- `org.aws-cdk.fixed-iam-role-name` — literal roleName/overrideRoleName (collides on a second-region deploy)
+- `org.aws-cdk.cfn-document-default-update-method` — CfnDocument without updateMethod (Replace discards versions and shares)
 
 ### contracts.yaml (2)
 - `org.contract.raw-string-status` — raw verdict string literals instead of DecisionVerdict enum
@@ -397,7 +404,7 @@ Every format shares one severity vocabulary: `critical`/`high`/`medium`/`low`/`i
 
 | Capability | SonarQube | caliper |
 |------------|-----------|-------|
-| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 67 custom rules + 22 deterministic detectors |
+| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 72 custom rules + 22 deterministic detectors |
 | Stylistic code smells | Hundreds of built-in rules | Not primary focus |
 | Structural code smells | Limited | 12 graph checks (dead code, god functions, SRP, layer violations, circular deps, deep inheritance, stubs) |
 | Complexity | Cyclomatic + cognitive | Cyclomatic (Lizard) + MI (Radon for Python, escomplex for JS/TS) — parity |
