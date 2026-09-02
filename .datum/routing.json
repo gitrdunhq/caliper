@@ -1,0 +1,11 @@
+{
+  "decision": "deepen",
+  "reason": "Epic modifies core data models (PluginFinding, multiple new ports), spans 11 packets across multiple domains, introduces new adapters requiring dependency analysis, and requires adhering to existing complex ports-and-adapters architecture",
+  "triggers": [
+    "modifies core data models",
+    "multi-domain epic (28 tasks, 11 packets)",
+    "likely introduces new dependencies",
+    "requires complex architectural pattern adherence"
+  ],
+  "recommendation": "Gather codebase evidence on: current port/adapter patterns, existing data flow, dependency management strategy, test conventions, and tier separation enforcement before implementation begins"
+}
