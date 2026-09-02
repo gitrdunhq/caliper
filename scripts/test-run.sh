@@ -66,7 +66,7 @@ TIMEOUT_SECS="${CALIPER_TEST_TIMEOUT:-1200}"; RUN_PREFIX=()
 for t in timeout gtimeout; do command -v "$t" &>/dev/null && { RUN_PREFIX=("$t" --signal=KILL "$TIMEOUT_SECS"); break; }; done
 set +e
 "${RUN_PREFIX[@]}" "$ENGINE" run --rm --name "$NAME" --platform "linux/$ARCH" "${SECURITY_OPTS[@]}" \
-  --env CI --entrypoint "" \
+  --env CI --env COVERAGE_FILE=/tmp/.coverage --entrypoint "" \
   -v "$REPO_ROOT:/workspace:ro" \
   --tmpfs /workspace/.pytest_cache --tmpfs /workspace/.hypothesis --tmpfs /workspace/.temp --tmpfs /tmp \
   -w /workspace \
