@@ -74,7 +74,7 @@ Start in `advise` mode. It comments but doesn't block. Your team sees the findin
 
 ```bash
 podman run --rm -v $(pwd):/workspace caliper:latest \
-  review --repo-path /workspace --all
+  review --repo-path /workspace
 ```
 
 ## What your team controls
@@ -123,4 +123,4 @@ WHERE team = 'platform' AND decision = 'reject'
 
 ---
 
-Questions? Run `caliper review --repo-path . --all` against your own repo. If the findings aren't useful, don't adopt it. If they are — that's the pitch.
+Questions? Run `caliper review --repo-path .` against your own repo. If the findings aren't useful, don't adopt it. If they are — that's the pitch.
