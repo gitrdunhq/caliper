@@ -282,6 +282,11 @@ def evaluate(
 )
 @click.option("--output", type=click.Path(), default=None, help="Write output to file.")
 @click.option(
+    "--include-tests",
+    is_flag=True,
+    help="Also scan test code (tests/, test_*.py, *.test.ts, ...); skipped by default.",
+)
+@click.option(
     "--format",
     "output_format",
     type=click.Choice(["markdown", "sarif", "json", "vex"]),
@@ -343,6 +348,7 @@ def review(
     category: str | None,
     run_all: bool,
     output: str | None,
+    include_tests: bool,
     output_format: str,
     sarif_max_findings: int,
     pr_url: str,
@@ -357,6 +363,7 @@ def review(
 ) -> None:
     """Run Caliper plugin review on a repo or diff."""
     from caliper.cli.review_cmd import (
+        apply_include_tests,
         build_file_lists,
         render_review_output,
         resolve_plugin_selection,
@@ -366,6 +373,8 @@ def review(
     from caliper.core.repo_config import RepoConfig, load_repo_config
     from caliper.core.use_cases import ScanScope
 
+    if include_tests:
+        apply_include_tests(True)
     resolved_scope = ScanScope(scope) if scope else None
     if resolved_scope == ScanScope.DIFF and not diff:
         raise click.UsageError("--scope diff requires --diff <path>")

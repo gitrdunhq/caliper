@@ -51,6 +51,20 @@ def resolve_plugin_selection(
     return disabled_names, enabled_names
 
 
+def apply_include_tests(include_tests: bool) -> None:
+    """Make ``--include-tests`` visible to every ignore-layer consumer this run.
+
+    Settings are env-driven (``CaliperSettings``); the file source, manifest
+    discovery and trivy each build their own pattern list from it.
+    """
+    import os
+
+    if include_tests:
+        os.environ["CALIPER_INCLUDE_TESTS"] = "1"
+    else:
+        os.environ.pop("CALIPER_INCLUDE_TESTS", None)
+
+
 def build_file_lists(
     *,
     repo: Path,

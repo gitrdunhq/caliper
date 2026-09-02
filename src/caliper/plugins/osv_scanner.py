@@ -13,6 +13,7 @@ import structlog
 
 from caliper.core.config import CaliperSettings
 from caliper.core.errors import ErrorCode, error_msg
+from caliper.core.ignore import load_ignore_patterns
 from caliper.core.plugin import (
     PluginCategory,
     PluginResult,
@@ -92,9 +93,18 @@ class OsvScannerPlugin(ScannerPlugin):
         timeout: int | None = None,
     ) -> PluginResult:
         timeout = self._timeout if timeout is None else timeout
+        cmd = ["osv-scanner", "--format", "json"]
+        # osv-scanner walks the tree itself; hand it the ignore layer's plain
+        # directory names (tests/, node_modules/, ...) so excluded manifests
+        # (fixtures with pinned-old deps) never reach the scan.
+        for pattern in load_ignore_patterns(repo_path):
+            stripped = pattern.rstrip("/")
+            if pattern.endswith("/") and stripped and not any(c in stripped for c in "*?["):
+                cmd.append(f"--experimental-exclude={stripped}")
+        cmd.extend(["-r", str(repo_path)])
         try:
             r = subprocess.run(
-                ["osv-scanner", "--format", "json", "-r", str(repo_path)],
+                cmd,
                 capture_output=True,
                 text=True,
                 timeout=timeout,

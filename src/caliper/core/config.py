@@ -81,6 +81,11 @@ class CaliperSettings(BaseSettings):
     pipeline_timeout: int = 300
     pypi_timeout: int = 10
 
+    # Scan test code too. Off by default: findings in tests (fixtures with
+    # pinned-old deps, intentionally bad samples, mock secrets) are noise for a
+    # CI gate. `caliper review --include-tests` or CALIPER_INCLUDE_TESTS=1.
+    include_tests: bool = False
+
     # OSV-Scanner path exclusions (passed as --experimental-exclude flags)
     # Excludes e2e fixture dirs that contain intentionally pinned old deps.
     osv_exclude_paths: list[str] = Field(
