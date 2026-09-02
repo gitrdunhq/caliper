@@ -1,0 +1,57 @@
+rules:
+  - id: org.aws-cdk.custom-resource-oncreate-without-onupdate
+    patterns:
+      - pattern-either:
+          - pattern: 'new $CR.AwsCustomResource($SCOPE, $ID, { ..., onCreate: $C, ... })'
+          - pattern: 'new AwsCustomResource($SCOPE, $ID, { ..., onCreate: $C, ... })'
+      - pattern-not: 'new $CR.AwsCustomResource($SCOPE, $ID, { ..., onUpdate: $U, ... })'
+      - pattern-not: 'new AwsCustomResource($SCOPE, $ID, { ..., onUpdate: $U, ... })'
+    message: >
+      AwsCustomResource with onCreate but no onUpdate: the SDK call runs once
+      on CREATE and every later change to its parameters is silently ignored
+      (with a constant physicalResourceId nothing triggers a replace either).
+      Add an onUpdate that re-applies the current parameters.
+    severity: ERROR
+    languages: [typescript, javascript]
+
+  - id: org.aws-cdk.code-fromasset-relative-literal
+    patterns:
+      - pattern-either:
+          - pattern: $NS.Code.fromAsset("$P", ...)
+          - pattern: Code.fromAsset("$P", ...)
+      - metavariable-regex:
+          metavariable: $P
+          regex: ^[^/].*
+    message: >
+      Code.fromAsset with a relative string literal resolves against the
+      process cwd, not this file; a synth from another directory packages
+      the wrong asset. Use path.join(__dirname, ...).
+    severity: WARNING
+    languages: [typescript, javascript]
+
+  - id: org.aws-cdk.fixed-iam-role-name
+    patterns:
+      - pattern-either:
+          - pattern: $B.overrideRoleName("$N")
+          - pattern: 'new $IAM.Role($SCOPE, $ID, { ..., roleName: "$N", ... })'
+          - pattern: 'new Role($SCOPE, $ID, { ..., roleName: "$N", ... })'
+    message: >
+      IAM role names are account-global while stacks are regional; a fixed
+      literal name fails with EntityAlreadyExists on the second region (DR)
+      deploy. Let CDK generate the name or include the region in it.
+    severity: WARNING
+    languages: [typescript, javascript]
+
+  - id: org.aws-cdk.cfn-document-default-update-method
+    patterns:
+      - pattern-either:
+          - pattern: 'new $SSM.CfnDocument($SCOPE, $ID, { ... })'
+          - pattern: 'new CfnDocument($SCOPE, $ID, { ... })'
+      - pattern-not: 'new $SSM.CfnDocument($SCOPE, $ID, { ..., updateMethod: $M, ... })'
+      - pattern-not: 'new CfnDocument($SCOPE, $ID, { ..., updateMethod: $M, ... })'
+    message: >
+      AWS::SSM::Document defaults UpdateMethod to Replace, so every content
+      change re-creates the document, discarding version history and any
+      cross-account share. Set updateMethod: 'NewVersion'.
+    severity: WARNING
+    languages: [typescript, javascript]
