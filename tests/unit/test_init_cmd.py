@@ -69,3 +69,21 @@ class TestInitCommand:
         assert result.exit_code == 0
         assert not (tmp_path / ".caliper.yaml").exists()
         assert "plugins:" in result.output
+
+
+class TestInitDocumentsIgnoreAndSeverityKnobs:
+    def test_config_template_includes_commented_ignore_rule_scope_example(self) -> None:
+        text = render_default_config()
+        # A commented example of the "<glob> !<rule-id-prefix>" .caliperignore
+        # rule-scope syntax must be present so a reader discovers the feature
+        # without leaving the generated config.
+        assert ".caliperignore" in text
+        assert "!<rule-id-prefix>" in text
+
+    def test_config_template_includes_commented_semgrep_min_severity_example(self) -> None:
+        text = render_default_config()
+        # A commented thresholds.semgrep.min_severity example, defaulting to
+        # "medium", must be discoverable directly in the generated template.
+        assert "thresholds" in text
+        assert "min_severity" in text
+        assert "medium" in text

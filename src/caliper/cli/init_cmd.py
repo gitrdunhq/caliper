@@ -36,7 +36,15 @@ plugins:
 
 # Numeric gates. Keys are plugin names; values are that plugin's knobs.
 # Example: `complexity: {ccn: 10}` — the cyclomatic-complexity threshold (default 10).
+# Example: `semgrep: {min_severity: medium}` — the minimum semgrep severity
+# that produces a finding (default "medium").
 thresholds: {}
+
+# .caliperignore — one `<glob>` per line skips the file entirely; a scoped
+# line limits the skip to specific rules instead of the whole file:
+#   <glob> !<rule-id-prefix>
+# e.g. `tests/fixtures/** !CAL-` ignores only CAL-NNN detector findings
+# under that glob, leaving other scanners active there.
 
 # Deterministic AST detectors (CAL-NNN). `default` is the standard profile;
 # add `house-rules` for the stricter opinionated set. `enable`/`disable`
