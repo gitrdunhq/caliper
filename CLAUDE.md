@@ -51,7 +51,7 @@ cal ../openoats sarif        # SARIF output format
 podman run --rm --platform linux/amd64 \
   -v /path/to/repo:/workspace:ro \
   -v /path/to/repo/.temp:/workspace/.temp \
-  caliper:latest review --repo-path /workspace --all
+  caliper:latest review --repo-path /workspace
 ```
 
 **Key paths inside container:**

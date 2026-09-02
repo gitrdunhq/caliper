@@ -14,10 +14,10 @@ echo "=== Caliper Dogfood Run: ${TIMESTAMP} ==="
 echo ""
 
 # Run review in markdown mode for the human-readable report
-uv run caliper review --repo-path "${REPO_ROOT}" --all --output "${REPORT_FILE}" 2>&1 || true
+uv run caliper review --repo-path "${REPO_ROOT}" --output "${REPORT_FILE}" 2>&1 || true
 
 # Run review in SARIF mode for machine-readable severity counting
-uv run caliper review --repo-path "${REPO_ROOT}" --all --format sarif --output "${SARIF_FILE}" 2>&1 || true
+uv run caliper review --repo-path "${REPO_ROOT}" --format sarif --output "${SARIF_FILE}" 2>&1 || true
 
 # Count error-level findings (critical + high) from SARIF
 if [ -f "${SARIF_FILE}" ]; then

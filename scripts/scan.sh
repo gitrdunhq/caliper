@@ -48,7 +48,7 @@ podman run --rm \
     --tmpfs /workspace/.temp:rw,size=512m \
     -v "${REPO}:/workspace:ro" \
     -v "${TRIVY_CACHE}:/home/caliper/.cache/trivy" \
-    "${IMAGE}" review --repo-path /workspace --all \
+    "${IMAGE}" review --repo-path /workspace \
     ${FORMAT:+--format "${FORMAT}"}
 
 # Prune dangling layers after a successful run.

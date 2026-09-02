@@ -1017,13 +1017,13 @@ When `max_findings_per_run > 0`, findings beyond the cap are replaced with a sin
 
 ```bash
 # Write SARIF to file
-uv run caliper review --repo-path . --all --format sarif --output results.sarif
+uv run caliper review --repo-path . --format sarif --output results.sarif
 
 # Pipe to stdout
 uv run caliper review --repo-path . --format sarif
 
 # Cap findings per plugin (default: 1000)
-uv run caliper review --repo-path . --all --format sarif --sarif-max-findings 500
+uv run caliper review --repo-path . --format sarif --sarif-max-findings 500
 ```
 
 SARIF output is compatible with GitHub's Security tab (`upload-sarif` action) and any

@@ -132,6 +132,7 @@ def cli(verbose: bool) -> None:
 def _register_subcommands() -> None:
     from caliper.cli.baseline_cmd import baseline
     from caliper.cli.ground_cmd import ground
+    from caliper.cli.init_cmd import init
     from caliper.cli.inspect_cmds import check_health, healthcheck, plugins, schema
     from caliper.cli.install_cmd import install_scanners
     from caliper.cli.part_cmd import part
@@ -148,6 +149,7 @@ def _register_subcommands() -> None:
     cli.add_command(supply_chain_diff)
     cli.add_command(ground)
     cli.add_command(install_scanners)
+    cli.add_command(init)
 
 
 _register_subcommands()
@@ -271,7 +273,13 @@ def evaluate(
 @click.option("--repo-path", type=click.Path(exists=True), default=".", help="Repository root.")
 @click.option("--scanners", type=str, default=None, help="Comma-separated plugin names.")
 @click.option("--category", type=str, default=None, help="Comma-separated categories.")
-@click.option("--all", "run_all", is_flag=True, help="Run all plugins.")
+@click.option(
+    "--all",
+    "run_all",
+    is_flag=True,
+    hidden=True,
+    help="Deprecated no-op: a bare `caliper review` already runs every default plugin.",
+)
 @click.option("--output", type=click.Path(), default=None, help="Write output to file.")
 @click.option(
     "--format",

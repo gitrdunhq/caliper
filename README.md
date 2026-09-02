@@ -119,8 +119,11 @@ uv sync --group dev
 git diff origin/main...HEAD > .temp/pr.diff
 uv run caliper review --repo-path . --diff .temp/pr.diff
 
-# Review every file in the repo (full scan; this is what dogfood runs)
-uv run caliper review --repo-path . --all
+# Review every file in the repo — the standard run (no flags needed)
+uv run caliper review --repo-path .
+
+# Write the standard .caliper.yaml (every value is the default) to tweak from
+uv run caliper init
 
 # Review only code analysis plugins
 uv run caliper review --repo-path . --category code
@@ -129,7 +132,7 @@ uv run caliper review --repo-path . --category code
 uv run caliper plugins
 
 # Post findings as inline PR review comments
-uv run caliper review --repo-path . --all --pr 42
+uv run caliper review --repo-path . --pr 42
 ```
 
 ### Install the scanners locally
@@ -533,10 +536,10 @@ Override config at the command line for one-off runs:
 
 ```bash
 # Disable specific plugins for this run
-uv run caliper review --repo-path . --all --disable ls-lint
+uv run caliper review --repo-path . --disable ls-lint
 
 # Enable a plugin that is disabled in config (or opt-in by default, like scancode)
-uv run caliper review --repo-path . --all --enable scancode
+uv run caliper review --repo-path . --enable scancode
 
 # Combine flags
 uv run caliper evaluate --repo-path . --diff changes.diff \
@@ -552,14 +555,14 @@ uv run caliper evaluate --repo-path . --diff changes.diff \
 Export findings to SARIF for the GitHub Security tab:
 
 ```bash
-uv run caliper review --repo-path . --all --format sarif --output results.sarif
+uv run caliper review --repo-path . --format sarif --output results.sarif
 ```
 
 Upload in GitHub Actions:
 
 ```yaml
 - name: Run Caliper
-  run: uv run caliper review --repo-path . --all --format sarif --output results.sarif
+  run: uv run caliper review --repo-path . --format sarif --output results.sarif
 
 - name: Upload SARIF
   uses: github/codeql-action/upload-sarif@v3
@@ -577,10 +580,10 @@ Post findings as inline GitHub PR review comments — on the exact lines, not on
 
 ```bash
 # Post inline review comments on PR #42
-uv run caliper review --repo-path . --all --pr 42
+uv run caliper review --repo-path . --pr 42
 
 # Specify repo explicitly (auto-detected from git remote by default)
-uv run caliper review --repo-path . --all --pr 42 --repo org/repo
+uv run caliper review --repo-path . --pr 42 --repo org/repo
 ```
 
 When `--pr` is passed, caliper maps SARIF findings to the PR diff and posts a proper GitHub review:
@@ -601,7 +604,7 @@ Re-run plugins automatically on file save during local development:
 
 ```bash
 # Watch all plugins
-uv run caliper review --repo-path . --all --watch
+uv run caliper review --repo-path . --watch
 
 # Watch code analysis only (faster feedback loop)
 uv run caliper review --repo-path . --category code --watch
@@ -621,10 +624,10 @@ Walks the repo recursively and finds all manifest files — `package.json`, `pyp
 
 ```bash
 # Scan all packages (auto-discovered)
-uv run caliper review --repo-path . --all
+uv run caliper review --repo-path .
 
 # Scan a single package
-uv run caliper review --repo-path . --package apps/web --all
+uv run caliper review --repo-path . --package apps/web
 ```
 
 ### Per-package output
