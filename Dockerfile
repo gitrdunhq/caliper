@@ -16,6 +16,7 @@ ARG OPENGREP_VERSION=1.20.0
 ARG SCANCODE_VERSION=32.3.0
 ARG LIZARD_VERSION=1.17.13
 ARG PYREFLY_VERSION=1.1.1
+ARG RADON_VERSION=6.0.1
 ARG LS_LINT_VERSION=2.3.1
 ARG PMD_VERSION=7.24.0
 ARG SWIFTLINT_VERSION=0.57.1
@@ -87,7 +88,7 @@ FROM python_base_${TARGETARCH} AS builder
 
 ARG SYFT_VERSION TRIVY_VERSION OSV_VERSION OPA_VERSION GITLEAKS_VERSION JQ_VERSION KUBE_LINTER_VERSION PMD_VERSION LS_LINT_VERSION SWIFTLINT_VERSION
 ARG SYFT_COMMIT TRIVY_COMMIT OSV_COMMIT OPA_COMMIT GITLEAKS_COMMIT KUBE_LINTER_COMMIT JQ_COMMIT LS_LINT_COMMIT UV_COMMIT
-ARG OPENGREP_VERSION SCANCODE_VERSION LIZARD_VERSION PYREFLY_VERSION
+ARG OPENGREP_VERSION SCANCODE_VERSION LIZARD_VERSION PYREFLY_VERSION RADON_VERSION
 ARG SEMGREP_RULES_COMMIT
 ARG SYFT_SHA256_ARM64 TRIVY_SHA256_ARM64 OSV_SHA256_ARM64 OPA_SHA256_ARM64 GITLEAKS_SHA256_ARM64 JQ_SHA256_ARM64 KUBE_LINTER_SHA256_ARM64 LS_LINT_SHA256_ARM64 PMD_SHA256
 ARG SYFT_SHA256_AMD64 TRIVY_SHA256_AMD64 OSV_SHA256_AMD64 OPA_SHA256_AMD64 GITLEAKS_SHA256_AMD64 JQ_SHA256_AMD64 KUBE_LINTER_SHA256_AMD64 LS_LINT_SHA256_AMD64 SWIFTLINT_SHA256_AMD64
@@ -251,7 +252,7 @@ RUN --security=insecure --mount=type=cache,target=/root/.cache/uv \
 # "scancode-toolkit==${SCANCODE_VERSION}" to this install, restore the deferred-import
 # wrapper, and add "scancode" back to CALIPER_ENABLED_SCANNERS below.
 RUN --security=insecure --mount=type=cache,target=/root/.cache/uv \
-    uv pip install "lizard==${LIZARD_VERSION}" "pyrefly==${PYREFLY_VERSION}"
+    uv pip install "lizard==${LIZARD_VERSION}" "pyrefly==${PYREFLY_VERSION}" "radon==${RADON_VERSION}"
 
 # opengrep — self-contained binary, sha256-verified
 ARG OPENGREP_SHA256_ARM64 OPENGREP_SHA256_AMD64
@@ -290,8 +291,10 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
-      git ca-certificates \
+      git ca-certificates nodejs \
       $( [ "${TARGETARCH}" = "amd64" ] && echo libicu76 )  # swiftlint (amd64-only) links ICU
+    # nodejs (no npm): runs the committed esbuild bundle behind the complexity
+    # plugin's JS/TS maintainability index (plugins/_runners/complexity_helper_dist).
 
 # Non-root user — scanners must not run as root.
 RUN groupadd -r caliper && useradd -r -g caliper -m -d /home/caliper -s /bin/false caliper
@@ -342,8 +345,11 @@ ENV PATH="/opt/caliper/.venv/bin:$PATH" \
     CALIPER_SEMGREP_ORG_RULES_DIR=/opt/caliper/policies/semgrep \
     CALIPER_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,ls-lint
 
+# /workspace is the conventional repo mount; making it the cwd means relative
+# paths (e.g. --output .temp/report.json) land on the mount, not in the container.
+RUN mkdir -p /workspace && chown caliper:caliper /workspace
 USER caliper
-WORKDIR /home/caliper
+WORKDIR /workspace
 
 HEALTHCHECK --interval=5m --timeout=30s --retries=3 \
   CMD caliper healthcheck || exit 1
