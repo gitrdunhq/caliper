@@ -92,3 +92,19 @@ def test_vuln_fixture_keeps_known_vulnerable_dependency_pins() -> None:
     assert "requests==2.25.1" in requirements
     assert "requests==2.25.1" in dependencies
     assert "cryptography==3.4.8" in requirements
+
+
+def test_dependabot_tracks_the_docker_base_image_digest() -> None:
+    """The Dockerfile pins python:<tag>@sha256:<index digest> on one FROM line so
+    the docker ecosystem can bump the digest when the tag is rebuilt. Without
+    this block the SHA pin silently never receives Debian security updates."""
+    updates = _load_dependabot_config()["updates"]
+    docker = [u for u in updates if u.get("package-ecosystem") == "docker"]
+    assert len(docker) == 1
+    assert docker[0].get("directory") == "/"
+    assert isinstance(docker[0].get("cooldown"), dict)
+    dockerfile = (Path(__file__).resolve().parents[2] / "Dockerfile").read_text(encoding="utf-8")
+    froms = [line for line in dockerfile.splitlines() if line.startswith("FROM docker.io/")]
+    assert froms and all(
+        "@sha256:" in line and ":3." in line.split("@")[0] for line in froms
+    ), froms
