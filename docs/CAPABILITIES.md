@@ -309,7 +309,7 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 |---------|-------------|
 | `caliper evaluate` | Full pipeline on dependency changes. Modes: monitor/advise. Output: JSON. |
 | `caliper review` | Plugin review on repo or diff. Filter by --scanners, --category, --enable/--disable. Formats: markdown, json (schema: `docs/schema/report-v1.0.json`), SARIF, OpenVEX. Supports --watch (watchdog, 500ms debounce), --pr N (inline PR review), --package (monorepo single package). |
-| `caliper check-health` | Verify scanner binaries and DB connectivity. |
+| `caliper check-health` | Verify scanner binaries and DB connectivity. (`caliper healthcheck`, the image's `HEALTHCHECK`, exits 1 only when a default-on scanner is missing; opt-in `scancode` and amd64-only `swiftlint` report as `optional`.) |
 | `caliper plugins` | List all registered plugins with binary status and depends_on. |
 | `caliper schema` | Print the JSON Schema for `caliper review --format json` output. `--output` writes to a file. Published artifact: `docs/schema/report-v1.0.json`. |
 | `caliper query` | Run one of 12 canned code graph queries against the SQLite code graph. Keyword match picks the template; `--list` shows them. |

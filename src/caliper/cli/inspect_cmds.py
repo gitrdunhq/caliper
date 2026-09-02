@@ -9,6 +9,11 @@ import click
 from caliper.core.scanner_pins import PLUGIN_BINARIES as _BINARY_MAP
 from caliper.plugins import get_default_registry
 
+# Scanners whose absence must not fail the image HEALTHCHECK: scancode is opt-in
+# (never runs by default) and swiftlint ships amd64-only, so both are missing by
+# design on an arm64 host. Everything else is default-on and must be present.
+HEALTHCHECK_OPTIONAL: frozenset[str] = frozenset({"scancode", "swiftlint"})
+
 
 @click.command()
 def healthcheck() -> None:
@@ -17,6 +22,7 @@ def healthcheck() -> None:
     all_plugins = registry.list()
     ok = 0
     fail = 0
+    optional = 0
     for p in sorted(all_plugins, key=lambda x: x.name):
         binaries = _BINARY_MAP.get(p.name)
         if binaries is None:
@@ -27,10 +33,13 @@ def healthcheck() -> None:
         if found:
             ok += 1
             click.echo(f"  ok       {p.name}")
+        elif p.name in HEALTHCHECK_OPTIONAL:
+            optional += 1
+            click.echo(f"  optional {p.name} (not installed; needs: {', '.join(binaries)})")
         else:
             fail += 1
             click.echo(f"  MISSING  {p.name} (needs: {', '.join(binaries)})")
-    click.echo(f"\n{ok}/{ok + fail} scanners available")
+    click.echo(f"\n{ok}/{ok + fail} required scanners available, {optional} optional not installed")
     if fail:
         click.echo("install the pinned binaries with: caliper install-scanners")
     raise SystemExit(1 if fail else 0)
