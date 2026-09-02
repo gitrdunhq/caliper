@@ -2,92 +2,92 @@
   "schema_version": "1.0.0",
   "total_lanes": 25,
   "topological_order": [
-    "r1-score-grade-verdict-consistency",
-    "r1-renderer-report-shape",
-    "r1-golden-and-property-tests",
-    "r2-test-patterns-directory-components",
-    "r2-caliperignore-rule-scope",
-    "r2-semgrep-severity-floor",
-    "r2-init-documents-new-knobs",
-    "r3-manifest-discovery-dependency-kind",
-    "r3-osv-scanner-file-line-and-kind",
-    "r3-trivy-dependency-kind",
-    "r3-dependency-report-grouping-fixfirst",
-    "r3-sarif-dependency-manifest-location",
-    "r4-pypi-distribution-name",
-    "r4-release-docs-name-update",
-    "r5-scanner-db-metadata",
-    "r5-scan-cache-key-includes-db-version",
-    "r5-json-schema-db-version-field",
-    "r6-supersede-stale-adrs",
-    "r6-new-adrs-for-current-practice",
-    "r6-adr-status-test",
-    "r7-ci-host-tests-policy",
-    "r8-container-runner-flag",
-    "r9-install-scanners-pins-win-over-path",
-    "r10-dogfood-baseline-file",
-    "r10-dogfood-ci-fails-on-blocked"
+    "task-001",
+    "task-002",
+    "task-003",
+    "task-004",
+    "task-005",
+    "task-006",
+    "task-007",
+    "task-008",
+    "task-009",
+    "task-010",
+    "task-011",
+    "task-012",
+    "task-013",
+    "task-014",
+    "task-015",
+    "task-016",
+    "task-017",
+    "task-018",
+    "task-019",
+    "task-020",
+    "task-021",
+    "task-022",
+    "task-023",
+    "task-024",
+    "task-025"
   ],
   "file_ownership": {
-    "src/caliper/core/review_summary.py": "r1-score-grade-verdict-consistency",
-    "tests/unit/test_review_summary.py": "r1-score-grade-verdict-consistency",
-    "src/caliper/core/renderer.py": "r1-renderer-report-shape",
-    "src/caliper/templates/comment.md.j2": "r1-renderer-report-shape",
-    "tests/unit/test_renderer.py": "r1-renderer-report-shape",
-    "tests/unit/test_renderer_golden.py": "r1-golden-and-property-tests",
-    "tests/fixtures/renderer_golden.md": "r1-golden-and-property-tests",
-    "tests/unit/test_plugin_properties.py": "r1-golden-and-property-tests",
-    "src/caliper/core/ignore.py": "r2-test-patterns-directory-components",
-    "tests/unit/test_ignore_tests_default.py": "r2-test-patterns-directory-components",
-    "src/caliper/core/normalizer.py": "r2-caliperignore-rule-scope",
-    "tests/unit/test_ignore.py": "r2-caliperignore-rule-scope",
-    "src/caliper/core/repo_config.py": "r2-semgrep-severity-floor",
-    "tests/unit/test_repo_config.py": "r2-semgrep-severity-floor",
-    "src/caliper/cli/init_cmd.py": "r2-init-documents-new-knobs",
-    "tests/unit/test_init_cmd.py": "r2-init-documents-new-knobs",
-    "src/caliper/core/manifest_discovery.py": "r3-manifest-discovery-dependency-kind",
-    "tests/unit/test_manifest_discovery.py": "r3-manifest-discovery-dependency-kind",
-    "src/caliper/plugins/osv_scanner.py": "r3-osv-scanner-file-line-and-kind",
-    "tests/unit/test_osv_plugin.py": "r3-osv-scanner-file-line-and-kind",
-    "src/caliper/plugins/trivy.py": "r3-trivy-dependency-kind",
-    "tests/unit/test_trivy_plugin.py": "r3-trivy-dependency-kind",
-    "src/caliper/core/sarif.py": "r3-sarif-dependency-manifest-location",
-    "tests/unit/test_sarif.py": "r3-sarif-dependency-manifest-location",
-    "pyproject.toml": "r4-pypi-distribution-name",
-    "uv.lock": "r4-pypi-distribution-name",
-    "tests/unit/test_pyproject_distribution_name.py": "r4-pypi-distribution-name",
-    ".github/workflows/release-please.yml": "r4-release-docs-name-update",
-    "docs/CAPABILITIES.md": "r4-release-docs-name-update",
-    "README.md": "r4-release-docs-name-update",
-    "src/caliper/core/scan_cache_key.py": "r5-scan-cache-key-includes-db-version",
-    "tests/unit/test_scan_cache_key.py": "r5-scan-cache-key-includes-db-version",
-    "src/caliper/core/json_report.py": "r5-json-schema-db-version-field",
-    "docs/schema/report-v1.0.json": "r5-json-schema-db-version-field",
-    "tests/unit/test_report_schema.py": "r5-json-schema-db-version-field",
-    "docs/adr/001-record-architecture-decisions.md": "r6-supersede-stale-adrs",
-    "docs/decommission-log.md": "r6-supersede-stale-adrs",
-    "docs/adr/011-semgrep-rules-pinned-snapshot.md": "r6-new-adrs-for-current-practice",
-    "docs/adr/012-test-code-excluded-by-default.md": "r6-new-adrs-for-current-practice",
-    "docs/adr/013-single-severity-vocabulary.md": "r6-new-adrs-for-current-practice",
-    "docs/adr/014-tag-then-drop-decommissioning.md": "r6-new-adrs-for-current-practice",
-    "tests/unit/test_adr_status.py": "r6-adr-status-test",
-    ".github/workflows/foreman.yml": "r7-ci-host-tests-policy",
-    ".github/workflows/release-candidate.yml": "r7-ci-host-tests-policy",
-    "tests/unit/test_github_actions_policy.py": "r7-ci-host-tests-policy",
-    "src/caliper/cli/main.py": "r8-container-runner-flag",
-    "src/caliper/cli/review_cmd.py": "r8-container-runner-flag",
-    "src/caliper/composition/bootstrap.py": "r8-container-runner-flag",
-    "tests/unit/test_review_cmd.py": "r8-container-runner-flag",
-    "src/caliper/cli/install_cmd.py": "r9-install-scanners-pins-win-over-path",
-    "tests/unit/test_install_cmd.py": "r9-install-scanners-pins-win-over-path",
-    ".caliper-baseline.yaml": "r10-dogfood-baseline-file",
-    "tests/unit/test_baseline_dogfood.py": "r10-dogfood-baseline-file",
-    ".github/workflows/dogfood.yml": "r10-dogfood-ci-fails-on-blocked",
-    "scripts/dogfood.sh": "r10-dogfood-ci-fails-on-blocked"
+    "src/caliper/core/review_summary.py": "task-001",
+    "tests/unit/test_review_summary.py": "task-001",
+    "src/caliper/core/renderer.py": "task-002",
+    "src/caliper/templates/comment.md.j2": "task-002",
+    "tests/unit/test_renderer.py": "task-002",
+    "tests/unit/test_renderer_golden.py": "task-003",
+    "tests/fixtures/renderer_golden.md": "task-003",
+    "tests/unit/test_plugin_properties.py": "task-003",
+    "src/caliper/core/ignore.py": "task-004",
+    "tests/unit/test_ignore_tests_default.py": "task-004",
+    "src/caliper/core/normalizer.py": "task-005",
+    "tests/unit/test_ignore.py": "task-005",
+    "src/caliper/core/repo_config.py": "task-006",
+    "tests/unit/test_repo_config.py": "task-006",
+    "src/caliper/cli/init_cmd.py": "task-007",
+    "tests/unit/test_init_cmd.py": "task-007",
+    "src/caliper/core/manifest_discovery.py": "task-008",
+    "tests/unit/test_manifest_discovery.py": "task-008",
+    "src/caliper/plugins/osv_scanner.py": "task-009",
+    "tests/unit/test_osv_plugin.py": "task-009",
+    "src/caliper/plugins/trivy.py": "task-010",
+    "tests/unit/test_trivy_plugin.py": "task-010",
+    "src/caliper/core/sarif.py": "task-012",
+    "tests/unit/test_sarif.py": "task-012",
+    "pyproject.toml": "task-013",
+    "uv.lock": "task-013",
+    "tests/unit/test_pyproject_distribution_name.py": "task-013",
+    ".github/workflows/release-please.yml": "task-014",
+    "docs/CAPABILITIES.md": "task-014",
+    "README.md": "task-014",
+    "src/caliper/core/scan_cache_key.py": "task-016",
+    "tests/unit/test_scan_cache_key.py": "task-016",
+    "src/caliper/core/json_report.py": "task-017",
+    "docs/schema/report-v1.0.json": "task-017",
+    "tests/unit/test_report_schema.py": "task-017",
+    "docs/adr/001-record-architecture-decisions.md": "task-018",
+    "docs/decommission-log.md": "task-018",
+    "docs/adr/011-semgrep-rules-pinned-snapshot.md": "task-019",
+    "docs/adr/012-test-code-excluded-by-default.md": "task-019",
+    "docs/adr/013-single-severity-vocabulary.md": "task-019",
+    "docs/adr/014-tag-then-drop-decommissioning.md": "task-019",
+    "tests/unit/test_adr_status.py": "task-020",
+    ".github/workflows/foreman.yml": "task-021",
+    ".github/workflows/release-candidate.yml": "task-021",
+    "tests/unit/test_github_actions_policy.py": "task-021",
+    "src/caliper/cli/main.py": "task-022",
+    "src/caliper/cli/review_cmd.py": "task-022",
+    "src/caliper/composition/bootstrap.py": "task-022",
+    "tests/unit/test_review_cmd.py": "task-022",
+    "src/caliper/cli/install_cmd.py": "task-023",
+    "tests/unit/test_install_cmd.py": "task-023",
+    ".caliper-baseline.yaml": "task-024",
+    "tests/unit/test_baseline_dogfood.py": "task-024",
+    ".github/workflows/dogfood.yml": "task-025",
+    "scripts/dogfood.sh": "task-025"
   },
   "lanes": {
-    "r1-score-grade-verdict-consistency": {
-      "id": "r1-score-grade-verdict-consistency",
+    "task-001": {
+      "id": "task-001",
       "title": "Fix score/grade consistency and verdict wording in review_summary",
       "files": [
         "src/caliper/core/review_summary.py",
@@ -107,8 +107,8 @@
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r1-renderer-report-shape": {
-      "id": "r1-renderer-report-shape",
+    "task-002": {
+      "id": "task-002",
       "title": "Renderer: plugin table filtering, path relativization, detector sections, ordering, truncation",
       "files": [
         "src/caliper/core/renderer.py",
@@ -126,14 +126,14 @@
       "introduces_stubs": false,
       "estimated_loc": 160,
       "depends_on": [
-        "r1-score-grade-verdict-consistency"
+        "task-001"
       ],
       "file_conflict_with": {},
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r1-golden-and-property-tests": {
-      "id": "r1-golden-and-property-tests",
+    "task-003": {
+      "id": "task-003",
       "title": "Golden-file and property-based tests for report ordering/shape",
       "files": [
         "tests/unit/test_renderer_golden.py",
@@ -148,15 +148,15 @@
       "introduces_stubs": false,
       "estimated_loc": 90,
       "depends_on": [
-        "r1-renderer-report-shape",
-        "r1-score-grade-verdict-consistency"
+        "task-002",
+        "task-001"
       ],
       "file_conflict_with": {},
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r2-test-patterns-directory-components": {
-      "id": "r2-test-patterns-directory-components",
+    "task-004": {
+      "id": "task-004",
       "title": "Extend TEST_PATTERNS to match *-tests/*_tests/*-test/*_test directory components",
       "files": [
         "src/caliper/core/ignore.py",
@@ -178,8 +178,8 @@
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r2-caliperignore-rule-scope": {
-      "id": "r2-caliperignore-rule-scope",
+    "task-005": {
+      "id": "task-005",
       "title": "Parse .caliperignore per-path rule-id scoping syntax into typed RuleScope",
       "files": [
         "src/caliper/core/ignore.py",
@@ -196,16 +196,16 @@
       "introduces_stubs": false,
       "estimated_loc": 90,
       "depends_on": [
-        "r2-test-patterns-directory-components"
+        "task-004"
       ],
       "file_conflict_with": {
-        "src/caliper/core/ignore.py": "r2-test-patterns-directory-components"
+        "src/caliper/core/ignore.py": "task-004"
       },
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r2-semgrep-severity-floor": {
-      "id": "r2-semgrep-severity-floor",
+    "task-006": {
+      "id": "task-006",
       "title": "Default semgrep severity floor excludes sub-medium findings from verdict/scores",
       "files": [
         "src/caliper/core/repo_config.py",
@@ -223,18 +223,18 @@
       "introduces_stubs": false,
       "estimated_loc": 80,
       "depends_on": [
-        "r1-renderer-report-shape",
-        "r1-score-grade-verdict-consistency"
+        "task-002",
+        "task-001"
       ],
       "file_conflict_with": {
-        "src/caliper/core/review_summary.py": "r1-score-grade-verdict-consistency",
-        "src/caliper/core/renderer.py": "r1-renderer-report-shape"
+        "src/caliper/core/review_summary.py": "task-001",
+        "src/caliper/core/renderer.py": "task-002"
       },
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r2-init-documents-new-knobs": {
-      "id": "r2-init-documents-new-knobs",
+    "task-007": {
+      "id": "task-007",
       "title": "caliper init documents .caliperignore rule-scope and severity-floor knobs",
       "files": [
         "src/caliper/cli/init_cmd.py",
@@ -248,16 +248,16 @@
       "introduces_stubs": false,
       "estimated_loc": 30,
       "depends_on": [
-        "r2-caliperignore-rule-scope",
-        "r2-semgrep-severity-floor",
-        "r2-test-patterns-directory-components"
+        "task-005",
+        "task-006",
+        "task-004"
       ],
       "file_conflict_with": {},
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r3-manifest-discovery-dependency-kind": {
-      "id": "r3-manifest-discovery-dependency-kind",
+    "task-008": {
+      "id": "task-008",
       "title": "Deterministic direct/transitive dependency_kind classification in manifest_discovery",
       "files": [
         "src/caliper/core/manifest_discovery.py",
@@ -277,8 +277,8 @@
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r3-osv-scanner-file-line-and-kind": {
-      "id": "r3-osv-scanner-file-line-and-kind",
+    "task-009": {
+      "id": "task-009",
       "title": "osv-scanner findings carry file/line from source.path and dependency_kind metadata",
       "files": [
         "src/caliper/plugins/osv_scanner.py",
@@ -293,14 +293,14 @@
       "introduces_stubs": false,
       "estimated_loc": 90,
       "depends_on": [
-        "r3-manifest-discovery-dependency-kind"
+        "task-008"
       ],
       "file_conflict_with": {},
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r3-trivy-dependency-kind": {
-      "id": "r3-trivy-dependency-kind",
+    "task-010": {
+      "id": "task-010",
       "title": "trivy findings carry dependency_kind metadata",
       "files": [
         "src/caliper/plugins/trivy.py",
@@ -313,14 +313,14 @@
       "introduces_stubs": false,
       "estimated_loc": 50,
       "depends_on": [
-        "r3-manifest-discovery-dependency-kind"
+        "task-008"
       ],
       "file_conflict_with": {},
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r3-dependency-report-grouping-fixfirst": {
-      "id": "r3-dependency-report-grouping-fixfirst",
+    "task-011": {
+      "id": "task-011",
       "title": "Dependency report section: group by advisory, show installed->fixed, and fix-first list",
       "files": [
         "src/caliper/core/renderer.py",
@@ -337,22 +337,22 @@
       "introduces_stubs": false,
       "estimated_loc": 130,
       "depends_on": [
-        "r3-osv-scanner-file-line-and-kind",
-        "r3-trivy-dependency-kind",
-        "r1-renderer-report-shape",
-        "r1-score-grade-verdict-consistency",
-        "r3-manifest-discovery-dependency-kind"
+        "task-009",
+        "task-010",
+        "task-002",
+        "task-001",
+        "task-008"
       ],
       "file_conflict_with": {
-        "src/caliper/core/renderer.py": "r1-renderer-report-shape",
-        "src/caliper/templates/comment.md.j2": "r1-renderer-report-shape",
-        "tests/unit/test_renderer.py": "r1-renderer-report-shape"
+        "src/caliper/core/renderer.py": "task-002",
+        "src/caliper/templates/comment.md.j2": "task-002",
+        "tests/unit/test_renderer.py": "task-002"
       },
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r3-sarif-dependency-manifest-location": {
-      "id": "r3-sarif-dependency-manifest-location",
+    "task-012": {
+      "id": "task-012",
       "title": "SARIF places dependency findings on manifest file/line",
       "files": [
         "src/caliper/core/sarif.py",
@@ -366,15 +366,15 @@
       "introduces_stubs": false,
       "estimated_loc": 50,
       "depends_on": [
-        "r3-osv-scanner-file-line-and-kind",
-        "r3-trivy-dependency-kind"
+        "task-009",
+        "task-010"
       ],
       "file_conflict_with": {},
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r4-pypi-distribution-name": {
-      "id": "r4-pypi-distribution-name",
+    "task-013": {
+      "id": "task-013",
       "title": "Rename PyPI distribution to caliper-review, keep import package/console script as caliper",
       "files": [
         "pyproject.toml",
@@ -395,8 +395,8 @@
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r4-release-docs-name-update": {
-      "id": "r4-release-docs-name-update",
+    "task-014": {
+      "id": "task-014",
       "title": "Update release-please workflow and docs for the new PyPI distribution name",
       "files": [
         ".github/workflows/release-please.yml",
@@ -413,13 +413,13 @@
       "introduces_stubs": false,
       "estimated_loc": 20,
       "depends_on": [
-        "r4-pypi-distribution-name"
+        "task-013"
       ],
       "file_conflict_with": {},
       "stage": "queued"
     },
-    "r5-scanner-db-metadata": {
-      "id": "r5-scanner-db-metadata",
+    "task-015": {
+      "id": "task-015",
       "title": "trivy/osv-scanner findings carry db_version/db_updated_at metadata",
       "files": [
         "src/caliper/plugins/trivy.py",
@@ -436,22 +436,22 @@
       "introduces_stubs": false,
       "estimated_loc": 90,
       "depends_on": [
-        "r3-osv-scanner-file-line-and-kind",
-        "r3-trivy-dependency-kind",
-        "r3-dependency-report-grouping-fixfirst",
-        "r1-renderer-report-shape"
+        "task-009",
+        "task-010",
+        "task-011",
+        "task-002"
       ],
       "file_conflict_with": {
-        "src/caliper/plugins/trivy.py": "r3-trivy-dependency-kind",
-        "src/caliper/plugins/osv_scanner.py": "r3-osv-scanner-file-line-and-kind",
-        "src/caliper/core/renderer.py": "r1-renderer-report-shape",
-        "tests/unit/test_trivy_plugin.py": "r3-trivy-dependency-kind"
+        "src/caliper/plugins/trivy.py": "task-010",
+        "src/caliper/plugins/osv_scanner.py": "task-009",
+        "src/caliper/core/renderer.py": "task-002",
+        "tests/unit/test_trivy_plugin.py": "task-010"
       },
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r5-scan-cache-key-includes-db-version": {
-      "id": "r5-scan-cache-key-includes-db-version",
+    "task-016": {
+      "id": "task-016",
       "title": "Scan cache key incorporates live-DB scanner db_updated_at",
       "files": [
         "src/caliper/core/scan_cache_key.py",
@@ -465,14 +465,14 @@
       "introduces_stubs": false,
       "estimated_loc": 30,
       "depends_on": [
-        "r5-scanner-db-metadata"
+        "task-015"
       ],
       "file_conflict_with": {},
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r5-json-schema-db-version-field": {
-      "id": "r5-json-schema-db-version-field",
+    "task-017": {
+      "id": "task-017",
       "title": "JSON report schema gains optional db_version/db_updated_at field",
       "files": [
         "src/caliper/core/json_report.py",
@@ -488,14 +488,14 @@
       "introduces_stubs": false,
       "estimated_loc": 40,
       "depends_on": [
-        "r5-scanner-db-metadata"
+        "task-015"
       ],
       "file_conflict_with": {},
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r6-supersede-stale-adrs": {
-      "id": "r6-supersede-stale-adrs",
+    "task-018": {
+      "id": "task-018",
       "title": "Mark ADRs 001/002/003/004/008 Superseded with decommission-log pointers",
       "files": [
         "docs/adr/001-record-architecture-decisions.md",
@@ -511,8 +511,8 @@
       "file_conflict_with": {},
       "stage": "queued"
     },
-    "r6-new-adrs-for-current-practice": {
-      "id": "r6-new-adrs-for-current-practice",
+    "task-019": {
+      "id": "task-019",
       "title": "Add new ADRs documenting semgrep pinning, test-exclusion default, severity vocabulary, tag-then-drop decommissioning",
       "files": [
         "docs/adr/011-semgrep-rules-pinned-snapshot.md",
@@ -531,13 +531,13 @@
       "introduces_stubs": false,
       "estimated_loc": 60,
       "depends_on": [
-        "r6-supersede-stale-adrs"
+        "task-018"
       ],
       "file_conflict_with": {},
       "stage": "queued"
     },
-    "r6-adr-status-test": {
-      "id": "r6-adr-status-test",
+    "task-020": {
+      "id": "task-020",
       "title": "Test that every ADR has a valid Status and no Accepted ADR references a dead module path",
       "files": [
         "tests/unit/test_adr_status.py"
@@ -550,15 +550,15 @@
       "introduces_stubs": false,
       "estimated_loc": 50,
       "depends_on": [
-        "r6-supersede-stale-adrs",
-        "r6-new-adrs-for-current-practice"
+        "task-018",
+        "task-019"
       ],
       "file_conflict_with": {},
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r7-ci-host-tests-policy": {
-      "id": "r7-ci-host-tests-policy",
+    "task-021": {
+      "id": "task-021",
       "title": "Move contract/e2e CI jobs into the test-image container instead of CALIPER_ALLOW_HOST_TESTS",
       "files": [
         ".github/workflows/foreman.yml",
@@ -578,8 +578,8 @@
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r8-container-runner-flag": {
-      "id": "r8-container-runner-flag",
+    "task-022": {
+      "id": "task-022",
       "title": "caliper review --runner auto|container|native",
       "files": [
         "src/caliper/cli/main.py",
@@ -602,8 +602,8 @@
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r9-install-scanners-pins-win-over-path": {
-      "id": "r9-install-scanners-pins-win-over-path",
+    "task-023": {
+      "id": "task-023",
       "title": "install-scanners installs into --bin-dir even when a same-named binary exists on PATH",
       "files": [
         "src/caliper/cli/install_cmd.py",
@@ -623,8 +623,8 @@
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r10-dogfood-baseline-file": {
-      "id": "r10-dogfood-baseline-file",
+    "task-024": {
+      "id": "task-024",
       "title": "Create .caliper-baseline.yaml so dogfood verdict is not blocked, with expiry test",
       "files": [
         ".caliper-baseline.yaml",
@@ -643,8 +643,8 @@
       "stage": "queued",
       "test_command": "uv run pytest -x -q"
     },
-    "r10-dogfood-ci-fails-on-blocked": {
-      "id": "r10-dogfood-ci-fails-on-blocked",
+    "task-025": {
+      "id": "task-025",
       "title": "dogfood.yml fails the job on blocked/incomplete verdict",
       "files": [
         ".github/workflows/dogfood.yml",
@@ -658,7 +658,7 @@
       "introduces_stubs": false,
       "estimated_loc": 30,
       "depends_on": [
-        "r10-dogfood-baseline-file"
+        "task-024"
       ],
       "file_conflict_with": {},
       "stage": "queued"
