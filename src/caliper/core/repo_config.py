@@ -418,15 +418,38 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
     )
 
 
+# (resolved config path) -> ((mtime_ns, size) or None when absent, parsed config).
+# Every plugin loads the repo config; read and log it once per run, not once
+# per plugin. Invalidated by mtime so an edited file is picked up.
+_CACHE: dict[Path, tuple[tuple[int, int] | None, RepoConfig]] = {}
+
+
+def clear_repo_config_cache() -> None:
+    _CACHE.clear()
+
+
 def load_repo_config(repo_path: Path) -> RepoConfig:
-    """Load .caliper.yaml from *repo_path*.
+    """Load .caliper.yaml from *repo_path* (cached per path + mtime).
 
     Returns RepoConfig() with defaults when the file is absent.
     Raises ValueError on invalid YAML or schema violations.
     """
-    config_file = repo_path / _CONFIG_FILENAME
+    config_file = (repo_path / _CONFIG_FILENAME).resolve()
+    try:
+        st = config_file.stat()
+        stamp: tuple[int, int] | None = (st.st_mtime_ns, st.st_size)
+    except FileNotFoundError:
+        stamp = None
+    cached = _CACHE.get(config_file)
+    if cached is not None and cached[0] == stamp:
+        return cached[1]
+    config = _read_repo_config(config_file, present=stamp is not None)
+    _CACHE[config_file] = (stamp, config)
+    return config
 
-    if not config_file.exists():
+
+def _read_repo_config(config_file: Path, *, present: bool) -> RepoConfig:
+    if not present:
         logger.debug("repo_config.not_found", path=str(config_file))
         return RepoConfig()
 

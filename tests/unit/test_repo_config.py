@@ -241,3 +241,57 @@ class TestPartingOverrides:
         )
         with pytest.raises(ValueError):
             load_repo_config(tmp_path)
+
+
+class TestLoadIsCachedPerRun:
+    """Every plugin loads .caliper.yaml; read it once, not once per plugin."""
+
+    def test_second_load_does_not_reread_the_file(self, tmp_path: Path, monkeypatch) -> None:
+        from caliper.core import repo_config as rc
+
+        rc.clear_repo_config_cache()
+        _write_config(tmp_path, {"plugins": {"disabled": ["ls-lint"]}})
+        reads = {"n": 0}
+        real = Path.read_text
+
+        def counting(self, *a, **k):
+            if self.name == ".caliper.yaml":
+                reads["n"] += 1
+            return real(self, *a, **k)
+
+        monkeypatch.setattr(Path, "read_text", counting)
+        a = rc.load_repo_config(tmp_path)
+        b = rc.load_repo_config(tmp_path)
+        assert a.plugins.disabled == ["ls-lint"] and b.plugins.disabled == ["ls-lint"]
+        assert reads["n"] == 1
+
+    def test_cache_invalidates_when_file_changes(self, tmp_path: Path) -> None:
+        import os
+
+        from caliper.core import repo_config as rc
+
+        rc.clear_repo_config_cache()
+        _write_config(tmp_path, {"plugins": {"disabled": ["ls-lint"]}})
+        assert rc.load_repo_config(tmp_path).plugins.disabled == ["ls-lint"]
+        _write_config(tmp_path, {"plugins": {"disabled": ["cpd"]}})
+        # ensure a distinct mtime even on coarse filesystems
+        os.utime(tmp_path / ".caliper.yaml", ns=(1, 2_000_000_000))
+        assert rc.load_repo_config(tmp_path).plugins.disabled == ["cpd"]
+
+    def test_missing_file_is_logged_once_per_path(self, tmp_path: Path, monkeypatch) -> None:
+        from caliper.core import repo_config as rc
+
+        rc.clear_repo_config_cache()
+        events: list[str] = []
+
+        class _Logger:
+            def debug(self, event: str, **kw) -> None:
+                events.append(event)
+
+            warning = info = error = debug
+
+        monkeypatch.setattr(rc, "logger", _Logger())
+        rc.load_repo_config(tmp_path)
+        rc.load_repo_config(tmp_path)
+        rc.load_repo_config(tmp_path)
+        assert events.count("repo_config.not_found") == 1
