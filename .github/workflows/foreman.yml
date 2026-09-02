@@ -25,7 +25,6 @@ env:
   UV_CACHE_DIR: /tmp/uv-cache
   SCANNER_BIN: /tmp/scanner-bin
   TRIVY_CACHE_DIR: /tmp/trivy-cache
-  SCANNER_VERSIONS: trivy=0.70.0 osv=2.3.5 kube-linter=0.8.3 gitleaks=8.30.1 pmd=7.9.0 opengrep=1.20.0 syft=1.43.0 scancode=32.3.0
 
 jobs:
 
@@ -314,7 +313,7 @@ jobs:
       - name: Install additional review tooling
         run: |
           uv sync --group dev
-          uv pip install lizard mypy pyrefly
+          uv pip install lizard mypy pyrefly radon
           uv pip install scancode-toolkit==32.3.0 || true
 
       - name: Install scanners
@@ -334,13 +333,13 @@ jobs:
           DIFF_FLAG=""
           [ -f .temp/pr.diff ] && DIFF_FLAG="--diff .temp/pr.diff"
           mkdir -p .temp
-          uv run caliper review --repo-path . --all $DIFF_FLAG --format sarif --output .temp/review.sarif &
+          uv run caliper review --repo-path . $DIFF_FLAG --format sarif --output .temp/review.sarif &
           PID_SARIF=$!
-          uv run caliper review --repo-path . --all $DIFF_FLAG --output .temp/review.md &
+          uv run caliper review --repo-path . $DIFF_FLAG --output .temp/review.md &
           PID_MD=$!
           # review.json carries the single source of truth (verdict + counts); the
           # verdict step below reads it instead of re-deriving from SARIF.
-          uv run caliper review --repo-path . --all $DIFF_FLAG --format json --output .temp/review.json &
+          uv run caliper review --repo-path . $DIFF_FLAG --format json --output .temp/review.json &
           PID_JSON=$!
           wait $PID_SARIF $PID_MD $PID_JSON
 

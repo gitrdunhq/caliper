@@ -5,6 +5,10 @@ on:
     - cron: '0 15 * * 1'  # Monday 9am Edmonton (UTC-6)
   workflow_dispatch:
 
+env:
+  SCANNER_BIN: /tmp/scanner-bin
+  TRIVY_CACHE_DIR: /tmp/trivy-cache
+
 jobs:
   dogfood:
     runs-on: ubuntu-latest
@@ -17,10 +21,15 @@ jobs:
         uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
 
       - name: Install deps
-        run: uv sync --group dev
+        run: |
+          uv sync --group dev
+          uv pip install lizard mypy pyrefly radon
+
+      - name: Install scanners
+        uses: ./.github/actions/install-scanners
 
       - name: Run caliper self-review
-        run: uv run caliper review --repo-path . --all --format sarif --output dogfood-results.sarif
+        run: uv run caliper review --repo-path . --format sarif --output dogfood-results.sarif
 
       - name: Upload SARIF
         if: always()
