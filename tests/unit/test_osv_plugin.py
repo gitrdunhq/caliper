@@ -9,6 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
+from caliper.core.manifest_discovery import ManifestCache
 from caliper.core.plugin import PluginCategory
 from caliper.core.plugin_registry import _normalize_findings
 from caliper.plugins.osv_scanner import OsvScannerPlugin
@@ -436,3 +437,31 @@ class TestTask009AC3:
             "transitive",
             "unknown",
         }
+
+
+class TestOsvManifestCachePerRun:
+    """PERF-001: one ManifestCache per run, shared across every package."""
+
+    @patch("caliper.plugins.osv_scanner.classify_dependency_kind")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
+    def test_all_packages_share_one_cache(self, mock_run, mock_classify):
+        packages = [
+            {
+                "package": {"name": f"pkg{i}", "version": "1.0", "ecosystem": "PyPI"},
+                "vulnerabilities": [{"id": f"GHSA-{i}", "summary": "x", "severity": []}],
+            }
+            for i in range(3)
+        ]
+        data = {
+            "results": [{"source": {"path": "/workspace/requirements.txt"}, "packages": packages}]
+        }
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stdout = json.dumps(data)
+        mock_classify.return_value = "direct"
+
+        OsvScannerPlugin().run(["requirements.txt"], Path("/workspace"))
+
+        assert mock_classify.call_count == 3
+        caches = {id(call.kwargs["cache"]) for call in mock_classify.call_args_list}
+        assert len(caches) == 1
+        assert isinstance(mock_classify.call_args.kwargs["cache"], ManifestCache)

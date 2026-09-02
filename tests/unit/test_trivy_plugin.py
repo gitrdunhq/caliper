@@ -601,3 +601,44 @@ class TestTrivyLockfileTarget:
 
         finding = next(f for f in result.findings if f.get("package") == "itoa")
         assert finding["metadata"]["dependency_kind"] == "transitive"
+
+
+class TestTrivyManifestCachePerRun:
+    """PERF-002: one ManifestCache per run; every package classifies through it,
+    so the manifest is read once for a many-package result."""
+
+    def test_manifest_read_once_for_many_packages(self, tmp_path: Path) -> None:
+        (tmp_path / "requirements.txt").write_text("requests==2.25.0\n")
+        vulns = [
+            {
+                "VulnerabilityID": f"CVE-2030-{i:05d}",
+                "PkgName": f"pkg{i}",
+                "InstalledVersion": "1.0.0",
+                "Severity": "HIGH",
+                "Title": "x",
+            }
+            for i in range(50)
+        ]
+        stdout = json.dumps(
+            {
+                "Results": [
+                    {"Target": "requirements.txt", "Class": "lang-pkgs", "Vulnerabilities": vulns}
+                ]
+            }
+        )
+        runner = MagicMock()
+        runner.run.return_value = ToolResult(
+            stdout=stdout, stderr="", exit_code=0, timed_out=False, not_installed=False
+        )
+        plugin = TrivyPlugin(tool_runner=runner)
+        reads: list[Path] = []
+
+        def counting_read(path: Path) -> str:
+            reads.append(path)
+            return path.read_text()
+
+        with patch("caliper.core.manifest_discovery._read_text", side_effect=counting_read):
+            result = plugin.run([], tmp_path)
+
+        assert len(result.findings) == 50
+        assert reads.count(tmp_path / "requirements.txt") == 1
