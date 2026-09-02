@@ -88,11 +88,18 @@ def _snapshot_configs(rules_dir: str | None, changed_files: list[str]) -> list[s
     return out
 
 
-def _org_configs(org_rules_dir: str | None, repo_path: str) -> list[str]:
-    """Caliper's packaged org rules plus the target's own policies/semgrep, deduplicated."""
+def _org_configs(
+    org_rules_dir: str | None, repo_path: str, community_rules_dir: str | None = None
+) -> list[str]:
+    """Caliper's packaged org rules, the baked eedom-community-rules snapshot, and the
+    target's own policies/semgrep, deduplicated. A configured-but-absent dir is skipped."""
     out: list[str] = []
     seen: set[Path] = set()
-    for cand in (org_rules_dir, str(Path(repo_path) / "policies" / "semgrep")):
+    for cand in (
+        org_rules_dir,
+        community_rules_dir,
+        str(Path(repo_path) / "policies" / "semgrep"),
+    ):
         if not cand:
             continue
         p = Path(cand)
@@ -141,6 +148,7 @@ def run_semgrep(
     exclude_rules: list[str] | None = None,
     rules_dir: str | None = None,
     org_rules_dir: str | None = None,
+    community_rules_dir: str | None = None,
 ) -> dict:
     if not changed_files:
         return {"results": [], "errors": []}
@@ -148,7 +156,7 @@ def run_semgrep(
     config_args: list[str] = []
     for cfg in _snapshot_configs(rules_dir, changed_files):
         config_args.extend(["--config", cfg])
-    for cfg in _org_configs(org_rules_dir, repo_path):
+    for cfg in _org_configs(org_rules_dir, repo_path, community_rules_dir):
         config_args.extend(["--config", cfg])
     for extra_dir in extra_config_dirs or []:
         if Path(extra_dir).is_dir():
@@ -236,6 +244,7 @@ class OpengrepRunner:
         exclude_rules: list | None = None,
         rules_dir: str | None = None,
         org_rules_dir: str | None = None,
+        community_rules_dir: str | None = None,
     ) -> dict:
         return run_semgrep(
             changed_files,
@@ -245,6 +254,7 @@ class OpengrepRunner:
             exclude_rules=exclude_rules,
             rules_dir=rules_dir,
             org_rules_dir=org_rules_dir,
+            community_rules_dir=community_rules_dir,
         )
 
 

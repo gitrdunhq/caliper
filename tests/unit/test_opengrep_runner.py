@@ -117,6 +117,25 @@ class TestPinnedLocalRules:
         assert str(org) in self._configs(mock_run)
 
     @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_community_rules_dir_added_when_present(self, mock_run, tmp_path):
+        """The baked eedom-community-rules snapshot is passed as one more --config."""
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        community = tmp_path / "community-rules"
+        (community / "rules" / "infrastructure" / "semgrep").mkdir(parents=True)
+        run_semgrep(["app.ts"], "/workspace", community_rules_dir=str(community))
+        assert str(community) in self._configs(mock_run)
+
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_community_rules_dir_skipped_when_missing(self, mock_run, tmp_path):
+        """A configured-but-absent snapshot dir is skipped, never passed to opengrep."""
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        missing = tmp_path / "nope"
+        run_semgrep(["app.ts"], "/workspace", community_rules_dir=str(missing))
+        assert str(missing) not in self._configs(mock_run)
+
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
     def test_org_rules_dir_not_duplicated_with_target_policies(self, mock_run):
         """When the target IS caliper, its policies/semgrep is passed once, not twice."""
         mock_run.return_value.stdout = '{"results": [], "errors": []}'

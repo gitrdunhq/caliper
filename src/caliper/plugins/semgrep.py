@@ -87,6 +87,9 @@ class SemgrepPlugin(ScannerPlugin):
         resolved = settings if settings is not None else _settings_from_env()
         self._rules_dir = resolved.semgrep_rules_dir if resolved is not None else None
         self._org_rules_dir = _resolve_org_rules_dir(resolved)
+        self._community_rules_dir = (
+            resolved.semgrep_community_rules_dir if resolved is not None else None
+        )
 
     @property
     def name(self) -> str:
@@ -122,6 +125,7 @@ class SemgrepPlugin(ScannerPlugin):
                 exclude_rules=sg.exclude_rules,
                 rules_dir=self._rules_dir,
                 org_rules_dir=self._org_rules_dir,
+                community_rules_dir=self._community_rules_dir,
             )
         except Exception as exc:
             return PluginResult(plugin_name=self.name, error=str(exc))
@@ -134,7 +138,7 @@ class SemgrepPlugin(ScannerPlugin):
                 error=f"scanner degraded: {msg}",
             )
 
-        prefixes = _dotted_prefixes(self._rules_dir, self._org_rules_dir)
+        prefixes = _dotted_prefixes(self._rules_dir, self._org_rules_dir, self._community_rules_dir)
         findings = []
         for r in data.get("results", []):
             raw_path = r.get("path", "?")
