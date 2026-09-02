@@ -122,6 +122,9 @@ uv run caliper review --repo-path . --diff .temp/pr.diff
 # Review every file in the repo — the standard run (no flags needed)
 uv run caliper review --repo-path .
 
+# Large monorepo: give each scanner more than the default 60s
+CALIPER_SCANNER_TIMEOUT=300 uv run caliper review --repo-path .
+
 # Write the standard .caliper.yaml (every value is the default) to tweak from
 uv run caliper init
 

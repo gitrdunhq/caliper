@@ -7,11 +7,15 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from caliper.core.config import CaliperSettings
 from caliper.core.errors import ErrorCode, error_msg
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
 
 
 class LsLintPlugin(ScannerPlugin):
+    def __init__(self, settings: CaliperSettings | None = None) -> None:
+        self._timeout = (settings or CaliperSettings()).scanner_timeout
+
     @property
     def name(self) -> str:
         return "ls-lint"
@@ -33,7 +37,7 @@ class LsLintPlugin(ScannerPlugin):
                 ["ls-lint"],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=self._timeout,
                 cwd=str(repo_path),
                 check=False,
             )
@@ -44,7 +48,8 @@ class LsLintPlugin(ScannerPlugin):
             )
         except subprocess.TimeoutExpired:
             return PluginResult(
-                plugin_name=self.name, error=error_msg(ErrorCode.TIMEOUT, "ls-lint", timeout=0)
+                plugin_name=self.name,
+                error=error_msg(ErrorCode.TIMEOUT, "ls-lint", timeout=self._timeout),
             )
 
         output = r.stderr or r.stdout or ""
