@@ -77,3 +77,24 @@ def test_logger_follows_current_stderr_not_the_one_at_configure_time(capsys) -> 
     stale.close()
     structlog.get_logger().warning("still.alive")  # must not raise ValueError
     assert "still.alive" in capsys.readouterr().err
+
+
+def test_exceptions_render_as_plain_tracebacks_not_rich(capsys) -> None:
+    """exc_info logs must be cheap and greppable: the rich renderer prints boxed
+    frames with every local variable, which is slow enough to blow Hypothesis
+    deadlines on fail-open parse paths and leaks values into CI logs."""
+    import logging
+
+    import structlog
+
+    from caliper.cli.logging_setup import configure_logging
+
+    configure_logging(logging.WARNING)
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        structlog.get_logger().warning("parse.failed", exc_info=True)
+    err = capsys.readouterr().err
+    assert "Traceback (most recent call last)" in err
+    assert "ValueError: boom" in err
+    assert "❱" not in err and "╭" not in err and "locals" not in err
