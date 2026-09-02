@@ -98,6 +98,81 @@
       ],
       "title": "ReportVerdict",
       "type": "string"
+    },
+    "FindingModel": {
+      "additionalProperties": true,
+      "description": "A single plugin finding.\n\nFindings are heterogeneous across plugins: every field is optional and\nunknown keys are preserved (``extra=\"allow\"``). Findings emitted from\ntyped ``PluginFinding`` objects nest plugin-specific keys under\n``metadata``; plugins that return raw dicts may use any shape.",
+      "properties": {
+        "id": {
+          "default": "",
+          "title": "Id",
+          "type": "string"
+        },
+        "severity": {
+          "default": "",
+          "title": "Severity",
+          "type": "string"
+        },
+        "message": {
+          "default": "",
+          "title": "Message",
+          "type": "string"
+        },
+        "file": {
+          "default": "",
+          "title": "File",
+          "type": "string"
+        },
+        "line": {
+          "default": 0,
+          "title": "Line",
+          "type": "integer"
+        },
+        "url": {
+          "default": "",
+          "title": "Url",
+          "type": "string"
+        },
+        "category": {
+          "default": "",
+          "title": "Category",
+          "type": "string"
+        },
+        "package": {
+          "default": "",
+          "title": "Package",
+          "type": "string"
+        },
+        "version": {
+          "default": "",
+          "title": "Version",
+          "type": "string"
+        },
+        "fixed_version": {
+          "default": "",
+          "title": "Fixed Version",
+          "type": "string"
+        },
+        "rule_id": {
+          "default": "",
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "db_version": {
+          "default": "",
+          "description": "Version/date stamp of the vulnerability database used for this finding.",
+          "title": "Db Version",
+          "type": "string"
+        },
+        "db_updated_at": {
+          "default": "",
+          "description": "ISO 8601 timestamp of the last vulnerability-database update.",
+          "title": "Db Updated At",
+          "type": "string"
+        }
+      },
+      "title": "FindingModel",
+      "type": "object"
     }
   },
   "description": "Top-level document emitted by ``caliper review --format json``.",
