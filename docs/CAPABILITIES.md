@@ -72,7 +72,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 | Plugin | File | Detects |
 |--------|------|---------|
 | deterministic | `composition/deterministic_plugin.py` | Wraps `DeterministicScanner` (`detectors/scanner.py`) — the 21 AST-based bug detectors (CAL-001..022, CAL-013 retired) selected by `detectors.profiles` in `.caliper.yaml`: `default` (12 general bug patterns, on) and `house-rules` (9 caliper-convention rules, opt-in), plus `enable`/`disable` per id (`detectors/profiles.py`). Composition-registered rather than auto-discovered, since `detectors/` may not import `plugins/` directly (#457). |
-| semgrep | `plugins/semgrep.py` | AST code pattern matching via opengrep. Community rules come ONLY from a semgrep-rules snapshot pinned by commit in the Dockerfile (`SEMGREP_RULES_COMMIT`, baked at `/opt/caliper/semgrep-rules`); language directories are selected by file type and registry packs are never fetched, so the scan path has no network dependency and the rule set cannot drift. The 67 custom org rules (see below) run against every target via `CALIPER_SEMGREP_ORG_RULES_DIR`. Host runs: `scripts/snapshot-semgrep-rules.sh`. |
+| semgrep | `plugins/semgrep.py` | AST code pattern matching via opengrep. Community rules come ONLY from a semgrep-rules snapshot pinned by commit in the Dockerfile (`SEMGREP_RULES_COMMIT`, baked at `/opt/caliper/semgrep-rules`); language directories are selected by file type and registry packs are never fetched, so the scan path has no network dependency and the rule set cannot drift. The 67 custom org rules (see below) run against every target via `CALIPER_SEMGREP_ORG_RULES_DIR`. Host runs: `scripts/snapshot-semgrep-rules.sh`. Severities are canonical at the boundary: ERROR→high, WARNING→medium, INFO→info. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyrefly (fastest) when available, falls back to pyright, then mypy. Error + warning severity only. |
 | swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.caliper/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
@@ -323,6 +323,8 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 ---
 
 ## Output Formats
+
+Every format shares one severity vocabulary: `critical`/`high`/`medium`/`low`/`info` (`core/models.py` `FindingSeverity`). `normalize_finding` maps any plugin's raw value (semgrep ERROR/WARNING/INFO, OSV `moderate`, upper-case variants) onto it before rendering, so no consumer special-cases a plugin.
 
 | Format | Where | Description |
 |--------|-------|-------------|

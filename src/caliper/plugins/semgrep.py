@@ -8,11 +8,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from caliper.core.config import CaliperSettings
+from caliper.core.models import FindingSeverity, normalize_severity
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
 from caliper.core.port_registries import RULE_RUNNERS
 from caliper.plugins._runners import (
     semgrep_runner,  # noqa: F401  (registers RULE_RUNNERS["semgrep"])
 )
+
+_SEVERITY_ORDER = {s.value: i for i, s in enumerate(FindingSeverity)}
+_SEVERITY_ICON = {"critical": "🔴", "high": "🔴", "medium": "🟡", "low": "ℹ️", "info": "ℹ️"}
 
 # Historical plugin-specific default (predates settings wiring, #432a). Kept as
 # the fallback when no CaliperSettings is supplied so existing callers that
@@ -149,12 +153,14 @@ class SemgrepPlugin(ScannerPlugin):
                     "file": rel_path,
                     "start_line": r.get("start", {}).get("line", 0),
                     "end_line": r.get("end", {}).get("line", 0),
-                    "severity": extra.get("severity", "WARNING"),
+                    # One vocabulary at the boundary: opengrep ERROR/WARNING/INFO ->
+                    # high/medium/info (core.models.normalize_severity).
+                    "severity": normalize_severity(str(extra.get("severity", "WARNING"))).value,
                     "message": extra.get("message", ""),
                     "fix_suggestion": fix_suggestion,
                 }
             )
-        findings.sort(key=lambda f: {"ERROR": 0, "WARNING": 1, "INFO": 2}.get(f["severity"], 3))
+        findings.sort(key=lambda f: _SEVERITY_ORDER.get(f["severity"], len(_SEVERITY_ORDER)))
         return PluginResult(
             plugin_name=self.name,
             findings=findings,
@@ -171,7 +177,7 @@ class SemgrepPlugin(ScannerPlugin):
             f"<summary>🔍 <b>Semgrep ({len(result.findings)})</b></summary>\n",
         ]
         for f in result.findings:
-            icon = {"ERROR": "🔴", "WARNING": "🟡", "INFO": "ℹ️"}.get(f["severity"], "?")
+            icon = _SEVERITY_ICON.get(f["severity"], "ℹ️")
             rule = f["rule_id"].split(".")[-1]
             lines.append(f"{icon} **`{f['file']}:{f['start_line']}`** — **{rule}**")
             lines.append(f"> {f['message'][:200]}\n")
