@@ -488,3 +488,81 @@ class TestRenderMarkdownVulnerabilityDataAsOf:
         output = render_markdown(findings)
 
         assert "vulnerability data as of" not in output
+
+
+def _trivy_output_for_package(pkg_name: str, target: str = "requirements.txt") -> str:
+    return json.dumps(
+        {
+            "SchemaVersion": 2,
+            "Results": [
+                {
+                    "Target": target,
+                    "Class": "lang-pkgs",
+                    "Type": "pip",
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "CVE-2030-00001",
+                            "PkgName": pkg_name,
+                            "InstalledVersion": "1.0.0",
+                            "FixedVersion": "1.0.1",
+                            "Severity": "HIGH",
+                            "Title": f"Vuln in {pkg_name}",
+                            "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2030-00001",
+                        },
+                    ],
+                }
+            ],
+        }
+    )
+
+
+class TestTrivyDependencyKindMetadata:
+    """AC1 (task-010): trivy vulnerability findings carry metadata['dependency_kind'].
+
+    PROP-001: every trivy Finding produced from a dependency-vulnerability result
+    has metadata['dependency_kind'] in {'direct', 'transitive', 'unknown'},
+    computed via manifest_discovery.classify_dependency_kind.
+    """
+
+    @staticmethod
+    def _plugin_with(stdout: str) -> tuple[TrivyPlugin, MagicMock]:
+        runner = MagicMock()
+        runner.run.return_value = ToolResult(
+            stdout=stdout, stderr="", exit_code=0, timed_out=False, not_installed=False
+        )
+        return TrivyPlugin(tool_runner=runner), runner
+
+    def test_ac1_direct_dependency_finding_has_dependency_kind_direct(self, tmp_path: Path) -> None:
+        (tmp_path / "requirements.txt").write_text("requests==2.25.0\n")
+        stdout = _trivy_output_for_package("requests")
+        plugin, _ = self._plugin_with(stdout)
+
+        result = plugin.run([], tmp_path)
+
+        finding = next(f for f in result.findings if f.get("package") == "requests")
+        assert "metadata" in finding, "trivy vuln finding must carry a metadata dict"
+        assert finding["metadata"]["dependency_kind"] == "direct"
+
+    def test_ac1_unlisted_dependency_finding_has_dependency_kind_unknown(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / "requirements.txt").write_text("requests==2.25.0\n")
+        stdout = _trivy_output_for_package("totally-unlisted-pkg")
+        plugin, _ = self._plugin_with(stdout)
+
+        result = plugin.run([], tmp_path)
+
+        finding = next(f for f in result.findings if f.get("package") == "totally-unlisted-pkg")
+        assert "metadata" in finding, "trivy vuln finding must carry a metadata dict"
+        assert finding["metadata"]["dependency_kind"] == "unknown"
+
+    def test_ac1_dependency_kind_always_in_legal_set(self, tmp_path: Path) -> None:
+        (tmp_path / "requirements.txt").write_text("requests==2.25.0\n")
+        stdout = _trivy_output_for_package("requests")
+        plugin, _ = self._plugin_with(stdout)
+
+        result = plugin.run([], tmp_path)
+
+        assert result.findings, "expected at least one finding to check"
+        for f in result.findings:
+            assert f["metadata"]["dependency_kind"] in {"direct", "transitive", "unknown"}
