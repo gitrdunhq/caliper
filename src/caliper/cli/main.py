@@ -340,6 +340,17 @@ def evaluate(
     is_eager=False,
     help="GitHub repo (owner/name) for --pr mode. Auto-detected if omitted.",
 )
+@click.option(
+    "--runner",
+    type=click.Choice(["auto", "container", "native"]),
+    default="native",
+    show_default=True,
+    help=(
+        "Where to execute the review: 'container' runs it in the pinned caliper "
+        "image, 'native' in this interpreter, 'auto' prefers a container when an "
+        "engine and the image are available and falls back to native."
+    ),
+)
 def review(
     scope: str | None,
     diff: str | None,
@@ -360,11 +371,13 @@ def review(
     package: str | None,
     pr: int | None,
     gh_repo: str | None,
+    runner: str,
 ) -> None:
     """Run Caliper plugin review on a repo or diff."""
     from caliper.cli.review_cmd import (
         apply_include_tests,
         build_file_lists,
+        dispatch_review_to_container,
         render_review_output,
         resolve_plugin_selection,
     )
@@ -372,6 +385,9 @@ def review(
     from caliper.core.plugin import PluginCategory
     from caliper.core.repo_config import RepoConfig, load_repo_config
     from caliper.core.use_cases import ScanScope
+
+    if dispatch_review_to_container(runner, repo_path):
+        return
 
     if include_tests:
         apply_include_tests(True)

@@ -15,6 +15,23 @@ from caliper.core.plugin import PluginResult, finding_as_dict, finding_get
 from caliper.core.version import get_version
 
 _MAX_COMMENT_LENGTH = 65536
+_MAX_FINDINGS_PER_SECTION = 50
+
+_SEVERITY_RANK: dict[str, int] = {
+    "critical": 0,
+    "high": 1,
+    "medium": 2,
+    "low": 3,
+    "info": 4,
+}
+
+_SEVERITY_ICON: dict[str, str] = {
+    "critical": "🔴",
+    "high": "🟠",
+    "medium": "🟡",
+    "low": "🔵",
+    "info": "⚪",
+}
 
 CATEGORY_PRIORITY: dict[str, int] = {
     "supply_chain": 0,
@@ -160,6 +177,18 @@ def _build_monorepo_sections(
     return overall_verdict, summary_rows, sections
 
 
+def _relativize_path(path: str, repo_path: str) -> str:
+    """Strip a leading repo_path prefix so findings never leak container paths."""
+    if not path or not repo_path:
+        return path
+    normalized_repo = repo_path.rstrip("/")
+    if path == normalized_repo:
+        return ""
+    if path.startswith(normalized_repo + "/"):
+        return path[len(normalized_repo) + 1 :]
+    return path
+
+
 def render_comment(
     results: list[PluginResult],
     repo: str = "",
@@ -169,11 +198,28 @@ def render_comment(
     template_dir: Path | None = None,
     plugin_renderers: dict[str, object] | None = None,
     verdict: str | None = None,
+    repo_path: str = "",
 ) -> str:
     # Serialize findings to plain dicts so the dict-shaped renderer internals
     # (_build_sections -> templates, _extract_mi, classify_findings) operate on
     # dicts; the frozen typed PluginFinding is for the core paths.
     results = [replace(r, findings=[finding_as_dict(f) for f in r.findings]) for r in results]
+
+    if repo_path:
+        results = [
+            replace(
+                r,
+                findings=[
+                    (
+                        {**f, "file": _relativize_path(f["file"], repo_path)}
+                        if isinstance(f, dict) and f.get("file")
+                        else f
+                    )
+                    for f in r.findings
+                ],
+            )
+            for r in results
+        ]
     tpl_dir = template_dir or _DEFAULT_TEMPLATE_DIR
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(tpl_dir)),
@@ -248,6 +294,7 @@ def _build_sections(
     verdict = "clear"
     summary_rows: list[tuple[str, str]] = []
     sections: list[str] = []
+    skipped_entries: list[tuple[str, str]] = []
 
     _max_priority = max(CATEGORY_PRIORITY.values()) + 1
     sorted_results = sorted(
@@ -267,7 +314,11 @@ def _build_sections(
 
         status = r.summary.get("status", "")
         if status == "skipped":
-            summary_rows.append((label, "skipped"))
+            reason = r.summary.get("reason") or r.skip_reason
+            if reason:
+                skipped_entries.append((label, reason))
+            else:
+                summary_rows.append((label, "skipped"))
             continue
 
         summary_rows.append((label, str(count)))
@@ -294,13 +345,70 @@ def _build_sections(
         if md:
             sections.append(md)
 
+    if skipped_entries:
+        skip_line = "skipped: " + ", ".join(
+            f"{name} ({reason})" for name, reason in skipped_entries
+        )
+        sections.append(f"*{skip_line}*")
+
     return verdict, summary_rows, sections
+
+
+def _finding_sort_key(finding: dict) -> tuple[int, str]:
+    sev = str(finding_get(finding, "severity", "")).lower()
+    rank = _SEVERITY_RANK.get(sev, len(_SEVERITY_RANK))
+    file_path = str(finding_get(finding, "file", "") or "")
+    return rank, file_path
+
+
+def _render_finding_line(finding: dict) -> list[str]:
+    sev = str(finding_get(finding, "severity", "")).lower()
+    icon = _SEVERITY_ICON.get(sev, "⚪")
+
+    file_path = finding_get(finding, "file", "") or ""
+    line_no = finding_get(finding, "line", "")
+    loc = f"{file_path}:{line_no}" if file_path and line_no else file_path
+
+    rule_id = finding_get(finding, "rule_id", "") or ""
+    message = (
+        finding_get(finding, "message", "")
+        or finding_get(finding, "summary", "")
+        or finding_get(finding, "id", "")
+        or ""
+    )
+    fix = finding_get(finding, "fix_suggestion", "") or finding_get(finding, "fix", "")
+
+    parts = [icon]
+    if loc:
+        parts.append(f"`{loc}`")
+    if rule_id:
+        parts.append(f"`{rule_id}`")
+    text = "- " + " ".join(parts)
+    if message:
+        text += f" — {message}"
+
+    lines = [text]
+    if fix:
+        lines.append(f"  - **Fix:** {fix}")
+    return lines
 
 
 def _default_render(result: PluginResult) -> str:
     if not result.findings:
         return ""
-    lines = [f"**{result.plugin_name}**: {len(result.findings)} findings"]
+
+    ordered = sorted(result.findings, key=_finding_sort_key)
+    total = len(ordered)
+    rendered = ordered[:_MAX_FINDINGS_PER_SECTION]
+    omitted = total - len(rendered)
+
+    lines = [f"### {result.plugin_name}", f"**{result.plugin_name}**: {total} findings"]
+    for finding in rendered:
+        lines.extend(_render_finding_line(finding))
+
+    if omitted > 0:
+        lines.append(f"*({omitted} more findings omitted)*")
+
     return "\n".join(lines)
 
 

@@ -1,0 +1,23 @@
+# Finding suppression baseline for caliper's own dogfood scan.
+#
+# Each entry suppresses one currently-blocking finding until its `expires`
+# date, after which suppression fails open (the finding reappears rather
+# than being silently dropped forever — see core/baseline.py). Fingerprints
+# are computed by `caliper.core.baseline.finding_fingerprint` and exclude
+# line number, so line drift from unrelated edits doesn't invalidate them.
+entries:
+  - fingerprint: 50464cdc173ab51f266dc26e6f5089f02e68391f28fb726c8d82cbef5cb10ae1
+    reason: >-
+      CAL-002 (exception variable may be exposed in output) in
+      src/caliper/cli/install_cmd.py — pending remediation to route these
+      exception messages through structured, redacted logging instead of an
+      f-string. Tracked pending remediation; re-evaluate before expiry.
+    added: 2026-09-02
+    expires: 2026-12-01
+  - fingerprint: 5f91fe81a14861c4290f62f6ccb60ab99c28758afbe4f43059f100875dfebfa1
+    reason: >-
+      trivy DS-0002 (Dockerfile.dogfood missing a non-root USER) — the
+      dogfood image intentionally runs unprivileged-user work as part of a
+      broader container-hardening pass; tracked pending remediation.
+    added: 2026-09-02
+    expires: 2026-12-01

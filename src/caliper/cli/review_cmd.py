@@ -224,3 +224,216 @@ def render_review_output(
         click.echo(f"Review written to {output} ({len(md)} chars)")
     else:
         click.echo(md)
+
+
+# --- task-022: `caliper review --runner auto|container|native` ---------------
+#
+# Container execution is a *presentation-tier* concern: the same review, run
+# inside the pinned caliper image instead of the host interpreter. Every
+# process spawn goes through the ToolRunnerPort seam so the whole flow is
+# testable with a fake and no test ever spawns a real container.
+
+RUNNER_CHOICES: tuple[str, ...] = ("auto", "container", "native")
+
+#: Container engines probed, in preference order, by `--runner auto`.
+CONTAINER_ENGINES: tuple[str, ...] = ("podman", "docker")
+
+#: Image the container runner executes. Pinned by tag, not digest, so a local
+#: `scripts/build.sh` result is usable.
+CONTAINER_IMAGE: str = "caliper:latest"
+
+#: The image's non-root user (Containerfile `USER caliper`). Never root.
+CONTAINER_USER: str = "caliper"
+
+#: Probes are cheap; keep them far below the scanner timeout.
+_ENGINE_PROBE_TIMEOUT: int = 10
+
+#: A containerized review is a full pipeline run — mirror pipeline_timeout.
+_CONTAINER_RUN_TIMEOUT: int = 300
+
+
+def detect_container_engine(runner) -> str | None:  # noqa: ANN001 - ToolRunnerPort
+    """Return the first engine that is installed *and* has the image locally.
+
+    Fail-open: any probe failure simply means "this engine is unusable", never
+    an exception. Returns ``None`` when no engine qualifies.
+    """
+    from caliper.core.tool_runner import ToolInvocation
+
+    for engine in CONTAINER_ENGINES:
+        version = runner.run(
+            ToolInvocation(cmd=[engine, "--version"], cwd=".", timeout=_ENGINE_PROBE_TIMEOUT)
+        )
+        if version.not_installed or version.exit_code != 0:
+            continue
+        image = runner.run(
+            ToolInvocation(
+                cmd=[engine, "image", "exists", CONTAINER_IMAGE],
+                cwd=".",
+                timeout=_ENGINE_PROBE_TIMEOUT,
+            )
+        )
+        if image.not_installed or image.exit_code != 0:
+            continue
+        return engine
+    return None
+
+
+def resolve_runner_choice(runner_flag: str, runner) -> str:  # noqa: ANN001 - ToolRunnerPort
+    """Resolve ``--runner`` into the concrete path to take: container|native.
+
+    ``container`` and ``native`` are honoured verbatim (no probing). ``auto``
+    probes for a usable engine and falls back to ``native`` with a single
+    one-line stderr notice so a runner downgrade is never silent.
+    """
+    if runner_flag == "container":
+        return "container"
+    if runner_flag == "native":
+        return "native"
+
+    if detect_container_engine(runner) is not None:
+        return "container"
+
+    click.echo(
+        "caliper: no container engine with " f"{CONTAINER_IMAGE} found; running native.",
+        err=True,
+    )
+    return "native"
+
+
+def forwarded_env(env: dict[str, str]) -> dict[str, str]:
+    """Every ``CALIPER_*`` var, and nothing else.
+
+    Host ``PATH``/credentials must not leak into the container: config is the
+    only thing the containerized run needs from the caller's environment.
+    """
+    return {k: v for k, v in env.items() if k.startswith("CALIPER_")}
+
+
+def build_container_invocation(
+    *,
+    repo_path: Path,
+    temp_path: Path,
+    env: dict[str, str],
+    cli_args: list[str],
+    engine: str = "podman",
+    image: str = CONTAINER_IMAGE,
+):
+    """Assemble the container run command as a typed ToolInvocation.
+
+    Pure: no filesystem or process access, so the mount/env/arg contract is
+    assertable directly. The repo is mounted read-only — a review never writes
+    to the tree under audit — while ``.temp`` is read-write for artifacts.
+    ``cli_args`` are appended last, verbatim, after the image name.
+    """
+    from caliper.core.tool_runner import ToolInvocation
+
+    cmd: list[str] = [engine, "run", "--rm"]
+    cmd += ["--user", CONTAINER_USER]
+    cmd += ["-v", f"{repo_path}:/workspace:ro"]
+    cmd += ["-v", f"{temp_path}:/workspace/.temp:rw"]
+    for key, value in sorted(forwarded_env(env).items()):
+        cmd += ["-e", f"{key}={value}"]
+    cmd.append(image)
+    cmd += list(cli_args)
+
+    return ToolInvocation(
+        cmd=cmd,
+        cwd=str(repo_path),
+        timeout=_CONTAINER_RUN_TIMEOUT,
+        env=None,
+    )
+
+
+def run_review_via_container(
+    runner,  # noqa: ANN001 - ToolRunnerPort
+    *,
+    repo_path: Path,
+    temp_path: Path,
+    env: dict[str, str],
+    cli_args: list[str],
+    engine: str = "podman",
+    image: str = CONTAINER_IMAGE,
+):
+    """Execute the containerized review and return its ToolResult unchanged.
+
+    Exit code and stdout are passed through verbatim — the container process is
+    the authority on the verdict, and re-deriving it here would let the host and
+    container disagree.
+    """
+    invocation = build_container_invocation(
+        repo_path=repo_path,
+        temp_path=temp_path,
+        env=env,
+        cli_args=cli_args,
+        engine=engine,
+        image=image,
+    )
+    return runner.run(invocation)
+
+
+def dispatch_review_to_container(runner_flag: str, repo_path: str) -> bool:
+    """Run this review inside the caliper container when the runner resolves there.
+
+    Returns True when the containerized run has completed (and this process has
+    already emitted its output), so the caller must not also run natively.
+    Exits with the container process's exit code verbatim.
+    """
+    import os
+    import sys
+
+    from caliper.core.subprocess_runner import SubprocessToolRunner
+
+    if runner_flag == "native":
+        return False
+
+    tool_runner = SubprocessToolRunner()
+    if resolve_runner_choice(runner_flag, tool_runner) != "container":
+        return False
+
+    # --runner container skips probing in resolve_runner_choice, so ask which
+    # engine to drive here; fall back to the first preference if none qualifies
+    # so an explicit --runner container still fails loudly rather than silently
+    # dropping to native.
+    engine = detect_container_engine(tool_runner) or CONTAINER_ENGINES[0]
+
+    repo = Path(repo_path).resolve()
+    temp = repo / ".temp"
+    temp.mkdir(parents=True, exist_ok=True)
+
+    # Strip --runner before forwarding (the inner process IS the container, so
+    # re-resolving there would recurse) and repoint --repo-path at the mount:
+    # the host path does not exist inside the container.
+    cli_args: list[str] = []
+    skip_next = False
+    for arg in sys.argv[1:]:
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == "--runner":
+            skip_next = True
+            continue
+        if arg.startswith("--runner="):
+            continue
+        if arg == "--repo-path":
+            skip_next = True
+            cli_args += ["--repo-path", "/workspace"]
+            continue
+        if arg.startswith("--repo-path="):
+            cli_args.append("--repo-path=/workspace")
+            continue
+        cli_args.append(arg)
+
+    result = run_review_via_container(
+        tool_runner,
+        repo_path=repo,
+        temp_path=temp,
+        env=dict(os.environ),
+        cli_args=cli_args,
+        engine=engine,
+    )
+    if result.stdout:
+        click.echo(result.stdout, nl=False)
+    if result.stderr:
+        click.echo(result.stderr, nl=False, err=True)
+    sys.exit(result.exit_code)
