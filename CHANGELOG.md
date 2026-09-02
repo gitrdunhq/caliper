@@ -7,6 +7,15 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.32](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.31...caliper-v0.2.32) (2026-09-02)
+
+
+### Bug Fixes
+
+* **cli:** healthcheck treats opt-in and platform-limited scanners as optional ([709fe86](https://github.com/gitrdunhq/caliper/commit/709fe86170286135b5f38d8e3f437b9b0d25ff56))
+* **container:** pin the base image as tag+index digest so Dependabot can bump it ([0d5e079](https://github.com/gitrdunhq/caliper/commit/0d5e079afffc3765224aa6f39b75d615e5a8ad84))
+* **container:** static uid 10000:10001, tini as PID 1, args-only CMD ([a8b9e2b](https://github.com/gitrdunhq/caliper/commit/a8b9e2bf280cf9edba64d83f0bf88ed784902f32))
+
 ## [0.2.31](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.30...caliper-v0.2.31) (2026-09-02)
 
 
