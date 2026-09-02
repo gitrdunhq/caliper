@@ -1,0 +1,35 @@
+{
+  "task_id": "r1-golden-and-property-tests",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_renderer_golden.py",
+      "kind": "pytest",
+      "purpose": "Verify tests/unit/test_renderer_golden.py renders a fixed fixture l",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_tests_unit_test_renderer_golden_py_renders_a_fixed_fixture_l",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-golden-and-property-tests AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_tests_unit_test_renderer_golden_py_renders_a_fixed_fixture_l \u2192 tests/unit/test_renderer_golden.py\n\nimport pytest\n\n\nclass Testr1_golden_and_property_tests_AC1:\n    def test_ac1_tests_unit_test_renderer_golden_py_renders_a_fixed_fixture_l(self):\n        \"\"\"\n        PROP-001: tests/unit/test_renderer_golden.py renders a fixed fixture list[PluginResult] vi\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_renderer_golden.py",
+      "kind": "pytest",
+      "purpose": "Verify a Hypothesis property test generates arbitrary lists of Find",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_a_hypothesis_property_test_generates_arbitrary_lists_of_find",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-golden-and-property-tests AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_a_hypothesis_property_test_generates_arbitrary_lists_of_find \u2192 tests/unit/test_renderer_golden.py\n\nimport pytest\n\n\nclass Testr1_golden_and_property_tests_AC2:\n    def test_ac2_a_hypothesis_property_test_generates_arbitrary_lists_of_find(self):\n        \"\"\"\n        PROP-002: a Hypothesis property test generates arbitrary lists of Finding with random seve\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {},
+  "target_context": null,
+  "no_skeletons_reason": null
+}

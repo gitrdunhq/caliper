@@ -1,0 +1,38 @@
+{
+  "task_id": "r10-dogfood-ci-fails-on-blocked",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/test_dogfood.py",
+      "kind": "pytest",
+      "purpose": "Verify .github/workflows/dogfood.yml's review step has its exit cod",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_github_workflows_dogfood_yml_s_review_step_has_its_exit_code",
+      "skeleton_written": false,
+      "content": "# Skeleton: r10-dogfood-ci-fails-on-blocked AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_github_workflows_dogfood_yml_s_review_step_has_its_exit_code \u2192 tests/test_dogfood.py\n\nimport pytest\n\n\nclass Testr10_dogfood_ci_fails_on_blocked_AC1:\n    def test_ac1_github_workflows_dogfood_yml_s_review_step_has_its_exit_code(self):\n        \"\"\"\n        PROP-001: .github/workflows/dogfood.yml's review step has its exit code checked; the job f\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/test_dogfood.py",
+      "kind": "pytest",
+      "purpose": "Verify scripts/dogfood.sh (if it wraps the review invocation) propa",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_scripts_dogfood_sh_if_it_wraps_the_review_invocation_propaga",
+      "skeleton_written": false,
+      "content": "# Skeleton: r10-dogfood-ci-fails-on-blocked AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_scripts_dogfood_sh_if_it_wraps_the_review_invocation_propaga \u2192 tests/test_dogfood.py\n\nimport pytest\n\n\nclass Testr10_dogfood_ci_fails_on_blocked_AC2:\n    def test_ac2_scripts_dogfood_sh_if_it_wraps_the_review_invocation_propaga(self):\n        \"\"\"\n        PROP-002: scripts/dogfood.sh (if it wraps the review invocation) propagates a non-zero exi\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    ".github/workflows/dogfood.yml": "name: Dogfood\n\non:\n\nenv:\n\njobs:\n\n\n\n\n\n",
+    "scripts/dogfood.sh": "#!/usr/bin/env bash\n# Run caliper review against itself, log results, fail on HIGH/CRITICAL\nset -euo pipefail\n\nREPO_ROOT=\"${REPO_ROOT:-$(git rev-parse --show-toplevel)}\"\nTIMESTAMP=\"$(date +%Y%m%d-%H%M%S)\"\nREPORT_DIR=\"${REPORT_DIR:-${REPO_ROOT}/.caliper/reports}\"\nREPORT_FILE=\"${REPORT_DIR}/dogfood-report-${TIMESTAMP}.md\"\nSARIF_FILE=\"${REPORT_DIR}/dogfood-${TIMESTAMP}.sarif\"\n\nmkdir -p \"${REPORT_DIR}\"\n\necho \"=== Caliper Dogfood Run: ${TIMESTAMP} ===\"\necho \"\"\n\n# Run review in markdown mode for the human-readable report\nuv run caliper review --repo-path \"${REPO_ROOT}\" --output \"${REPORT_FILE}\" 2>&1 || true\n\n# Run review in SARIF mode for machine-readable severity counting\nuv run caliper review --repo-path \"${REPO_ROOT}\" --format sarif --output \"${SARIF_FILE}\" 2>&1 || true\n\n# Count error-level findings (critical + high) from SARIF\nif [ -f \"${SARIF_FILE}\" ]; then\n    CRITICAL=$(python3 -c \"\nimport json, sys\nwith open('${SARIF_FILE}') as f:\n    sarif = json.load(f)\ncount = sum(1 for run in sarif.get('runs', []) for r in run.get('results', []) if r.get('level') == 'error')\n\" 2>/dev/null || echo \"0\")\n\n\nfi\n\necho \"\"\necho \"CLEAR: No blocking findings.\"\n\n# Update the latest symlinks\nln -sf \"dogfood-report-${TIMESTAMP}.md\" \"${REPORT_DIR}/dogfood-report-latest.md\"\nln -sf \"dogfood-${TIMESTAMP}.sarif\" \"${REPORT_DIR}/dogfood-latest.sarif\"\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

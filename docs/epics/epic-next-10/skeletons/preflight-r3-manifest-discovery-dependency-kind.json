@@ -1,0 +1,61 @@
+{
+  "task_id": "r3-manifest-discovery-dependency-kind",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_manifest_discovery.py",
+      "kind": "pytest",
+      "purpose": "Verify classify_dependency_kind(repo_path, package_name, manifest_p",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_classify_dependency_kind_repo_path_package_name_manifest_pat",
+      "skeleton_written": false,
+      "content": "# Skeleton: r3-manifest-discovery-dependency-kind AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_classify_dependency_kind_repo_path_package_name_manifest_pat \u2192 tests/unit/test_manifest_discovery.py\n\nimport pytest\n\n\nclass Testr3_manifest_discovery_dependency_kind_AC1:\n    def test_ac1_classify_dependency_kind_repo_path_package_name_manifest_pat(self):\n        \"\"\"\n        PROP-001: classify_dependency_kind(repo_path, package_name, manifest_path) returns 'direct\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_manifest_discovery.py",
+      "kind": "pytest",
+      "purpose": "Verify classify_dependency_kind returns 'transitive' when the packa",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_classify_dependency_kind_returns_transitive_when_the_package",
+      "skeleton_written": false,
+      "content": "# Skeleton: r3-manifest-discovery-dependency-kind AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_classify_dependency_kind_returns_transitive_when_the_package \u2192 tests/unit/test_manifest_discovery.py\n\nimport pytest\n\n\nclass Testr3_manifest_discovery_dependency_kind_AC2:\n    def test_ac2_classify_dependency_kind_returns_transitive_when_the_package(self):\n        \"\"\"\n        PROP-002: classify_dependency_kind returns 'transitive' when the package is not declared d\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_manifest_discovery.py",
+      "kind": "pytest",
+      "purpose": "Verify classify_dependency_kind returns 'unknown' when no manifest/",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_classify_dependency_kind_returns_unknown_when_no_manifest_lo",
+      "skeleton_written": false,
+      "content": "# Skeleton: r3-manifest-discovery-dependency-kind AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_classify_dependency_kind_returns_unknown_when_no_manifest_lo \u2192 tests/unit/test_manifest_discovery.py\n\nimport pytest\n\n\nclass Testr3_manifest_discovery_dependency_kind_AC3:\n    def test_ac3_classify_dependency_kind_returns_unknown_when_no_manifest_lo(self):\n        \"\"\"\n        PROP-003: classify_dependency_kind returns 'unknown' when no manifest/lockfile evidence ex\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_manifest_discovery.py",
+      "kind": "pytest",
+      "purpose": "Verify the function works across pyproject.toml, requirements*.txt,",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_the_function_works_across_pyproject_toml_requirements_txt_pa",
+      "skeleton_written": false,
+      "content": "# Skeleton: r3-manifest-discovery-dependency-kind AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_the_function_works_across_pyproject_toml_requirements_txt_pa \u2192 tests/unit/test_manifest_discovery.py\n\nimport pytest\n\n\nclass Testr3_manifest_discovery_dependency_kind_AC4:\n    def test_ac4_the_function_works_across_pyproject_toml_requirements_txt_pa(self):\n        \"\"\"\n        PROP-004: the function works across pyproject.toml, requirements*.txt, package.json, pom.x\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/core/manifest_discovery.py": "# tested-by: tests/unit/test_manifest_discovery.py\n\nfrom __future__ import annotations\n\nfrom pathlib import Path\nfrom typing import TYPE_CHECKING\n\nimport structlog\nfrom pydantic import BaseModel, ConfigDict\n\nfrom caliper.core.file_source import select_file_source\nfrom caliper.core.ignore import load_ignore_patterns, should_ignore\n\nif TYPE_CHECKING:\n    from caliper.core.ports import FileSourcePort\n\nlogger = structlog.get_logger(__name__)\n\n# ---------------------------------------------------------------------------\n# Maps\n# ---------------------------------------------------------------------------\n\nMANIFEST_MAP: dict[str, str] = {\n}\n\n# Maps lockfile names \u2192 the manifest name they are paired with.\nLOCKFILE_MAP: dict[str, str] = {\n}\n\n# Manifest \u2192 set of lockfile names that can pair with it.\n# Built once at import time from LOCKFILE_MAP.\n_MANIFEST_TO_LOCKFILES: dict[str, list[str]] = {}\nfor _lf, _mf in LOCKFILE_MAP.items():\n\n# ---------------------------------------------------------------------------\n# Model\n# ---------------------------------------------------------------------------\n\n\nclass PackageUnit(BaseModel):\n    ...\n\n\n\n\n# ---------------------------------------------------------------------------\n# Validation\n# ---------------------------------------------------------------------------\n\n\ndef _is_valid_ecosystem(ecosystem: str) -> bool:\n    ...\n\n\ndef _is_within_repo(path: Path, repo_path: Path) -> bool:\n    ...\n\n\n# ---------------------------------------------------------------------------\n# Discovery\n# ---------------------------------------------------------------------------\n\n\ndef discover_packages(\n    repo_path: Path,\n) -> list[PackageUnit]:\n    base_patterns = load_ignore_patterns(repo_path)\n    merged: list[str] = list(base_patterns) + list(ignore_patterns or [])\n\n    source = file_source or select_file_source(repo_path)\n    repo_resolved = repo_path.resolve()\n\n    by_dir: dict[Path, set[str]] = {}\n            rel = file_path.relative_to(repo_path).as_posix()\n            rel = file_path.name\n\n    units: list[PackageUnit] = []\n\n        sibling_set = by_dir[dirpath]\n\n            ecosystem = MANIFEST_MAP[filename]\n\n                    manifest=str(dirpath / filename),\n                    ecosystem=ecosystem,\n\n            manifest_path = dirpath / filename\n\n                    manifest=str(manifest_path),\n\n                    candidate = dirpath / lf_name\n                        lockfile_path = candidate\n\n                    root=dirpath,\n                    manifest=manifest_path,\n                    lockfile=lockfile_path,\n                    ecosystem=ecosystem,\n                manifest=str(manifest_path),\n                ecosystem=ecosystem,\n                lockfile=str(lockfile_path) if lockfile_path else None,\n\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

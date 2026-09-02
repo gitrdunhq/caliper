@@ -1,0 +1,71 @@
+{
+  "task_id": "r6-new-adrs-for-current-practice",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "docs/adr/012-test-code-excluded-by-default.md",
+      "kind": "pytest",
+      "purpose": "Verify a new ADR file exists documenting semgrep rules pinned to a ",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_a_new_adr_file_exists_documenting_semgrep_rules_pinned_to_a",
+      "skeleton_written": false,
+      "content": "# Skeleton: r6-new-adrs-for-current-practice AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_a_new_adr_file_exists_documenting_semgrep_rules_pinned_to_a \u2192 docs/adr/012-test-code-excluded-by-default.md\n\nimport pytest\n\n\nclass Testr6_new_adrs_for_current_practice_AC1:\n    def test_ac1_a_new_adr_file_exists_documenting_semgrep_rules_pinned_to_a(self):\n        \"\"\"\n        PROP-001: a new ADR file exists documenting semgrep rules pinned to a local snapshot, with\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "docs/adr/012-test-code-excluded-by-default.md",
+      "kind": "pytest",
+      "purpose": "Verify a new ADR file exists documenting test code excluded by defa",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_a_new_adr_file_exists_documenting_test_code_excluded_by_defa",
+      "skeleton_written": false,
+      "content": "# Skeleton: r6-new-adrs-for-current-practice AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_a_new_adr_file_exists_documenting_test_code_excluded_by_defa \u2192 docs/adr/012-test-code-excluded-by-default.md\n\nimport pytest\n\n\nclass Testr6_new_adrs_for_current_practice_AC2:\n    def test_ac2_a_new_adr_file_exists_documenting_test_code_excluded_by_defa(self):\n        \"\"\"\n        PROP-002: a new ADR file exists documenting test code excluded by default, with '## Status\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "docs/adr/012-test-code-excluded-by-default.md",
+      "kind": "pytest",
+      "purpose": "Verify a new ADR file exists documenting the single severity vocabu",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_a_new_adr_file_exists_documenting_the_single_severity_vocabu",
+      "skeleton_written": false,
+      "content": "# Skeleton: r6-new-adrs-for-current-practice AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_a_new_adr_file_exists_documenting_the_single_severity_vocabu \u2192 docs/adr/012-test-code-excluded-by-default.md\n\nimport pytest\n\n\nclass Testr6_new_adrs_for_current_practice_AC3:\n    def test_ac3_a_new_adr_file_exists_documenting_the_single_severity_vocabu(self):\n        \"\"\"\n        PROP-003: a new ADR file exists documenting the single severity vocabulary at the plugin b\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "docs/adr/012-test-code-excluded-by-default.md",
+      "kind": "pytest",
+      "purpose": "Verify a new ADR file exists documenting tag-then-drop decommission",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_a_new_adr_file_exists_documenting_tag_then_drop_decommission",
+      "skeleton_written": false,
+      "content": "# Skeleton: r6-new-adrs-for-current-practice AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_a_new_adr_file_exists_documenting_tag_then_drop_decommission \u2192 docs/adr/012-test-code-excluded-by-default.md\n\nimport pytest\n\n\nclass Testr6_new_adrs_for_current_practice_AC4:\n    def test_ac4_a_new_adr_file_exists_documenting_tag_then_drop_decommission(self):\n        \"\"\"\n        PROP-004: a new ADR file exists documenting tag-then-drop decommissioning with the decommi\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC5",
+      "path": "docs/adr/012-test-code-excluded-by-default.md",
+      "kind": "pytest",
+      "purpose": "Verify each new ADR uses the next free sequential number after the ",
+      "property_id": "PROP-005",
+      "function_name": "test_ac5_each_new_adr_uses_the_next_free_sequential_number_after_the",
+      "skeleton_written": false,
+      "content": "# Skeleton: r6-new-adrs-for-current-practice AC5 \u2014 PROP-005\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC5 \u2192 test_ac5_each_new_adr_uses_the_next_free_sequential_number_after_the \u2192 docs/adr/012-test-code-excluded-by-default.md\n\nimport pytest\n\n\nclass Testr6_new_adrs_for_current_practice_AC5:\n    def test_ac5_each_new_adr_uses_the_next_free_sequential_number_after_the(self):\n        \"\"\"\n        PROP-005: each new ADR uses the next free sequential number after the highest existing ADR\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-005\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {},
+  "target_context": null,
+  "no_skeletons_reason": null
+}

@@ -1,0 +1,47 @@
+{
+  "task_id": "r10-dogfood-baseline-file",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_baseline_dogfood.py",
+      "kind": "pytest",
+      "purpose": "Verify a .caliper-baseline.yaml file exists at repo root with an en",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_a_caliper_baseline_yaml_file_exists_at_repo_root_with_an_ent",
+      "skeleton_written": false,
+      "content": "# Skeleton: r10-dogfood-baseline-file AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_a_caliper_baseline_yaml_file_exists_at_repo_root_with_an_ent \u2192 tests/unit/test_baseline_dogfood.py\n\nimport pytest\n\n\nclass Testr10_dogfood_baseline_file_AC1:\n    def test_ac1_a_caliper_baseline_yaml_file_exists_at_repo_root_with_an_ent(self):\n        \"\"\"\n        PROP-001: a .caliper-baseline.yaml file exists at repo root with an entry per currently-bl\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_baseline_dogfood.py",
+      "kind": "pytest",
+      "purpose": "Verify test_baseline_dogfood.py parses .caliper-baseline.yaml via t",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_test_baseline_dogfood_py_parses_caliper_baseline_yaml_via_th",
+      "skeleton_written": false,
+      "content": "# Skeleton: r10-dogfood-baseline-file AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_test_baseline_dogfood_py_parses_caliper_baseline_yaml_via_th \u2192 tests/unit/test_baseline_dogfood.py\n\nimport pytest\n\n\nclass Testr10_dogfood_baseline_file_AC2:\n    def test_ac2_test_baseline_dogfood_py_parses_caliper_baseline_yaml_via_th(self):\n        \"\"\"\n        PROP-002: test_baseline_dogfood.py parses .caliper-baseline.yaml via the existing baseline\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_baseline_dogfood.py",
+      "kind": "pytest",
+      "purpose": "Verify test_baseline_dogfood.py asserts, using a pinned 'as of' dat",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_test_baseline_dogfood_py_asserts_using_a_pinned_as_of_dateti",
+      "skeleton_written": false,
+      "content": "# Skeleton: r10-dogfood-baseline-file AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_test_baseline_dogfood_py_asserts_using_a_pinned_as_of_dateti \u2192 tests/unit/test_baseline_dogfood.py\n\nimport pytest\n\n\nclass Testr10_dogfood_baseline_file_AC3:\n    def test_ac3_test_baseline_dogfood_py_asserts_using_a_pinned_as_of_dateti(self):\n        \"\"\"\n        PROP-003: test_baseline_dogfood.py asserts, using a pinned 'as of' datetime fixture (not d\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {},
+  "target_context": null,
+  "no_skeletons_reason": null
+}

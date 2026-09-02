@@ -1,0 +1,85 @@
+{
+  "task_id": "r2-test-patterns-directory-components",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_ignore_tests_default.py",
+      "kind": "pytest",
+      "purpose": "Verify should_ignore('compatibility-tests/foo.py', TEST_PATTERNS) i",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_should_ignore_compatibility_tests_foo_py_test_patterns_is_tr",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-test-patterns-directory-components AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_should_ignore_compatibility_tests_foo_py_test_patterns_is_tr \u2192 tests/unit/test_ignore_tests_default.py\n\nimport pytest\n\n\nclass Testr2_test_patterns_directory_components_AC1:\n    def test_ac1_should_ignore_compatibility_tests_foo_py_test_patterns_is_tr(self):\n        \"\"\"\n        PROP-001: should_ignore('compatibility-tests/foo.py', TEST_PATTERNS) is True\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_ignore_tests_default.py",
+      "kind": "pytest",
+      "purpose": "Verify should_ignore('pkg/unit_tests/bar.py', TEST_PATTERNS) is Tru",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_should_ignore_pkg_unit_tests_bar_py_test_patterns_is_true",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-test-patterns-directory-components AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_should_ignore_pkg_unit_tests_bar_py_test_patterns_is_true \u2192 tests/unit/test_ignore_tests_default.py\n\nimport pytest\n\n\nclass Testr2_test_patterns_directory_components_AC2:\n    def test_ac2_should_ignore_pkg_unit_tests_bar_py_test_patterns_is_true(self):\n        \"\"\"\n        PROP-002: should_ignore('pkg/unit_tests/bar.py', TEST_PATTERNS) is True\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_ignore_tests_default.py",
+      "kind": "pytest",
+      "purpose": "Verify should_ignore('pkg/e2e-test/baz.py', TEST_PATTERNS) is True",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_should_ignore_pkg_e2e_test_baz_py_test_patterns_is_true",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-test-patterns-directory-components AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_should_ignore_pkg_e2e_test_baz_py_test_patterns_is_true \u2192 tests/unit/test_ignore_tests_default.py\n\nimport pytest\n\n\nclass Testr2_test_patterns_directory_components_AC3:\n    def test_ac3_should_ignore_pkg_e2e_test_baz_py_test_patterns_is_true(self):\n        \"\"\"\n        PROP-003: should_ignore('pkg/e2e-test/baz.py', TEST_PATTERNS) is True\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_ignore_tests_default.py",
+      "kind": "pytest",
+      "purpose": "Verify should_ignore('spec/foo.py', TEST_PATTERNS) is False",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_should_ignore_spec_foo_py_test_patterns_is_false",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-test-patterns-directory-components AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_should_ignore_spec_foo_py_test_patterns_is_false \u2192 tests/unit/test_ignore_tests_default.py\n\nimport pytest\n\n\nclass Testr2_test_patterns_directory_components_AC4:\n    def test_ac4_should_ignore_spec_foo_py_test_patterns_is_false(self):\n        \"\"\"\n        PROP-004: should_ignore('spec/foo.py', TEST_PATTERNS) is False\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC5",
+      "path": "tests/unit/test_ignore_tests_default.py",
+      "kind": "pytest",
+      "purpose": "Verify should_ignore('fixtures/foo.py', TEST_PATTERNS) is False",
+      "property_id": "PROP-005",
+      "function_name": "test_ac5_should_ignore_fixtures_foo_py_test_patterns_is_false",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-test-patterns-directory-components AC5 \u2014 PROP-005\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC5 \u2192 test_ac5_should_ignore_fixtures_foo_py_test_patterns_is_false \u2192 tests/unit/test_ignore_tests_default.py\n\nimport pytest\n\n\nclass Testr2_test_patterns_directory_components_AC5:\n    def test_ac5_should_ignore_fixtures_foo_py_test_patterns_is_false(self):\n        \"\"\"\n        PROP-005: should_ignore('fixtures/foo.py', TEST_PATTERNS) is False\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-005\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC6",
+      "path": "tests/unit/test_ignore_tests_default.py",
+      "kind": "pytest",
+      "purpose": "Verify should_ignore('attest/foo.py', TEST_PATTERNS) is False and s",
+      "property_id": "PROP-006",
+      "function_name": "test_ac6_should_ignore_attest_foo_py_test_patterns_is_false_and_shoul",
+      "skeleton_written": false,
+      "content": "# Skeleton: r2-test-patterns-directory-components AC6 \u2014 PROP-006\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC6 \u2192 test_ac6_should_ignore_attest_foo_py_test_patterns_is_false_and_shoul \u2192 tests/unit/test_ignore_tests_default.py\n\nimport pytest\n\n\nclass Testr2_test_patterns_directory_components_AC6:\n    def test_ac6_should_ignore_attest_foo_py_test_patterns_is_false_and_shoul(self):\n        \"\"\"\n        PROP-006: should_ignore('attest/foo.py', TEST_PATTERNS) is False and should_ignore('src/la\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-006\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/core/ignore.py": "\n# tested-by: tests/unit/test_ignore.py\n\nfrom __future__ import annotations\n\nimport fnmatch\nfrom pathlib import Path\n\n_GLOB_CHARS = frozenset(\"*?[\")\n\n# ---------------------------------------------------------------------------\n# Built-in defaults \u2014 always applied even without a .caliperignore file.\n# These mirror the hard-coded exclusion sets already present in cli/main.py.\n# ---------------------------------------------------------------------------\nDEFAULT_PATTERNS: list[str] = [\n]\n\n# Test code, excluded unless CaliperSettings.include_tests. Directory names are\n# matched as whole path components; file globs against the basename. `spec/`\n# is deliberately absent (OpenAPI specs live there); `fixtures/` too (too broad).\nTEST_PATTERNS: list[str] = [\n]\n\n\ndef load_ignore_patterns(repo_path: Path, *, include_tests: bool | None = None) -> list[str]:\n    ...\n\n\n\n\n\n\ndef should_ignore(file_path: str, patterns: list[str]) -> bool:\n    ...\n\n\n\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

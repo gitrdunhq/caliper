@@ -1,0 +1,50 @@
+{
+  "task_id": "r7-ci-host-tests-policy",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_github_actions_policy.py",
+      "kind": "pytest",
+      "purpose": "Verify foreman.yml no longer sets CALIPER_ALLOW_HOST_TESTS=1 in its",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_foreman_yml_no_longer_sets_caliper_allow_host_tests_1_in_its",
+      "skeleton_written": false,
+      "content": "# Skeleton: r7-ci-host-tests-policy AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_foreman_yml_no_longer_sets_caliper_allow_host_tests_1_in_its \u2192 tests/unit/test_github_actions_policy.py\n\nimport pytest\n\n\nclass Testr7_ci_host_tests_policy_AC1:\n    def test_ac1_foreman_yml_no_longer_sets_caliper_allow_host_tests_1_in_its(self):\n        \"\"\"\n        PROP-001: foreman.yml no longer sets CALIPER_ALLOW_HOST_TESTS=1 in its contract/e2e jobs; \n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_github_actions_policy.py",
+      "kind": "pytest",
+      "purpose": "Verify release-candidate.yml no longer sets CALIPER_ALLOW_HOST_TEST",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_release_candidate_yml_no_longer_sets_caliper_allow_host_test",
+      "skeleton_written": false,
+      "content": "# Skeleton: r7-ci-host-tests-policy AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_release_candidate_yml_no_longer_sets_caliper_allow_host_test \u2192 tests/unit/test_github_actions_policy.py\n\nimport pytest\n\n\nclass Testr7_ci_host_tests_policy_AC2:\n    def test_ac2_release_candidate_yml_no_longer_sets_caliper_allow_host_test(self):\n        \"\"\"\n        PROP-002: release-candidate.yml no longer sets CALIPER_ALLOW_HOST_TESTS=\"1\"; that job inst\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_github_actions_policy.py",
+      "kind": "pytest",
+      "purpose": "Verify test_github_actions_policy.py fails if any .github/workflows",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_test_github_actions_policy_py_fails_if_any_github_workflows",
+      "skeleton_written": false,
+      "content": "# Skeleton: r7-ci-host-tests-policy AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_test_github_actions_policy_py_fails_if_any_github_workflows \u2192 tests/unit/test_github_actions_policy.py\n\nimport pytest\n\n\nclass Testr7_ci_host_tests_policy_AC3:\n    def test_ac3_test_github_actions_policy_py_fails_if_any_github_workflows(self):\n        \"\"\"\n        PROP-003: test_github_actions_policy.py fails if any .github/workflows/*.yml file sets CAL\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    ".github/workflows/foreman.yml": "name: Foreman \u2014 Dependency & Code Review\n\non:\n\n\npermissions:\n\nenv:\n\njobs:\n\n\n        github.event.pull_request.draft == false &&\n\n        if: github.event_name == 'pull_request'\n          CHANGED_FILES=$(git diff --name-only \"$BASE_SHA\"...\"$HEAD_SHA\")\n          CODE_CHANGES=$(printf '%s\\n' \"$CHANGED_FILES\" | grep -cvE '\\.(md|txt)$|^docs/|^LICENSE|^CODEOWNERS|^\\.github/ISSUE_TEMPLATE/' || true)\n            echo \"docs_only=true\" >> \"$GITHUB_OUTPUT\"\n            echo \"docs_only=false\" >> \"$GITHUB_OUTPUT\"\n\n          API_CONTRACT_CHANGES=\"\"\n                API_CONTRACT_CHANGES=\"${API_CONTRACT_CHANGES}${changed_path}\"$'\\n'\n\n            echo \"api_contract=true\" >> \"$GITHUB_OUTPUT\"\n            echo \"api_contract_reason=contract_path\" >> \"$GITHUB_OUTPUT\"\n            echo \"api_contract=true\" >> \"$GITHUB_OUTPUT\"\n            echo \"api_contract_reason=api-contract-needed_label\" >> \"$GITHUB_OUTPUT\"\n            echo \"api_contract=false\" >> \"$GITHUB_OUTPUT\"\n            echo \"api_contract_reason=not_required\" >> \"$GITHUB_OUTPUT\"\n\n\n    if: github.event_name == 'push'\n\n\n\n\n\n\n\n\n\n\n\n\n        github.event_name == 'workflow_dispatch' ||\n          github.event_name == 'pull_request' &&\n          needs.preflight.outputs.api_contract == 'true'\n\n\n\n\n\n\n    if: github.event_name == 'workflow_dispatch'\n\n\n\n\n\n\n\n\n\n        if: github.event_name == 'pull_request'\n\n          DIFF_FLAG=\"\"\n          PID_SARIF=$!\n          PID_MD=$!\n          PID_JSON=$!\n\n\n\n      github.event_name == 'pull_request' &&\n      github.event.pull_request.draft == false &&\n\n\n      needs.preflight.result == 'success' &&\n\n          FAILED=\"\"\n\n            echo \"upstream_ok=false\" >> \"$GITHUB_OUTPUT\"\n            echo \"upstream_ok=true\" >> \"$GITHUB_OUTPUT\"\n\n        if: needs.review.result == 'success'\n\n          JSON=.temp/review.json\n            RAW=$(jq -r '.verdict // \"incomplete\"' \"$JSON\")\n            ERRORS=$(jq -r '.error_count // 0' \"$JSON\")\n            WARNINGS=$(jq -r '.warning_count // 0' \"$JSON\")\n            CRASHED=$(jq -r '.crashed_count // 0' \"$JSON\")\n            SKIPPED=$(jq -r '.skipped_count // 0' \"$JSON\")\n            TOTAL=$(jq -r '.total_plugins // 0' \"$JSON\")\n            RAW=incomplete; ERRORS=0; WARNINGS=0; CRASHED=0; SKIPPED=0; TOTAL=0\n          VERDICT=\"$RAW\"\n            echo \"errors=$ERRORS\"\n            echo \"warnings=$WARNINGS\"\n            echo \"crashed=$CRASHED\"\n            echo \"skipped=$SKIPPED\"\n            echo \"total_plugins=$TOTAL\"\n            echo \"verdict=$VERDICT\"\n\n        if: github.event_name == 'pull_request' && steps.upstream.outputs.upstream_ok == 'true'\n\n\n\n        if: github.event_name == 'pull_request' && needs.review.result == 'success'\n\n          ICON=\"\u2705\"\n\n          MARKER=\"<!-- caliper-review -->\"\n          EXTRA=\"\"\n            EXTRA=\"$EXTRA | ${CRASHED} plugin(s) crashed\"\n            EXTRA=\"$EXTRA | ${SKIPPED} plugin(s) not installed\"\n          CI_NOTE=\"\"\n            CI_NOTE=\"\n          BODY=\"${MARKER}\n\n\n\n          EXISTING=$(gh api \"repos/${REPO}/issues/${PR_NUM}/comments\" \\\n\n\n        if: github.event_name == 'pull_request'\n          MARKER=\"<!-- caliper-copilot-handoff -->\"\n          HANDOFF=\"${MARKER}\n\n\n\n\n\n          EXISTING=$(gh api \"repos/${REPO}/issues/${PR_NUM}/comments\" \\\n\n\n            CONFIG_FLAG=\"\"\n\n          SHA=$(git rev-parse HEAD)\n          TOKEN=$(python3 -c \"import hmac,hashlib,os; print(hmac.new(os.environ['RELEASE_UNLOCK_WORD'].encode(), os.environ['KEY_SHA'].encode(), hashlib.sha256).hexdigest())\")\n\n\n",
+    ".github/workflows/release-candidate.yml": "name: Nightly Release Candidate\n\non:\n\nconcurrency:\n\npermissions:\n\nenv:\n\njobs:\n\n          import datetime as dt\n          import os\n          import re\n          import subprocess\n          import tomllib\n          from pathlib import Path\n\n          version_re = re.compile(r\"^\\d+\\.\\d+\\.\\d+$\")\n          ordinal_re = re.compile(r\"^[1-9]\\d*$\")\n\n          raw_base_version = os.environ.get(\"INPUT_BASE_VERSION\", \"\").strip()\n              base_version = raw_base_version\n              pyproject = tomllib.loads(Path(\"pyproject.toml\").read_text(encoding=\"utf-8\"))\n              current = pyproject[\"project\"][\"version\"]\n              major, minor, patch = (int(part) for part in current.split(\".\"))\n              base_version = f\"{major}.{minor}.{patch + 1}\"\n\n          run_date = dt.datetime.now(dt.UTC).strftime(\"%Y%m%d\")\n          raw_candidate = os.environ.get(\"INPUT_CANDIDATE_NUMBER\", \"\").strip()\n              candidate_number = int(raw_candidate)\n              prefix = f\"v{base_version}-rc.{run_date}.\"\n              existing = subprocess.run(\n                  check=True,\n                  text=True,\n                  capture_output=True,\n              used_numbers = []\n                  suffix = tag.removeprefix(prefix)\n              candidate_number = max(used_numbers, default=0) + 1\n\n          tag_name = f\"v{base_version}-rc.{run_date}.{candidate_number}\"\n\n\n\n\n\n\n\n          import json\n          import os\n          import re\n\n          errors = 0\n          crashed = 0\n          skipped = 0\n          warnings = 0\n\n          sarif_path = \".temp/release-review.sarif\"\n          md_path = \".temp/release-review.md\"\n\n                  sarif = json.load(f)\n                  plugin_errored = False\n                          msg = result.get(\"message\", {}).get(\"text\", \"\")\n                          plugin_errored = True\n\n                  markdown = f.read()\n                  crashed = len(re.findall(r\"BINARY_CRASHED\", markdown))\n              skipped = len(re.findall(r\"NOT_INSTALLED\", markdown))\n\n\n\n\n          PREVIOUS_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -Ev '-' | head -1 || true)\n\n\n\n\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

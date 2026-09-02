@@ -1,0 +1,74 @@
+{
+  "task_id": "r1-renderer-report-shape",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_renderer.py",
+      "kind": "pytest",
+      "purpose": "Verify render_markdown() plugin table omits rows for plugins with s",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_render_markdown_plugin_table_omits_rows_for_plugins_with_sta",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-renderer-report-shape AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_render_markdown_plugin_table_omits_rows_for_plugins_with_sta \u2192 tests/unit/test_renderer.py\n\nimport pytest\n\n\nclass Testr1_renderer_report_shape_AC1:\n    def test_ac1_render_markdown_plugin_table_omits_rows_for_plugins_with_sta(self):\n        \"\"\"\n        PROP-001: render_markdown() plugin table omits rows for plugins with status='skipped'; a s\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_renderer.py",
+      "kind": "pytest",
+      "purpose": "Verify render_markdown() never emits a path beginning with '/worksp",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_render_markdown_never_emits_a_path_beginning_with_workspace",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-renderer-report-shape AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_render_markdown_never_emits_a_path_beginning_with_workspace \u2192 tests/unit/test_renderer.py\n\nimport pytest\n\n\nclass Testr1_renderer_report_shape_AC2:\n    def test_ac2_render_markdown_never_emits_a_path_beginning_with_workspace(self):\n        \"\"\"\n        PROP-002: render_markdown() never emits a path beginning with '/workspace/'; all finding p\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_renderer.py",
+      "kind": "pytest",
+      "purpose": "Verify a detector (rule_id starting 'CAL-') or complexity finding r",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_a_detector_rule_id_starting_cal_or_complexity_finding_render",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-renderer-report-shape AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_a_detector_rule_id_starting_cal_or_complexity_finding_render \u2192 tests/unit/test_renderer.py\n\nimport pytest\n\n\nclass Testr1_renderer_report_shape_AC3:\n    def test_ac3_a_detector_rule_id_starting_cal_or_complexity_finding_render(self):\n        \"\"\"\n        PROP-003: a detector (rule_id starting 'CAL-') or complexity finding renders in its own se\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_renderer.py",
+      "kind": "pytest",
+      "purpose": "Verify within a section, findings are ordered critical, high, mediu",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_within_a_section_findings_are_ordered_critical_high_medium_l",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-renderer-report-shape AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_within_a_section_findings_are_ordered_critical_high_medium_l \u2192 tests/unit/test_renderer.py\n\nimport pytest\n\n\nclass Testr1_renderer_report_shape_AC4:\n    def test_ac4_within_a_section_findings_are_ordered_critical_high_medium_l(self):\n        \"\"\"\n        PROP-004: within a section, findings are ordered critical, high, medium, low, info, then a\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC5",
+      "path": "tests/unit/test_renderer.py",
+      "kind": "pytest",
+      "purpose": "Verify render_markdown() output is truncated to 65536 chars max, an",
+      "property_id": "PROP-005",
+      "function_name": "test_ac5_render_markdown_output_is_truncated_to_65536_chars_max_and_a",
+      "skeleton_written": false,
+      "content": "# Skeleton: r1-renderer-report-shape AC5 \u2014 PROP-005\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC5 \u2192 test_ac5_render_markdown_output_is_truncated_to_65536_chars_max_and_a \u2192 tests/unit/test_renderer.py\n\nimport pytest\n\n\nclass Testr1_renderer_report_shape_AC5:\n    def test_ac5_render_markdown_output_is_truncated_to_65536_chars_max_and_a(self):\n        \"\"\"\n        PROP-005: render_markdown() output is truncated to 65536 chars max, and a truncated sectio\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-005\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/core/renderer.py": "\nfrom __future__ import annotations\n\nfrom dataclasses import replace\nfrom pathlib import Path\n\nimport jinja2\n\nfrom caliper.core.plugin import PluginResult, finding_as_dict, finding_get\nfrom caliper.core.version import get_version\n\n_MAX_COMMENT_LENGTH = 65536\n\nCATEGORY_PRIORITY: dict[str, int] = {\n}\n_DEFAULT_TEMPLATE_DIR = Path(__file__).parent.parent / \"templates\"\n_VERSION = get_version()\n\n_SEVERITY_WEIGHTS: dict[str, int] = {\n}\n\n_SECURITY_PLUGINS: set[str] = {\n}\n\n_QUALITY_PLUGINS: set[str] = {\n}\n\n\ndef _plugin_is_security(plugin_name: str) -> bool:\n    ...\n\n\ndef calculate_severity_score(results: list[PluginResult]) -> float:\n    ...\n\n\ndef calculate_quality_score(results: list[PluginResult]) -> float:\n    ...\n\n\ndef _is_monorepo(results: list[PluginResult]) -> bool:\n    ...\n\n\ndef _group_by_package(results: list[PluginResult]) -> dict[str, list[PluginResult]]:\n    ...\n\n\ndef _verdict_rank(verdict: str) -> int:\n    ...\n\n\ndef _build_monorepo_sections(\n    results: list[PluginResult],\n) -> tuple[str, list[tuple[str, str]], list[str]]:\n    packages = _group_by_package(results)\n    overall_verdict = \"clear\"\n    summary_rows: list[tuple[str, str]] = []\n    sections: list[str] = []\n\n        pkg_verdict, pkg_rows, pkg_finding_sections = _build_sections(pkg_results, plugin_renderers)\n        pkg_score = calculate_severity_score(pkg_results)\n        pkg_quality = calculate_quality_score(pkg_results)\n\n            overall_verdict = pkg_verdict\n\n        header = pkg_root if pkg_root else \"(root)\"\n        pkg_lines: list[str] = [\n\n\n\n\n\ndef render_comment(\n    results: list[PluginResult],\n    repo: str = \"\",\n    pr_num: int = 0,\n    title: str = \"\",\n    file_count: int = 0,\n) -> str:\n    results = [replace(r, findings=[finding_as_dict(f) for f in r.findings]) for r in results]\n    tpl_dir = template_dir or _DEFAULT_TEMPLATE_DIR\n    env = jinja2.Environment(\n        loader=jinja2.FileSystemLoader(str(tpl_dir)),\n        autoescape=False,  # nosemgrep: jinja2-autoescape-disabled \u2014 output is markdown, not HTML\n        keep_trailing_newline=True,\n    template = env.get_template(\"comment.md.j2\")\n\n        _, summary_rows, sections = _build_monorepo_sections(results, plugin_renderers)\n        _, summary_rows, sections = _build_sections(results, plugin_renderers)\n\n        from caliper.core.review_summary import summarize_review\n\n        verdict = summarize_review(results).verdict.value\n\n    severity_score = calculate_severity_score(results)\n    quality_score = calculate_quality_score(results)\n    mi_grade, mi_score, mi_icon, avg_ccn, hi_ccn, mi_c_count = _extract_mi(results)\n\n    from caliper.core.actionability import classify_findings\n\n    act_summary = classify_findings(results)\n\n    footer_parts = []\n        count = len(r.findings)\n    footer_stats = \" \u00b7 \".join(footer_parts) if footer_parts else \"clean\"\n\n    output = template.render(\n        repo=repo,\n        pr_num=pr_num,\n        title=title,\n        verdict=verdict,\n        file_count=file_count,\n        summary_rows=summary_rows,\n        sections=sections,\n        severity_score=severity_score,\n        quality_score=quality_score,\n        mi_grade=mi_grade,\n        mi_score=mi_score,\n        mi_icon=mi_icon,\n        avg_ccn=avg_ccn,\n        hi_ccn=hi_ccn,\n        mi_c_count=mi_c_count,\n        version=_VERSION,\n        footer_stats=footer_stats,\n        actionability=act_summary,\n\n        truncated = output[: _MAX_COMMENT_LENGTH - 100]\n\n\n\ndef _build_sections(\n    results: list[PluginResult],\n) -> tuple[str, list[tuple[str, str]], list[str]]:\n    verdict = \"clear\"\n    summary_rows: list[tuple[str, str]] = []\n    sections: list[str] = []\n\n    _max_priority = max(CATEGORY_PRIORITY.values()) + 1\n    sorted_results = sorted(\n        key=lambda r: CATEGORY_PRIORITY.get(r.category, _max_priority),\n\n        count = len(r.findings)\n        label = r.plugin_name\n\n                verdict = \"incomplete\"\n\n        status = r.summary.get(\"status\", \"\")\n\n\n        has_crit = any(finding_get(f, \"severity\") in (\"critical\", \"high\") for f in r.findings)\n        is_security = r.category in {\"dependency\", \"supply_chain\", \"infra\"}\n            verdict = \"blocked\"\n            verdict = \"warnings\"\n\n        renderer = None\n            renderer = plugin_renderers.get(r.plugin_name)\n\n                md = renderer.render(r)\n                md = _default_render(r)\n            md = _default_render(r)\n\n\n\n\ndef _default_render(result: PluginResult) -> str:\n    ...\n\n\nclass MarkdownRenderer:\n    ...\n\n\n\ndef _extract_mi(\n    results: list[PluginResult],\n) -> tuple[str, int, str, float, int, int]:\n            s = r.summary\n            avg = s.get(\"avg_cyclomatic_complexity\", 0)\n            mi_scores = []\n                mi_str = finding_get(f, \"maintainability_index\", \"\")\n                        val = float(str(mi_str).split(\"(\")[1].rstrip(\")\"))\n            avg_mi = sum(mi_scores) / len(mi_scores) if mi_scores else 0\n            grade = \"A\" if avg_mi >= 20 else (\"B\" if avg_mi >= 10 else \"C\")\n            icon = {\"A\": \"\ud83d\udfe2\", \"B\": \"\ud83d\udfe1\", \"C\": \"\ud83d\udd34\"}.get(grade, \"\u26aa\")\n            hi = s.get(\"high_complexity_count\", 0)\n            c_count = sum(1 for s in mi_scores if s < 10)\n\n\nfrom caliper.core.port_registries import RENDERERS  # noqa: E402  (registration wiring)\n\n\n@RENDERERS.register(\"markdown\")\ndef build_markdown_renderer() -> MarkdownRenderer:\n    ...\n",
+    "src/caliper/templates/comment.md.j2": "## \ud83e\udd85 Caliper \u2014 {{ repo }}#{{ pr_num }}\n**{{ title }}**\n\n{% if verdict == \"blocked\" %}\n> \ud83d\udd34 **BLOCKED**\n{% elif verdict == \"incomplete\" %}\n> \ud83d\udfe1 **INCOMPLETE** \u2014 one or more scanners failed\n{% elif verdict == \"warnings\" %}\n> \ud83d\udfe0 **PASS WITH WARNINGS**\n{% else %}\n> \ud83d\udfe2 **ALL CLEAR**\n{% endif %}\n\n{% if severity_score is not none %}\n> **Security: {{ severity_score | int }}/100** \u00b7 Quality: {{ quality_score | int }}/100\n{% endif %}\n{% if mi_grade %}\n> **Maintainability: {{ mi_icon }} {{ mi_grade }} ({{ mi_score }}/100)** \u00b7 CCN avg {{ avg_ccn }}{% if hi_ccn %} \u00b7 \u26a0\ufe0f {{ hi_ccn }} high-complexity{% endif %}{% if mi_c_count %} \u00b7 \ud83d\udd34 {{ mi_c_count }} grade-C{% endif %}\n\n{% endif %}\n| Plugin | Findings |\n|--------|----------|\n| Files scanned | {{ file_count }} |\n{%- for key, value in summary_rows %}\n| {{ key }} | {{ value }} |\n{%- endfor %}\n{%- if mi_grade %}\n| Maintainability | {{ mi_icon }} {{ mi_grade }} ({{ mi_score }}/100) |\n{%- endif %}\n\n{% if actionability and (actionability.actionable_count > 0 or actionability.blocked_count > 0) %}\n### Actionability\n\n> {{ actionability.summary_text }}\n\n{% if actionability.actionable_count > 0 %}\n**{{ actionability.actionable_count }} fixable** \u2014 upgrade available:\n{% for f in actionability.actionable[:10] %}\n- `{{ f.package }}` {{ f.version }} \u2192 **{{ f.fixed_version }}** ({{ f.severity }}) \u2014 [{{ f.id }}]({{ f.url }})\n{%- endfor %}\n{% if actionability.actionable_count > 10 %}\n- *...{{ actionability.actionable_count - 10 }} more*\n{% endif %}\n{% endif %}\n\n{% if actionability.blocked_count > 0 %}\n**{{ actionability.blocked_count }} blocked** \u2014 no fix available:\n{% for source, findings in actionability.blocked_by_source.items() %}\n- **{{ source }}**: {{ findings | length }} findings ({{ findings | map(attribute='severity') | unique | join(', ') }})\n{%- endfor %}\n{% endif %}\n{% endif %}\n\n{% for section in sections %}\n{{ section }}\n{% endfor %}\n---\n*Caliper v{{ version }} \u00b7 {{ footer_stats }}*\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}
