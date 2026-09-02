@@ -355,8 +355,16 @@ def _lockfile_pattern(package_name: str) -> re.Pattern[str]:
 
 
 def _appears_in_lockfile(package_name: str, text: str) -> bool:
-    """Return True if *package_name* appears as a standalone token in *text*."""
-    return bool(_lockfile_pattern(package_name).search(text))
+    """Return True if *package_name* appears as a standalone token in *text*.
+
+    Both sides are normalized (:func:`_normalize_dep_name`) so ``Foo_Bar``
+    matches ``foo-bar`` and vice versa — the same rule the direct lookup uses.
+    Callers holding a :class:`ManifestCache` should pass the pre-normalized
+    text from :meth:`ManifestCache.lockfile_text` to avoid re-normalizing.
+    """
+    return bool(
+        _lockfile_pattern(_normalize_dep_name(package_name)).search(_normalize_dep_name(text))
+    )
 
 
 def _read_text(path: Path) -> str:
@@ -378,6 +386,7 @@ class ManifestCache:
         self._reader = reader if reader is not None else _read_text
         self._texts: dict[Path, str | None] = {}
         self._direct: dict[Path, set[str]] = {}
+        self._lock_norm: dict[Path, str | None] = {}
 
     def text(self, path: Path) -> str | None:
         """Return the file's text, or ``None`` if it is missing/unreadable."""
@@ -387,6 +396,13 @@ class ManifestCache:
             except OSError:
                 self._texts[path] = None
         return self._texts[path]
+
+    def lockfile_text(self, path: Path) -> str | None:
+        """Return the lockfile's *normalized* text (see :func:`_normalize_dep_name`)."""
+        if path not in self._lock_norm:
+            text = self.text(path)
+            self._lock_norm[path] = _normalize_dep_name(text) if text is not None else None
+        return self._lock_norm[path]
 
     def direct_deps(self, manifest_path: Path) -> set[str]:
         """Return the normalized direct-dependency names declared in *manifest_path*."""
@@ -449,14 +465,15 @@ def classify_dependency_kind(
     if manifest_path is None:
         return "unknown"
 
-    if _normalize_dep_name(package_name) in cache.direct_deps(manifest_path):
+    normalized_target = _normalize_dep_name(package_name)
+    if normalized_target in cache.direct_deps(manifest_path):
         return "direct"
 
     for lockfile_name in _MANIFEST_TO_LOCKFILES.get(manifest_path.name, []):
-        lockfile_text = cache.text(manifest_path.parent / lockfile_name)
+        lockfile_text = cache.lockfile_text(manifest_path.parent / lockfile_name)
         if lockfile_text is None:
             continue
-        if _appears_in_lockfile(package_name, lockfile_text):
+        if _lockfile_pattern(normalized_target).search(lockfile_text):
             return "transitive"
 
     return "unknown"
