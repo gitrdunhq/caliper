@@ -10,6 +10,7 @@ config changes (LLM settings, publisher tokens, ...) never cause a spurious cach
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 import orjson
@@ -44,4 +45,29 @@ def compute_cache_key(
     for part in (tree_sha, scanner_name, tool_version, config_digest):
         h.update(part.encode("utf-8"))
         h.update(b"\0")
+    return h.hexdigest()
+
+
+def compute_scan_cache_key(
+    tree_sha: str,
+    scanner_name: str,
+    tool_version: str,
+    config_digest: str,
+    *,
+    db_versions: Mapping[str, str] | None = None,
+) -> str:
+    """Cache key that additionally incorporates live-DB scanner versions (ADR-010/R5).
+
+    A live-DB scanner (e.g. trivy, osv-scanner) can produce a different verdict for
+    an identical tree state once its vulnerability database is updated. Folding the
+    sorted ``db_versions`` mapping into the base cache key ensures a newer
+    ``db_updated_at`` always invalidates the cache instead of serving a stale verdict.
+    """
+    base = compute_cache_key(tree_sha, scanner_name, tool_version, config_digest)
+    payload = dict(db_versions) if db_versions else {}
+    encoded = orjson.dumps(payload, option=orjson.OPT_SORT_KEYS)
+    h = hashlib.sha256()
+    h.update(base.encode("utf-8"))
+    h.update(b"\0")
+    h.update(encoded)
     return h.hexdigest()
