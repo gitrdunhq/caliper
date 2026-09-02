@@ -107,6 +107,20 @@ On changed source, caliper also runs **21 AST bug detectors** (`CAL-001`…`CAL-
 
 ---
 
+## Installation
+
+```bash
+pip install caliper-review
+```
+
+The distribution on PyPI is published as `caliper-review` (the import
+package and the `caliper` console script are unchanged by the rename —
+`caliper` still works after install). Publishing uses PyPI's [trusted
+publisher](https://docs.pypi.org/trusted-publishers/) mechanism: no API
+token is stored in CI. The trusted publisher must be registered by the
+`caliper-review` project owner on PyPI, pointing at repo
+`gitrdunhq/caliper`, workflow `release-please.yml`, environment `pypi`.
+
 ## Quick Start
 
 ### Review a repo (native)
