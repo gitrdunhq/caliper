@@ -12,6 +12,7 @@ Usage::
 
 from __future__ import annotations
 
+import functools
 import json
 import re
 import tomllib
@@ -347,13 +348,57 @@ def _resolve_direct_parser(filename: str) -> Callable[[str], set[str]] | None:
     return None
 
 
+@functools.lru_cache(maxsize=4096)
+def _lockfile_pattern(package_name: str) -> re.Pattern[str]:
+    """Compile (once per package name) the standalone-token regex for a lockfile."""
+    return re.compile(r"(?<![\w.\-])" + re.escape(package_name) + r"(?![\w.\-])")
+
+
 def _appears_in_lockfile(package_name: str, text: str) -> bool:
     """Return True if *package_name* appears as a standalone token in *text*."""
-    pattern = re.compile(r"(?<![\w.\-])" + re.escape(package_name) + r"(?![\w.\-])")
-    return bool(pattern.search(text))
+    return bool(_lockfile_pattern(package_name).search(text))
 
 
-def _resolve_manifest_path(path: Path) -> Path | None:
+def _read_text(path: Path) -> str:
+    """Default :class:`ManifestCache` reader — the one disk touch in this module."""
+    return path.read_text()
+
+
+class ManifestCache:
+    """Per-scan, read-once cache of manifest and lockfile contents.
+
+    Plugins create one per run and thread it through every
+    :func:`classify_dependency_kind` call, so a 50-package result reads each
+    manifest/lockfile exactly once instead of once per package (PERF-001/002).
+    A missing or unreadable file is remembered as ``None`` so it is probed once,
+    not once per package. *reader* is injectable for tests (a counting fake).
+    """
+
+    def __init__(self, reader: Callable[[Path], str] | None = None) -> None:
+        self._reader = reader if reader is not None else _read_text
+        self._texts: dict[Path, str | None] = {}
+        self._direct: dict[Path, set[str]] = {}
+
+    def text(self, path: Path) -> str | None:
+        """Return the file's text, or ``None`` if it is missing/unreadable."""
+        if path not in self._texts:
+            try:
+                self._texts[path] = self._reader(path)
+            except OSError:
+                self._texts[path] = None
+        return self._texts[path]
+
+    def direct_deps(self, manifest_path: Path) -> set[str]:
+        """Return the normalized direct-dependency names declared in *manifest_path*."""
+        if manifest_path not in self._direct:
+            parser = _resolve_direct_parser(manifest_path.name)
+            text = self.text(manifest_path)
+            names = parser(text) if parser and text is not None else set()
+            self._direct[manifest_path] = {_normalize_dep_name(n) for n in names}
+        return self._direct[manifest_path]
+
+
+def _resolve_manifest_path(path: Path, cache: ManifestCache) -> Path | None:
     """Map a lockfile path to its sibling manifest; manifests pass through.
 
     Returns ``None`` when *path* is a known lockfile whose owning manifest is
@@ -363,13 +408,14 @@ def _resolve_manifest_path(path: Path) -> Path | None:
     if manifest_name is None:
         return path
     sibling = path.parent / manifest_name
-    return sibling if sibling.is_file() else None
+    return sibling if cache.text(sibling) is not None else None
 
 
 def classify_dependency_kind(
     repo_path: Path,  # noqa: ARG001 - kept for a stable, discoverable call signature
     package_name: str,
     manifest_path: Path,
+    cache: ManifestCache | None = None,
 ) -> DependencyKind:
     """Classify *package_name* as ``"direct"``, ``"transitive"``, or ``"unknown"``.
 
@@ -391,32 +437,24 @@ def classify_dependency_kind(
     :data:`LOCKFILE_MAP` and classified against that. A lockfile with no
     sibling manifest yields ``"unknown"`` — there is no evidence to tell a
     direct dependency from a transitive one.
+
+    *cache* is the per-scan :class:`ManifestCache`; callers classifying many
+    packages against the same files should share one. ``None`` uses a
+    throwaway cache (one read per file for this call only).
     """
-    manifest_path = _resolve_manifest_path(manifest_path)
+    if cache is None:
+        cache = ManifestCache()
+
+    manifest_path = _resolve_manifest_path(manifest_path, cache)
     if manifest_path is None:
         return "unknown"
 
-    try:
-        manifest_text = manifest_path.read_text()
-    except OSError:
-        manifest_text = ""
-
-    filename = manifest_path.name
-    parser = _resolve_direct_parser(filename)
-    direct_deps = parser(manifest_text) if parser else set()
-
-    normalized_target = _normalize_dep_name(package_name)
-    normalized_direct = {_normalize_dep_name(name) for name in direct_deps}
-    if normalized_target in normalized_direct:
+    if _normalize_dep_name(package_name) in cache.direct_deps(manifest_path):
         return "direct"
 
-    for lockfile_name in _MANIFEST_TO_LOCKFILES.get(filename, []):
-        lockfile_path = manifest_path.parent / lockfile_name
-        if not lockfile_path.is_file():
-            continue
-        try:
-            lockfile_text = lockfile_path.read_text()
-        except OSError:
+    for lockfile_name in _MANIFEST_TO_LOCKFILES.get(manifest_path.name, []):
+        lockfile_text = cache.text(manifest_path.parent / lockfile_name)
+        if lockfile_text is None:
             continue
         if _appears_in_lockfile(package_name, lockfile_text):
             return "transitive"

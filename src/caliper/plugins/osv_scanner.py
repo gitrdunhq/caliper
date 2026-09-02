@@ -14,7 +14,7 @@ import structlog
 from caliper.core.config import CaliperSettings
 from caliper.core.errors import ErrorCode, error_msg
 from caliper.core.ignore import load_ignore_patterns
-from caliper.core.manifest_discovery import classify_dependency_kind
+from caliper.core.manifest_discovery import ManifestCache, classify_dependency_kind
 from caliper.core.plugin import (
     PluginCategory,
     PluginResult,
@@ -150,6 +150,7 @@ class OsvScannerPlugin(ScannerPlugin):
 
     def _extract_findings(self, data: dict, repo_path: Path | None = None) -> list[dict]:
         findings = []
+        manifest_cache = ManifestCache()  # one per run: each manifest/lockfile read once
         for result in data.get("results", []):
             source = result.get("source")
             has_source = isinstance(source, dict) and bool(source.get("path"))
@@ -162,7 +163,10 @@ class OsvScannerPlugin(ScannerPlugin):
                 if has_source and repo_path is not None and manifest_abs_path is not None:
                     with contextlib.suppress(Exception):
                         dependency_kind = classify_dependency_kind(
-                            repo_path, pkg_info.get("name", "?"), manifest_abs_path
+                            repo_path,
+                            pkg_info.get("name", "?"),
+                            manifest_abs_path,
+                            cache=manifest_cache,
                         )
                 for vuln in pkg.get("vulnerabilities", []):
                     sev = self._resolve_severity(vuln)

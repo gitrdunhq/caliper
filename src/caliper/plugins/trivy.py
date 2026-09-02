@@ -15,7 +15,7 @@ from pathlib import Path
 from caliper.core.config import CaliperSettings
 from caliper.core.errors import ErrorCode, error_msg
 from caliper.core.ignore import load_ignore_patterns
-from caliper.core.manifest_discovery import classify_dependency_kind
+from caliper.core.manifest_discovery import ManifestCache, classify_dependency_kind
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
 from caliper.core.subprocess_runner import SubprocessToolRunner
 from caliper.core.tool_runner import ToolInvocation, ToolRunnerPort
@@ -103,6 +103,7 @@ class TrivyPlugin(ScannerPlugin):
 
         findings = []
         misconfigs = 0
+        manifest_cache = ManifestCache()  # one per run: each manifest/lockfile read once
         for result in data.get("Results", []):
             target = result.get("Target", "")
             for mc in result.get("Misconfigurations", []) or []:
@@ -128,7 +129,9 @@ class TrivyPlugin(ScannerPlugin):
             for vuln in result.get("Vulnerabilities", []) or []:
                 package_name = vuln.get("PkgName", "?")
                 manifest_path = repo_path / target if target else repo_path
-                dependency_kind = classify_dependency_kind(repo_path, package_name, manifest_path)
+                dependency_kind = classify_dependency_kind(
+                    repo_path, package_name, manifest_path, cache=manifest_cache
+                )
                 findings.append(
                     {
                         "id": vuln.get("VulnerabilityID", "?"),

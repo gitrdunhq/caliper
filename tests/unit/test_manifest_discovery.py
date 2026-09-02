@@ -14,8 +14,10 @@ Property domains (DPS-12):
 
 from __future__ import annotations
 
+import re
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from hypothesis import HealthCheck, given, settings
@@ -23,7 +25,10 @@ from hypothesis import strategies as st
 
 from caliper.core.manifest_discovery import (
     MANIFEST_MAP,
+    ManifestCache,
     PackageUnit,
+    _appears_in_lockfile,
+    _lockfile_pattern,
     classify_dependency_kind,
     discover_packages,
 )
@@ -831,3 +836,93 @@ class TestClassifyDependencyKindLockfileTarget:
         lock = tmp_path / "Cargo.lock"
         _write(lock, '[[package]]\nname = "serde"\n')
         assert classify_dependency_kind(tmp_path, "nope-xyz", lock) == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# PERF-001/002/003 — per-scan read-once cache + memoized lockfile regex
+# ---------------------------------------------------------------------------
+
+
+class _CountingReader:
+    """Fake reader that serves an in-memory tree and counts reads per path."""
+
+    def __init__(self, files: dict[Path, str]) -> None:
+        self.files = files
+        self.reads: dict[Path, int] = {}
+
+    def __call__(self, path: Path) -> str:
+        self.reads[path] = self.reads.get(path, 0) + 1
+        try:
+            return self.files[path]
+        except KeyError as exc:
+            raise FileNotFoundError(str(path)) from exc
+
+
+class TestManifestCache:
+    """PERF-001/002: each manifest/lockfile is read from disk at most once per
+    cache, however many packages are classified against it."""
+
+    def test_fifty_packages_read_each_file_exactly_once(self, tmp_path: Path) -> None:
+        manifest = tmp_path / "pyproject.toml"
+        lockfile = tmp_path / "uv.lock"
+        lock_text = "".join(f'[[package]]\nname = "dep{i}"\n\n' for i in range(50))
+        reader = _CountingReader(
+            {manifest: '[project]\ndependencies = ["dep0"]\n', lockfile: lock_text}
+        )
+        cache = ManifestCache(reader=reader)
+
+        kinds = {
+            classify_dependency_kind(tmp_path, f"dep{i}", manifest, cache=cache) for i in range(50)
+        }
+
+        assert kinds == {"direct", "transitive"}
+        assert reader.reads[manifest] == 1
+        assert reader.reads[lockfile] == 1
+        # No other lockfile candidate (poetry.lock) is probed more than once either.
+        assert all(count == 1 for count in reader.reads.values()), reader.reads
+
+    def test_lockfile_target_reads_manifest_once_across_packages(self, tmp_path: Path) -> None:
+        manifest = tmp_path / "Cargo.toml"
+        lockfile = tmp_path / "Cargo.lock"
+        reader = _CountingReader(
+            {
+                manifest: '[dependencies]\nserde = "1"\n',
+                lockfile: '[[package]]\nname = "serde"\n\n[[package]]\nname = "itoa"\n',
+            }
+        )
+        cache = ManifestCache(reader=reader)
+
+        assert classify_dependency_kind(tmp_path, "serde", lockfile, cache=cache) == "direct"
+        assert classify_dependency_kind(tmp_path, "itoa", lockfile, cache=cache) == "transitive"
+        assert classify_dependency_kind(tmp_path, "nope", lockfile, cache=cache) == "unknown"
+
+        assert reader.reads == {manifest: 1, lockfile: 1}
+
+    def test_missing_file_is_probed_once(self, tmp_path: Path) -> None:
+        manifest = tmp_path / "pyproject.toml"
+        reader = _CountingReader({manifest: '[project]\ndependencies = ["a"]\n'})
+        cache = ManifestCache(reader=reader)
+
+        for name in ("x", "y", "z"):
+            assert classify_dependency_kind(tmp_path, name, manifest, cache=cache) == "unknown"
+
+        assert reader.reads[tmp_path / "uv.lock"] == 1
+        assert reader.reads[tmp_path / "poetry.lock"] == 1
+
+    def test_default_reader_hits_disk(self, tmp_path: Path) -> None:
+        manifest = tmp_path / "pyproject.toml"
+        _write(manifest, '[project]\ndependencies = ["requests"]\n')
+        assert classify_dependency_kind(tmp_path, "requests", manifest, cache=ManifestCache()) == (
+            "direct"
+        )
+
+
+class TestLockfilePatternMemoized:
+    """PERF-003: the lockfile token regex is compiled once per package name."""
+
+    def test_repeated_calls_do_not_recompile(self) -> None:
+        _lockfile_pattern.cache_clear()
+        with patch("caliper.core.manifest_discovery.re.compile", wraps=re.compile) as compile_:
+            for _ in range(5):
+                assert _appears_in_lockfile("requests", 'name = "requests"')
+            assert compile_.call_count == 1
