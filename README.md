@@ -65,7 +65,7 @@ All deterministic. Zero LLM. The 14 scanner plugins below feed their findings to
 
 | # | Plugin | What it does |
 |---|--------|-------------|
-| 5 | **Semgrep** | AST pattern matching (pinned semgrep-rules snapshot + 72 custom org rules + pinned eedom-community-rules snapshot, no registry fetch) |
+| 5 | **Semgrep** | AST pattern matching (pinned semgrep-rules snapshot + 72 custom org rules + pinned caliper-community-rules snapshot, no registry fetch) |
 | 6 | **PMD CPD** | Copy-paste detection (15 languages) |
 | 7 | **Mypy** | Deterministic cross-file Python type checking (prefers pyright) |
 | 8 | **SwiftLint** | Swift style + code smells (200+ rules + 13 custom) |

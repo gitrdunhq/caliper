@@ -24,7 +24,7 @@ ARG SWIFTLINT_VERSION=0.57.1
 # commit. Baked into the image so opengrep never fetches registry packs at scan
 # time (no network in the scan path, no rule drift between runs).
 ARG SEMGREP_RULES_COMMIT=40b8c63f75dc7c22c8a77482d73bfb864b146f7e
-# gitrdunhq/eedom-community-rules: shared Kirby-annotated org rules. Pinned by
+# gitrdunhq/caliper-community-rules: shared Kirby-annotated org rules. Pinned by
 # commit like semgrep-rules; bump with scripts/snapshot-community-rules.sh --bump.
 ARG COMMUNITY_RULES_COMMIT=22a9ade89a737a36270696f882698e947bee2c2a
 
@@ -230,7 +230,7 @@ RUN set -eux; \
     printf '%s\n' "${SEMGREP_RULES_COMMIT}" > /staging/semgrep-rules/COMMIT; \
     test "$(find /staging/semgrep-rules -name '*.yaml' | wc -l)" -gt 100
 
-# eedom-community-rules snapshot — only the opengrep-loadable rule files
+# caliper-community-rules snapshot — only the opengrep-loadable rule files
 # (rules/**/semgrep/*.yaml and rules/**/dockerfile-semgrep/*.yaml); fixtures
 # under tests/ and every other scanner's config are dropped so opengrep never
 # sees a non-rule YAML. Fetched by commit, so two builds of the same pin are
@@ -238,7 +238,7 @@ RUN set -eux; \
 RUN set -eux; \
     mkdir -p /staging/community-rules /tmp/community-rules; \
     curl -sSfL -o /tmp/community-rules.tar.gz \
-      "https://github.com/gitrdunhq/eedom-community-rules/archive/${COMMUNITY_RULES_COMMIT}.tar.gz"; \
+      "https://github.com/gitrdunhq/caliper-community-rules/archive/${COMMUNITY_RULES_COMMIT}.tar.gz"; \
     tar -xzf /tmp/community-rules.tar.gz -C /tmp/community-rules --strip-components=1; \
     find /tmp/community-rules/rules -type f \( -path '*/semgrep/*.yaml' -o -path '*/dockerfile-semgrep/*.yaml' \) \
       ! -path '*/tests/*' -exec sh -c 'd="/staging/community-rules/${1#/tmp/community-rules/}"; mkdir -p "$(dirname "$d")"; cp "$1" "$d"' _ {} \; ; \
