@@ -356,6 +356,19 @@ class RepoConfig(BaseModel):
     detectors: DetectorsConfig = DetectorsConfig()
     baseline: BaselineConfig = BaselineConfig()
     architecture: ArchitectureConfig = ArchitectureConfig()
+    # Derived from thresholds.semgrep.min_severity — never set directly in YAML.
+    # Below-floor semgrep findings are excluded from verdict/score computation
+    # (review_summary.py) and rendered in a collapsed notes section instead
+    # (renderer.py). Defaults to "medium" so low/info nits stay advisory-only.
+    semgrep_min_severity: str = "medium"
+
+    @model_validator(mode="after")
+    def _derive_semgrep_min_severity(self) -> RepoConfig:
+        semgrep_thresholds = self.thresholds.get("semgrep") or {}
+        min_severity = semgrep_thresholds.get("min_severity")
+        if min_severity:
+            self.semgrep_min_severity = str(min_severity)
+        return self
 
 
 def load_merged_config(repo_path: Path, package_root: Path | None = None) -> RepoConfig:

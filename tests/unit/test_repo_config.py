@@ -295,3 +295,131 @@ class TestLoadIsCachedPerRun:
         rc.load_repo_config(tmp_path)
         rc.load_repo_config(tmp_path)
         assert events.count("repo_config.not_found") == 1
+
+
+# ── Tests: task-006 — semgrep severity floor (thresholds.semgrep.min_severity) ──
+#
+# DPS-12 domain: Boundedness (INVARIANT) — a below-floor semgrep finding can never
+# move the security score / verdict, no matter how many are present.
+
+
+class TestSemgrepMinSeverityConfig:
+    """AC1: repo_config parses thresholds.semgrep.min_severity, default 'medium'."""
+
+    def test_defaults_to_medium_when_absent(self, tmp_path: Path) -> None:
+        config = load_repo_config(tmp_path)
+        assert config.semgrep_min_severity == "medium"
+
+    def test_defaults_to_medium_when_thresholds_present_but_semgrep_absent(
+        self, tmp_path: Path
+    ) -> None:
+        _write_config(tmp_path, {"thresholds": {"trivy": {"severity": "high"}}})
+        config = load_repo_config(tmp_path)
+        assert config.semgrep_min_severity == "medium"
+
+    def test_overridable_via_caliper_yaml(self, tmp_path: Path) -> None:
+        _write_config(tmp_path, {"thresholds": {"semgrep": {"min_severity": "low"}}})
+        config = load_repo_config(tmp_path)
+        assert config.semgrep_min_severity == "low"
+
+
+class TestSemgrepFloorExcludesFromScore:
+    """AC2: a below-floor semgrep Finding never moves verdict/score.
+
+    Property: Boundedness — security_score stays pinned at 100.0 for a semgrep
+    result containing only low/info findings once the default 'medium' floor
+    applies, whereas today (no floor) those findings each subtract weight and
+    the score drops below 100.
+    """
+
+    def _low_info_semgrep_result(self):
+        from caliper.core.plugin import PluginResult
+
+        return PluginResult(
+            plugin_name="semgrep",
+            category="code",
+            findings=[
+                {"id": "s1", "severity": "low", "message": "nit", "file": "a.py"},
+                {"id": "s2", "severity": "info", "message": "fyi", "file": "b.py"},
+            ],
+            summary={},
+        )
+
+    def test_low_and_info_semgrep_findings_do_not_move_security_score(self) -> None:
+        from caliper.core.review_summary import summarize_review
+
+        summary = summarize_review([self._low_info_semgrep_result()], semgrep_min_severity="medium")
+        assert summary.security_score == 100.0
+
+    def test_low_and_info_semgrep_findings_do_not_move_verdict_or_blocking_count(
+        self,
+    ) -> None:
+        from caliper.core.review_summary import ReviewVerdict, summarize_review
+
+        summary = summarize_review([self._low_info_semgrep_result()], semgrep_min_severity="medium")
+        assert summary.verdict == ReviewVerdict.clear
+        assert summary.blocking_count == 0
+
+
+class TestSemgrepFloorRenderedInNotesSection:
+    """AC3: below-floor findings are still returned and rendered, but tucked
+    into a collapsed 'notes' section rather than the main findings sections.
+    """
+
+    def test_below_floor_finding_appears_in_collapsed_notes_not_main_section(
+        self, tmp_path: Path
+    ) -> None:
+        from caliper.core.plugin import PluginResult
+        from caliper.core.renderer import render_comment
+
+        low_result = PluginResult(
+            plugin_name="semgrep",
+            category="code",
+            findings=[
+                {
+                    "id": "s1",
+                    "severity": "low",
+                    "message": "below-floor-marker-message",
+                    "file": "a.py",
+                }
+            ],
+            summary={},
+        )
+        output = render_comment(
+            [low_result],
+            repo="acme/widgets",
+            repo_path=str(tmp_path),
+            semgrep_min_severity="medium",
+        )
+        assert "<details>" in output and "notes" in output.lower()
+        notes_start = output.lower().index("<details>")
+        assert "below-floor-marker-message" in output
+        marker_index = output.index("below-floor-marker-message")
+        # The finding must live inside/after the collapsed notes block, never
+        # ahead of it in a main findings section.
+        assert marker_index >= notes_start
+
+
+class TestSemgrepMinSeverityLowReenablesLowFindings:
+    """AC4: thresholds.semgrep.min_severity: 'low' makes 'low' findings count
+    toward verdict/scores again.
+    """
+
+    def test_low_floor_from_caliper_yaml_restores_low_finding_scoring(self, tmp_path: Path) -> None:
+        from caliper.core.plugin import PluginResult
+        from caliper.core.review_summary import summarize_review
+
+        _write_config(tmp_path, {"thresholds": {"semgrep": {"min_severity": "low"}}})
+        config = load_repo_config(tmp_path)
+        assert config.semgrep_min_severity == "low"
+
+        low_result = PluginResult(
+            plugin_name="semgrep",
+            category="code",
+            findings=[{"id": "s1", "severity": "low", "message": "nit", "file": "a.py"}],
+            summary={},
+        )
+        summary = summarize_review([low_result], semgrep_min_severity=config.semgrep_min_severity)
+        # weight(low) == 1 -> score must actually drop from the 100.0 ceiling
+        # once the floor is lowered to 'low'.
+        assert summary.security_score == 99.0

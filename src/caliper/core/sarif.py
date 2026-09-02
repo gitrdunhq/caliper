@@ -69,8 +69,14 @@ def _level(finding: dict) -> str:
 
 
 def _make_locations(finding: dict, repo_path: str | None) -> list[dict]:
-    """Build SARIF locations list from file/line fields if present."""
-    file_path = finding.get("file") or finding.get("path")
+    """Build SARIF locations list from file/line fields if present.
+
+    Dependency-scanner findings (osv-scanner/trivy) carry no ``file``/``path``
+    of their own — only a ``manifest`` field naming the scanned manifest. Fall
+    back to that so a dependency finding still gets a ``physicalLocation``
+    pinned to the manifest it came from.
+    """
+    file_path = finding.get("file") or finding.get("path") or finding.get("manifest")
     if not file_path:
         return []
 
