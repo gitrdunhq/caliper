@@ -34,6 +34,11 @@ PROFILES: dict[str, frozenset[str]] = {
             "CAL-018",  # Dockerfile pin drift
             "CAL-020",  # fixed heredoc delimiter with GITHUB_OUTPUT/GITHUB_ENV
             "CAL-022",  # architecture tier boundary (opt-in by config, fail-open)
+            "CAL-023",  # Lambda handler swallows exceptions
+            "CAL-024",  # destructive AWS call without dry-run guard
+            "CAL-025",  # AWS API call missing required-in-practice argument
+            "CAL-026",  # event field guard omits field passed to AWS call
+            "CAL-027",  # committed build artifact beside source
         }
     ),
     "house-rules": frozenset(

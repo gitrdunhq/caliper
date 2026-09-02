@@ -8,15 +8,15 @@
   LAST VERIFIED: 2026-09-02
   VERIFICATION: 14 auto-discovered scanner plugins (@ANALYZERS.register) + the
   "deterministic" plugin (composition-registered, wraps DeterministicScanner,
-  #457) + OPA policy plugin (16 ScannerPlugin subclasses total); 21 detectors
+  #457) + OPA policy plugin (16 ScannerPlugin subclasses total); 26 detectors
   in src/caliper/detectors/; 72 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
-15 scanner plugins (14 auto-discovered + "deterministic", which wraps all 21
-CAL-001..021 detectors), 72 custom semgrep rules, 10 code graph
+15 scanner plugins (14 auto-discovered + "deterministic", which wraps all 26
+CAL-001..027 detectors), 72 custom semgrep rules, 10 code graph
 checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
@@ -29,7 +29,7 @@ unchanged.
 | Metric | Count |
 |--------|-------|
 | Scanner plugins | 15 (14 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
-| Deterministic detectors | 21 (CAL-001..CAL-022, CAL-013 retired), run via the "deterministic" plugin during `caliper review` |
+| Deterministic detectors | 26 (CAL-001..CAL-027, CAL-013 retired), run via the "deterministic" plugin during `caliper review` |
 | Custom semgrep rules | 72 (12 rule files) |
 | Code graph SQL checks | 10 |
 | OPA Rego policy rules | 16 (7 deny, 9 warn) |
@@ -186,7 +186,7 @@ All in `policies/semgrep/`.
 
 ---
 
-## Deterministic Detectors (21)
+## Deterministic Detectors (26)
 
 AST-driven, fail-safe bug-pattern rules in `src/caliper/detectors/`, exposed to the pipeline
 as a single `DeterministicScanner` (`tool_name="deterministic"`). Each is suppressible inline
@@ -213,6 +213,11 @@ with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](detectors.md).
 | CAL-019 | Nullable advisory_id in Dedup Key | reliability | low |
 | CAL-021 | Non-Atomic File Write | reliability | medium |
 | CAL-022 | Architecture Tier Boundary Violation | security | medium |
+| CAL-023 | Lambda Handler Swallows Exceptions | reliability | high |
+| CAL-024 | Destructive AWS Call Without Dry-Run Guard | reliability | medium |
+| CAL-025 | AWS API Call Missing Required-In-Practice Argument | reliability | medium |
+| CAL-026 | Event Field Guard Omits Field Passed To AWS Call | reliability | medium |
+| CAL-027 | Committed Build Artifact Beside Source | process | low |
 | CAL-018 | Dockerfile Pin Drift | configuration | medium |
 | CAL-014 | Missing Tested-By Annotation | process | low |
 
@@ -404,7 +409,7 @@ Every format shares one severity vocabulary: `critical`/`high`/`medium`/`low`/`i
 
 | Capability | SonarQube | caliper |
 |------------|-----------|-------|
-| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 72 custom rules + 22 deterministic detectors |
+| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 72 custom rules + 26 deterministic detectors |
 | Stylistic code smells | Hundreds of built-in rules | Not primary focus |
 | Structural code smells | Limited | 12 graph checks (dead code, god functions, SRP, layer violations, circular deps, deep inheritance, stubs) |
 | Complexity | Cyclomatic + cognitive | Cyclomatic (Lizard) + MI (Radon for Python, escomplex for JS/TS) — parity |
