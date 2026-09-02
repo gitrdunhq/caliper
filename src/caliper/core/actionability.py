@@ -22,8 +22,14 @@ class ActionabilitySummary:
 
 
 def _is_actionable(finding: dict) -> bool:
+    """A code finding (file + line, no package) is always actionable: the reader can
+    edit the code. A dependency finding is actionable only when upstream has
+    published a fixed version; otherwise it is blocked on upstream."""
+    package = finding.get("package") or finding.get("package_name") or ""
+    if not str(package).strip():
+        return True
     fv = finding.get("fixed_version", "")
-    return bool(fv and fv.strip())
+    return bool(fv and str(fv).strip())
 
 
 def _build_summary_text(
@@ -48,10 +54,10 @@ def _build_summary_text(
                 parts.append(f"{high_blocked} HIGH")
             severity_str = " + ".join(parts) if parts else f"{crit_high_blocked} CRITICAL/HIGH"
             return (
-                f"{severity_str} findings — none actionable by you. "
+                f"{severity_str} findings blocked on upstream (no fixed version yet). "
                 "All in upstream dependencies at latest release."
             )
-        return f"{len(blocked)} findings — none actionable by you."
+        return f"{len(blocked)} findings blocked on upstream (no fixed version yet)."
 
     if not blocked:
         # All actionable
