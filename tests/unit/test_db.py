@@ -132,7 +132,10 @@ class TestDecisionRepository:
 
         repo = DecisionRepository(dsn="postgresql://bad-host:5432/nope")
 
-        with patch("caliper.data.db.ConnectionPool", side_effect=Exception("refused")):
+        with (
+            patch("caliper.data.db.psycopg"),
+            patch("caliper.data.db.ConnectionPool", side_effect=Exception("refused")),
+        ):
             result = repo.connect()
 
         assert result is False
@@ -149,7 +152,10 @@ class TestDecisionRepository:
         mock_pool.connection.return_value.__enter__ = MagicMock(return_value=mock_conn)
         mock_pool.connection.return_value.__exit__ = MagicMock(return_value=False)
 
-        with patch("caliper.data.db.ConnectionPool", return_value=mock_pool):
+        with (
+            patch("caliper.data.db.psycopg"),
+            patch("caliper.data.db.ConnectionPool", return_value=mock_pool),
+        ):
             result = repo.connect()
 
         assert result is True
@@ -279,7 +285,10 @@ class TestDecisionRepository:
 
         structlog.configure(processors=[_capture])
 
-        with patch("caliper.data.db.ConnectionPool") as mock_pool:
+        with (
+            patch("caliper.data.db.psycopg"),
+            patch("caliper.data.db.ConnectionPool") as mock_pool,
+        ):
             mock_conn = MagicMock()
             mock_pool.return_value.connection.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -306,11 +315,40 @@ class TestDecisionRepository:
 
         structlog.configure(processors=[_capture])
 
-        with patch("caliper.data.db.ConnectionPool", side_effect=Exception("refused")):
+        with (
+            patch("caliper.data.db.psycopg"),
+            patch("caliper.data.db.ConnectionPool", side_effect=Exception("refused")),
+        ):
             repo.connect()
 
         for evt in captured:
             assert "topsecret" not in str(evt), f"password leaked in log event: {evt}"
+
+
+class TestConnectFailsFast:
+    """A refused connection must surface immediately, not after the pool's
+    default 30 s getconn wait. Two pools per run made every CLI test that set
+    CALIPER_DB_DSN stall 60 s in the container."""
+
+    def test_refused_connection_returns_false_within_connect_timeout(self) -> None:
+        import time
+
+        import pytest
+
+        from caliper.data import db as db_module
+        from caliper.data.db import DecisionRepository
+
+        if db_module.ConnectionPool is None:
+            pytest.skip("psycopg not installed")
+
+        repo = DecisionRepository(dsn="postgresql://u:p@127.0.0.1:12999/x", connect_timeout=2)
+        start = time.monotonic()
+        ok = repo.connect()
+        elapsed = time.monotonic() - start
+
+        assert ok is False
+        assert repo._pool is None
+        assert elapsed < 3, f"connect() took {elapsed:.1f}s on a refused port"
 
 
 class TestNullRepository:
