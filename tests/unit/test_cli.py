@@ -853,8 +853,12 @@ class TestIsolatedEnvironmentCheck:
         result = runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
 
-    def test_allows_bypass_env_var(self, monkeypatch) -> None:
-        """CALIPER_ALLOW_GLOBAL=1 overrides the check."""
+    def test_allows_bypass_env_var(self, monkeypatch, tmp_path: Path) -> None:
+        """CALIPER_ALLOW_GLOBAL=1 overrides the check.
+
+        Reviews an empty scratch dir, not ``.``: a real whole-repo review of
+        caliper itself took ~30 s and only the exit code matters here.
+        """
         import sys as _sys
 
         monkeypatch.setattr(_sys, "prefix", "/usr")
@@ -862,7 +866,7 @@ class TestIsolatedEnvironmentCheck:
         monkeypatch.setenv("CALIPER_ALLOW_GLOBAL", "1")
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["review", "--repo-path", "."])
+        result = runner.invoke(cli, ["review", "--repo-path", str(tmp_path)])
         assert result.exit_code == 0
 
     def test_allows_virtual_env_pointing_at_real_venv(self, monkeypatch, tmp_path) -> None:
