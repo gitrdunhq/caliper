@@ -4,13 +4,17 @@
 
 from __future__ import annotations
 
+import re
+
 from caliper.core.plugin import PluginResult
 from caliper.core.renderer import (  # noqa: PLC2701
     _VERSION,
     CATEGORY_PRIORITY,
     _build_sections,
     calculate_severity_score,
+    compute_fix_first,
     render_comment,
+    render_markdown,
 )
 
 
@@ -745,3 +749,142 @@ class TestTask002RendererBehaviors:
 
         assert len(md) <= 65536
         assert "more findings omitted)" in md
+
+
+class TestDependencyReportSection:
+    """task-011: render_markdown() dependency section + compute_fix_first().
+
+    # tested-by: tests/unit/test_renderer.py
+    """
+
+    def test_ac1_render_markdown_dependency_section_groups_findings_sharing_t(self):
+        """AC1: findings sharing the same advisory id are grouped under one
+        heading, each showing '<package> <installed> -> <fixed>', the
+        declaring manifest path, and 'direct'/'transitive'.
+        """
+        findings = [
+            {
+                "id": "GHSA-9999-aaaa-bbbb",
+                "severity": "high",
+                "package": "requests",
+                "version": "2.25.1",
+                "fixed_version": "2.31.0",
+                "manifest": "requirements.txt",
+                "direct": True,
+            },
+            {
+                "id": "GHSA-9999-aaaa-bbbb",
+                "severity": "high",
+                "package": "urllib3",
+                "version": "1.26.5",
+                "fixed_version": "1.26.18",
+                "manifest": "requirements.txt",
+                "direct": False,
+            },
+        ]
+
+        md = render_markdown(findings)
+
+        # Grouped under a single heading for the shared advisory id.
+        assert md.count("GHSA-9999-aaaa-bbbb") == 1
+        # installed -> fixed rendering for each package under that heading.
+        assert "requests 2.25.1 -> 2.31.0" in md
+        assert "urllib3 1.26.5 -> 1.26.18" in md
+        # declaring manifest path is shown.
+        assert "requirements.txt" in md
+        # direct/transitive labels are shown for each finding.
+        assert "direct" in md
+        assert "transitive" in md
+
+    def test_ac2_a_deterministic_compute_fix_first_findings_function_returns(self):
+        """AC2: compute_fix_first returns the minimal set of direct package
+        bumps that clears every critical/high finding, deterministically.
+        """
+        findings = [
+            {
+                "id": "GHSA-a",
+                "severity": "critical",
+                "package": "pkg-direct",
+                "version": "1.0.0",
+                "fixed_version": "2.0.0",
+                "direct": True,
+            },
+            {
+                # Same direct package fixes a second high finding — must not
+                # be duplicated in the minimal set.
+                "id": "GHSA-b",
+                "severity": "high",
+                "package": "pkg-direct",
+                "version": "1.0.0",
+                "fixed_version": "2.0.0",
+                "direct": True,
+            },
+            {
+                "id": "GHSA-c",
+                "severity": "critical",
+                "package": "other-direct",
+                "version": "3.0.0",
+                "fixed_version": "3.5.0",
+                "direct": True,
+            },
+            {
+                # Low severity — must not appear in the fix-first list.
+                "id": "GHSA-d",
+                "severity": "low",
+                "package": "low-severity-pkg",
+                "version": "1.0.0",
+                "fixed_version": "1.0.1",
+                "direct": True,
+            },
+        ]
+
+        result = compute_fix_first(findings)
+
+        assert isinstance(result, list)
+        assert result == sorted(result)
+        assert set(result) == {"pkg-direct", "other-direct"}
+        assert "low-severity-pkg" not in result
+
+    def test_ac3_when_a_critical_high_finding_is_transitive_only_and_its_dire(self):
+        """AC3: a transitive-only critical/high finding whose direct parent
+        can be resolved names the direct parent package in fix-first,
+        not the transitive package itself.
+        """
+        findings = [
+            {
+                "id": "GHSA-e",
+                "severity": "critical",
+                "package": "transitive-pkg",
+                "version": "0.9.0",
+                "fixed_version": "1.5.0",
+                "direct": False,
+                "parent": "resolvable-direct-parent",
+            },
+        ]
+
+        result = compute_fix_first(findings)
+
+        assert result == ["resolvable-direct-parent"]
+        assert "transitive-pkg" not in result
+
+    def test_ac4_when_a_transitive_only_finding_s_direct_parent_cannot_be_res(self):
+        """AC4: a transitive-only finding whose direct parent cannot be
+        resolved falls back to the 'transitive: needs `<tool> dependency
+        tree`' entry in the fix-first list.
+        """
+        findings = [
+            {
+                "id": "GHSA-f",
+                "severity": "high",
+                "package": "orphan-transitive-pkg",
+                "version": "4.0.0",
+                "fixed_version": "4.2.0",
+                "direct": False,
+                # No "parent" key — parent cannot be resolved.
+            },
+        ]
+
+        result = compute_fix_first(findings)
+
+        assert len(result) == 1
+        assert re.match(r"^transitive: needs `.+ dependency tree`$", result[0])

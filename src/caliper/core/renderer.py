@@ -199,6 +199,7 @@ def render_comment(
     plugin_renderers: dict[str, object] | None = None,
     verdict: str | None = None,
     repo_path: str = "",
+    semgrep_min_severity: str = "medium",
 ) -> str:
     # Serialize findings to plain dicts so the dict-shaped renderer internals
     # (_build_sections -> templates, _extract_mi, classify_findings) operate on
@@ -220,6 +221,17 @@ def render_comment(
             )
             for r in results
         ]
+
+    from caliper.core.review_summary import split_below_floor_semgrep_findings
+
+    # Below-floor semgrep findings (e.g. low/info under the default "medium"
+    # floor) never move the verdict/scores/main sections — they still get
+    # rendered, but tucked into a collapsed notes section below.
+    scored_results, below_floor_findings = split_below_floor_semgrep_findings(
+        results, semgrep_min_severity
+    )
+    results = scored_results
+
     tpl_dir = template_dir or _DEFAULT_TEMPLATE_DIR
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(tpl_dir)),
@@ -232,6 +244,10 @@ def render_comment(
         _, summary_rows, sections = _build_monorepo_sections(results, plugin_renderers)
     else:
         _, summary_rows, sections = _build_sections(results, plugin_renderers)
+
+    notes_section = _render_notes_section(below_floor_findings)
+    if notes_section:
+        sections.append(notes_section)
 
     # The badge verdict is the single source of truth (review_summary). Callers pass
     # the canonical, diff-scoped verdict; absent that, fall back to the repo-wide one
@@ -393,6 +409,23 @@ def _render_finding_line(finding: dict) -> list[str]:
     return lines
 
 
+def _render_notes_section(below_floor_findings: list) -> str:
+    """Render below-severity-floor findings (e.g. semgrep low/info) as a
+    collapsed ``<details>`` block — still visible, never in a main section,
+    never counted toward verdict/scores (see ``review_summary.summarize_review``).
+    """
+    if not below_floor_findings:
+        return ""
+
+    ordered = sorted(below_floor_findings, key=_finding_sort_key)
+    lines = ["<details>", "<summary>Notes (below severity floor)</summary>", ""]
+    for finding in ordered:
+        lines.extend(_render_finding_line(finding))
+    lines.append("")
+    lines.append("</details>")
+    return "\n".join(lines)
+
+
 def _default_render(result: PluginResult) -> str:
     if not result.findings:
         return ""
@@ -410,6 +443,75 @@ def _default_render(result: PluginResult) -> str:
         lines.append(f"*({omitted} more findings omitted)*")
 
     return "\n".join(lines)
+
+
+_FIX_FIRST_SEVERITIES: set[str] = {"critical", "high"}
+_DEPENDENCY_TREE_TOOL = "pip"
+
+
+def render_markdown(findings: list[dict]) -> str:
+    """Render a dependency report section, grouped by shared advisory id.
+
+    Findings that share the same advisory ``id`` are rendered under a single
+    heading. Each finding shows ``<package> <installed> -> <fixed>``, the
+    declaring manifest path, and whether it is a ``direct``/``transitive``
+    dependency.
+    """
+    groups: dict[str, list[dict]] = {}
+    for finding in findings:
+        advisory_id = str(finding_get(finding, "id", "") or "")
+        groups.setdefault(advisory_id, []).append(finding)
+
+    lines: list[str] = []
+    for advisory_id, group in groups.items():
+        lines.append(f"### {advisory_id}")
+        for finding in group:
+            package = finding_get(finding, "package", "") or ""
+            installed = finding_get(finding, "version", "") or ""
+            fixed = finding_get(finding, "fixed_version", "") or ""
+            manifest = finding_get(finding, "manifest", "") or ""
+            is_direct = bool(finding_get(finding, "direct", False))
+            direct_label = "direct" if is_direct else "transitive"
+            line = f"- {package} {installed} -> {fixed} ({direct_label})"
+            if manifest:
+                line += f" — {manifest}"
+            lines.append(line)
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def compute_fix_first(findings: list[dict]) -> list[str]:
+    """Return the minimal, deterministic set of direct package bumps.
+
+    Walks every critical/high finding: direct findings contribute their own
+    package name; transitive findings contribute their resolvable direct
+    parent when known, or a ``"transitive: needs `<tool> dependency tree`"``
+    fallback entry when the parent cannot be resolved. Duplicates are
+    collapsed and the result is sorted for determinism.
+    """
+    direct_targets: set[str] = set()
+    unresolved: set[str] = set()
+
+    for finding in findings:
+        severity = str(finding_get(finding, "severity", "")).lower()
+        if severity not in _FIX_FIRST_SEVERITIES:
+            continue
+
+        is_direct = bool(finding_get(finding, "direct", False))
+        if is_direct:
+            package = str(finding_get(finding, "package", "") or "")
+            if package:
+                direct_targets.add(package)
+            continue
+
+        parent = finding_get(finding, "parent", None)
+        if parent:
+            direct_targets.add(str(parent))
+        else:
+            unresolved.add(f"transitive: needs `{_DEPENDENCY_TREE_TOOL} dependency tree`")
+
+    return sorted(direct_targets) + sorted(unresolved)
 
 
 class MarkdownRenderer:

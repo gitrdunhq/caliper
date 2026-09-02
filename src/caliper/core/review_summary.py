@@ -23,12 +23,66 @@ Determinism: same results + same changed_files -> same summary (order-independen
 
 from __future__ import annotations
 
+from dataclasses import replace
 from enum import StrEnum
 
 from pydantic import Field
 
 from caliper._base import Contract
 from caliper.core.plugin import finding_get
+
+# Severity ordering used for the semgrep min-severity floor — higher ranks first.
+# Unknown/blank severities rank below "info" so they never accidentally clear a
+# floor they can't be measured against.
+_SEVERITY_RANK_ORDER: dict[str, int] = {
+    "critical": 5,
+    "high": 4,
+    "medium": 3,
+    "moderate": 3,
+    "warning": 3,
+    "low": 2,
+    "info": 1,
+    "note": 1,
+}
+
+
+def _severity_floor_rank(severity: object) -> int:
+    return _SEVERITY_RANK_ORDER.get(str(severity or "").lower(), 0)
+
+
+def split_below_floor_semgrep_findings(
+    results: list, semgrep_min_severity: str = "medium"
+) -> tuple[list, list]:
+    """Split semgrep findings below *semgrep_min_severity* out of *results*.
+
+    Returns ``(filtered_results, below_floor_findings)``: *filtered_results* is
+    *results* with every ``semgrep`` :class:`PluginResult`'s findings trimmed to
+    only those meeting-or-exceeding the floor (all other plugins pass through
+    unchanged); *below_floor_findings* is the flat list of excluded finding
+    dicts — still returned by the plugin, just never counted toward
+    verdict/score, and rendered separately (collapsed notes section).
+    """
+    floor_rank = _severity_floor_rank(semgrep_min_severity)
+    filtered_results: list = []
+    below_floor: list = []
+    for r in results:
+        plugin_name = str(getattr(r, "plugin_name", "") or "").lower()
+        findings = getattr(r, "findings", [])
+        if plugin_name != "semgrep" or not findings:
+            filtered_results.append(r)
+            continue
+        keep = []
+        for finding in findings:
+            if _severity_floor_rank(finding_get(finding, "severity")) >= floor_rank:
+                keep.append(finding)
+            else:
+                below_floor.append(finding)
+        if len(keep) == len(findings):
+            filtered_results.append(r)
+        else:
+            filtered_results.append(replace(r, findings=keep))
+    return filtered_results, below_floor
+
 
 # Canonical severity -> SARIF-style level map. The one mapping the whole system uses
 # (SARIF imports this); unmapped severities fall back to "note" (least alarming).
@@ -93,13 +147,23 @@ def summarize_review(
     results: list,
     *,
     changed_files: set[str] | None = None,
+    semgrep_min_severity: str = "medium",
 ) -> ReviewSummary:
     """Compute the canonical :class:`ReviewSummary` for *results*.
 
     *changed_files* (repo-relative paths) scopes the blocking decision to the change
     under review; ``None`` disables scoping (full-repo gate). See module docstring.
+
+    *semgrep_min_severity* is the configured severity floor (default "medium",
+    see ``repo_config.RepoConfig.semgrep_min_severity``): a below-floor semgrep
+    finding never moves security_score/quality_score, though it is still
+    counted (as a note) and rendered separately (see
+    ``renderer.render_comment``). Below-floor findings are never error-level
+    (critical/high), so they never affect blocking_count/verdict either way.
     """
     from caliper.core.renderer import calculate_quality_score, calculate_severity_score
+
+    scored_results, _below_floor = split_below_floor_semgrep_findings(results, semgrep_min_severity)
 
     changed = {_norm(f) for f in changed_files} if changed_files is not None else None
 
@@ -145,8 +209,8 @@ def summarize_review(
         crashed_count=crashed,
         skipped_count=skipped,
         blocking_count=blocking,
-        security_score=calculate_severity_score(results),
-        quality_score=calculate_quality_score(results),
+        security_score=calculate_severity_score(scored_results),
+        quality_score=calculate_quality_score(scored_results),
     )
 
 
@@ -206,6 +270,7 @@ def build_review_summary(
     *,
     changed_files: set[str] | None = None,
     policy_verdict: str | None = None,
+    semgrep_min_severity: str = "medium",
 ) -> ReviewSummary:
     """Compute the full :class:`ReviewSummary`, including the maintainability
     grade, human-readable verdict text, and incomplete-plugin accounting.
@@ -217,7 +282,9 @@ def build_review_summary(
     for an actual policy reject), and ``incomplete_plugins`` (plugins that
     timed out, were not installed, or crashed).
     """
-    base = summarize_review(results, changed_files=changed_files)
+    base = summarize_review(
+        results, changed_files=changed_files, semgrep_min_severity=semgrep_min_severity
+    )
 
     incomplete_plugins: list[tuple[str, str]] = []
     for r in results:

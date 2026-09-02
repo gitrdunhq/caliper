@@ -595,3 +595,70 @@ class TestPluginErrorsInSarif:
         )
         out = to_sarif([result])
         assert out["runs"][0]["results"] == []
+
+
+class TestTask_012_AC1:
+    """task-012 AC1: dependency findings (osv-scanner/trivy) get a physicalLocation
+    pinned to the scanned manifest, even when the raw finding carries no
+    ``file``/``line`` fields of its own.
+
+    Today's real osv-scanner findings (``OsvScannerPlugin._extract_findings``) only
+    carry ``id``/``package``/``version``/``ecosystem`` — no ``file`` or ``line`` —
+    so ``_make_locations`` currently returns ``[]`` and the SARIF result has no
+    ``locations`` key at all. The manifest path this task wants surfaced is
+    threaded through as a top-level ``manifest`` field on the finding (it is not
+    one of ``_FINDING_KNOWN_KEYS``, so it lands in ``PluginFinding.metadata`` when
+    normalized, but ``to_sarif`` is fed a plain dict here since scanner plugins
+    hand raw dicts to ``PluginResult.findings``).
+    """
+
+    def test_ac1_to_sarif_for_a_dependency_finding_osv_scanner_or_trivy_origi(self) -> None:
+        result = PluginResult(
+            plugin_name="osv-scanner",
+            findings=[
+                {
+                    "id": "CVE-2024-9999",
+                    "severity": "high",
+                    "message": "Known vulnerability in foo",
+                    "package": "foo",
+                    "version": "1.0.0",
+                    "ecosystem": "PyPI",
+                    "manifest": "requirements.txt",
+                }
+            ],
+        )
+        out = to_sarif([result])
+        results = out["runs"][0]["results"]
+        assert len(results) == 1
+        assert "locations" in results[0], "dependency finding must get a physicalLocation"
+        location = results[0]["locations"][0]["physicalLocation"]
+        assert location["artifactLocation"]["uri"] == "requirements.txt"
+        # No line info on the raw finding -> region.startLine defaults to 1.
+        assert location["region"]["startLine"] == 1
+
+
+class TestTask_012_AC2:
+    """task-012 AC2 (control case): non-dependency (semgrep/detector) findings must
+    keep their current SARIF location behavior — sourced from the finding's own
+    ``file``/``start_line`` fields, unaffected by the new dependency-manifest path.
+    """
+
+    def test_ac2_existing_non_dependency_findings_semgrep_detectors_keep_thei(self) -> None:
+        result = PluginResult(
+            plugin_name="semgrep",
+            findings=[
+                {
+                    "rule_id": "python.lang.security.audit.eval-detected.eval-detected",
+                    "file": "src/utils.py",
+                    "start_line": 10,
+                    "severity": "WARNING",
+                    "message": "Use of eval is dangerous",
+                }
+            ],
+        )
+        out = to_sarif([result])
+        results = out["runs"][0]["results"]
+        assert len(results) == 1
+        location = results[0]["locations"][0]["physicalLocation"]
+        assert location["artifactLocation"]["uri"] == "src/utils.py"
+        assert location["region"]["startLine"] == 10

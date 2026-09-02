@@ -14,10 +14,24 @@ echo "=== Caliper Dogfood Run: ${TIMESTAMP} ==="
 echo ""
 
 # Run review in markdown mode for the human-readable report
-uv run caliper review --repo-path "${REPO_ROOT}" --output "${REPORT_FILE}" 2>&1 || true
+set +e
+uv run caliper review --repo-path "${REPO_ROOT}" --output "${REPORT_FILE}" 2>&1
+MARKDOWN_EXIT=$?
 
 # Run review in SARIF mode for machine-readable severity counting
-uv run caliper review --repo-path "${REPO_ROOT}" --format sarif --output "${SARIF_FILE}" 2>&1 || true
+uv run caliper review --repo-path "${REPO_ROOT}" --format sarif --output "${SARIF_FILE}" 2>&1
+SARIF_EXIT=$?
+set -e
+
+# A non-zero exit from either invocation means caliper review itself reported
+# a blocked/incomplete verdict (e.g. a scanner failure) that isn't necessarily
+# reflected as an error-level SARIF finding -- propagate it instead of only
+# recomputing pass/fail from SARIF error counts.
+REVIEW_EXIT=0
+if [ "${MARKDOWN_EXIT}" -ne 0 ] || [ "${SARIF_EXIT}" -ne 0 ]; then
+    REVIEW_EXIT=1
+    echo "caliper review reported a non-zero exit code (markdown=${MARKDOWN_EXIT}, sarif=${SARIF_EXIT})"
+fi
 
 # Count error-level findings (critical + high) from SARIF
 if [ -f "${SARIF_FILE}" ]; then
@@ -38,6 +52,12 @@ print(count)
         echo "BLOCKED: ${CRITICAL} error-level findings. Fix before shipping."
         exit 1
     fi
+fi
+
+if [ "${REVIEW_EXIT}" -ne 0 ]; then
+    echo ""
+    echo "BLOCKED: caliper review exited non-zero (blocked/incomplete verdict). Fix before shipping."
+    exit 1
 fi
 
 echo ""
