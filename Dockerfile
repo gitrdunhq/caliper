@@ -26,7 +26,7 @@ ARG SWIFTLINT_VERSION=0.57.1
 ARG SEMGREP_RULES_COMMIT=40b8c63f75dc7c22c8a77482d73bfb864b146f7e
 # gitrdunhq/caliper-community-rules: shared Kirby-annotated org rules. Pinned by
 # commit like semgrep-rules; bump with scripts/snapshot-community-rules.sh --bump.
-ARG COMMUNITY_RULES_COMMIT=22a9ade89a737a36270696f882698e947bee2c2a
+ARG COMMUNITY_RULES_COMMIT=44bbf24ed311b2f95e03c703849237695d10b9eb
 
 # ── Source revision pins ─────────────────────────────────────────────────────
 # GitHub release assets are still addressed by release version because that is
