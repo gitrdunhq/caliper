@@ -926,3 +926,26 @@ class TestLockfilePatternMemoized:
             for _ in range(5):
                 assert _appears_in_lockfile("requests", 'name = "requests"')
             assert compile_.call_count == 1
+
+
+class TestLockfileMatchNormalized:
+    """CORR-003: the transitive lookup normalizes both the package name and the
+    lockfile tokens the same way the direct lookup does (case, ``_`` vs ``-``)."""
+
+    def test_underscore_package_matches_hyphen_lockfile(self, tmp_path: Path) -> None:
+        manifest = tmp_path / "pyproject.toml"
+        _write(manifest, '[project]\ndependencies = ["requests"]\n')
+        _write(tmp_path / "uv.lock", '[[package]]\nname = "foo-bar"\n')
+        assert classify_dependency_kind(tmp_path, "Foo_Bar", manifest) == "transitive"
+
+    def test_hyphen_package_matches_underscore_lockfile(self, tmp_path: Path) -> None:
+        manifest = tmp_path / "pyproject.toml"
+        _write(manifest, '[project]\ndependencies = ["requests"]\n')
+        _write(tmp_path / "uv.lock", '[[package]]\nname = "Foo_Bar"\n')
+        assert classify_dependency_kind(tmp_path, "foo-bar", manifest) == "transitive"
+
+    def test_partial_token_still_does_not_match(self, tmp_path: Path) -> None:
+        manifest = tmp_path / "pyproject.toml"
+        _write(manifest, '[project]\ndependencies = ["requests"]\n')
+        _write(tmp_path / "uv.lock", '[[package]]\nname = "foo-bar-baz"\n')
+        assert classify_dependency_kind(tmp_path, "foo_bar", manifest) == "unknown"
