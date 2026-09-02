@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from caliper.core.config import CaliperSettings
 from caliper.core.errors import ErrorCode, error_msg
 from caliper.core.ignore import load_ignore_patterns
 from caliper.core.plugin import PluginCategory, PluginResult, ScannerPlugin
@@ -26,11 +27,14 @@ _SEV_MAP = {
     "UNKNOWN": "info",
 }
 
-_TIMEOUT = 60
-
 
 class TrivyPlugin(ScannerPlugin):
-    def __init__(self, tool_runner: ToolRunnerPort | None = None) -> None:
+    def __init__(
+        self,
+        tool_runner: ToolRunnerPort | None = None,
+        settings: CaliperSettings | None = None,
+    ) -> None:
+        self._timeout = (settings or CaliperSettings()).scanner_timeout
         self._runner: ToolRunnerPort = (
             tool_runner if tool_runner is not None else SubprocessToolRunner()
         )
@@ -66,7 +70,7 @@ class TrivyPlugin(ScannerPlugin):
                 cmd.extend(["--skip-dirs", stripped])
         cmd.append(str(repo_path))
         tool_result = self._runner.run(
-            ToolInvocation(cmd=cmd, cwd=str(repo_path), timeout=_TIMEOUT)
+            ToolInvocation(cmd=cmd, cwd=str(repo_path), timeout=self._timeout)
         )
 
         if tool_result.not_installed:
@@ -76,7 +80,7 @@ class TrivyPlugin(ScannerPlugin):
         if tool_result.timed_out:
             return PluginResult(
                 plugin_name=self.name,
-                error=error_msg(ErrorCode.TIMEOUT, "trivy", timeout=_TIMEOUT),
+                error=error_msg(ErrorCode.TIMEOUT, "trivy", timeout=self._timeout),
             )
         if tool_result.exit_code != 0 and not tool_result.stdout:
             return PluginResult(

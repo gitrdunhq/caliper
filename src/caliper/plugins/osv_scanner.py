@@ -11,6 +11,7 @@ from pathlib import Path
 
 import structlog
 
+from caliper.core.config import CaliperSettings
 from caliper.core.errors import ErrorCode, error_msg
 from caliper.core.plugin import (
     PluginCategory,
@@ -66,6 +67,9 @@ def _advisory_url(vuln_id: str) -> str:
 
 
 class OsvScannerPlugin(ScannerPlugin):
+    def __init__(self, settings: CaliperSettings | None = None) -> None:
+        self._timeout = (settings or CaliperSettings()).scanner_timeout
+
     @property
     def name(self) -> str:
         return "osv-scanner"
@@ -85,8 +89,9 @@ class OsvScannerPlugin(ScannerPlugin):
         self,
         files: list[str],
         repo_path: Path,
-        timeout: int = 60,
+        timeout: int | None = None,
     ) -> PluginResult:
+        timeout = self._timeout if timeout is None else timeout
         try:
             r = subprocess.run(
                 ["osv-scanner", "--format", "json", "-r", str(repo_path)],
@@ -103,7 +108,7 @@ class OsvScannerPlugin(ScannerPlugin):
         except subprocess.TimeoutExpired:
             return PluginResult(
                 plugin_name=self.name,
-                error=error_msg(ErrorCode.TIMEOUT, "osv-scanner", timeout=0),
+                error=error_msg(ErrorCode.TIMEOUT, "osv-scanner", timeout=timeout),
             )
 
         try:
