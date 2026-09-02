@@ -478,6 +478,18 @@ def render_markdown(findings: list[dict]) -> str:
             lines.append(line)
         lines.append("")
 
+    scanner_db_dates: dict[str, str] = {}
+    for finding in findings:
+        db_updated_at = finding_get(finding, "db_updated_at", None)
+        if not db_updated_at:
+            continue
+        plugin_name = str(finding_get(finding, "plugin", "") or "")
+        scanner_db_dates.setdefault(plugin_name, str(db_updated_at))
+
+    for plugin_name, db_updated_at in scanner_db_dates.items():
+        prefix = f"_{plugin_name}" if plugin_name else "_scanner"
+        lines.append(f"{prefix} vulnerability data as of {db_updated_at}_")
+
     return "\n".join(lines)
 
 

@@ -168,6 +168,7 @@ class OsvScannerPlugin(ScannerPlugin):
                             "package": pkg_info.get("name", "?"),
                             "version": pkg_info.get("version", "?"),
                             "ecosystem": pkg_info.get("ecosystem", "?"),
+                            "db_updated_at": vuln.get("modified") or None,
                         }
                     )
         return findings[:_MAX_FINDINGS]

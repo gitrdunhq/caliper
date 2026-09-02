@@ -286,3 +286,205 @@ class TestTrivyMisconfig:
         result = plugin.run([], Path("/repo"))
         assert result.summary["vulnerabilities"] == 2
         assert result.summary["misconfigurations"] == 0
+
+
+# ---------------------------------------------------------------------------
+# task-015: trivy/osv-scanner findings carry db_version/db_updated_at metadata
+# ---------------------------------------------------------------------------
+
+_TRIVY_DB_VERSION_OUTPUT = json.dumps(
+    {
+        "Version": "0.48.0",
+        "VulnerabilityDB": {
+            "Version": 2,
+            "UpdatedAt": "2026-01-01T06:08:37Z",
+            "NextUpdate": "2026-01-01T12:08:37Z",
+        },
+    }
+)
+
+
+class TestTrivyDbUpdatedAtMetadata:
+    """AC1: every trivy Finding has metadata['db_updated_at'] set from trivy's
+
+    DB metadata output (ISO8601 string) when available, else None.
+    """
+
+    @staticmethod
+    def _plugin_with_db_metadata(scan_output: str, version_output: str | None):
+        runner = MagicMock()
+
+        def side_effect(invocation):
+            if "version" in invocation.cmd:
+                if version_output is None:
+                    return ToolResult(exit_code=1, stdout="", stderr="db metadata unavailable")
+                return ToolResult(exit_code=0, stdout=version_output, stderr="")
+            return ToolResult(exit_code=0, stdout=scan_output, stderr="")
+
+        runner.run.side_effect = side_effect
+        return TrivyPlugin(tool_runner=runner), runner
+
+    def test_every_finding_has_db_updated_at_from_trivy_db_metadata(self) -> None:
+        from caliper.core.plugin import normalize_finding
+
+        plugin, _ = self._plugin_with_db_metadata(_TRIVY_OUTPUT, _TRIVY_DB_VERSION_OUTPUT)
+        result = plugin.run([], Path("/project"))
+
+        assert len(result.findings) == 2
+        for raw in result.findings:
+            finding = normalize_finding(raw)
+            assert finding.metadata.get("db_updated_at") == "2026-01-01T06:08:37Z"
+
+    def test_db_updated_at_is_none_when_db_metadata_unavailable(self) -> None:
+        from caliper.core.plugin import normalize_finding
+
+        plugin, _ = self._plugin_with_db_metadata(_TRIVY_OUTPUT, None)
+        result = plugin.run([], Path("/project"))
+
+        assert len(result.findings) == 2
+        for raw in result.findings:
+            finding = normalize_finding(raw)
+            assert "db_updated_at" in finding.metadata
+            assert finding.metadata["db_updated_at"] is None
+
+
+class TestOsvScannerDbUpdatedAtMetadata:
+    """AC2: every osv-scanner Finding has metadata['db_updated_at'] set from
+
+    the OSV DB/output timestamp when available, else None.
+    """
+
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
+    def test_finding_has_db_updated_at_from_vuln_modified_field(self, mock_run: MagicMock) -> None:
+        from caliper.core.plugin import normalize_finding
+        from caliper.plugins.osv_scanner import OsvScannerPlugin
+
+        output = json.dumps(
+            {
+                "results": [
+                    {
+                        "packages": [
+                            {
+                                "package": {
+                                    "name": "flask",
+                                    "version": "2.0.0",
+                                    "ecosystem": "PyPI",
+                                },
+                                "vulnerabilities": [
+                                    {
+                                        "id": "GHSA-abcd-1234",
+                                        "summary": "RCE in flask",
+                                        "modified": "2026-02-01T00:00:00Z",
+                                        "database_specific": {"severity": "HIGH"},
+                                    }
+                                ],
+                            }
+                        ]
+                    }
+                ]
+            }
+        )
+        mock_run.return_value = MagicMock(stdout=output, stderr="", returncode=0)
+        plugin = OsvScannerPlugin()
+
+        result = plugin.run(["requirements.txt"], Path("/project"))
+
+        assert len(result.findings) == 1
+        finding = normalize_finding(result.findings[0])
+        assert finding.metadata.get("db_updated_at") == "2026-02-01T00:00:00Z"
+
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
+    def test_finding_db_updated_at_none_when_modified_field_absent(
+        self, mock_run: MagicMock
+    ) -> None:
+        from caliper.core.plugin import normalize_finding
+        from caliper.plugins.osv_scanner import OsvScannerPlugin
+
+        output = json.dumps(
+            {
+                "results": [
+                    {
+                        "packages": [
+                            {
+                                "package": {
+                                    "name": "flask",
+                                    "version": "2.0.0",
+                                    "ecosystem": "PyPI",
+                                },
+                                "vulnerabilities": [
+                                    {
+                                        "id": "GHSA-abcd-1234",
+                                        "summary": "RCE in flask",
+                                        "database_specific": {"severity": "HIGH"},
+                                    }
+                                ],
+                            }
+                        ]
+                    }
+                ]
+            }
+        )
+        mock_run.return_value = MagicMock(stdout=output, stderr="", returncode=0)
+        plugin = OsvScannerPlugin()
+
+        result = plugin.run(["requirements.txt"], Path("/project"))
+
+        assert len(result.findings) == 1
+        finding = normalize_finding(result.findings[0])
+        assert "db_updated_at" in finding.metadata
+        assert finding.metadata["db_updated_at"] is None
+
+
+class TestRenderMarkdownVulnerabilityDataAsOf:
+    """AC3: render_markdown() prints one 'vulnerability data as of <timestamp>'
+
+    line per scanner that reported a db_updated_at.
+    """
+
+    def test_prints_one_line_per_scanner_with_db_updated_at(self) -> None:
+        from caliper.core.renderer import render_markdown
+
+        findings = [
+            {
+                "id": "CVE-2023-32681",
+                "plugin": "trivy",
+                "db_updated_at": "2026-01-01T06:08:37Z",
+                "package": "requests",
+                "severity": "high",
+            },
+            {
+                "id": "CVE-2024-00001",
+                "plugin": "trivy",
+                "db_updated_at": "2026-01-01T06:08:37Z",
+                "package": "urllib3",
+                "severity": "medium",
+            },
+            {
+                "id": "GHSA-abcd-1234",
+                "plugin": "osv-scanner",
+                "db_updated_at": "2025-12-31T00:00:00Z",
+                "package": "flask",
+                "severity": "high",
+            },
+        ]
+
+        output = render_markdown(findings)
+
+        assert output.count("vulnerability data as of 2026-01-01T06:08:37Z") == 1
+        assert "vulnerability data as of 2025-12-31T00:00:00Z" in output
+
+    def test_no_line_emitted_when_scanner_has_no_db_updated_at(self) -> None:
+        from caliper.core.renderer import render_markdown
+
+        findings = [
+            {
+                "id": "CVE-2023-32681",
+                "plugin": "trivy",
+                "package": "requests",
+                "severity": "high",
+            }
+        ]
+
+        output = render_markdown(findings)
+
+        assert "vulnerability data as of" not in output

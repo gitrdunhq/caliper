@@ -55,6 +55,8 @@ class TrivyPlugin(ScannerPlugin):
         return True
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
+        db_updated_at = self._fetch_db_updated_at(repo_path)
+
         cmd = [
             "trivy",
             "fs",
@@ -135,6 +137,9 @@ class TrivyPlugin(ScannerPlugin):
                     }
                 )
 
+        for finding in findings:
+            finding["db_updated_at"] = db_updated_at
+
         crit = sum(1 for f in findings if f["severity"] in ("critical", "high"))
         return PluginResult(
             plugin_name=self.name,
@@ -146,6 +151,32 @@ class TrivyPlugin(ScannerPlugin):
                 "critical_high": crit,
             },
         )
+
+    def _fetch_db_updated_at(self, repo_path: Path) -> str | None:
+        """Best-effort fetch of trivy's vulnerability DB UpdatedAt timestamp.
+
+        Fail-open: returns ``None`` on any error (non-zero exit, missing
+        binary, unparseable output) rather than raising.
+        """
+        cmd = ["trivy", "version", "--format", "json"]
+        try:
+            tool_result = self._runner.run(
+                ToolInvocation(cmd=cmd, cwd=str(repo_path), timeout=self._timeout)
+            )
+        except Exception:  # noqa: BLE001 - fail-open, never blocks scanning
+            return None
+
+        if tool_result.exit_code != 0 or not tool_result.stdout:
+            return None
+
+        try:
+            data = json.loads(tool_result.stdout)
+        except json.JSONDecodeError:
+            return None
+
+        vuln_db = data.get("VulnerabilityDB") or {}
+        updated_at = vuln_db.get("UpdatedAt")
+        return str(updated_at) if updated_at else None
 
     def render(self, result: PluginResult, template_dir: Path | None = None) -> str:
         if result.error:
