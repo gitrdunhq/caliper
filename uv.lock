@@ -61,8 +61,8 @@ wheels = [
 ]
 
 [[package]]
-name = "caliper"
-version = "0.2.30"
+name = "caliper-review"
+version = "0.2.32"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -115,7 +115,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "caliper", extras = ["db", "parquet", "webhook", "watch"], marker = "extra == 'all'" },
+    { name = "caliper-review", extras = ["db", "parquet", "webhook", "watch"], marker = "extra == 'all'" },
     { name = "click", specifier = "==8.4.2" },
     { name = "httpx", specifier = "==0.28.1" },
     { name = "jinja2", specifier = "==3.1.6" },

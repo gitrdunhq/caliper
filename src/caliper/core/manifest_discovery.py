@@ -12,8 +12,13 @@ Usage::
 
 from __future__ import annotations
 
+import json
+import re
+import tomllib
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
+from xml.etree import ElementTree
 
 import structlog
 from pydantic import BaseModel, ConfigDict
@@ -23,6 +28,8 @@ from caliper.core.ignore import load_ignore_patterns, should_ignore
 
 if TYPE_CHECKING:
     from caliper.core.ports import FileSourcePort
+
+DependencyKind = Literal["direct", "transitive", "unknown"]
 
 logger = structlog.get_logger(__name__)
 
@@ -200,3 +207,195 @@ def discover_packages(
 
     units.sort(key=lambda u: str(u.root))
     return units
+
+
+# ---------------------------------------------------------------------------
+# Dependency kind classification (direct / transitive / unknown)
+# ---------------------------------------------------------------------------
+
+
+def _normalize_dep_name(name: str) -> str:
+    """Normalize a package name for cross-ecosystem, case-insensitive matching."""
+    return name.strip().lower().replace("_", "-")
+
+
+def _pep508_name(spec: str) -> str:
+    """Extract the bare package name from a PEP 508 requirement spec."""
+    match = re.match(r"[A-Za-z0-9_.\-]+", spec.strip())
+    return match.group(0) if match else spec.strip()
+
+
+def _direct_deps_pyproject_toml(text: str) -> set[str]:
+    try:
+        data = tomllib.loads(text)
+    except (tomllib.TOMLDecodeError, ValueError):
+        return set()
+
+    deps: set[str] = set()
+    project = data.get("project", {})
+    if isinstance(project, dict):
+        for spec in project.get("dependencies", []) or []:
+            if isinstance(spec, str):
+                deps.add(_pep508_name(spec))
+
+    poetry = data.get("tool", {}).get("poetry", {}) if isinstance(data.get("tool"), dict) else {}
+    if isinstance(poetry, dict):
+        for name in poetry.get("dependencies", {}) or {}:
+            if isinstance(name, str) and name.lower() != "python":
+                deps.add(name)
+    return deps
+
+
+def _direct_deps_requirements_txt(text: str) -> set[str]:
+    deps: set[str] = set()
+    for line in text.splitlines():
+        stripped = line.split("#", 1)[0].strip()
+        if not stripped or stripped.startswith("-"):
+            continue
+        deps.add(_pep508_name(stripped))
+    return deps
+
+
+def _direct_deps_package_json(text: str) -> set[str]:
+    try:
+        data = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return set()
+    if not isinstance(data, dict):
+        return set()
+
+    deps: set[str] = set()
+    for key in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
+        section = data.get(key)
+        if isinstance(section, dict):
+            deps.update(name for name in section if isinstance(name, str))
+    return deps
+
+
+def _direct_deps_pom_xml(text: str) -> set[str]:
+    deps: set[str] = set()
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError:
+        return deps
+
+    for element in root.iter():
+        tag = element.tag.rsplit("}", 1)[-1]
+        if tag != "dependency":
+            continue
+        for child in element:
+            child_tag = child.tag.rsplit("}", 1)[-1]
+            if child_tag == "artifactId" and child.text:
+                deps.add(child.text.strip())
+    return deps
+
+
+def _direct_deps_go_mod(text: str) -> set[str]:
+    deps: set[str] = set()
+    in_block = False
+    for line in text.splitlines():
+        stripped = line.split("//", 1)[0].strip()
+        if not stripped:
+            continue
+        if stripped.startswith("require (") or stripped == "require (":
+            in_block = True
+            continue
+        if in_block:
+            if stripped == ")":
+                in_block = False
+                continue
+            parts = stripped.split()
+            if parts:
+                deps.add(parts[0])
+            continue
+        if stripped.startswith("require "):
+            parts = stripped[len("require ") :].split()
+            if parts:
+                deps.add(parts[0])
+    return deps
+
+
+def _direct_deps_cargo_toml(text: str) -> set[str]:
+    try:
+        data = tomllib.loads(text)
+    except (tomllib.TOMLDecodeError, ValueError):
+        return set()
+
+    deps: set[str] = set()
+    for section in ("dependencies", "dev-dependencies", "build-dependencies"):
+        table = data.get(section)
+        if isinstance(table, dict):
+            deps.update(name for name in table if isinstance(name, str))
+    return deps
+
+
+_DIRECT_DEP_PARSERS: dict[str, Callable[[str], set[str]]] = {
+    "pyproject.toml": _direct_deps_pyproject_toml,
+    "package.json": _direct_deps_package_json,
+    "pom.xml": _direct_deps_pom_xml,
+    "go.mod": _direct_deps_go_mod,
+    "Cargo.toml": _direct_deps_cargo_toml,
+}
+
+
+def _resolve_direct_parser(filename: str) -> Callable[[str], set[str]] | None:
+    parser = _DIRECT_DEP_PARSERS.get(filename)
+    if parser is not None:
+        return parser
+    if filename.startswith("requirements") and filename.endswith(".txt"):
+        return _direct_deps_requirements_txt
+    return None
+
+
+def _appears_in_lockfile(package_name: str, text: str) -> bool:
+    """Return True if *package_name* appears as a standalone token in *text*."""
+    pattern = re.compile(r"(?<![\w.\-])" + re.escape(package_name) + r"(?![\w.\-])")
+    return bool(pattern.search(text))
+
+
+def classify_dependency_kind(
+    repo_path: Path,  # noqa: ARG001 - kept for a stable, discoverable call signature
+    package_name: str,
+    manifest_path: Path,
+) -> DependencyKind:
+    """Classify *package_name* as ``"direct"``, ``"transitive"``, or ``"unknown"``.
+
+    ``"direct"``: the package is declared as a top-level dependency in
+    *manifest_path*.
+
+    ``"transitive"``: the package is not declared directly in *manifest_path*
+    but appears in a lockfile paired with it (e.g. ``uv.lock`` next to
+    ``pyproject.toml``).
+
+    ``"unknown"``: no manifest or lockfile evidence exists for the package.
+
+    Supports pyproject.toml, requirements*.txt, package.json, pom.xml,
+    go.mod, and Cargo.toml manifests. Malformed manifests/lockfiles are
+    treated as empty (fail-open) rather than raising.
+    """
+    try:
+        manifest_text = manifest_path.read_text()
+    except OSError:
+        manifest_text = ""
+
+    filename = manifest_path.name
+    parser = _resolve_direct_parser(filename)
+    direct_deps = parser(manifest_text) if parser else set()
+
+    normalized_target = _normalize_dep_name(package_name)
+    normalized_direct = {_normalize_dep_name(name) for name in direct_deps}
+    if normalized_target in normalized_direct:
+        return "direct"
+
+    for lockfile_name in _MANIFEST_TO_LOCKFILES.get(filename, []):
+        lockfile_path = manifest_path.parent / lockfile_name
+        if not lockfile_path.is_file():
+            continue
+        try:
+            lockfile_text = lockfile_path.read_text()
+        except OSError:
+            continue
+        if _appears_in_lockfile(package_name, lockfile_text):
+            return "transitive"
+
+    return "unknown"

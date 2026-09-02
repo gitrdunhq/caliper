@@ -8,8 +8,10 @@ Boundedness (counts equal the findings present).
 
 from __future__ import annotations
 
+import pytest
+
 from caliper.core.plugin import PluginResult
-from caliper.core.review_summary import ReviewVerdict, summarize_review
+from caliper.core.review_summary import ReviewVerdict, build_review_summary, summarize_review
 
 
 def _res(name, category, findings, *, error=None, status=None):
@@ -86,3 +88,78 @@ class TestProperties:
         assert (
             summarize_review(results, changed_files={"./src/x.py"}).verdict == ReviewVerdict.blocked
         )
+
+
+# --- task-001: score/grade consistency + verdict wording -------------------------
+
+
+def _complexity_result(*, critical_count: int, maintainability_index: str) -> PluginResult:
+    """A 'quality' category complexity result with heavy critical findings.
+
+    Weighted critical findings drive quality_score toward 0, while each finding
+    still carries a high maintainability_index — the two signals used to disagree
+    because they were computed independently.
+    """
+    findings = [
+        {
+            "id": f"cx{i}",
+            "severity": "critical",
+            "message": "function too complex",
+            "file": "src/app.py",
+            "maintainability_index": maintainability_index,
+        }
+        for i in range(critical_count)
+    ]
+    return PluginResult(
+        plugin_name="complexity",
+        category="quality",
+        findings=findings,
+        summary={"avg_cyclomatic_complexity": 5, "high_complexity_count": critical_count},
+    )
+
+
+def test_ac1_quality_score_zero_never_pairs_with_grade_a():
+    # 20 critical quality findings (weight 10 each) drives quality_score to 0,
+    # while a high maintainability_index ("A (25.0)") would previously still
+    # yield maintainability_grade == "A" if computed independently.
+    result = _complexity_result(critical_count=20, maintainability_index="A (25.0)")
+    summary = build_review_summary([result])
+    assert summary.quality_score == 0
+    assert not (summary.quality_score == 0 and summary.maintainability_grade == "A")
+    assert summary.maintainability_grade != "A"
+
+
+def test_ac2_blocked_word_absent_when_policy_verdict_not_reject():
+    result = _res("trivy", "dependency", [_f("high", "requirements.txt")])
+    summary = build_review_summary([result], policy_verdict="approve")
+    assert "blocked" not in summary.verdict_text.lower()
+
+
+def test_ac2_blocked_word_present_when_policy_verdict_is_reject():
+    result = _res("trivy", "dependency", [_f("high", "requirements.txt")])
+    summary = build_review_summary([result], policy_verdict="reject")
+    assert "blocked" in summary.verdict_text.lower()
+
+
+def test_ac3_incomplete_plugins_listed_with_reasons():
+    ok = _res("trivy", "dependency", [])
+    timed_out = _res("osv-scanner", "dependency", [], status="timeout")
+    not_installed = _res("scancode", "dependency", [], status="not_installed")
+    crashed = _res("semgrep", "code", [], error="boom")
+
+    summary = build_review_summary([ok, timed_out, not_installed, crashed])
+
+    assert "incomplete" in summary.verdict_text.lower()
+    assert ("osv-scanner", "timeout") in summary.incomplete_plugins
+    assert ("scancode", "not_installed") in summary.incomplete_plugins
+    assert ("semgrep", "crashed") in summary.incomplete_plugins
+    assert len(summary.incomplete_plugins) == 3
+
+
+def test_ac4_no_valueerror_for_fully_successful_scan():
+    result = _res("trivy", "dependency", [])
+    try:
+        summary = build_review_summary([result])
+    except ValueError as exc:  # pragma: no cover - documents the failure mode
+        pytest.fail(f"ValueError raised for a fully-successful scan: {exc}")
+    assert summary.incomplete_plugins == []

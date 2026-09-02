@@ -102,3 +102,31 @@ class TestReviewFlag:
         assert CaliperSettings().include_tests is True
         apply_include_tests(False)
         assert CaliperSettings().include_tests is False
+
+
+class TestExtendedTestDirComponentPatterns:
+    """task-004: TEST_PATTERNS should match *-tests/*_tests/*-test/*_test directory
+    components (compatibility-tests/, unit_tests/, e2e-test/), while continuing to
+    leave spec/ and fixtures/ alone and not falsely matching look-alike words that
+    merely contain "test" as a substring (attest, latest, contest).
+    """
+
+    def test_ac1_dash_tests_directory_component_is_ignored(self) -> None:
+        assert should_ignore("compatibility-tests/foo.py", TEST_PATTERNS) is True
+
+    def test_ac2_underscore_tests_directory_component_is_ignored(self) -> None:
+        assert should_ignore("pkg/unit_tests/bar.py", TEST_PATTERNS) is True
+
+    def test_ac3_dash_test_directory_component_is_ignored(self) -> None:
+        assert should_ignore("pkg/e2e-test/baz.py", TEST_PATTERNS) is True
+
+    def test_ac4_spec_directory_is_still_not_ignored(self) -> None:
+        assert should_ignore("spec/foo.py", TEST_PATTERNS) is False
+
+    def test_ac5_fixtures_directory_is_still_not_ignored(self) -> None:
+        assert should_ignore("fixtures/foo.py", TEST_PATTERNS) is False
+
+    def test_ac6_lookalike_substrings_are_not_falsely_matched(self) -> None:
+        assert should_ignore("attest/foo.py", TEST_PATTERNS) is False
+        assert should_ignore("src/latest.ts", TEST_PATTERNS) is False
+        assert should_ignore("src/contest.py", TEST_PATTERNS) is False
