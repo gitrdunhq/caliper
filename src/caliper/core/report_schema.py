@@ -62,6 +62,19 @@ class FindingModel(BaseModel):
     version: str = ""
     fixed_version: str = ""
     rule_id: str = ""
+    # Vulnerability-database provenance (#task-017). Scanners that report the
+    # age/version of the DB they matched against surface it under a finding's
+    # ``metadata``; declaring the keys here (additive, optional, defaulting to
+    # "") gives consumers typed access instead of opaque dict lookups. A report
+    # that carries neither key still validates unchanged.
+    db_version: str = Field(
+        default="",
+        description="Version/date stamp of the vulnerability database used for this finding.",
+    )
+    db_updated_at: str = Field(
+        default="",
+        description="ISO 8601 timestamp of the last vulnerability-database update.",
+    )
 
 
 class PluginReportModel(BaseModel):
@@ -112,5 +125,16 @@ class ReportModel(BaseModel):
 
 
 def report_json_schema() -> dict[str, Any]:
-    """Return the JSON Schema for the published report document."""
-    return ReportModel.model_json_schema()
+    """Return the JSON Schema for the published report document.
+
+    ``PluginReportModel.findings`` is typed ``list[dict[str, Any]]`` on
+    purpose — finding shapes are heterogeneous and the runtime dump must stay
+    lossless — so ``FindingModel`` would otherwise never reach the published
+    artifact. Merging it into ``$defs`` publishes the documented finding shape
+    (including the optional ``db_version``/``db_updated_at`` provenance keys)
+    without constraining or altering the emitted document.
+    """
+    schema = ReportModel.model_json_schema()
+    defs = schema.setdefault("$defs", {})
+    defs["FindingModel"] = FindingModel.model_json_schema()
+    return schema

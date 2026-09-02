@@ -152,3 +152,116 @@ class TestPublishedSchemaArtifact:
         artifact = _REPO_ROOT / "docs" / "schema" / "report-v1.0.json"
         assert artifact.is_file(), f"missing published schema artifact: {artifact}"
         assert json.loads(artifact.read_text()) == report_json_schema()
+
+
+class TestFindingMetadataDbFields:
+    """task-017: JSON report schema gains optional db_version/db_updated_at (#task-017)."""
+
+    def test_finding_model_declares_optional_db_updated_at_and_db_version(self) -> None:
+        """AC1: FindingModel's schema declares db_updated_at/db_version as optional.
+
+        Neither key belongs in the model's ``required`` list, and both must
+        default to the empty string when omitted — matching every other
+        optional scalar field already on FindingModel (e.g. ``rule_id``).
+        """
+        from caliper.core.report_schema import FindingModel
+
+        schema = FindingModel.model_json_schema()
+        required = schema.get("required", [])
+        assert (
+            "db_updated_at" in schema["properties"]
+        ), "FindingModel schema is missing the optional 'db_updated_at' property"
+        assert (
+            "db_version" in schema["properties"]
+        ), "FindingModel schema is missing the optional 'db_version' property"
+        assert "db_updated_at" not in required
+        assert "db_version" not in required
+
+        finding = FindingModel.model_validate({"id": "CVE-1", "severity": "low"})
+        assert finding.db_updated_at == ""
+        assert finding.db_version == ""
+
+    def test_checked_in_schema_publishes_db_updated_at_and_db_version(self) -> None:
+        """AC1: the checked-in JSON schema artifact also carries the new fields.
+
+        docs/schema/report-v1.0.json is the published, consumer-facing
+        artifact — somewhere in it (however the finding/metadata schema is
+        nested) both new property names must be declared as schema
+        properties, not just present on the in-process Pydantic model.
+        """
+
+        def _find_property_names(node: object) -> set[str]:
+            found: set[str] = set()
+            if isinstance(node, dict):
+                props = node.get("properties")
+                if isinstance(props, dict):
+                    found.update(props.keys())
+                for value in node.values():
+                    found |= _find_property_names(value)
+            elif isinstance(node, list):
+                for item in node:
+                    found |= _find_property_names(item)
+            return found
+
+        artifact = _REPO_ROOT / "docs" / "schema" / "report-v1.0.json"
+        published = json.loads(artifact.read_text())
+        all_property_names = _find_property_names(published)
+        assert (
+            "db_updated_at" in all_property_names
+        ), "docs/schema/report-v1.0.json declares no 'db_updated_at' property anywhere"
+        assert (
+            "db_version" in all_property_names
+        ), "docs/schema/report-v1.0.json declares no 'db_version' property anywhere"
+
+    def test_render_json_serializes_db_version_and_db_updated_at_when_present(self) -> None:
+        """AC2: render_json emits metadata.db_version/db_updated_at when set on a finding."""
+        from caliper.core.json_report import render_json
+
+        finding = PluginFinding(
+            id="CVE-2025-42",
+            severity="high",
+            message="stale db entry",
+            metadata={"db_version": "2026-08-15", "db_updated_at": "2026-08-15T00:00:00Z"},
+        )
+        output = json.loads(render_json([_make_result("trivy", findings=[finding])]))
+        emitted_metadata = output["plugins"][0]["findings"][0]["metadata"]
+        assert emitted_metadata["db_version"] == "2026-08-15"
+        assert emitted_metadata["db_updated_at"] == "2026-08-15T00:00:00Z"
+
+        # The typed FindingModel used for downstream access must declare
+        # these as real (non-extra) fields — not merely tolerate them via
+        # extra="allow" — so downstream consumers get typed, documented
+        # access rather than opaque dict keys nobody validates.
+        from caliper.core.report_schema import FindingModel
+
+        assert (
+            "db_version" in FindingModel.model_fields
+        ), "FindingModel must declare 'db_version' as a real field, not rely on extra=allow"
+        assert (
+            "db_updated_at" in FindingModel.model_fields
+        ), "FindingModel must declare 'db_updated_at' as a real field, not rely on extra=allow"
+        raw_finding = dict(output["plugins"][0]["findings"][0])
+        raw_finding.update(emitted_metadata)
+        parsed = FindingModel.model_validate(raw_finding)
+        assert parsed.db_version == "2026-08-15"
+        assert parsed.db_updated_at == "2026-08-15T00:00:00Z"
+
+    def test_report_without_db_updated_at_metadata_still_validates(self) -> None:
+        """AC3: a report with no db_updated_at/db_version metadata still validates."""
+        from caliper.core.json_report import render_json
+        from caliper.core.report_schema import FindingModel, ReportModel
+
+        finding = PluginFinding(id="CVE-2025-43", severity="medium", message="no db metadata")
+        output = json.loads(render_json([_make_result("trivy", findings=[finding])]))
+
+        # The top-level report still validates end to end.
+        report = ReportModel.model_validate(output)
+        assert report.total_findings == 1
+
+        # And the bare finding dict (no db_updated_at/db_version keys at all)
+        # still validates against FindingModel without raising.
+        raw_finding = output["plugins"][0]["findings"][0]
+        assert "db_updated_at" not in raw_finding.get("metadata", {})
+        parsed = FindingModel.model_validate(raw_finding)
+        assert parsed.db_updated_at == ""
+        assert parsed.db_version == ""
