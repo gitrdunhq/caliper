@@ -21,7 +21,12 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from caliper.core.manifest_discovery import MANIFEST_MAP, PackageUnit, discover_packages
+from caliper.core.manifest_discovery import (
+    MANIFEST_MAP,
+    PackageUnit,
+    classify_dependency_kind,
+    discover_packages,
+)
 from tests.unit._strategies import filesystem_safe_filename, near_miss_manifest_filename
 
 # ---------------------------------------------------------------------------
@@ -582,3 +587,159 @@ class TestProperties:
             discovered_names = {unit.manifest.name for unit in result}
             assert discovered_names <= set(filenames)
             assert discovered_names <= MANIFEST_MAP.keys()
+
+
+# ---------------------------------------------------------------------------
+# Test: classify_dependency_kind — direct / transitive / unknown, cross-ecosystem
+#
+# Property domains (DPS-12):
+#   Determinism   INVARIANT  same (repo, package, manifest) always classifies
+#                            the same way
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyDependencyKindDirect:
+    """AC1: classify_dependency_kind returns 'direct' for a top-level dep
+    declared in the given manifest."""
+
+    def test_direct_dependency_in_pyproject_toml(self, tmp_path: Path) -> None:
+        """A package listed under [project.dependencies] in pyproject.toml is direct."""
+        manifest = tmp_path / "pyproject.toml"
+        _write(
+            manifest,
+            '[project]\nname = "app"\ndependencies = ["requests>=2.0"]\n',
+        )
+
+        result = classify_dependency_kind(tmp_path, "requests", manifest)
+
+        assert result == "direct"
+
+
+class TestClassifyDependencyKindTransitive:
+    """AC2: classify_dependency_kind returns 'transitive' when the package is
+    not declared directly in any discovered manifest but appears in a
+    lockfile."""
+
+    def test_transitive_dependency_only_in_lockfile(self, tmp_path: Path) -> None:
+        """A package present only in uv.lock (not in pyproject.toml deps) is transitive."""
+        manifest = tmp_path / "pyproject.toml"
+        _write(
+            manifest,
+            '[project]\nname = "app"\ndependencies = ["requests>=2.0"]\n',
+        )
+        lockfile = tmp_path / "uv.lock"
+        _write(
+            lockfile,
+            '[[package]]\nname = "urllib3"\nversion = "2.0.0"\n',
+        )
+
+        result = classify_dependency_kind(tmp_path, "urllib3", manifest)
+
+        assert result == "transitive"
+
+
+class TestClassifyDependencyKindUnknown:
+    """AC3: classify_dependency_kind returns 'unknown' when no manifest or
+    lockfile evidence exists for the package."""
+
+    def test_unknown_package_absent_from_manifest_and_lockfile(self, tmp_path: Path) -> None:
+        """A package name that appears nowhere in the manifest or its lockfile is unknown."""
+        manifest = tmp_path / "pyproject.toml"
+        _write(
+            manifest,
+            '[project]\nname = "app"\ndependencies = ["requests>=2.0"]\n',
+        )
+        lockfile = tmp_path / "uv.lock"
+        _write(
+            lockfile,
+            '[[package]]\nname = "urllib3"\nversion = "2.0.0"\n',
+        )
+
+        result = classify_dependency_kind(tmp_path, "nonexistent-pkg-xyz", manifest)
+
+        assert result == "unknown"
+
+
+class TestClassifyDependencyKindCrossEcosystem:
+    """AC4: classify_dependency_kind works across pyproject.toml,
+    requirements*.txt, package.json, pom.xml, go.mod, and Cargo.toml."""
+
+    def test_direct_dependency_in_requirements_txt(self, tmp_path: Path) -> None:
+        """A package pinned in requirements.txt is direct."""
+        manifest = tmp_path / "requirements.txt"
+        _write(manifest, "flask==2.0.0\nrequests==2.31.0\n")
+
+        result = classify_dependency_kind(tmp_path, "flask", manifest)
+
+        assert result == "direct"
+
+    def test_direct_dependency_in_package_json(self, tmp_path: Path) -> None:
+        """A package listed under "dependencies" in package.json is direct."""
+        manifest = tmp_path / "package.json"
+        _write(
+            manifest,
+            '{"name": "app", "dependencies": {"lodash": "^4.17.21"}}',
+        )
+
+        result = classify_dependency_kind(tmp_path, "lodash", manifest)
+
+        assert result == "direct"
+
+    def test_direct_dependency_in_pom_xml(self, tmp_path: Path) -> None:
+        """A package listed as a <dependency> artifactId in pom.xml is direct."""
+        manifest = tmp_path / "pom.xml"
+        _write(
+            manifest,
+            (
+                "<project>\n"
+                "  <dependencies>\n"
+                "    <dependency>\n"
+                "      <groupId>org.example</groupId>\n"
+                "      <artifactId>example-lib</artifactId>\n"
+                "      <version>1.0.0</version>\n"
+                "    </dependency>\n"
+                "  </dependencies>\n"
+                "</project>\n"
+            ),
+        )
+
+        result = classify_dependency_kind(tmp_path, "example-lib", manifest)
+
+        assert result == "direct"
+
+    def test_direct_dependency_in_go_mod(self, tmp_path: Path) -> None:
+        """A package listed in a require directive in go.mod is direct."""
+        manifest = tmp_path / "go.mod"
+        _write(
+            manifest,
+            (
+                "module example.com/app\n\n"
+                "go 1.21\n\n"
+                "require github.com/pkg/errors v0.9.1\n"
+            ),
+        )
+
+        result = classify_dependency_kind(tmp_path, "github.com/pkg/errors", manifest)
+
+        assert result == "direct"
+
+    def test_direct_dependency_in_cargo_toml(self, tmp_path: Path) -> None:
+        """A package listed under [dependencies] in Cargo.toml is direct."""
+        manifest = tmp_path / "Cargo.toml"
+        _write(
+            manifest,
+            '[package]\nname = "app"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1.0"\n',
+        )
+
+        result = classify_dependency_kind(tmp_path, "serde", manifest)
+
+        assert result == "direct"
+
+    def test_unknown_package_in_requirements_txt(self, tmp_path: Path) -> None:
+        """A package name not pinned in requirements.txt and with no lockfile evidence is unknown."""
+        manifest = tmp_path / "requirements.txt"
+        _write(manifest, "flask==2.0.0\n")
+
+        result = classify_dependency_kind(tmp_path, "django", manifest)
+
+        assert result == "unknown"

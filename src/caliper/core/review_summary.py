@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from pydantic import Field
+
 from caliper._base import Contract
 from caliper.core.plugin import finding_get
 
@@ -67,6 +69,9 @@ class ReviewSummary(Contract):
     blocking_count: int = 0  # attributable, error-level, security findings (what blocks)
     security_score: float = 100.0
     quality_score: float = 100.0
+    maintainability_grade: str = "A"
+    verdict_text: str = ""
+    incomplete_plugins: list[tuple[str, str]] = Field(default_factory=list)
 
 
 def level_for(severity: object) -> str:
@@ -77,6 +82,11 @@ def level_for(severity: object) -> str:
 def _norm(path: object) -> str:
     """Normalize a path for changed-file membership tests."""
     return str(path or "").lstrip("./")
+
+
+def _status_of(result: object) -> str | None:
+    """Return a plugin result's reported ``summary.status``, if any."""
+    return (getattr(result, "summary", {}) or {}).get("status")
 
 
 def summarize_review(
@@ -98,7 +108,7 @@ def summarize_review(
         if getattr(r, "error", None):
             crashed += 1
             continue
-        if (getattr(r, "summary", {}) or {}).get("status") == "skipped":
+        if _status_of(r) == "skipped":
             skipped += 1
         is_security = str(getattr(r, "category", "") or "") in SECURITY_CATEGORIES
         for finding in getattr(r, "findings", []):
@@ -137,4 +147,95 @@ def summarize_review(
         blocking_count=blocking,
         security_score=calculate_severity_score(results),
         quality_score=calculate_quality_score(results),
+    )
+
+
+def maintainability_grade_for(quality_score: float) -> str:
+    """Derive the maintainability grade from *quality_score* — the one shared
+    function that decides the grade, so it can never disagree with the score
+    (the grade used to be computed independently from per-finding
+    ``maintainability_index`` strings, which could yield "A" even when the
+    weighted quality_score had collapsed to 0).
+    """
+    if quality_score >= 80:
+        return "A"
+    if quality_score >= 50:
+        return "B"
+    return "C"
+
+
+def _incomplete_reason(result: object) -> str | None:
+    """Return why *result*'s plugin did not complete, or ``None`` if it did."""
+    if getattr(result, "error", None):
+        return "crashed"
+    status = _status_of(result)
+    if status in ("timeout", "not_installed"):
+        return status
+    return None
+
+
+def _verdict_text_for(
+    base_verdict: ReviewVerdict,
+    *,
+    policy_verdict: str | None,
+    incomplete_plugins: list[tuple[str, str]],
+) -> str:
+    """Compose the human-readable verdict sentence.
+
+    "incomplete" only appears when plugins actually failed to complete.
+    "blocked" only appears when the *policy* verdict is an actual reject —
+    never merely because findings exist (that's what error_count/warning_count
+    are for; a scan can surface high-severity findings and still not be
+    policy-rejected, e.g. dev-scope exemptions).
+    """
+    if incomplete_plugins:
+        names = ", ".join(f"{name} ({reason})" for name, reason in incomplete_plugins)
+        return f"Review incomplete: {len(incomplete_plugins)} plugin(s) did not complete ({names})"
+    if policy_verdict == "reject":
+        return "Review blocked by policy"
+    return {
+        ReviewVerdict.blocked: "Review has blocking findings",
+        ReviewVerdict.incomplete: "Review incomplete",
+        ReviewVerdict.warnings: "Review has warnings",
+        ReviewVerdict.clear: "Review clear",
+    }.get(base_verdict, str(base_verdict))
+
+
+def build_review_summary(
+    results: list,
+    *,
+    changed_files: set[str] | None = None,
+    policy_verdict: str | None = None,
+) -> ReviewSummary:
+    """Compute the full :class:`ReviewSummary`, including the maintainability
+    grade, human-readable verdict text, and incomplete-plugin accounting.
+
+    Builds on :func:`summarize_review` (verdict/counts/scores) and adds the
+    fields that used to be computed independently elsewhere and could drift:
+    ``maintainability_grade`` (always derived from ``quality_score`` via
+    :func:`maintainability_grade_for`), ``verdict_text`` (only says "blocked"
+    for an actual policy reject), and ``incomplete_plugins`` (plugins that
+    timed out, were not installed, or crashed).
+    """
+    base = summarize_review(results, changed_files=changed_files)
+
+    incomplete_plugins: list[tuple[str, str]] = []
+    for r in results:
+        reason = _incomplete_reason(r)
+        if reason is not None:
+            incomplete_plugins.append((r.plugin_name, reason))
+
+    grade = maintainability_grade_for(base.quality_score)
+    verdict_text = _verdict_text_for(
+        base.verdict,
+        policy_verdict=policy_verdict,
+        incomplete_plugins=incomplete_plugins,
+    )
+
+    return base.model_copy(
+        update={
+            "maintainability_grade": grade,
+            "verdict_text": verdict_text,
+            "incomplete_plugins": incomplete_plugins,
+        }
     )

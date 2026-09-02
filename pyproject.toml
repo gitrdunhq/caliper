@@ -1,5 +1,5 @@
 [project]
-name = "caliper"
+name = "caliper-review"
 version = "0.2.32"
 description = "Caliper — fully deterministic dependency and code review for CI"
 requires-python = ">=3.12"
@@ -48,7 +48,7 @@ watch = [
     "watchdog==6.0.0",
 ]
 all = [
-    "caliper[db,parquet,webhook,watch]",
+    "caliper-review[db,parquet,webhook,watch]",
 ]
 
 [project.scripts]
