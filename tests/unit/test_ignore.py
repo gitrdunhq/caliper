@@ -322,3 +322,165 @@ class TestProperties:
         """An absurdly deep ``../../../…`` chain still resolves in bounded time."""
         path = "/".join([".."] * depth) + "/etc/passwd"
         assert isinstance(should_ignore(path, DEFAULT_PATTERNS), bool)
+
+
+# ---------------------------------------------------------------------------
+# task-005: .caliperignore per-path rule-id scoping syntax -> typed RuleScope
+#
+# Contract this RED suite pins down (implementation TBD in GREEN):
+#   - caliper.core.ignore.RuleScope: a typed value with `.glob` and
+#     `.rule_prefix` fields.
+#   - caliper.core.ignore.load_rule_scopes(repo_path: Path) -> list[RuleScope]
+#     reads `.caliperignore` and parses any line of the form
+#     "<glob> !<rule_prefix>" into a RuleScope. Lines without the
+#     " !" scoping marker are ordinary ignore patterns and are not returned.
+#   - A line containing " !" but with no glob before it, or no prefix text
+#     after it, is malformed and load_rule_scopes() raises ValueError whose
+#     message includes the 1-indexed line number of the offending line.
+#   - caliper.core.normalizer.normalize_findings() accepts an optional
+#     `rule_scopes: list[RuleScope]` keyword argument. Any Finding whose
+#     `file_path` matches a RuleScope's glob AND whose `source_tool` starts
+#     with that RuleScope's `rule_prefix` is dropped before it reaches the
+#     returned (findings, summary) result.
+# ---------------------------------------------------------------------------
+
+
+class TestRuleScopeParsing:
+    """AC1/AC2/AC3: load_rule_scopes() parses per-path rule-id scoping lines."""
+
+    def test_parses_compatibility_tests_ds_prefix_scope(self, tmp_path: Path) -> None:
+        """'compatibility-tests/** !DS-' parses into RuleScope(glob=..., rule_prefix='DS-')."""
+        from caliper.core.ignore import load_rule_scopes
+
+        (tmp_path / ".caliperignore").write_text("compatibility-tests/** !DS-\n")
+        scopes = load_rule_scopes(tmp_path)
+        assert len(scopes) == 1
+        assert scopes[0].glob == "compatibility-tests/**"
+        assert scopes[0].rule_prefix == "DS-"
+
+    def test_parses_tools_docs_cal_002_scope(self, tmp_path: Path) -> None:
+        """'tools/docs/** !CAL-002' parses into RuleScope(glob='tools/docs/**', rule_prefix='CAL-002')."""
+        from caliper.core.ignore import load_rule_scopes
+
+        (tmp_path / ".caliperignore").write_text("tools/docs/** !CAL-002\n")
+        scopes = load_rule_scopes(tmp_path)
+        assert len(scopes) == 1
+        assert scopes[0].glob == "tools/docs/**"
+        assert scopes[0].rule_prefix == "CAL-002"
+
+    def test_multiple_rule_scope_lines_all_parsed(self, tmp_path: Path) -> None:
+        """Multiple rule-scope lines in one file each produce their own RuleScope."""
+        from caliper.core.ignore import load_rule_scopes
+
+        (tmp_path / ".caliperignore").write_text(
+            "compatibility-tests/** !DS-\ntools/docs/** !CAL-002\n"
+        )
+        scopes = load_rule_scopes(tmp_path)
+        globs = {s.glob: s.rule_prefix for s in scopes}
+        assert globs == {
+            "compatibility-tests/**": "DS-",
+            "tools/docs/**": "CAL-002",
+        }
+
+    def test_missing_glob_before_bang_raises_value_error_with_line_number(
+        self, tmp_path: Path
+    ) -> None:
+        """A line like '!DS-' with no glob before the '!' is malformed; the
+        ValueError message must include the 1-indexed offending line number."""
+        from caliper.core.ignore import load_rule_scopes
+
+        (tmp_path / ".caliperignore").write_text("vendor/\n!DS-\n")
+        with pytest.raises(ValueError, match="2"):
+            load_rule_scopes(tmp_path)
+
+    def test_bang_with_no_following_prefix_raises_value_error_with_line_number(
+        self, tmp_path: Path
+    ) -> None:
+        """A line like 'tools/docs/** !' with a '!' but no prefix text after it
+        is malformed; the ValueError message must include the line number."""
+        from caliper.core.ignore import load_rule_scopes
+
+        (tmp_path / ".caliperignore").write_text("vendor/\ncomments/\ntools/docs/** !\n")
+        with pytest.raises(ValueError, match="3"):
+            load_rule_scopes(tmp_path)
+
+
+class TestNormalizerDropsRuleScopedFindings:
+    """AC4: normalizer drops findings matched by a RuleScope's glob + rule prefix."""
+
+    def _finding(self, *, file_path: str, source_tool: str) -> Finding:
+        from caliper.core.models import Finding, FindingCategory, FindingSeverity
+
+        return Finding(
+            severity=FindingSeverity.high,
+            category=FindingCategory.behavioral,
+            description="a finding",
+            source_tool=source_tool,
+            package_name="caliper",
+            version="",
+            file_path=file_path,
+        )
+
+    def test_matching_glob_and_rule_prefix_is_dropped(self) -> None:
+        """A Finding whose file matches the scope glob and whose rule id
+        starts with the scope's rule_prefix is dropped from the result."""
+        from caliper.core.ignore import RuleScope
+        from caliper.core.models import ScanResult, ScanResultStatus
+        from caliper.core.normalizer import normalize_findings
+
+        scoped = self._finding(file_path="compatibility-tests/legacy/foo.py", source_tool="DS-042")
+        result = ScanResult(
+            tool_name="detector",
+            status=ScanResultStatus.success,
+            findings=[scoped],
+            duration_seconds=0.1,
+        )
+        scopes = [RuleScope(glob="compatibility-tests/**", rule_prefix="DS-")]
+
+        merged, _summary = normalize_findings([result], rule_scopes=scopes)
+
+        assert merged == []
+
+    def test_non_matching_rule_id_survives(self) -> None:
+        """A Finding under the scoped glob but whose rule id does NOT start
+        with the scope's rule_prefix is NOT dropped."""
+        from caliper.core.ignore import RuleScope
+        from caliper.core.models import ScanResult, ScanResultStatus
+        from caliper.core.normalizer import normalize_findings
+
+        survivor = self._finding(
+            file_path="compatibility-tests/legacy/foo.py", source_tool="CAL-999"
+        )
+        result = ScanResult(
+            tool_name="detector",
+            status=ScanResultStatus.success,
+            findings=[survivor],
+            duration_seconds=0.1,
+        )
+        scopes = [RuleScope(glob="compatibility-tests/**", rule_prefix="DS-")]
+
+        merged, _summary = normalize_findings([result], rule_scopes=scopes)
+
+        assert len(merged) == 1
+        assert merged[0].source_tool == "CAL-999"
+
+    def test_non_matching_glob_survives(self) -> None:
+        """A Finding whose rule id matches the prefix but whose file is
+        OUTSIDE the scope's glob is NOT dropped."""
+        from caliper.core.ignore import RuleScope
+        from caliper.core.models import ScanResult, ScanResultStatus
+        from caliper.core.normalizer import normalize_findings
+
+        survivor = self._finding(file_path="src/caliper/core/foo.py", source_tool="DS-042")
+        result = ScanResult(
+            tool_name="detector",
+            status=ScanResultStatus.success,
+            findings=[survivor],
+            duration_seconds=0.1,
+        )
+        scopes = [RuleScope(glob="compatibility-tests/**", rule_prefix="DS-")]
+
+        merged, _summary = normalize_findings([result], rule_scopes=scopes)
+
+        assert len(merged) == 1
+        assert merged[0].file_path == "src/caliper/core/foo.py"

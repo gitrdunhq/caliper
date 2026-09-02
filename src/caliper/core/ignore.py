@@ -12,9 +12,66 @@ Usage::
 from __future__ import annotations
 
 import fnmatch
+from dataclasses import dataclass
 from pathlib import Path
 
 _GLOB_CHARS = frozenset("*?[")
+
+
+@dataclass(frozen=True)
+class RuleScope:
+    """A per-path rule-id scoping rule parsed from ``.caliperignore``.
+
+    Line syntax: ``<glob> !<rule_prefix>`` — e.g. ``compatibility-tests/** !DS-``
+    means "drop findings under compatibility-tests/** whose rule id starts
+    with DS-".
+    """
+
+    glob: str
+    rule_prefix: str
+
+
+def load_rule_scopes(repo_path: Path) -> list[RuleScope]:
+    """Parse per-path rule-id scoping lines out of ``.caliperignore``.
+
+    A line of the form ``<glob> !<rule_prefix>`` produces a :class:`RuleScope`.
+    Lines without the `` !`` scoping marker are ordinary ignore patterns and
+    are ignored here. A line containing `` !`` with no glob before it, or no
+    prefix text after it, is malformed and raises ``ValueError`` naming the
+    1-indexed offending line number.
+
+    Args:
+        repo_path: Absolute path to the repository root.
+
+    Returns:
+        List of parsed :class:`RuleScope` entries, in file order.
+    """
+    ignore_file = repo_path / ".caliperignore"
+    if not ignore_file.exists():
+        return []
+
+    scopes: list[RuleScope] = []
+    for lineno, line in enumerate(ignore_file.read_text(encoding="utf-8").splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "!" not in stripped:
+            continue
+
+        glob_part, _, prefix_part = stripped.partition("!")
+        glob_part = glob_part.strip()
+        prefix_part = prefix_part.strip()
+
+        if not glob_part or not prefix_part:
+            raise ValueError(
+                f"Malformed rule-scope line {lineno} in .caliperignore: {line!r} "
+                "(expected '<glob> !<rule_prefix>')"
+            )
+
+        scopes.append(RuleScope(glob=glob_part, rule_prefix=prefix_part))
+
+    return scopes
+
 
 # ---------------------------------------------------------------------------
 # Built-in defaults — always applied even without a .caliperignore file.

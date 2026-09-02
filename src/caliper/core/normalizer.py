@@ -4,12 +4,26 @@
 
 from __future__ import annotations
 
+import fnmatch
+
+from caliper.core.ignore import RuleScope
 from caliper.core.models import (
     Finding,
     FindingCategory,
     FindingSeverity,
     ScanResult,
 )
+
+
+def _is_rule_scoped(finding: Finding, rule_scopes: list[RuleScope]) -> bool:
+    """Return True if *finding* is dropped by any RuleScope (matching glob + rule prefix)."""
+    for scope in rule_scopes:
+        if fnmatch.fnmatch(finding.file_path, scope.glob) and finding.source_tool.startswith(
+            scope.rule_prefix
+        ):
+            return True
+    return False
+
 
 _SEVERITY_RANK: dict[FindingSeverity, int] = {
     FindingSeverity.critical: 5,
@@ -22,10 +36,15 @@ _SEVERITY_RANK: dict[FindingSeverity, int] = {
 
 def normalize_findings(
     scan_results: list[ScanResult],
+    *,
+    rule_scopes: list[RuleScope] | None = None,
 ) -> tuple[list[Finding], dict[str, int]]:
     all_findings: list[Finding] = []
     for result in scan_results:
         all_findings.extend(result.findings)
+
+    if rule_scopes:
+        all_findings = [f for f in all_findings if not _is_rule_scoped(f, rule_scopes)]
 
     vuln_findings: list[Finding] = []
     non_vuln_findings: list[Finding] = []
