@@ -285,13 +285,15 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
-      git ca-certificates nodejs \
+      git ca-certificates nodejs tini \
       $( [ "${TARGETARCH}" = "amd64" ] && echo libicu76 )  # swiftlint (amd64-only) links ICU
     # nodejs (no npm): runs the committed esbuild bundle behind the complexity
     # plugin's JS/TS maintainability index (plugins/_runners/complexity_helper_dist).
 
-# Non-root user — scanners must not run as root.
-RUN groupadd -r caliper && useradd -r -g caliper -m -d /home/caliper -s /bin/false caliper
+# Non-root user with a static UID/GID above 10,000: `chown 10000:10001` on the
+# host always matches, and the id can never collide with a privileged host user.
+RUN groupadd -r -g 10001 caliper \
+    && useradd -r -u 10000 -g caliper -m -d /home/caliper -s /bin/false caliper
 
 # ── Staged artifacts from builder ────────────────────────────────────────────
 COPY --from=builder /staging/gobin/syft        /usr/local/bin/syft
@@ -348,7 +350,12 @@ WORKDIR /workspace
 HEALTHCHECK --interval=5m --timeout=30s --retries=3 \
   CMD caliper healthcheck || exit 1
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# tini is PID 1: reaps the scanners' child processes (java, node, opengrep)
+# and forwards signals, so a stuck scanner can never leave zombies behind.
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
+# Arguments only: `podman run caliper review --repo-path /workspace` appends
+# to the entrypoint; a bare `podman run caliper` prints the help.
+CMD ["--help"]
 
 # ════════════════════════════════════════════════════════════════════════════
 # Stage 3: e2e-test — runtime + pytest, so tests/e2e/ can run against the full
@@ -373,3 +380,4 @@ USER caliper
 WORKDIR /workspace
 
 ENTRYPOINT []
+CMD []
