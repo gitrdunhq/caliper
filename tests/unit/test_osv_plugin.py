@@ -278,3 +278,161 @@ class TestResolveSeverityMaxRegression:
         }
         result = self.plugin._resolve_severity(vuln)
         assert result == "high", f"Multiple CVSS scores — 7.5 is highest (high), got {result!r}"
+
+
+# ---------------------------------------------------------------------------
+# task-009 — osv-scanner findings carry file/line from source.path and
+# dependency_kind metadata
+# ---------------------------------------------------------------------------
+
+# Fixture: an osv-scanner "lockfile" result carrying a `source.path` (as
+# osv-scanner reports it against the scanned root) and a vulnerable package
+# whose `package` sub-object carries an integer `line` — the vulnerable
+# dependency's line number in the manifest.
+OSV_RESPONSE_WITH_SOURCE_AND_LINE = {
+    "results": [
+        {
+            "source": {"path": "/workspace/requirements.txt", "type": "lockfile"},
+            "packages": [
+                {
+                    "package": {
+                        "name": "requests",
+                        "version": "2.25.1",
+                        "ecosystem": "PyPI",
+                        "line": 7,
+                    },
+                    "vulnerabilities": [
+                        {
+                            "id": "GHSA-9hjg-9r4m-mvj7",
+                            "aliases": ["CVE-2024-47081"],
+                            "summary": "Requests proxy leak",
+                            "database_specific": {"severity": "MODERATE"},
+                            "severity": [],
+                        }
+                    ],
+                }
+            ],
+        }
+    ]
+}
+
+# Same shape but the vulnerable package carries no `line` — osv-scanner
+# doesn't always have a line number to report (e.g. ecosystem lockfiles
+# without source-mapping support).
+OSV_RESPONSE_WITH_SOURCE_NO_LINE = {
+    "results": [
+        {
+            "source": {"path": "/workspace/requirements.txt", "type": "lockfile"},
+            "packages": [
+                {
+                    "package": {
+                        "name": "requests",
+                        "version": "2.25.1",
+                        "ecosystem": "PyPI",
+                    },
+                    "vulnerabilities": [
+                        {
+                            "id": "GHSA-9hjg-9r4m-mvj7",
+                            "aliases": ["CVE-2024-47081"],
+                            "summary": "Requests proxy leak",
+                            "database_specific": {"severity": "MODERATE"},
+                            "severity": [],
+                        }
+                    ],
+                }
+            ],
+        }
+    ]
+}
+
+
+class TestTask009AC1:
+    """AC1: parsing an osv-scanner result with results[0].source.path set
+    produces a Finding with file= the relative manifest path (no leading
+    /workspace)."""
+
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
+    def test_ac1_parsing_an_osv_scanner_json_result_with_results_0_source_pat(self, mock_run):
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stdout = json.dumps(OSV_RESPONSE_WITH_SOURCE_AND_LINE)
+        p = OsvScannerPlugin()
+
+        result = p.run(["requirements.txt"], Path("/workspace"))
+
+        assert result.error == ""
+        assert len(result.findings) == 1
+        finding = result.findings[0]
+        assert (
+            finding["file"] == "requirements.txt"
+        ), f"expected relative path 'requirements.txt' with no leading /workspace, got {finding.get('file')!r}"
+        assert not finding["file"].startswith("/workspace")
+
+
+class TestTask009AC2:
+    """AC2: Finding.line is set from the OSV result's line number when
+    present, and is None when the OSV result carries no line number."""
+
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
+    def test_ac2_when_the_osv_result_includes_a_line_number_for_the_vulnerabl(self, mock_run):
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stdout = json.dumps(OSV_RESPONSE_WITH_SOURCE_AND_LINE)
+        p = OsvScannerPlugin()
+
+        result = p.run(["requirements.txt"], Path("/workspace"))
+
+        assert len(result.findings) == 1
+        assert result.findings[0]["line"] == 7
+
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
+    def test_ac2_line_is_none_when_osv_result_has_no_line_number(self, mock_run):
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stdout = json.dumps(OSV_RESPONSE_WITH_SOURCE_NO_LINE)
+        p = OsvScannerPlugin()
+
+        result = p.run(["requirements.txt"], Path("/workspace"))
+
+        assert len(result.findings) == 1
+        assert result.findings[0]["line"] is None
+
+
+class TestTask009AC3:
+    """AC3: every osv-scanner Finding has metadata['dependency_kind'] in
+    {'direct', 'transitive', 'unknown'}, computed by calling
+    manifest_discovery.classify_dependency_kind."""
+
+    @patch("caliper.plugins.osv_scanner.classify_dependency_kind")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
+    def test_ac3_every_osv_scanner_finding_has_metadata_dependency_kind_in_di(
+        self, mock_run, mock_classify
+    ):
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stdout = json.dumps(OSV_RESPONSE_WITH_SOURCE_AND_LINE)
+        mock_classify.return_value = "direct"
+        p = OsvScannerPlugin()
+
+        result = p.run(["requirements.txt"], Path("/workspace"))
+
+        assert len(result.findings) == 1
+        finding = result.findings[0]
+        assert "metadata" in finding, "Finding must carry a metadata dict"
+        assert finding["metadata"]["dependency_kind"] == "direct"
+        mock_classify.assert_called_once()
+
+    @patch("caliper.plugins.osv_scanner.classify_dependency_kind")
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
+    def test_ac3_dependency_kind_is_always_one_of_direct_transitive_unknown(
+        self, mock_run, mock_classify
+    ):
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stdout = json.dumps(OSV_RESPONSE_WITH_SOURCE_NO_LINE)
+        mock_classify.return_value = "unknown"
+        p = OsvScannerPlugin()
+
+        result = p.run(["requirements.txt"], Path("/workspace"))
+
+        assert len(result.findings) == 1
+        assert result.findings[0]["metadata"]["dependency_kind"] in {
+            "direct",
+            "transitive",
+            "unknown",
+        }
