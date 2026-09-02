@@ -240,3 +240,96 @@ class TestMypyPlugin:
 
         for f in result.findings:
             assert f["severity"] != "info"
+
+
+class TestArgvBatchingAndShape:
+    """pyrefly/pyright/mypy get every file on argv; large repos exceed ARG_MAX.
+    Files are batched by byte size and results merged; JSON of an unexpected
+    shape is a typed PARSE_ERROR, never a raw exception."""
+
+    def _ok(self, *a, **k):
+        class R:
+            returncode = 0
+            stdout = '{"errors": []}'
+            stderr = ""
+
+        return R()
+
+    def test_files_are_batched_under_the_argv_limit(self, tmp_path: Path) -> None:
+        from caliper.plugins import mypy as m
+
+        files = [f"pkg/module_{i:04d}/very_long_file_name_{i:04d}.py" for i in range(3000)]
+        with (
+            patch.object(m, "_ARGV_LIMIT_BYTES", 50_000),
+            patch("caliper.plugins.mypy.subprocess.run", side_effect=self._ok) as run,
+            patch.object(MypyPlugin, "_detect_tool", return_value="pyrefly"),
+        ):
+            result = MypyPlugin().run(files, tmp_path)
+        assert result.error == ""
+        assert run.call_count > 1
+        for call in run.call_args_list:
+            argv = call.args[0]
+            assert sum(len(a) + 1 for a in argv) <= 50_000 + 200
+
+    def test_batches_are_merged(self, tmp_path: Path) -> None:
+        from caliper.plugins import mypy as m
+
+        calls = []
+
+        def fake(argv, **k):
+            calls.append(argv)
+
+            class R:
+                returncode = 1
+                stderr = ""
+                stdout = json.dumps(
+                    {
+                        "errors": [
+                            {
+                                "path": argv[-1],
+                                "line": 1,
+                                "severity": "error",
+                                "description": "boom",
+                                "name": "x",
+                            }
+                        ]
+                    }
+                )
+
+            return R()
+
+        files = [f"f{i}.py" for i in range(40)]
+        with (
+            patch.object(m, "_ARGV_LIMIT_BYTES", 120),
+            patch("caliper.plugins.mypy.subprocess.run", side_effect=fake),
+            patch.object(MypyPlugin, "_detect_tool", return_value="pyrefly"),
+        ):
+            result = MypyPlugin().run(files, tmp_path)
+        assert len(calls) > 1
+        assert len(result.findings) == len(calls)
+
+    def test_top_level_list_is_a_parse_error(self, tmp_path: Path) -> None:
+        class R:
+            returncode = 1
+            stdout = "[1, 2]"
+            stderr = ""
+
+        with (
+            patch("caliper.plugins.mypy.subprocess.run", return_value=R()),
+            patch.object(MypyPlugin, "_detect_tool", return_value="pyrefly"),
+        ):
+            result = MypyPlugin().run(["a.py"], tmp_path)
+        assert "[PARSE_ERROR]" in result.error and "pyrefly" in result.error
+
+    def test_null_errors_field_yields_no_findings(self, tmp_path: Path) -> None:
+        class R:
+            returncode = 0
+            stdout = '{"errors": null}'
+            stderr = ""
+
+        with (
+            patch("caliper.plugins.mypy.subprocess.run", return_value=R()),
+            patch.object(MypyPlugin, "_detect_tool", return_value="pyrefly"),
+        ):
+            result = MypyPlugin().run(["a.py"], tmp_path)
+        assert result.error == "" and result.findings == []

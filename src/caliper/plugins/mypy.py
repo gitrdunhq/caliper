@@ -29,6 +29,39 @@ _PYRIGHT_SEVERITY_MAP = {"error": "high", "warning": "medium", "information": "l
 _PYREFLY_SEVERITY_MAP = {"error": "high", "warning": "medium", "info": "info", "ignore": "info"}
 
 
+# argv is bounded by the OS ARG_MAX (128-256 KB on common Unixes); large repos
+# hand the type checker thousands of paths, so files are batched by byte size and
+# the per-batch results merged. Tests patch the limit down to force batching.
+_ARGV_LIMIT_BYTES = 100_000
+
+
+def _argv_batches(files: list[str], limit: int | None = None) -> list[list[str]]:
+    """Split *files* into argv batches whose joined byte length stays under *limit*."""
+    limit = _ARGV_LIMIT_BYTES if limit is None else limit
+    batches: list[list[str]] = []
+    current: list[str] = []
+    size = 0
+    for f in files:
+        cost = len(f.encode("utf-8", "surrogateescape")) + 1
+        if current and size + cost > limit:
+            batches.append(current)
+            current, size = [], 0
+        current.append(f)
+        size += cost
+    if current:
+        batches.append(current)
+    return batches
+
+
+def _json_object(stdout: str) -> dict | None:
+    """Parse *stdout* as a JSON object; None for invalid JSON or a non-object shape."""
+    try:
+        data = json.loads(stdout)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
 class MypyPlugin(ScannerPlugin):
     def __init__(self) -> None:
         self._tool: str | None = None
@@ -81,31 +114,33 @@ class MypyPlugin(ScannerPlugin):
         if not py_files:
             return PluginResult(plugin_name=self.name)
 
-        try:
-            r = subprocess.run(
-                ["pyrefly", "check", "--output-format", "json", *py_files],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
-                cwd=str(repo_path),
-            )
-        except subprocess.TimeoutExpired:
-            return PluginResult(
-                plugin_name=self.name,
-                error=error_msg(ErrorCode.TIMEOUT, "pyrefly", timeout=timeout),
-            )
-
-        try:
-            data = json.loads(r.stdout)
-        except json.JSONDecodeError:
-            return PluginResult(
-                plugin_name=self.name,
-                error=error_msg(ErrorCode.PARSE_ERROR, "pyrefly"),
-            )
+        diags: list[dict] = []
+        for batch in _argv_batches(py_files):
+            try:
+                r = subprocess.run(
+                    ["pyrefly", "check", "--output-format", "json", *batch],
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    check=False,
+                    cwd=str(repo_path),
+                )
+            except subprocess.TimeoutExpired:
+                return PluginResult(
+                    plugin_name=self.name,
+                    error=error_msg(ErrorCode.TIMEOUT, "pyrefly", timeout=timeout),
+                )
+            data = _json_object(r.stdout)
+            if data is None:
+                return PluginResult(
+                    plugin_name=self.name,
+                    error=error_msg(ErrorCode.PARSE_ERROR, "pyrefly"),
+                )
+            errors = data.get("errors") or []
+            diags.extend(d for d in errors if isinstance(d, dict))
 
         findings = []
-        for diag in data.get("errors", []):
+        for diag in diags:
             severity = _PYREFLY_SEVERITY_MAP.get(diag.get("severity", ""), "info")
             if severity == "info":
                 continue
@@ -131,23 +166,27 @@ class MypyPlugin(ScannerPlugin):
         if not py_files:
             return PluginResult(plugin_name=self.name)
 
-        try:
-            r = subprocess.run(
-                ["mypy", "--no-error-summary", "--show-column-numbers", *py_files],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
-                cwd=str(repo_path),
-            )
-        except subprocess.TimeoutExpired:
-            return PluginResult(
-                plugin_name=self.name,
-                error=error_msg(ErrorCode.TIMEOUT, "mypy", timeout=timeout),
-            )
+        stdout_parts: list[str] = []
+        for batch in _argv_batches(py_files):
+            try:
+                r = subprocess.run(
+                    ["mypy", "--no-error-summary", "--show-column-numbers", *batch],
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    check=False,
+                    cwd=str(repo_path),
+                )
+            except subprocess.TimeoutExpired:
+                return PluginResult(
+                    plugin_name=self.name,
+                    error=error_msg(ErrorCode.TIMEOUT, "mypy", timeout=timeout),
+                )
+            stdout_parts.append(r.stdout)
+        stdout = "\n".join(stdout_parts)
 
         findings = []
-        for line in r.stdout.splitlines():
+        for line in stdout.splitlines():
             m = _MYPY_LINE_RE.match(line)
             if not m:
                 continue
@@ -176,31 +215,32 @@ class MypyPlugin(ScannerPlugin):
         if not py_files:
             return PluginResult(plugin_name=self.name)
 
-        try:
-            r = subprocess.run(
-                ["pyright", "--outputjson", *py_files],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
-                cwd=str(repo_path),
-            )
-        except subprocess.TimeoutExpired:
-            return PluginResult(
-                plugin_name=self.name,
-                error=error_msg(ErrorCode.TIMEOUT, "pyright", timeout=timeout),
-            )
-
-        try:
-            data = json.loads(r.stdout)
-        except json.JSONDecodeError:
-            return PluginResult(
-                plugin_name=self.name,
-                error=error_msg(ErrorCode.PARSE_ERROR, "pyright"),
-            )
+        diags: list[dict] = []
+        for batch in _argv_batches(py_files):
+            try:
+                r = subprocess.run(
+                    ["pyright", "--outputjson", *batch],
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    check=False,
+                    cwd=str(repo_path),
+                )
+            except subprocess.TimeoutExpired:
+                return PluginResult(
+                    plugin_name=self.name,
+                    error=error_msg(ErrorCode.TIMEOUT, "pyright", timeout=timeout),
+                )
+            data = _json_object(r.stdout)
+            if data is None:
+                return PluginResult(
+                    plugin_name=self.name,
+                    error=error_msg(ErrorCode.PARSE_ERROR, "pyright"),
+                )
+            diags.extend(d for d in (data.get("generalDiagnostics") or []) if isinstance(d, dict))
 
         findings = []
-        for diag in data.get("generalDiagnostics", []):
+        for diag in diags:
             severity = _PYRIGHT_SEVERITY_MAP.get(diag.get("severity", ""), "info")
             if severity == "info":
                 continue
