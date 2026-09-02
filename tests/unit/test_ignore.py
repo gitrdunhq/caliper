@@ -17,6 +17,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from caliper.core.models import Finding
 from caliper.core.ignore import (
     DEFAULT_PATTERNS,
     TEST_PATTERNS,

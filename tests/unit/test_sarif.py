@@ -597,7 +597,7 @@ class TestPluginErrorsInSarif:
         assert out["runs"][0]["results"] == []
 
 
-class TestTask_012_AC1:
+class TestTask012AC1:
     """task-012 AC1: dependency findings (osv-scanner/trivy) get a physicalLocation
     pinned to the scanned manifest, even when the raw finding carries no
     ``file``/``line`` fields of its own.
@@ -637,7 +637,7 @@ class TestTask_012_AC1:
         assert location["region"]["startLine"] == 1
 
 
-class TestTask_012_AC2:
+class TestTask012AC2:
     """task-012 AC2 (control case): non-dependency (semgrep/detector) findings must
     keep their current SARIF location behavior — sourced from the finding's own
     ``file``/``start_line`` fields, unaffected by the new dependency-manifest path.
