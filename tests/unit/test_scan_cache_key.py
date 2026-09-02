@@ -44,3 +44,41 @@ class TestProperties:
         base = settings_digest(CaliperSettings())
         changed = settings_digest(CaliperSettings(opa_timeout=999))
         assert changed == base
+
+    def test_scan_cache_key_changes_when_live_db_version_changes(self) -> None:
+        # ADR-010/R5 AC2: a newer live-DB scanner db_updated_at must never
+        # serve a stale cached verdict, so the cache key must incorporate it.
+        from caliper.core.scan_cache_key import compute_scan_cache_key
+
+        base = compute_scan_cache_key(
+            "sha1",
+            "osv",
+            "1.2.3",
+            "digest",
+            db_versions={
+                "trivy": "2026-01-01T00:00:00Z",
+                "osv-scanner": "2026-01-01T00:00:00Z",
+            },
+        )
+        changed = compute_scan_cache_key(
+            "sha1",
+            "osv",
+            "1.2.3",
+            "digest",
+            db_versions={
+                "trivy": "2026-02-01T00:00:00Z",
+                "osv-scanner": "2026-01-01T00:00:00Z",
+            },
+        )
+        assert changed != base
+
+    def test_scan_cache_key_is_deterministic_for_identical_db_versions(self) -> None:
+        from caliper.core.scan_cache_key import compute_scan_cache_key
+
+        db_versions = {
+            "trivy": "2026-01-01T00:00:00Z",
+            "osv-scanner": "2026-01-01T00:00:00Z",
+        }
+        a = compute_scan_cache_key("sha1", "osv", "1.2.3", "digest", db_versions=db_versions)
+        b = compute_scan_cache_key("sha1", "osv", "1.2.3", "digest", db_versions=dict(db_versions))
+        assert a == b
