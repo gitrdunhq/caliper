@@ -9,7 +9,7 @@ from caliper.core.report_schema import (
     ReportVerdict,
 )
 
-__version__ = "0.2.30"
+__version__ = "0.2.31"
 
 __all__ = [
     "__version__",
