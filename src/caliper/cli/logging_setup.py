@@ -41,7 +41,12 @@ def configure_logging(level: int) -> None:
         processors=[
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S"),
-            structlog.dev.ConsoleRenderer(colors=False),
+            # plain_traceback, not rich: rich boxes every frame with its locals,
+            # which is slow (fail-open parse paths log exc_info per input) and
+            # leaks values into CI logs.
+            structlog.dev.ConsoleRenderer(
+                colors=False, exception_formatter=structlog.dev.plain_traceback
+            ),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(level),
         logger_factory=_stderr_logger,
