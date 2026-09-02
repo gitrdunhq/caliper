@@ -67,24 +67,19 @@ ARG OPENGREP_SHA256_AMD64=09cbb4c938df696246018a678823adaa8d651a774f321fd19fb5ad
 ARG UV_COMMIT=0e961dd9a2bb6f73493d9e8398b725ad2d3b3837
 
 # ════════════════════════════════════════════════════════════════════════════
-# Arch-aware Python base — select the right platform image before Stage 1.
-# Each digest is the platform-specific manifest for python:3.12.13 on Debian 13 (trixie).
-# TARGETARCH is injected by BuildKit from --platform (default: amd64).
+# Python base — one multi-arch index digest for python:3.12.13-slim-trixie.
+# Tag + digest on a single FROM line is what Dependabot's `docker` ecosystem
+# understands: it opens a PR whenever docker-library rebuilds the tag (Debian
+# security updates), so the pin never silently goes stale again. BuildKit picks
+# the platform manifest out of the index from --platform / TARGETARCH.
 # ════════════════════════════════════════════════════════════════════════════
 ARG TARGETARCH=amd64
-ARG PYTHON_SHA256_AMD64=sha256:4386a385d81dba9f72ed72a6fe4237755d7f5440c84b417650f38336bbc43117
-ARG PYTHON_SHA256_ARM64=sha256:5ca4bfc4580d33083387dfc582569b7ec8cf12438961469c74b765c49780aa02
-
-# docker-library/python revision:
-# amd64: 3362634339580d3232e65a66dd5a36c47ae7ff14
-FROM docker.io/library/python@${PYTHON_SHA256_AMD64} AS python_base_amd64
-# arm64: 9420c53ba876a39b83e2f08732920b62782c33d94cd04860a13c3eaf9dc1a5b0
-FROM docker.io/library/python@${PYTHON_SHA256_ARM64} AS python_base_arm64
+FROM docker.io/library/python:3.12.13-slim-trixie@sha256:229a2c5bfa27522db7815ea81f9bed70af17ccb9de9fc7ad142b1877b5830d36 AS python_base
 
 # ════════════════════════════════════════════════════════════════════════════
 # Stage 1: builder
 # ════════════════════════════════════════════════════════════════════════════
-FROM python_base_${TARGETARCH} AS builder
+FROM python_base AS builder
 
 ARG SYFT_VERSION TRIVY_VERSION OSV_VERSION OPA_VERSION GITLEAKS_VERSION JQ_VERSION KUBE_LINTER_VERSION PMD_VERSION LS_LINT_VERSION SWIFTLINT_VERSION
 ARG SYFT_COMMIT TRIVY_COMMIT OSV_COMMIT OPA_COMMIT GITLEAKS_COMMIT KUBE_LINTER_COMMIT JQ_COMMIT LS_LINT_COMMIT UV_COMMIT
@@ -274,7 +269,7 @@ RUN set -eux; \
 # Stage 2: runtime
 # ════════════════════════════════════════════════════════════════════════════
 ARG TARGETARCH=amd64
-FROM python_base_${TARGETARCH} AS runtime
+FROM python_base AS runtime
 
 ARG PMD_VERSION
 ARG TARGETARCH
@@ -282,8 +277,7 @@ ARG TARGETARCH
 LABEL org.opencontainers.image.title="Caliper" \
       org.opencontainers.image.description="DHI hardened multi-stage production scanner" \
       org.opencontainers.image.source="https://github.com/gitrdunhq/caliper" \
-      org.opencontainers.image.base.revision.amd64="3362634339580d3232e65a66dd5a36c47ae7ff14" \
-      org.opencontainers.image.base.revision.arm64="9420c53ba876a39b83e2f08732920b62782c33d94cd04860a13c3eaf9dc1a5b0"
+      org.opencontainers.image.base.name="docker.io/library/python:3.12.13-slim-trixie"
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache

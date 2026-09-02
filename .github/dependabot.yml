@@ -60,3 +60,24 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+
+  # Base image digest bumps. The Dockerfile pins python:<tag>@sha256:<index>
+  # on one FROM line; Dependabot re-resolves the tag's digest when docker-library
+  # rebuilds it (Debian security updates), so the SHA pin never goes stale.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Edmonton"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "container"
+    commit-message:
+      prefix: "fix"
+      prefix-development: "chore"
+      include: "scope"
