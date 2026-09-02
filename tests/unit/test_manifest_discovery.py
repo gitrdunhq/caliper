@@ -712,11 +712,7 @@ class TestClassifyDependencyKindCrossEcosystem:
         manifest = tmp_path / "go.mod"
         _write(
             manifest,
-            (
-                "module example.com/app\n\n"
-                "go 1.21\n\n"
-                "require github.com/pkg/errors v0.9.1\n"
-            ),
+            ("module example.com/app\n\n" "go 1.21\n\n" "require github.com/pkg/errors v0.9.1\n"),
         )
 
         result = classify_dependency_kind(tmp_path, "github.com/pkg/errors", manifest)
@@ -743,3 +739,95 @@ class TestClassifyDependencyKindCrossEcosystem:
         result = classify_dependency_kind(tmp_path, "django", manifest)
 
         assert result == "unknown"
+
+
+class TestClassifyDependencyKindLockfileTarget:
+    """CORR-001: trivy's ``Target`` is often the lockfile, not the manifest.
+
+    A lockfile path must classify against its sibling manifest (LOCKFILE_MAP
+    inverted): declared there -> direct; only in the lockfile -> transitive;
+    manifest absent -> unknown (no evidence to tell direct from transitive).
+    """
+
+    def test_npm_package_lock_direct(self, tmp_path: Path) -> None:
+        _write(tmp_path / "package.json", '{"dependencies": {"lodash": "^4"}}')
+        lock = tmp_path / "package-lock.json"
+        _write(lock, '{"packages": {"node_modules/lodash": {}, "node_modules/ms": {}}}')
+        assert classify_dependency_kind(tmp_path, "lodash", lock) == "direct"
+
+    def test_npm_package_lock_transitive(self, tmp_path: Path) -> None:
+        _write(tmp_path / "package.json", '{"dependencies": {"lodash": "^4"}}')
+        lock = tmp_path / "package-lock.json"
+        _write(lock, '{"packages": {"node_modules/lodash": {}, "node_modules/ms": {}}}')
+        assert classify_dependency_kind(tmp_path, "ms", lock) == "transitive"
+
+    def test_yarn_lock_transitive(self, tmp_path: Path) -> None:
+        _write(tmp_path / "package.json", '{"dependencies": {"lodash": "^4"}}')
+        lock = tmp_path / "yarn.lock"
+        _write(lock, 'ms@^2.1.2:\n  version "2.1.3"\n')
+        assert classify_dependency_kind(tmp_path, "ms", lock) == "transitive"
+
+    def test_pnpm_lock_direct(self, tmp_path: Path) -> None:
+        _write(tmp_path / "package.json", '{"dependencies": {"lodash": "^4"}}')
+        lock = tmp_path / "pnpm-lock.yaml"
+        _write(lock, "packages:\n  /lodash@4.17.21: {}\n")
+        assert classify_dependency_kind(tmp_path, "lodash", lock) == "direct"
+
+    def test_cargo_lock_direct(self, tmp_path: Path) -> None:
+        _write(tmp_path / "Cargo.toml", '[dependencies]\nserde = "1"\n')
+        lock = tmp_path / "Cargo.lock"
+        _write(lock, '[[package]]\nname = "serde"\n\n[[package]]\nname = "itoa"\n')
+        assert classify_dependency_kind(tmp_path, "serde", lock) == "direct"
+
+    def test_cargo_lock_transitive(self, tmp_path: Path) -> None:
+        _write(tmp_path / "Cargo.toml", '[dependencies]\nserde = "1"\n')
+        lock = tmp_path / "Cargo.lock"
+        _write(lock, '[[package]]\nname = "serde"\n\n[[package]]\nname = "itoa"\n')
+        assert classify_dependency_kind(tmp_path, "itoa", lock) == "transitive"
+
+    def test_poetry_lock_direct(self, tmp_path: Path) -> None:
+        _write(tmp_path / "pyproject.toml", '[tool.poetry.dependencies]\nrequests = "^2"\n')
+        lock = tmp_path / "poetry.lock"
+        _write(lock, '[[package]]\nname = "requests"\n\n[[package]]\nname = "urllib3"\n')
+        assert classify_dependency_kind(tmp_path, "requests", lock) == "direct"
+
+    def test_poetry_lock_transitive(self, tmp_path: Path) -> None:
+        _write(tmp_path / "pyproject.toml", '[tool.poetry.dependencies]\nrequests = "^2"\n')
+        lock = tmp_path / "poetry.lock"
+        _write(lock, '[[package]]\nname = "requests"\n\n[[package]]\nname = "urllib3"\n')
+        assert classify_dependency_kind(tmp_path, "urllib3", lock) == "transitive"
+
+    def test_go_sum_direct(self, tmp_path: Path) -> None:
+        _write(tmp_path / "go.mod", "module m\n\nrequire github.com/pkg/errors v0.9.1\n")
+        lock = tmp_path / "go.sum"
+        _write(lock, "github.com/pkg/errors v0.9.1 h1:x=\ngolang.org/x/sys v0.1.0 h1:y=\n")
+        assert classify_dependency_kind(tmp_path, "github.com/pkg/errors", lock) == "direct"
+
+    def test_go_sum_transitive(self, tmp_path: Path) -> None:
+        _write(tmp_path / "go.mod", "module m\n\nrequire github.com/pkg/errors v0.9.1\n")
+        lock = tmp_path / "go.sum"
+        _write(lock, "github.com/pkg/errors v0.9.1 h1:x=\ngolang.org/x/sys v0.1.0 h1:y=\n")
+        assert classify_dependency_kind(tmp_path, "golang.org/x/sys", lock) == "transitive"
+
+    def test_uv_lock_direct(self, tmp_path: Path) -> None:
+        _write(tmp_path / "pyproject.toml", '[project]\ndependencies = ["requests"]\n')
+        lock = tmp_path / "uv.lock"
+        _write(lock, '[[package]]\nname = "requests"\n\n[[package]]\nname = "urllib3"\n')
+        assert classify_dependency_kind(tmp_path, "requests", lock) == "direct"
+
+    def test_uv_lock_transitive(self, tmp_path: Path) -> None:
+        _write(tmp_path / "pyproject.toml", '[project]\ndependencies = ["requests"]\n')
+        lock = tmp_path / "uv.lock"
+        _write(lock, '[[package]]\nname = "requests"\n\n[[package]]\nname = "urllib3"\n')
+        assert classify_dependency_kind(tmp_path, "urllib3", lock) == "transitive"
+
+    def test_lockfile_without_sibling_manifest_is_unknown(self, tmp_path: Path) -> None:
+        lock = tmp_path / "Cargo.lock"
+        _write(lock, '[[package]]\nname = "serde"\n')
+        assert classify_dependency_kind(tmp_path, "serde", lock) == "unknown"
+
+    def test_lockfile_target_unlisted_package_is_unknown(self, tmp_path: Path) -> None:
+        _write(tmp_path / "Cargo.toml", '[dependencies]\nserde = "1"\n')
+        lock = tmp_path / "Cargo.lock"
+        _write(lock, '[[package]]\nname = "serde"\n')
+        assert classify_dependency_kind(tmp_path, "nope-xyz", lock) == "unknown"

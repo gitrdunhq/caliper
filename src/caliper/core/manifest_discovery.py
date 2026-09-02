@@ -353,6 +353,19 @@ def _appears_in_lockfile(package_name: str, text: str) -> bool:
     return bool(pattern.search(text))
 
 
+def _resolve_manifest_path(path: Path) -> Path | None:
+    """Map a lockfile path to its sibling manifest; manifests pass through.
+
+    Returns ``None`` when *path* is a known lockfile whose owning manifest is
+    absent — the deterministic "no evidence" case.
+    """
+    manifest_name = LOCKFILE_MAP.get(path.name)
+    if manifest_name is None:
+        return path
+    sibling = path.parent / manifest_name
+    return sibling if sibling.is_file() else None
+
+
 def classify_dependency_kind(
     repo_path: Path,  # noqa: ARG001 - kept for a stable, discoverable call signature
     package_name: str,
@@ -372,7 +385,17 @@ def classify_dependency_kind(
     Supports pyproject.toml, requirements*.txt, package.json, pom.xml,
     go.mod, and Cargo.toml manifests. Malformed manifests/lockfiles are
     treated as empty (fail-open) rather than raising.
+
+    *manifest_path* may also be a known lockfile (trivy reports lockfiles as
+    its ``Target``): it is resolved to the sibling manifest via
+    :data:`LOCKFILE_MAP` and classified against that. A lockfile with no
+    sibling manifest yields ``"unknown"`` — there is no evidence to tell a
+    direct dependency from a transitive one.
     """
+    manifest_path = _resolve_manifest_path(manifest_path)
+    if manifest_path is None:
+        return "unknown"
+
     try:
         manifest_text = manifest_path.read_text()
     except OSError:

@@ -566,3 +566,38 @@ class TestTrivyDependencyKindMetadata:
         assert result.findings, "expected at least one finding to check"
         for f in result.findings:
             assert f["metadata"]["dependency_kind"] in {"direct", "transitive", "unknown"}
+
+
+class TestTrivyLockfileTarget:
+    """CORR-001: trivy reports lockfiles as ``Target``; classification must
+    still resolve direct/transitive via the sibling manifest."""
+
+    @staticmethod
+    def _plugin_with(stdout: str) -> TrivyPlugin:
+        runner = MagicMock()
+        runner.run.return_value = ToolResult(
+            stdout=stdout, stderr="", exit_code=0, timed_out=False, not_installed=False
+        )
+        return TrivyPlugin(tool_runner=runner)
+
+    def test_package_lock_target_direct(self, tmp_path: Path) -> None:
+        (tmp_path / "package.json").write_text('{"dependencies": {"lodash": "^4"}}')
+        (tmp_path / "package-lock.json").write_text('{"packages": {"node_modules/lodash": {}}}')
+        plugin = self._plugin_with(_trivy_output_for_package("lodash", target="package-lock.json"))
+
+        result = plugin.run([], tmp_path)
+
+        finding = next(f for f in result.findings if f.get("package") == "lodash")
+        assert finding["metadata"]["dependency_kind"] == "direct"
+
+    def test_cargo_lock_target_transitive(self, tmp_path: Path) -> None:
+        (tmp_path / "Cargo.toml").write_text('[dependencies]\nserde = "1"\n')
+        (tmp_path / "Cargo.lock").write_text(
+            '[[package]]\nname = "serde"\n\n[[package]]\nname = "itoa"\n'
+        )
+        plugin = self._plugin_with(_trivy_output_for_package("itoa", target="Cargo.lock"))
+
+        result = plugin.run([], tmp_path)
+
+        finding = next(f for f in result.findings if f.get("package") == "itoa")
+        assert finding["metadata"]["dependency_kind"] == "transitive"
