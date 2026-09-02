@@ -34,21 +34,20 @@ PROD_IMAGE ?= caliper:amd64
 # unstripped code path (#448). The run step stays inline so it keeps invoking
 # /opt/test-venv/bin/python directly against the image-built venv (#203).
 test-build:
-	@bash scripts/build-test.sh --build-only $(if $(filter linux/amd64,$(TEST_PLATFORM)),--amd64,--fast)
+	@bash scripts/test-run.sh --rebuild -- --co -q >/dev/null
 
-test: test-build
-	@$(CONTAINER_ENGINE) run --rm \
-		--platform $(TEST_PLATFORM) \
-		$(CONTAINER_RUN_SECURITY) \
-		--env CI \
-		--entrypoint "" \
-		$(TEST_IMAGE) \
-		/opt/test-venv/bin/python -m pytest tests/ -v \
-		--cov=caliper.core --cov-report=term-missing
+# Warm container: the test image is rebuilt only when pyproject.toml, uv.lock or
+# Dockerfile.test change; the repo is bind-mounted, so source edits need no build.
+test:
+	@bash scripts/test-run.sh -- tests/ -v --cov=caliper.core --cov-report=term-missing
 
-# Explicit emulated CI-parity run (amd64 even on an arm64 host).
+# Only the tests mapped from the change set (tested-by annotations); falls back
+# to the full suite when the diff touches dependency or harness files.
+test-affected:
+	@bash scripts/test-run.sh --affected $(if $(BASE),--base $(BASE),)
+
 test-amd64:
-	@$(MAKE) test TEST_PLATFORM=linux/amd64 TEST_IMAGE=caliper-test:amd64
+	@bash scripts/test-run.sh --amd64 -- tests/ -v
 
 prod-build:
 	@bash scripts/build.sh $(if $(filter linux/amd64,$(PROD_PLATFORM)),amd64,arm64)

@@ -10,7 +10,8 @@ Caliper — fully deterministic dependency and code review for CI: scanner plugi
 
 ```bash
 uv sync --group dev                    # Install all deps
-make test                              # Run tests in container (podman/docker)
+make test                              # Full suite in the WARM test container (image rebuilt only when deps change)
+make test-affected [BASE=rev]          # Only tests mapped from the change set via `# tested-by:` (fails safe to full suite)
 make test-host                         # Run tests on host (escape hatch)
 uv run ruff check src/ tests/          # Lint
 uv run black src/ tests/               # Format
@@ -21,6 +22,8 @@ opa test policies/ --ignore '*.yaml' --ignore '*.yml'  # OPA Rego policy tests (
 ```
 
 **Tests MUST run in a container.** `make test` handles this automatically. Never use `CALIPER_ALLOW_HOST_TESTS=1`.
+
+**Warm test image:** `scripts/test-run.sh` builds `caliper-test:<arch>` once, labelled with a hash of `pyproject.toml` + `uv.lock` + `Dockerfile.test`, and bind-mounts the repo read-only at `/workspace` (caliper is installed editable from there), so a source edit needs no rebuild and a targeted run starts in seconds. `scripts/test-run.sh -- tests/unit/test_x.py -q` for one file; `--affected` runs what `scripts/affected_tests.py` selects from the diff (every source file's `# tested-by:` line is the map; dependency/harness changes or a missing annotation fall back to the full suite). `scripts/build-test.sh` still exists for the old always-rebuild path.
 
 ## Container Builds
 
