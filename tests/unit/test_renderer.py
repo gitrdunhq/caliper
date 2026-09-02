@@ -473,7 +473,7 @@ class TestActionabilityInComment:
         md = render_comment([result], repo="org/repo", pr_num=1, title="test")
         assert "Actionability" in md
         assert "blocked" in md.lower()
-        assert "none actionable" in md.lower()
+        assert "blocked on upstream" in md.lower()
 
     def test_no_actionability_section_when_no_findings(self):
         result = PluginResult(plugin_name="trivy", findings=[])

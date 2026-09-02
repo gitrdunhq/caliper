@@ -20,20 +20,24 @@
 
 ### Actionability
 
-> 1 findings have available fixes. 7 are blocked on upstream.
+> 7 findings have available fixes. 1 are blocked on upstream.
 
 
-**1 fixable** — upgrade available:
+**7 fixable** — you can fix these here:
 
-- `requests` 2.19.0 → **2.32.0** (critical) — [GHSA-xxxx-crit1](https://osv.dev/GHSA-xxxx-crit1)
+- `src/app/auth.py:15` — python.security.weak-hash (medium)
+- `src/app/db.py:42` — python.security.sql-injection (high) — use a parameterized query
+- `src/app/cli.py:88` — python.security.subprocess-shell (high)
+- `src/app/models.py:9` — CAL-004 (medium) — default to None and build the list inside the function
+- `src/app/db.py:120` — CAL-001 (high)
+- `src/app/util.py:51` — CAL-009 (low)
+- upgrade `requests` 2.19.0 → **2.32.0** (critical) — [GHSA-xxxx-crit1](https://osv.dev/GHSA-xxxx-crit1)
 
 
 
 
-**7 blocked** — no fix available:
+**1 blocked on upstream** — no fixed version published yet:
 
-- **semgrep**: 3 findings (medium, high)
-- **detectors**: 3 findings (medium, high, low)
 - **osv-scanner**: 1 findings (low)
 
 

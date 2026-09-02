@@ -227,7 +227,7 @@ class TestSummaryText:
         ]
         summary = classify_findings([_make_result("trivy", findings)])
         text = summary.summary_text
-        assert "none actionable" in text.lower() or "not actionable" in text.lower()
+        assert "blocked on upstream" in text.lower()
 
     def test_all_actionable_text_mentions_available_fixes(self) -> None:
         findings = [
@@ -262,3 +262,44 @@ class TestSummaryText:
         text = summary.summary_text
         assert "1 CRITICAL" in text
         assert "1 HIGH" in text
+
+
+class TestCodeFindingsAreActionable:
+    """Only dependency findings can be 'blocked on upstream'. A code finding
+    (semgrep, detector, complexity: file + line, no package) is always something
+    the reader can fix, so it must never be labelled 'no fix available'."""
+
+    def test_code_finding_without_fixed_version_is_actionable(self) -> None:
+        from caliper.core.actionability import _is_actionable
+
+        assert _is_actionable({"file": "a.py", "line": 3, "rule_id": "CAL-002", "severity": "high"})
+        assert _is_actionable(
+            {"file": "a.py", "line": 3, "fix_suggestion": "use x", "severity": "low"}
+        )
+
+    def test_dependency_finding_without_fixed_version_is_blocked(self) -> None:
+        from caliper.core.actionability import _is_actionable
+
+        assert not _is_actionable({"package": "left-pad", "version": "1.0", "fixed_version": ""})
+        assert _is_actionable({"package": "left-pad", "version": "1.0", "fixed_version": "1.1"})
+
+    def test_summary_text_names_upstream_for_blocked(self) -> None:
+        from caliper.core.actionability import classify_findings
+        from caliper.core.plugin import PluginResult
+
+        results = [
+            PluginResult(
+                plugin_name="osv-scanner",
+                findings=[
+                    {"package": "p", "version": "1", "fixed_version": "", "severity": "high"}
+                ],
+            ),
+            PluginResult(
+                plugin_name="semgrep",
+                findings=[{"file": "a.py", "line": 1, "rule_id": "r", "severity": "medium"}],
+            ),
+        ]
+        s = classify_findings(results)
+        assert s.actionable_count == 1 and s.blocked_count == 1
+        assert "upstream" in s.summary_text
+        assert "none actionable" not in s.summary_text
