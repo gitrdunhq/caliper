@@ -14,6 +14,7 @@ import structlog
 from caliper.core.config import CaliperSettings
 from caliper.core.errors import ErrorCode, error_msg
 from caliper.core.ignore import load_ignore_patterns
+from caliper.core.manifest_discovery import classify_dependency_kind
 from caliper.core.plugin import (
     PluginCategory,
     PluginResult,
@@ -134,7 +135,7 @@ class OsvScannerPlugin(ScannerPlugin):
                 error=error_msg(ErrorCode.BINARY_CRASHED, "osv-scanner", exit_code=r.returncode),
             )
 
-        findings = self._extract_findings(data)
+        findings = self._extract_findings(data, repo_path)
         crit = sum(1 for f in findings if f["severity"] in ("critical", "high"))
         return PluginResult(
             plugin_name=self.name,
@@ -147,31 +148,60 @@ class OsvScannerPlugin(ScannerPlugin):
             },
         )
 
-    def _extract_findings(self, data: dict) -> list[dict]:
+    def _extract_findings(self, data: dict, repo_path: Path | None = None) -> list[dict]:
         findings = []
         for result in data.get("results", []):
+            source = result.get("source")
+            has_source = isinstance(source, dict) and bool(source.get("path"))
+            source_path = source.get("path", "") if has_source else ""
+            file_path = self._relative_manifest_path(source_path, repo_path)
+            manifest_abs_path = Path(source_path) if source_path else None
             for pkg in result.get("packages", []):
                 pkg_info = pkg.get("package", {})
+                dependency_kind = "unknown"
+                if has_source and repo_path is not None and manifest_abs_path is not None:
+                    with contextlib.suppress(Exception):
+                        dependency_kind = classify_dependency_kind(
+                            repo_path, pkg_info.get("name", "?"), manifest_abs_path
+                        )
                 for vuln in pkg.get("vulnerabilities", []):
                     sev = self._resolve_severity(vuln)
                     vuln_id = vuln.get("id", "?")
                     aliases = vuln.get("aliases", [])
                     cve_id = next((a for a in aliases if a.startswith("CVE-")), "")
                     display_id = cve_id if cve_id else vuln_id
-                    findings.append(
-                        {
-                            "id": display_id,
-                            "ghsa": vuln_id if vuln_id.startswith("GHSA") else "",
-                            "url": _advisory_url(display_id),
-                            "summary": vuln.get("summary", ""),
-                            "severity": sev,
-                            "package": pkg_info.get("name", "?"),
-                            "version": pkg_info.get("version", "?"),
-                            "ecosystem": pkg_info.get("ecosystem", "?"),
-                            "db_updated_at": vuln.get("modified") or None,
-                        }
-                    )
+                    finding = {
+                        "id": display_id,
+                        "ghsa": vuln_id if vuln_id.startswith("GHSA") else "",
+                        "url": _advisory_url(display_id),
+                        "summary": vuln.get("summary", ""),
+                        "severity": sev,
+                        "package": pkg_info.get("name", "?"),
+                        "version": pkg_info.get("version", "?"),
+                        "ecosystem": pkg_info.get("ecosystem", "?"),
+                        "db_updated_at": vuln.get("modified") or None,
+                    }
+                    # Only attach file/line/dependency-kind metadata when the
+                    # OSV result actually carries source-mapping info — keeps
+                    # the finding shape unchanged (and normalize_finding-safe,
+                    # since PluginFinding.line is a plain int) for results
+                    # without a `source` block.
+                    if has_source:
+                        finding["file"] = file_path
+                        finding["line"] = pkg_info.get("line")
+                        finding["metadata"] = {"dependency_kind": dependency_kind}
+                    findings.append(finding)
         return findings[:_MAX_FINDINGS]
+
+    @staticmethod
+    def _relative_manifest_path(source_path: str, repo_path: Path | None) -> str:
+        if not source_path:
+            return ""
+        abs_path = Path(source_path)
+        if repo_path is not None:
+            with contextlib.suppress(ValueError):
+                return str(abs_path.relative_to(repo_path))
+        return source_path.lstrip("/")
 
     def _resolve_severity(self, vuln: dict) -> str:
         # Take the HIGHEST severity across all signals — never let a lower
