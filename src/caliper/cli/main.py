@@ -118,8 +118,14 @@ def _check_isolated_environment() -> None:
 
 @click.group()
 @click.version_option(package_name="caliper")
-def cli() -> None:
+@click.option("-v", "--verbose", is_flag=True, help="Debug logging (or CALIPER_LOG_LEVEL=debug).")
+def cli(verbose: bool) -> None:
     """Caliper — fully deterministic dependency and code review for CI."""
+    import os
+
+    from caliper.cli.logging_setup import configure_logging, resolve_log_level
+
+    configure_logging(resolve_log_level(verbose=verbose, env=dict(os.environ)))
     _check_isolated_environment()
 
 
