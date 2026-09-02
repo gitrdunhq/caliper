@@ -15,8 +15,10 @@ import orjson
 import structlog
 
 try:
+    import psycopg
     from psycopg_pool import ConnectionPool
 except ImportError:
+    psycopg = None  # type: ignore[assignment]
     ConnectionPool = None  # type: ignore[assignment,misc]
 
 from caliper.core.models import (
@@ -77,6 +79,7 @@ class DecisionRepository:
     def __init__(self, dsn: str, query_timeout: int = 10, connect_timeout: int = 5) -> None:
         self._dsn = _ensure_connect_timeout(dsn, connect_timeout)
         self._query_timeout = query_timeout
+        self._connect_timeout = connect_timeout
         self._pool: ConnectionPool | None = None
 
     def connect(self) -> bool:
@@ -91,14 +94,25 @@ class DecisionRepository:
             )
             return False
         try:
-            self._pool = ConnectionPool(self._dsn, min_size=1, max_size=10, open=True)
+            # Fail-fast probe: a refused/unreachable server surfaces here in
+            # milliseconds. Without it the pool retries in the background and
+            # ``connection()`` blocks for its own 30 s default before failing.
+            psycopg.connect(self._dsn).close()
+            self._pool = ConnectionPool(
+                self._dsn,
+                min_size=1,
+                max_size=10,
+                open=False,
+                timeout=float(self._connect_timeout),
+            )
+            self._pool.open(wait=True, timeout=float(self._connect_timeout))
             with self._pool.connection() as conn:
                 conn.execute("SELECT 1")
             logger.info("database_connected", dsn=_safe_dsn(self._dsn))
             return True
         except Exception:
             logger.error("database_connection_failed", dsn=_safe_dsn(self._dsn), exc_info=True)
-            self._pool = None
+            self.close()
             return False
 
     def close(self) -> None:
