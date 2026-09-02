@@ -63,8 +63,11 @@ jobs:
             --state open \
             --json number \
             --jq '.[0].number // ""')
+          # Never touch the autorelease label here: release-please only tags and
+          # publishes merged PRs still labelled "autorelease: pending" and flips
+          # the label itself once the release exists. Pre-labelling "tagged"
+          # made it skip 0.2.27-0.2.30 entirely (merged, never tagged).
           if [ -n "$PR_NUM" ]; then
-            gh pr edit "$PR_NUM" --remove-label "autorelease: pending" --add-label "autorelease: tagged" || true
             gh pr merge "$PR_NUM" --auto --rebase || true
           fi
         env:

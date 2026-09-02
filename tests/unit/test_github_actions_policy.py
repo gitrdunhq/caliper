@@ -492,3 +492,15 @@ def test_policy_artifacts_are_codeowned_and_documented() -> None:
     ]
     for required_path in required_paths:
         assert required_path in codeowners, f"CODEOWNERS must cover {required_path}"
+
+
+def test_release_workflow_never_prelabels_the_release_pr_as_tagged() -> None:
+    """release-please creates the tag/release for merged PRs still labelled
+    `autorelease: pending` and flips the label itself afterwards. A workflow
+    that sets `autorelease: tagged` before the merge tells release-please the
+    release already happened: 0.2.27 through 0.2.30 were merged and never
+    tagged or published because of exactly that."""
+    workflow = _load_yaml(_WORKFLOWS / "release-please.yml")
+    run_text = _run_text(workflow)
+    assert "autorelease: tagged" not in run_text
+    assert "gh pr merge" in run_text and "--auto" in run_text
