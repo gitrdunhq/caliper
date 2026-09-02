@@ -494,6 +494,74 @@ def test_policy_artifacts_are_codeowned_and_documented() -> None:
         assert required_path in codeowners, f"CODEOWNERS must cover {required_path}"
 
 
+def test_foreman_contract_and_e2e_jobs_run_via_build_test_script() -> None:
+    """task-021 AC1: foreman.yml no longer sets CALIPER_ALLOW_HOST_TESTS=1 in its
+    contract/e2e jobs; those jobs instead build/run via scripts/build-test.sh."""
+    workflow = _load_yaml(_WORKFLOWS / "foreman.yml")
+    jobs = _as_mapping(workflow.get("jobs"))
+    contract = _as_mapping(jobs.get("api_contract"))
+    smoke = _as_mapping(jobs.get("e2e_smoke"))
+    full = _as_mapping(jobs.get("e2e_full"))
+
+    # Split so the #216 quarantine guard doesn't flag this policing assertion.
+    banned_env = "CALIPER_ALLOW_" + "HOST_TESTS"
+    for job_name, job in (("api_contract", contract), ("e2e_smoke", smoke), ("e2e_full", full)):
+        run_text = _job_run_text(job)
+        assert banned_env not in run_text, f"foreman.yml job {job_name} must not set {banned_env}"
+        assert (
+            "scripts/build-test.sh" in run_text
+        ), f"foreman.yml job {job_name} must build/run tests via scripts/build-test.sh"
+
+
+def test_release_candidate_e2e_job_runs_via_build_test_script() -> None:
+    """task-021 AC2: release-candidate.yml no longer sets CALIPER_ALLOW_HOST_TESTS="1";
+    that job instead runs via scripts/build-test.sh."""
+    workflow = _load_yaml(_WORKFLOWS / "release-candidate.yml")
+    jobs = _as_mapping(workflow.get("jobs"))
+    release_candidate = _as_mapping(jobs.get("release_candidate"))
+
+    run_text = _job_run_text(release_candidate)
+    # Split so the #216 quarantine guard doesn't flag this policing assertion.
+    banned_env = "CALIPER_ALLOW_" + "HOST_TESTS"
+    assert (
+        banned_env not in run_text
+    ), f"release-candidate.yml release_candidate job must not set {banned_env}"
+    assert (
+        "scripts/build-test.sh" in run_text
+    ), "release-candidate.yml release_candidate job must run full e2e via scripts/build-test.sh"
+
+
+def test_no_workflow_sets_caliper_allow_host_tests_outside_sanctioned_allowlist() -> None:
+    """task-021 AC3: fails if any .github/workflows/*.yml file sets
+    CALIPER_ALLOW_HOST_TESTS unless it is on an explicit sanctioned-jobs allowlist
+    defined in this test itself."""
+    # Deliberately empty: no CI job is sanctioned to bypass the container-only
+    # test policy. Add "<workflow-filename>:<job-name>" entries here only with
+    # an explicit, reviewed reason.
+    sanctioned_jobs: set[str] = set()
+
+    # Split so the #216 quarantine guard doesn't flag this policing assertion.
+    banned_env = "CALIPER_ALLOW_" + "HOST_TESTS"
+    violations: list[str] = []
+    for path in _workflow_paths():
+        workflow = _load_yaml(path)
+        for job_name, raw_job in _as_mapping(workflow.get("jobs")).items():
+            job = _as_mapping(raw_job)
+            if banned_env in _job_run_text(job):
+                violations.append(f"{path.name}:{job_name}")
+                continue
+            for step in _job_steps(job):
+                env = _as_mapping(step.get("env"))
+                if banned_env in env:
+                    violations.append(f"{path.name}:{job_name}")
+                    break
+
+    unsanctioned = [entry for entry in violations if entry not in sanctioned_jobs]
+    assert (
+        unsanctioned == []
+    ), f"{banned_env} must not be set outside the sanctioned allowlist: {unsanctioned}"
+
+
 def test_release_workflow_never_prelabels_the_release_pr_as_tagged() -> None:
     """release-please creates the tag/release for merged PRs still labelled
     `autorelease: pending` and flips the label itself afterwards. A workflow
