@@ -205,7 +205,12 @@ class TestTrivyPluginToolRunner:
 
         plugin.run([], tmp_path)
 
-        assert len(fake.calls) == 1, "Expected exactly one ToolInvocation via the fake runner"
+        # Two invocations, both through the runner: the `trivy version` DB-metadata
+        # probe (task-015: findings carry db_updated_at; trivy's scan JSON does not
+        # include the DB timestamp, so it cannot be folded into the scan call) and
+        # the `trivy fs` scan itself. Neither may go through subprocess directly.
+        assert len(fake.calls) == 2, "Expected the DB-metadata probe + the scan via the fake runner"
+        assert [c.cmd[:2] for c in fake.calls] == [["trivy", "version"], ["trivy", "fs"]]
 
     def test_trivy_clean_scan_via_tool_runner(self, tmp_path: Path) -> None:
         """Clean scan (no vulns) via ToolRunner produces a PluginResult with zero findings.

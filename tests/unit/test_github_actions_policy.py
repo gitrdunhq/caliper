@@ -379,7 +379,10 @@ def test_nightly_release_candidate_runs_full_e2e_and_creates_prerelease() -> Non
     run_text = f"{release_run_text}\n{publish_run_text}"
     assert "tag_name={tag_name}" in run_text
     assert 'f"v{base_version}-rc.{run_date}.{candidate_number}"' in run_text
-    assert "uv run pytest tests/e2e/ -v --tb=short" in run_text
+    # task-021: the full e2e suite runs inside the test image via build-test.sh,
+    # never on the runner host (test_no_workflow_sets_caliper_allow_host_tests_*
+    # polices the host-bypass env var; this pins the container entrypoint).
+    assert "bash scripts/build-test.sh -- tests/e2e/ -v --tb=short" in run_text
     assert "uv run caliper review --repo-path . --format sarif" in run_text
     assert "uv run caliper review --repo-path . --output" in run_text
     assert 'result.get("ruleId") == "caliper-plugin-error"' in run_text
