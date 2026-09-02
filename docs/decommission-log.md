@@ -157,7 +157,7 @@ Points at `9f5de1d` (main after the Tier 1 merge plus the ratchet-allowlist fix,
 
 ### 11. The flywheel: `caliper inspect`, `caliper gauge`, `caliper eval` (2026-09-01)
 
-**What it was.** Three commands built together on 2026-06-29. `inspect` took a `caliper part` cut list, ran deterministic "Screen" gauges per part, optionally asked an LLM for review claims, filtered them through a pure "Adjudicate" function, and appended survivors and drops to a claims ledger. `gauge` clustered the ledger, had an LLM draft candidate gauges, backtested them deterministically, and let a human promote one into a permanent Screen gauge. `eval` scored the Adjudicate filter against a seeded-bug corpus. ADR-008 and `docs/llm-review/` document the design.
+**What it was.** Three commands built together on 2026-06-29. `inspect` took a `caliper part` cut list, ran deterministic "Screen" gauges per part, optionally asked an LLM for review claims, filtered them through a pure "Adjudicate" function, and appended survivors and drops to a claims ledger. `gauge` clustered the ledger, had an LLM draft candidate gauges, backtested them deterministically, and let a human promote one into a permanent Screen gauge. `eval` scored the Adjudicate filter against a seeded-bug corpus. ADR-008 (`008-llm-review-sealed-between-pure-functions.md`, now Status: Superseded, pointing back to this entry) and `docs/llm-review/` document the design.
 
 **Why it was cut.**
 
@@ -222,7 +222,7 @@ Points at `a3e7eec` (2026-09-01, end of the scanner audit branch).
 
 ### 15. Foreman Copilot agent (2026-09-01)
 
-**What it was.** `src/caliper/agent/`: a second presentation-tier entry point (`python -m caliper.agent.main`) wrapping the review pipeline as a GitHub Copilot Extension, with six `@tool` functions, an eight-dimension task-fit rubric in its system prompt, `FOREMAN_*` settings, and enforcement modes. ADR-001 through ADR-004 record its design.
+**What it was.** `src/caliper/agent/`: a second presentation-tier entry point (`python -m caliper.agent.main`) wrapping the review pipeline as a GitHub Copilot Extension, with six `@tool` functions, an eight-dimension task-fit rubric in its system prompt, `FOREMAN_*` settings, and enforcement modes. ADR-001 (`001-agent-module-as-separate-entry-point.md`), ADR-002 (`002-agent-as-task-fit-llm.md`), ADR-003 (`003-openai-sdk-for-tool-calling.md`), and ADR-004 (`004-semgrep-as-agent-tool-not-scanner.md`) record its design and are now marked Superseded, pointing back to this entry.
 
 **Why it was cut.**
 
@@ -234,7 +234,7 @@ Points at `a3e7eec` (2026-09-01, end of the scanner audit branch).
 
 **Also changed.** The `copilot` extra is now `webhook` (starlette + uvicorn only; the agent framework is gone from `uv.lock`). README, CLAUDE.md, WHY.md, ARCHITECTURE.md, CAPABILITIES, and the elevator pitch no longer describe a second entry point; the README workflow snippet runs `caliper review --diff ... --pr N` instead.
 
-**Kept.** `.github/workflows/foreman.yml` (the CI job, unrelated to the agent module), the webhook server, `docs/adr/001-004` as historical records.
+**Kept.** `.github/workflows/foreman.yml` (the CI job, unrelated to the agent module), the webhook server, `docs/adr/001-004` (`001-agent-module-as-separate-entry-point.md`, `002-agent-as-task-fit-llm.md`, `003-openai-sdk-for-tool-calling.md`, `004-semgrep-as-agent-tool-not-scanner.md`) as historical records, each marked Status: Superseded and pointing back to this entry.
 
 ## Archive tag: `archive/pre-cut-telemetry`
 

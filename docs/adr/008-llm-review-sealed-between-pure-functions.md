@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded (2026-09-01) — the flywheel (`caliper inspect`/`gauge`/`eval`) this ADR designed was removed. See docs/decommission-log.md entry 11 ("The flywheel: `caliper inspect`, `caliper gauge`, `caliper eval`") for the removal record.
 
 ## Context
 

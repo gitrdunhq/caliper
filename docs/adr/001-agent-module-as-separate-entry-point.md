@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded (2026-09-01) — the Foreman Copilot agent this ADR designed was removed. See docs/decommission-log.md entry 15 ("Foreman Copilot agent") for the removal record.
 
 ## Context
 
