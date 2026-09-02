@@ -91,7 +91,7 @@ def _snapshot_configs(rules_dir: str | None, changed_files: list[str]) -> list[s
 def _org_configs(
     org_rules_dir: str | None, repo_path: str, community_rules_dir: str | None = None
 ) -> list[str]:
-    """Caliper's packaged org rules, the baked eedom-community-rules snapshot, and the
+    """Caliper's packaged org rules, the baked caliper-community-rules snapshot, and the
     target's own policies/semgrep, deduplicated. A configured-but-absent dir is skipped."""
     out: list[str] = []
     seen: set[Path] = set()

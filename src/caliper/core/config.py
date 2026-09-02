@@ -105,7 +105,7 @@ class CaliperSettings(BaseSettings):
     # are never fetched, so the scan path has no network dependency and the rule
     # set cannot drift between runs. ``None`` = no community rules on this host.
     # Org rules default to ``<policies dir>/semgrep`` beside ``opa_policy_path``.
-    # ``semgrep_community_rules_dir`` is the gitrdunhq/eedom-community-rules
+    # ``semgrep_community_rules_dir`` is the gitrdunhq/caliper-community-rules
     # snapshot (Kirby-annotated shared org rules), also pinned by commit in the
     # Dockerfile (``COMMUNITY_RULES_COMMIT``, baked at /opt/caliper/community-rules).
     semgrep_rules_dir: str | None = None

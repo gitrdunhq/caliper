@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fetch the pinned eedom-community-rules snapshot for host-side runs (the container
+# Fetch the pinned caliper-community-rules snapshot for host-side runs (the container
 # image bakes the same snapshot in at build time). The commit is read from the
 # Dockerfile so there is exactly one pin. Only opengrep-loadable rule files are
 # kept (rules/**/semgrep/*.yaml, rules/**/dockerfile-semgrep/*.yaml, no tests/).
@@ -10,7 +10,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UPSTREAM="https://github.com/gitrdunhq/eedom-community-rules"
+UPSTREAM="https://github.com/gitrdunhq/caliper-community-rules"
 
 if [ "${1:-}" = "--bump" ]; then
   LATEST="$(git ls-remote "${UPSTREAM}.git" refs/heads/main | cut -f1)"
@@ -30,7 +30,7 @@ if [ -f "${DEST}/COMMIT" ] && [ "$(cat "${DEST}/COMMIT")" = "${COMMIT}" ]; then
   exit 0
 fi
 
-echo "Fetching eedom-community-rules@${COMMIT} -> ${DEST}"
+echo "Fetching caliper-community-rules@${COMMIT} -> ${DEST}"
 rm -rf "${DEST}"
 mkdir -p "${DEST}"
 WORK="$(mktemp -d -t community-rules.XXXXXX)"
