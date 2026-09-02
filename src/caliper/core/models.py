@@ -65,25 +65,18 @@ class FindingSeverity(enum.StrEnum):
 
 
 _SEVERITY_ALIASES: dict[str, str] = {
-    "error": "critical",
-    "ERROR": "critical",
+    # semgrep/opengrep ERROR is "likely bug", not CVSS 9+: high, never critical.
+    "error": "high",
     "warning": "medium",
-    "WARNING": "medium",
     "note": "info",
-    "NOTE": "info",
-    "CRITICAL": "critical",
-    "HIGH": "high",
-    "MEDIUM": "medium",
-    "LOW": "low",
-    "INFO": "info",
     "moderate": "medium",
-    "MODERATE": "medium",
 }
 
 
 def normalize_severity(raw: str) -> FindingSeverity:
     """Convert any upstream severity string to a FindingSeverity enum value."""
-    normalized = _SEVERITY_ALIASES.get(raw, raw.lower())
+    lowered = raw.strip().lower()
+    normalized = _SEVERITY_ALIASES.get(lowered, lowered)
     try:
         return FindingSeverity(normalized)
     except ValueError:

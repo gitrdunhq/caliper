@@ -70,10 +70,10 @@ class TestNormalizeSeverity:
         for val in ("critical", "high", "medium", "low", "info"):
             assert normalize_severity(val) == FindingSeverity(val)
 
-    def test_semgrep_error_maps_to_critical(self) -> None:
+    def test_semgrep_error_maps_to_high(self) -> None:
         from caliper.core.models import FindingSeverity, normalize_severity
 
-        assert normalize_severity("ERROR") == FindingSeverity.critical
+        assert normalize_severity("ERROR") == FindingSeverity.high
 
     def test_semgrep_warning_maps_to_medium(self) -> None:
         from caliper.core.models import FindingSeverity, normalize_severity

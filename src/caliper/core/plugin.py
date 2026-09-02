@@ -14,6 +14,7 @@ from typing import Protocol, runtime_checkable
 from pydantic import Field
 
 from caliper._base import Contract
+from caliper.core.models import normalize_severity
 
 # Default templates directory — co-located with caliper.templates package.
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
@@ -134,7 +135,7 @@ def normalize_finding(raw: dict) -> PluginFinding:
             metadata[k] = v
     return PluginFinding(
         id=str(known.get("id", known.get("rule_id", ""))),
-        severity=str(known.get("severity", "info")),
+        severity=normalize_severity(str(known.get("severity", "info"))).value,
         message=str(known.get("message", known.get("description", known.get("summary", "")))),
         file=str(known.get("file", "")),
         line=int(known.get("line", 0)),

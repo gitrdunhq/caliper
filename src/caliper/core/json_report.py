@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 
 import orjson
 
+from caliper.core.models import normalize_severity
 from caliper.core.plugin import PluginResult
 from caliper.core.report_schema import (
     REPORT_SCHEMA_VERSION,
@@ -66,6 +67,9 @@ def _plugin_status(result: PluginResult) -> str:
 def _finding_to_dict(finding: object) -> dict:
     """Normalize a finding to a plain dict with metadata nested (report shape)."""
     if isinstance(finding, dict):
+        # Raw dicts that bypassed the registry still get the one vocabulary.
+        if "severity" in finding:
+            return {**finding, "severity": normalize_severity(str(finding["severity"])).value}
         return finding
     if hasattr(finding, "model_dump"):  # frozen PluginFinding Contract
         return finding.model_dump()

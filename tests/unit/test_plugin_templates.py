@@ -32,7 +32,7 @@ def _semgrep_result_with_findings() -> PluginResult:
                 "file": "app/db.py",
                 "start_line": 42,
                 "end_line": 43,
-                "severity": "ERROR",
+                "severity": "high",
                 "message": "SQL injection risk detected in query construction",
             },
             {
@@ -40,7 +40,7 @@ def _semgrep_result_with_findings() -> PluginResult:
                 "file": "app/auth.py",
                 "start_line": 15,
                 "end_line": 15,
-                "severity": "WARNING",
+                "severity": "medium",
                 "message": "MD5 is cryptographically weak",
             },
         ],
@@ -337,7 +337,7 @@ class TestSemgrepTemplate:
     def test_severity_icons_present(self):
         plugin = SemgrepPlugin()
         out = plugin.render(_semgrep_result_with_findings(), template_dir=_TEMPLATES_DIR)
-        # ERROR → 🔴, WARNING → 🟡
+        # high → 🔴, medium → 🟡
         assert "🔴" in out
         assert "🟡" in out
 
