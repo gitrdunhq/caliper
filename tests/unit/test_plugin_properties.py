@@ -2,11 +2,13 @@
 # tested-by: tests/unit/test_plugin_properties.py
 
 Covers: PROP-001 (isolation), PROP-002 (contract), PROP-003 (determinism),
-        PROP-005 (template purity), PROP-006 (discovery safety), PROP-007 (length bound).
+        PROP-005 (template purity), PROP-006 (discovery safety), PROP-007 (length bound),
+        R1 AC6 section ordering (epic-next-10: severities descend within a plugin section).
 """
 
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 
@@ -268,3 +270,109 @@ class TestPluginResultProperties:
         r = PluginResult(plugin_name="test", findings=findings)
         assert isinstance(r.summary, dict)
         assert isinstance(r.findings, list)
+
+
+# ── R1 AC6: severity ordering within every plugin section (epic-next-10) ──
+#
+# Domain: Ordering — SAFETY — an out-of-sequence finding never renders.
+# Arbitrary PluginResult lists with random severities/files/lines/rule ids and a
+# UNIQUE (file, line, rule_id) per plugin (so dedup can never reorder them) must
+# render, via the public render_comment, with severities critical → info inside
+# each "### <plugin>" section. Severity is parsed off the rendered icon.
+
+_ORDERED_SEVERITIES = ["critical", "high", "medium", "low", "info"]
+_SEVERITY_RANK = {sev: i for i, sev in enumerate(_ORDERED_SEVERITIES)}
+_ICON_TO_SEVERITY = {"🔴": "critical", "🟠": "high", "🟡": "medium", "🔵": "low", "⚪": "info"}
+_SECTION_HEADER_RE = re.compile(r"^### (?P<plugin>.+)$")
+_FINDING_LINE_RE = re.compile(r"^- (?P<icon>[🔴🟠🟡🔵⚪]) ")
+
+# Plugin names avoid "semgrep" (its low/info findings move to the notes block
+# under the severity floor) and "complexity" (special-cased MI extraction).
+_ordering_plugin_name_st = st.sampled_from(
+    ["alpha", "beta", "gamma", "delta", "detectors", "osv-scanner"]
+)
+_finding_key_st = st.tuples(
+    st.sampled_from(["a.py", "b.py", "c/d.py", "src/e.py", "z.go"]),
+    st.integers(min_value=1, max_value=200),
+    st.sampled_from(["R-1", "R-2", "CAL-001", "CAL-002", "GHSA-1"]),
+)
+
+
+@st.composite
+def _ordering_plugin_result_st(draw: st.DrawFn) -> PluginResult:
+    keys = draw(st.lists(_finding_key_st, min_size=1, max_size=40, unique=True))
+    findings = [
+        {
+            "rule_id": rule_id,
+            "severity": draw(severity_st),
+            "file": file,
+            "line": line,
+            "message": "m",
+        }
+        for file, line, rule_id in keys
+    ]
+    return PluginResult(
+        plugin_name=draw(_ordering_plugin_name_st),
+        category=draw(st.sampled_from(["", "code", "dependency"])),
+        findings=findings,
+    )
+
+
+@st.composite
+def _ordering_results_st(draw: st.DrawFn) -> list[PluginResult]:
+    """One section per plugin name: keep the first of any duplicate name."""
+    seen: set[str] = set()
+    unique: list[PluginResult] = []
+    for r in draw(st.lists(_ordering_plugin_result_st(), min_size=1, max_size=4)):
+        if r.plugin_name not in seen:
+            seen.add(r.plugin_name)
+            unique.append(r)
+    return unique
+
+
+def parse_section_severities(markdown: str) -> dict[str, list[str]]:
+    """Map each ``### <plugin>`` section to the severities of its finding lines, in order."""
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in markdown.splitlines():
+        header = _SECTION_HEADER_RE.match(line)
+        if header:
+            current = header.group("plugin")
+            sections[current] = []
+            continue
+        if line.startswith("<details>") or line.startswith("---"):
+            current = None
+            continue
+        if current is None:
+            continue
+        found = _FINDING_LINE_RE.match(line)
+        if found:
+            sections[current].append(_ICON_TO_SEVERITY[found.group("icon")])
+    return sections
+
+
+class TestSectionSeverityOrdering:
+    @settings(deadline=None, max_examples=150)
+    @given(results=_ordering_results_st())
+    def test_severities_descend_within_every_plugin_section(self, results: list[PluginResult]):
+        markdown = render_comment(results, repo="org/repo", pr_num=1, title="property")
+        sections = parse_section_severities(markdown)
+
+        for r in results:
+            assert r.plugin_name in sections, f"plugin {r.plugin_name} rendered no section"
+            rendered = sections[r.plugin_name]
+            assert len(rendered) == len(r.findings), (
+                f"{r.plugin_name}: rendered {len(rendered)} finding lines for "
+                f"{len(r.findings)} findings"
+            )
+            ranks = [_SEVERITY_RANK[s] for s in rendered]
+            assert ranks == sorted(ranks), f"{r.plugin_name}: severities out of order: {rendered}"
+
+    @settings(deadline=None, max_examples=150)
+    @given(results=_ordering_results_st())
+    def test_rendered_severity_multiset_matches_input(self, results: list[PluginResult]):
+        markdown = render_comment(results, repo="org/repo", pr_num=1, title="property")
+        sections = parse_section_severities(markdown)
+        for r in results:
+            expected = sorted(f["severity"] for f in r.findings)
+            assert sorted(sections[r.plugin_name]) == expected
