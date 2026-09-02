@@ -113,3 +113,19 @@ class TestChangedFiles:
             "tests/unit/test_a.py",
             "tests/unit/test_new.py",
         ]
+
+
+class TestDefaultBase:
+    def test_lane_worktree_uses_batch_root_head_as_base(self, tmp_path: Path) -> None:
+        """Inside a datum lane worktree (<run>-root/.datum/worktrees/<run>/task-NNN) the diff
+        base is the batch root's HEAD, i.e. the epic branch at batch start, not main."""
+        root = tmp_path / "20260902-1-root"
+        lane = root / ".datum" / "worktrees" / "20260902-1" / "task-003"
+        lane.mkdir(parents=True)
+        (root / ".git").write_text("gitdir: elsewhere\n")
+        assert sut.lane_batch_root(lane) == root
+        assert sut.lane_batch_root(tmp_path / "plain" / "checkout") is None
+
+    def test_env_override_wins(self, monkeypatch) -> None:
+        monkeypatch.setenv("CALIPER_TEST_BASE", "abc123")
+        assert sut.default_base(Path("/nowhere"), git=lambda *a: "") == "abc123"

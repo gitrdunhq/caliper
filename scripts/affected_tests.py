@@ -13,11 +13,13 @@ that annotation IS the map. Rules, in order:
 * the cross-cutting guard tests always run (cheap, catch count/ratchet/tier drift)
 
 Usage: scripts/affected_tests.py [--base REV] [--explain]   -> prints test paths.
+Base: CALIPER_TEST_BASE, else a datum lane's batch-root HEAD, else merge-base with main.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -144,13 +146,46 @@ def _git(root: Path, *args: str) -> str:
     ).stdout
 
 
+def lane_batch_root(path: Path) -> Path | None:
+    """Return the datum batch-root worktree that *path* lives under, if any.
+
+    Lane worktrees are laid out as ``<run>-root/.datum/worktrees/<run>/task-NNN``;
+    the ``-root`` checkout is the epic branch at batch start, so its HEAD is the
+    right diff base for a lane. Detected structurally, no datum config needed.
+    """
+    for anc in [path, *path.parents]:
+        if anc.name.endswith("-root") and (anc / ".git").exists():
+            return anc
+    return None
+
+
+def default_base(root: Path, git=None) -> str:
+    """CALIPER_TEST_BASE > lane batch-root HEAD > merge-base with main > HEAD~1."""
+    git = git or (lambda *a: _git(root, *a))
+    env = os.environ.get("CALIPER_TEST_BASE", "").strip()
+    if env:
+        return env
+    batch_root = lane_batch_root(root.resolve())
+    if batch_root is not None:
+        head = subprocess.run(
+            ["git", "-C", str(batch_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        ).stdout.strip()
+        if head:
+            return head
+    mb = (
+        git("merge-base", "HEAD", "main").strip()
+        or git("merge-base", "HEAD", "origin/main").strip()
+    )
+    return mb or "HEAD~1"
+
+
 def changed_files(root: Path, base: str | None) -> list[str]:
     if base is None:
-        mb = (
-            _git(root, "merge-base", "HEAD", "main").strip()
-            or _git(root, "merge-base", "HEAD", "origin/main").strip()
-        )
-        base = mb or "HEAD~1"
+        base = default_base(root)
     committed = _git(root, "diff", "--name-only", f"{base}...HEAD") or _git(
         root, "diff", "--name-only", base
     )
