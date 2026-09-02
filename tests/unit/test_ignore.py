@@ -17,13 +17,13 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from caliper.core.models import Finding
 from caliper.core.ignore import (
     DEFAULT_PATTERNS,
     TEST_PATTERNS,
     load_ignore_patterns,
     should_ignore,
 )
+from caliper.core.models import Finding
 from tests.unit._strategies import (
     any_path_like_text,
     path_traversal_shaped,
