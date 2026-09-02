@@ -380,8 +380,8 @@ def test_nightly_release_candidate_runs_full_e2e_and_creates_prerelease() -> Non
     assert "tag_name={tag_name}" in run_text
     assert 'f"v{base_version}-rc.{run_date}.{candidate_number}"' in run_text
     assert "uv run pytest tests/e2e/ -v --tb=short" in run_text
-    assert "uv run caliper review --repo-path . --all --format sarif" in run_text
-    assert "uv run caliper review --repo-path . --all --output" in run_text
+    assert "uv run caliper review --repo-path . --format sarif" in run_text
+    assert "uv run caliper review --repo-path . --output" in run_text
     assert 'result.get("ruleId") == "caliper-plugin-error"' in run_text
     assert 're.findall(r"BINARY_CRASHED", markdown)' in run_text
     assert "Release candidate blocked by Caliper review" in run_text
