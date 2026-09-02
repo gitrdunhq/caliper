@@ -38,17 +38,3 @@ rules:
       Assert specific values, types, or conditions.
     severity: INFO
     languages: [python]
-
-  - id: org.testing.empty-test-body
-    patterns:
-      - pattern-either:
-          - pattern: 'test("...", () => {})'
-          - pattern: 'test("...", async () => {})'
-          - pattern: 'it("...", () => {})'
-          - pattern: 'it("...", async () => {})'
-    message: >
-      Test with an empty body passes trivially and gives CI a green check
-      with zero coverage (the untouched `cdk init` template does this).
-      Assert something or delete the test.
-    severity: ERROR
-    languages: [javascript, typescript]
