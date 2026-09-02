@@ -2,7 +2,7 @@
   <img src="assets/hero.svg" alt="Caliper" width="900">
   <br>
   <strong>Fully deterministic dependency review for CI.</strong><br>
-  14 plugins. 21 detectors. 16 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
+  14 plugins. 26 detectors. 16 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
   <br><br>
 
   <a href="#quick-start"><img src="https://img.shields.io/badge/get_started-→-d4251a?style=flat-square" alt="Get Started"></a>
@@ -29,7 +29,7 @@ Both outcomes cost real money. One costs velocity. The other costs incidents.
 
 ---
 
-When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 14 plugins in parallel (plus 22 deterministic AST detectors and 72 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
+When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 14 plugins in parallel (plus 26 deterministic AST detectors and 72 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
 
 Every scanning tool is deterministic. The decision is deterministic. Nothing blocks the build unless OPA says so.
 
@@ -97,7 +97,7 @@ All deterministic. Zero LLM. The 14 scanner plugins below feed their findings to
 |--------|-------------|
 | **OPA** | Policy enforcement (6 Rego rules), runs last (`depends_on=["*"]`) — see [policy rules](#opa-policy-rules) |
 
-### Plus 22 deterministic detectors
+### Plus 26 deterministic detectors
 
 On changed source, caliper also runs **21 AST bug detectors** (`CAL-001`…`CAL-022`, ids never reused) — SQL injection, missing JWT audience claim, secrets typed as plain `str`, subprocess without timeout, unbounded caches, and more. The 12 general-bug detectors run by default; the 9 that encode caliper's own conventions (`# tested-by:` annotations, pathlib-only paths, atomic writes, …) are the opt-in `house-rules` profile in `.caliper.yaml`. Deterministic, fail-safe, suppressible with `# noqa: CAL-NNN`. See [`docs/detectors.md`](docs/detectors.md).
 
@@ -330,7 +330,7 @@ src/caliper/
 │   ├── mypy.py             #   Cross-file Python type checking
 │   ├── scribes/          #   Detect-then-scribe: code-graph + opt-in semgrep (ADR-006)
 │   └── ...                 #   + 13 more (one file per plugin, incl. _opa.py)
-├── detectors/              # 21 deterministic AST bug detectors (CAL-001..022)
+├── detectors/              # 26 deterministic AST bug detectors (CAL-001..027)
 │   ├── security/           #   8 detectors (SQL injection, JWT audience, SecretStr, ...)
 │   ├── reliability/        #   subprocess timeout, unbounded cache, atomic write, ...
 │   ├── scanner.py          #   DeterministicScanner (ScannerPort) — runs them in the pipeline

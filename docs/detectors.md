@@ -1,6 +1,6 @@
 # Deterministic Detectors
 
-Caliper ships **21 deterministic bug detectors** (`CAL-001` … `CAL-022`; CAL-013 was retired with telemetry, ids are never reused) in
+Caliper ships **26 deterministic bug detectors** (`CAL-001` … `CAL-027`; CAL-013 was retired with telemetry, ids are never reused) in
 `src/caliper/detectors/`. They complement the 19 scanner plugins: where a plugin shells out
 to an external tool or queries an external database (CVEs, licenses, SBOMs), a *detector* is
 a small, self-contained, AST-driven rule that flags a specific bug pattern in source you
@@ -79,7 +79,7 @@ Shared helpers live in `src/caliper/detectors/ast_utils.py`: a content-addressed
 `BatchVisitor` for single-pass multi-detector traversal. Python is analyzed via the stdlib
 `ast`; YAML / Dockerfile / shell detectors use targeted text + structural parsing.
 
-## The 22 detectors
+## The 26 detectors
 
 ### Security (9)
 
@@ -95,7 +95,7 @@ Shared helpers live in `src/caliper/detectors/ast_utils.py`: a content-addressed
 | CAL-020 | Fixed Heredoc Delimiter with GITHUB_OUTPUT/GITHUB_ENV | low | fixed heredoc delimiters writing to GitHub Actions output sinks |
 | CAL-022 | Architecture Tier Boundary Violation | medium | imports crossing a repo-declared `architecture.tiers`/`allow` boundary in `.caliper.yaml` (opt-in, fail-open when unconfigured) |
 
-### Reliability (10)
+### Reliability (14)
 
 | ID | Name | Severity | Catches |
 |----|------|----------|---------|
@@ -109,6 +109,10 @@ Shared helpers live in `src/caliper/detectors/ast_utils.py`: a content-addressed
 | CAL-015 | High Cardinality Metric Labels | medium | Prometheus metrics labeled with `user_id`/`request_id`/`email`/uuid |
 | CAL-019 | Nullable advisory_id in Dedup Key | low | dedup-key tuples with an unguarded `advisory_id` (None collapses findings) |
 | CAL-021 | Non-Atomic File Write | medium | `.write_bytes()/.write_text()` with no `os.rename()`/`.replace()` swap |
+| CAL-023 | Lambda Handler Swallows Exceptions | high | `except Exception` inside a Lambda handler that returns instead of re-raising (Errors metric, async retries and destinations never fire) |
+| CAL-024 | Destructive AWS Call Without Dry-Run Guard | medium | boto3 `delete_*`/`terminate_*`/`deregister_*`/`purge_*` in a module with no dry-run switch |
+| CAL-025 | AWS API Call Missing Required-In-Practice Argument | medium | `start_backup_job`/`start_copy_job` without `Lifecycle`, `create_log_group` with no retention policy, `put_object` without SSE when the bucket has no default encryption |
+| CAL-026 | Event Field Guard Omits Field Passed To AWS Call | medium | a value read with `.get()` that is missing from the `if not all([...])` guard but passed to an AWS client call |
 
 ### Configuration (1)
 
@@ -116,11 +120,12 @@ Shared helpers live in `src/caliper/detectors/ast_utils.py`: a content-addressed
 |----|------|----------|---------|
 | CAL-018 | Dockerfile Pin Drift | medium | hardcoded `pip install pkg==x` or `:latest` image tags (reproducibility drift) |
 
-### Process (1)
+### Process (2)
 
 | ID | Name | Severity | Catches |
 |----|------|----------|---------|
 | CAL-014 | Missing Tested-By Annotation | low | source files lacking the `# tested-by: tests/...` annotation |
+| CAL-027 | Committed Build Artifact Beside Source | low | tracked `.js`/`.d.ts`/`.js.map` next to the `.ts` that produces it, or `output.json` beside `cdk.json` |
 
 ## Configuration
 
