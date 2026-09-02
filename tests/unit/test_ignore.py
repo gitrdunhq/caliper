@@ -17,7 +17,12 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from caliper.core.ignore import DEFAULT_PATTERNS, load_ignore_patterns, should_ignore
+from caliper.core.ignore import (
+    DEFAULT_PATTERNS,
+    TEST_PATTERNS,
+    load_ignore_patterns,
+    should_ignore,
+)
 from tests.unit._strategies import (
     any_path_like_text,
     path_traversal_shaped,
@@ -35,7 +40,7 @@ class TestLoadIgnorePatterns:
     def test_no_file_returns_defaults_only(self, tmp_path: Path) -> None:
         """When .caliperignore does not exist, only default patterns are returned."""
         patterns = load_ignore_patterns(tmp_path)
-        assert patterns == DEFAULT_PATTERNS
+        assert patterns == DEFAULT_PATTERNS + TEST_PATTERNS
 
     def test_loads_patterns_from_file(self, tmp_path: Path) -> None:
         """Patterns listed in .caliperignore are appended after defaults."""
@@ -88,7 +93,7 @@ class TestLoadIgnorePatterns:
         """A .caliperignore with only comment lines is equivalent to no user patterns."""
         (tmp_path / ".caliperignore").write_text("# ignore everything\n# nope\n")
         patterns = load_ignore_patterns(tmp_path)
-        assert patterns == DEFAULT_PATTERNS
+        assert patterns == DEFAULT_PATTERNS + TEST_PATTERNS
 
 
 # ---------------------------------------------------------------------------

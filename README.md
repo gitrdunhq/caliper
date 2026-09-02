@@ -122,6 +122,9 @@ uv run caliper review --repo-path . --diff .temp/pr.diff
 # Review every file in the repo — the standard run (no flags needed)
 uv run caliper review --repo-path .
 
+# Test code is skipped by default; scan it too
+uv run caliper review --repo-path . --include-tests
+
 # Large monorepo: give each scanner more than the default 60s
 CALIPER_SCANNER_TIMEOUT=300 uv run caliper review --repo-path .
 

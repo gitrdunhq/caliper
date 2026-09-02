@@ -43,9 +43,43 @@ DEFAULT_PATTERNS: list[str] = [
     "htmlcov/",
 ]
 
+# Test code, excluded unless CaliperSettings.include_tests. Directory names are
+# matched as whole path components; file globs against the basename. `spec/`
+# is deliberately absent (OpenAPI specs live there); `fixtures/` too (too broad).
+TEST_PATTERNS: list[str] = [
+    "tests/",
+    "test/",
+    "__tests__/",
+    "testdata/",
+    "test_*.py",
+    "*_test.py",
+    "conftest.py",
+    "*_test.go",
+    "*.test.js",
+    "*.test.jsx",
+    "*.test.ts",
+    "*.test.tsx",
+    "*.test.mjs",
+    "*.spec.js",
+    "*.spec.jsx",
+    "*.spec.ts",
+    "*.spec.tsx",
+    "*Test.java",
+    "*Tests.java",
+    "*Test.kt",
+    "*Tests.kt",
+    "*Tests.swift",
+    "*Test.swift",
+    "*_spec.rb",
+    "*_test.rb",
+]
 
-def load_ignore_patterns(repo_path: Path) -> list[str]:
-    """Return the combined list of default + user-defined ignore patterns.
+
+def load_ignore_patterns(repo_path: Path, *, include_tests: bool | None = None) -> list[str]:
+    """Return the combined list of default + test + user-defined ignore patterns.
+
+    Test code (``TEST_PATTERNS``) is excluded unless *include_tests* is true;
+    ``None`` reads ``CaliperSettings.include_tests`` (``CALIPER_INCLUDE_TESTS``).
 
     Reads ``.caliperignore`` from *repo_path* if it exists.  Lines that are
     empty (after stripping) or start with ``#`` are skipped.  All other lines
@@ -59,7 +93,13 @@ def load_ignore_patterns(repo_path: Path) -> list[str]:
         List of fnmatch-compatible pattern strings.  Directory patterns end
         with ``/``; glob patterns do not.
     """
+    if include_tests is None:
+        from caliper.core.config import CaliperSettings
+
+        include_tests = CaliperSettings().include_tests
     patterns: list[str] = list(DEFAULT_PATTERNS)
+    if not include_tests:
+        patterns.extend(TEST_PATTERNS)
 
     root = repo_path.resolve()
     ignore_file = (repo_path / ".caliperignore").resolve()

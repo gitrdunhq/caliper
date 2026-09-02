@@ -365,7 +365,7 @@ File: `core/nl_query.py`. Twelve canned SQL queries against the code graph, sele
 | Monorepo support | `core/manifest_discovery.py` | Walk repo, discover multiple package roots (8 manifest types, 8 lockfile types), run plugins per-package with scoped config merging. |
 | Policy engine | `core/policy.py` | OPA subprocess wrapper with fail-open degradation. |
 | Topological ordering | `core/plugin_registry.py` | Plugins declare `depends_on` for execution order. `["*"]` = run last. Circular dep detection. |
-| Ignore patterns | `core/ignore.py` | `.caliperignore` with 6 built-in defaults (.git/, __pycache__/, node_modules/, .venv/, .claude/, .caliper/). |
+| Ignore patterns | `core/ignore.py` | `.caliperignore` layered on built-in defaults (VCS, build, venv, IDE dirs) **plus test code** (`tests/`, `test/`, `__tests__/`, `testdata/`, `test_*.py`, `*_test.go`, `*.test.ts`, `*Test.java`, ...): findings in tests are noise for a gate, so they are skipped by default; `caliper review --include-tests` or `CALIPER_INCLUDE_TESTS=1` opts back in. Applied by the file source, manifest discovery, trivy (`--skip-dirs`) and osv-scanner (`--experimental-exclude`). |
 | Repo config | `core/repo_config.py` | `.caliper.yaml` — per-plugin enable/disable, thresholds. Root + package-level merge. |
 | Structured errors | `core/errors.py` | 10 error codes: NOT_INSTALLED, TIMEOUT, PARSE_ERROR, PERMISSION_DENIED, BINARY_CRASHED, NO_OUTPUT, SCANNER_DEGRADED, CONFIG_MISSING, INDEX_FAILED, NETWORK_ERROR. |
 

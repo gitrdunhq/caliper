@@ -73,3 +73,22 @@ def test_default_timeout_comes_from_settings_defaults(monkeypatch) -> None:
     assert LsLintPlugin()._timeout == 300
     assert TrivyPlugin()._timeout == 300
 
+
+class TestOsvSkipsIgnoredDirs:
+    """osv-scanner walks the repo itself, so the ignore layer's plain directory
+    patterns (tests/, node_modules/, ...) must reach it as exclusions."""
+
+    def test_default_run_excludes_test_dirs(self, tmp_path: Path, monkeypatch) -> None:
+        monkeypatch.delenv("CALIPER_INCLUDE_TESTS", raising=False)
+        with patch("caliper.plugins.osv_scanner.subprocess.run", side_effect=_expired) as run:
+            OsvScannerPlugin(settings=_SETTINGS).run(["package.json"], tmp_path)
+        cmd = run.call_args.args[0]
+        assert "--experimental-exclude=tests" in cmd
+        assert "--experimental-exclude=node_modules" in cmd
+        assert not any(a.endswith("*.egg-info") for a in cmd)  # globs are not paths
+
+    def test_include_tests_keeps_test_dirs(self, tmp_path: Path, monkeypatch) -> None:
+        monkeypatch.setenv("CALIPER_INCLUDE_TESTS", "1")
+        with patch("caliper.plugins.osv_scanner.subprocess.run", side_effect=_expired) as run:
+            OsvScannerPlugin(settings=_SETTINGS).run(["package.json"], tmp_path)
+        assert "--experimental-exclude=tests" not in run.call_args.args[0]
