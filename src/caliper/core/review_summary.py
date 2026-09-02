@@ -163,12 +163,16 @@ def summarize_review(
     """
     from caliper.core.renderer import calculate_quality_score, calculate_severity_score
 
-    scored_results, _below_floor = split_below_floor_semgrep_findings(results, semgrep_min_severity)
+    scored_results, below_floor = split_below_floor_semgrep_findings(results, semgrep_min_severity)
 
     changed = {_norm(f) for f in changed_files} if changed_files is not None else None
 
-    errors = warnings = notes = crashed = skipped = blocking = 0
-    for r in results:
+    # Count from the floor-filtered set so a below-floor semgrep finding can never
+    # land in error/warning (and flip the verdict) when the floor is raised above
+    # the default; below-floor findings are counted once, as notes, below.
+    errors = warnings = crashed = skipped = blocking = 0
+    notes = len(below_floor)
+    for r in scored_results:
         if getattr(r, "error", None):
             crashed += 1
             continue

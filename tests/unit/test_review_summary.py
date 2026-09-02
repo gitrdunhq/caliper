@@ -163,3 +163,43 @@ def test_ac4_no_valueerror_for_fully_successful_scan():
     except ValueError as exc:  # pragma: no cover - documents the failure mode
         pytest.fail(f"ValueError raised for a fully-successful scan: {exc}")
     assert summary.incomplete_plugins == []
+
+
+# --- CORR-002: below-floor semgrep findings never move counts/verdict ------------
+
+
+def _semgrep(*severities: str) -> PluginResult:
+    return _res("semgrep", "code", [_f(sev) for sev in severities])
+
+
+def test_below_floor_semgrep_medium_is_a_note_not_a_warning_when_floor_is_high():
+    s = summarize_review([_semgrep("medium")], semgrep_min_severity="high")
+    assert s.warning_count == 0
+    assert s.error_count == 0
+    assert s.blocking_count == 0
+    assert s.note_count == 1  # still counted, as a note
+    assert s.verdict == ReviewVerdict.clear
+
+
+def test_below_floor_semgrep_high_is_a_note_when_floor_is_critical():
+    s = summarize_review([_semgrep("high")], semgrep_min_severity="critical")
+    assert s.error_count == 0
+    assert s.blocking_count == 0
+    assert s.note_count == 1
+    assert s.verdict == ReviewVerdict.clear
+
+
+def test_at_or_above_floor_semgrep_high_still_counts_when_floor_is_high():
+    s = summarize_review([_semgrep("high", "medium")], semgrep_min_severity="high")
+    assert s.error_count == 1
+    assert s.warning_count == 0
+    assert s.note_count == 1
+    assert s.verdict == ReviewVerdict.warnings  # "code" is not a security category
+
+
+def test_floor_only_applies_to_semgrep_not_other_plugins():
+    s = summarize_review(
+        [_res("complexity", "quality", [_f("medium")])], semgrep_min_severity="high"
+    )
+    assert s.warning_count == 1
+    assert s.verdict == ReviewVerdict.warnings
