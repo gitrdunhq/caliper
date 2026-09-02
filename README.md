@@ -29,7 +29,7 @@ Both outcomes cost real money. One costs velocity. The other costs incidents.
 
 ---
 
-When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 14 plugins in parallel (plus 26 deterministic AST detectors and 72 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
+When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 14 plugins in parallel (plus 26 deterministic AST detectors and 67 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
 
 Every scanning tool is deterministic. The decision is deterministic. Nothing blocks the build unless OPA says so.
 
@@ -65,7 +65,7 @@ All deterministic. Zero LLM. The 14 scanner plugins below feed their findings to
 
 | # | Plugin | What it does |
 |---|--------|-------------|
-| 5 | **Semgrep** | AST pattern matching (pinned semgrep-rules snapshot + 72 custom org rules + pinned caliper-community-rules snapshot, no registry fetch) |
+| 5 | **Semgrep** | AST pattern matching (pinned semgrep-rules snapshot + 67 custom org rules + pinned caliper-community-rules snapshot, no registry fetch) |
 | 6 | **PMD CPD** | Copy-paste detection (15 languages) |
 | 7 | **Mypy** | Deterministic cross-file Python type checking (prefers pyright) |
 | 8 | **SwiftLint** | Swift style + code smells (200+ rules + 13 custom) |
