@@ -219,7 +219,7 @@ jobs:
         )
       )
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -230,10 +230,7 @@ jobs:
           cache-key-suffix: api-contract
 
       - name: Run API contract tests
-        run: uv run pytest tests/contract/ -v --tb=short
-        env:
-          CALIPER_ALLOW_HOST_TESTS: "1"
-          CALIPER_I_KNOW_HOST_TESTS_LIE: "1"
+        run: bash scripts/build-test.sh -- tests/contract/ -v --tb=short
 
   e2e_smoke:
     name: E2E Smoke
@@ -243,7 +240,7 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
       needs.preflight.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -254,10 +251,8 @@ jobs:
           cache-key-suffix: e2e-smoke
 
       - name: Run smoke e2e tests
-        run: uv run pytest tests/e2e/test_smoke_review.py -v --tb=short
+        run: bash scripts/build-test.sh -- tests/e2e/test_smoke_review.py -v --tb=short
         env:
-          CALIPER_ALLOW_HOST_TESTS: "1"
-          CALIPER_I_KNOW_HOST_TESTS_LIE: "1"
           CALIPER_E2E: "1"
 
   e2e_full:
@@ -265,7 +260,7 @@ jobs:
     needs: preflight
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -284,10 +279,8 @@ jobs:
         uses: ./.github/actions/install-scanners
 
       - name: Run e2e tests
-        run: uv run pytest tests/e2e/ -v --tb=short
+        run: bash scripts/build-test.sh -- tests/e2e/ -v --tb=short
         env:
-          CALIPER_ALLOW_HOST_TESTS: "1"
-          CALIPER_I_KNOW_HOST_TESTS_LIE: "1"
           CALIPER_E2E: "1"
 
   review:
