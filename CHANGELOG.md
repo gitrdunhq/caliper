@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.39](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.38...caliper-v0.2.39) (2026-09-03)
+
+
+### Features
+
+* **part:** git-native execution backend when jj is absent ([#520](https://github.com/gitrdunhq/caliper/issues/520)) ([1ee613d](https://github.com/gitrdunhq/caliper/commit/1ee613d08588764d95dbfa3fded67b7bf9ad06e4))
+
 ## [0.2.38](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.37...caliper-v0.2.38) (2026-09-03)
 
 
