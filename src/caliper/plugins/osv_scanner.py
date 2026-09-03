@@ -193,7 +193,12 @@ class OsvScannerPlugin(ScannerPlugin):
                     if has_source:
                         finding["file"] = file_path
                         finding["line"] = pkg_info.get("line")
-                        finding["metadata"] = {"dependency_kind": dependency_kind}
+                        # A raw key literally named "metadata" collides with
+                        # normalize_finding's own metadata bucket and ends up
+                        # double-nested (metadata.metadata.dependency_kind),
+                        # unreachable by anything reading metadata.dependency_kind
+                        # (#509). Flatten it instead.
+                        finding["dependency_kind"] = dependency_kind
                     findings.append(finding)
         return findings[:_MAX_FINDINGS]
 

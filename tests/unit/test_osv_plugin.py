@@ -399,7 +399,15 @@ class TestTask009AC2:
 class TestTask009AC3:
     """AC3: every osv-scanner Finding has metadata['dependency_kind'] in
     {'direct', 'transitive', 'unknown'}, computed by calling
-    manifest_discovery.classify_dependency_kind."""
+    manifest_discovery.classify_dependency_kind.
+
+    The raw dict this plugin returns carries the value at the top-level key
+    "dependency_kind" (#509 — a raw key literally named "metadata" collides
+    with PluginRegistry's normalize_finding, which buckets any unrecognized
+    raw key under its own "metadata" dict, double-nesting it). Confirmation
+    that the value survives normalization to land at
+    PluginFinding.metadata["dependency_kind"] lives in
+    tests/unit/test_registry_normalization.py."""
 
     @patch("caliper.plugins.osv_scanner.classify_dependency_kind")
     @patch("caliper.plugins.osv_scanner.subprocess.run")
@@ -415,8 +423,11 @@ class TestTask009AC3:
 
         assert len(result.findings) == 1
         finding = result.findings[0]
-        assert "metadata" in finding, "Finding must carry a metadata dict"
-        assert finding["metadata"]["dependency_kind"] == "direct"
+        assert "metadata" not in finding, (
+            "raw finding must not use the key 'metadata' directly — it collides "
+            "with normalize_finding's own metadata bucket (#509)"
+        )
+        assert finding["dependency_kind"] == "direct"
         mock_classify.assert_called_once()
 
     @patch("caliper.plugins.osv_scanner.classify_dependency_kind")
@@ -432,7 +443,7 @@ class TestTask009AC3:
         result = p.run(["requirements.txt"], Path("/workspace"))
 
         assert len(result.findings) == 1
-        assert result.findings[0]["metadata"]["dependency_kind"] in {
+        assert result.findings[0]["dependency_kind"] in {
             "direct",
             "transitive",
             "unknown",

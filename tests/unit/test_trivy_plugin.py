@@ -522,6 +522,14 @@ class TestTrivyDependencyKindMetadata:
     PROP-001: every trivy Finding produced from a dependency-vulnerability result
     has metadata['dependency_kind'] in {'direct', 'transitive', 'unknown'},
     computed via manifest_discovery.classify_dependency_kind.
+
+    The raw dict this plugin returns carries the value at the top-level key
+    "dependency_kind" (#509 — a raw key literally named "metadata" collides
+    with PluginRegistry's normalize_finding, which buckets any unrecognized
+    raw key under its own "metadata" dict, double-nesting it). Confirmation
+    that the value survives normalization to land at
+    PluginFinding.metadata["dependency_kind"] lives in
+    tests/unit/test_registry_normalization.py.
     """
 
     @staticmethod
@@ -540,8 +548,11 @@ class TestTrivyDependencyKindMetadata:
         result = plugin.run([], tmp_path)
 
         finding = next(f for f in result.findings if f.get("package") == "requests")
-        assert "metadata" in finding, "trivy vuln finding must carry a metadata dict"
-        assert finding["metadata"]["dependency_kind"] == "direct"
+        assert "metadata" not in finding, (
+            "raw finding must not use the key 'metadata' directly — it collides "
+            "with normalize_finding's own metadata bucket (#509)"
+        )
+        assert finding["dependency_kind"] == "direct"
 
     def test_ac1_unlisted_dependency_finding_has_dependency_kind_unknown(
         self, tmp_path: Path
@@ -553,8 +564,11 @@ class TestTrivyDependencyKindMetadata:
         result = plugin.run([], tmp_path)
 
         finding = next(f for f in result.findings if f.get("package") == "totally-unlisted-pkg")
-        assert "metadata" in finding, "trivy vuln finding must carry a metadata dict"
-        assert finding["metadata"]["dependency_kind"] == "unknown"
+        assert "metadata" not in finding, (
+            "raw finding must not use the key 'metadata' directly — it collides "
+            "with normalize_finding's own metadata bucket (#509)"
+        )
+        assert finding["dependency_kind"] == "unknown"
 
     def test_ac1_dependency_kind_always_in_legal_set(self, tmp_path: Path) -> None:
         (tmp_path / "requirements.txt").write_text("requests==2.25.0\n")
@@ -565,7 +579,7 @@ class TestTrivyDependencyKindMetadata:
 
         assert result.findings, "expected at least one finding to check"
         for f in result.findings:
-            assert f["metadata"]["dependency_kind"] in {"direct", "transitive", "unknown"}
+            assert f["dependency_kind"] in {"direct", "transitive", "unknown"}
 
 
 class TestTrivyLockfileTarget:
@@ -588,7 +602,7 @@ class TestTrivyLockfileTarget:
         result = plugin.run([], tmp_path)
 
         finding = next(f for f in result.findings if f.get("package") == "lodash")
-        assert finding["metadata"]["dependency_kind"] == "direct"
+        assert finding["dependency_kind"] == "direct"
 
     def test_cargo_lock_target_transitive(self, tmp_path: Path) -> None:
         (tmp_path / "Cargo.toml").write_text('[dependencies]\nserde = "1"\n')
@@ -600,7 +614,7 @@ class TestTrivyLockfileTarget:
         result = plugin.run([], tmp_path)
 
         finding = next(f for f in result.findings if f.get("package") == "itoa")
-        assert finding["metadata"]["dependency_kind"] == "transitive"
+        assert finding["dependency_kind"] == "transitive"
 
 
 class TestTrivyManifestCachePerRun:

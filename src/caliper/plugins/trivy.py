@@ -141,7 +141,11 @@ class TrivyPlugin(ScannerPlugin):
                         "package": package_name,
                         "version": vuln.get("InstalledVersion", "?"),
                         "fixed_version": vuln.get("FixedVersion", ""),
-                        "metadata": {"dependency_kind": dependency_kind},
+                        # A raw key literally named "metadata" collides with
+                        # normalize_finding's own metadata bucket and ends up
+                        # double-nested, unreachable by anything reading
+                        # metadata.dependency_kind (#509). Flatten it instead.
+                        "dependency_kind": dependency_kind,
                     }
                 )
 
