@@ -368,6 +368,11 @@ class Record(BaseModel):
     change_type: ChangeType
     size: int | None = None
     old_path: str | None = None
+    # Which precedence branch in `part_stock._classify` decided `change_type`:
+    # "delete"/"move"/"binary" (structural), "override:<glob>", "glob:<field>",
+    # or "logic" (no match). Empty only for records built outside that path
+    # (e.g. hand-built in tests). Surfaced by `caliper part --explain` (#521).
+    match_reason: str = ""
 
 
 class Kerf(BaseModel):
@@ -442,3 +447,6 @@ class CutList(BaseModel):
     size_cap: int | None = None  # None => uncapped: one part per labelled bucket
     provenance: Provenance
     stats: CutStats
+    # file -> Record.match_reason, carried from the stock so `--explain` can show
+    # WHY each file landed in its bucket without re-running the classifier (#521).
+    match_reasons: dict[str, str] = Field(default_factory=dict)

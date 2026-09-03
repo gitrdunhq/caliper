@@ -23,7 +23,7 @@ _LINE_CAP = 500
 _ALLOWLIST = {
     "plugins/_runners/graph_builder.py": 775,
     "detectors/ast_utils.py": 722,
-    "core/models.py": 450,
+    "core/models.py": 452,  # +2: Record.match_reason, CutList.match_reasons (#521)
     "adapters/grounding.py": 649,
     "composition/bootstrap.py": 599,
     "core/repo_config.py": 542,  # +13 semgrep_min_severity; +53 PolicyConfig (#513)

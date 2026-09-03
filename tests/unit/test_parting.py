@@ -392,3 +392,23 @@ class TestProperties:
         cut = part(records, PartingConfig())
         all_files = [f for p in cut.parts for f in p.files]
         assert len(all_files) == len(set(all_files))
+
+
+def test_match_reasons_carried_from_records_into_cutlist() -> None:
+    """`part()` surfaces each record's `match_reason` on the cut list (#521), so
+    `caliper part --explain` can show a reviewer WHY a file landed in its bucket
+    without re-running the classifier."""
+    records = [
+        Record(
+            file="poetry.lock",
+            change_type=ChangeType.generated,
+            size=10,
+            match_reason="glob:generated_globs",
+        ),
+        Record(file="app.py", change_type=ChangeType.logic, size=20, match_reason="logic"),
+        Record(file="untagged.py", change_type=ChangeType.logic, size=5),  # no reason set
+    ]
+    cut = part(records, PartingConfig())
+    assert cut.match_reasons["poetry.lock"] == "glob:generated_globs"
+    assert cut.match_reasons["app.py"] == "logic"
+    assert "untagged.py" not in cut.match_reasons
