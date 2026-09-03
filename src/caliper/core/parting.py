@@ -240,6 +240,7 @@ def part(
         size_cap=cfg.size_cap,
         provenance=provenance,
         stats=_stats(parts),
+        match_reasons={r.file: r.match_reason for r in records if r.match_reason},
     )
     _assert_partition(records, cut)
     return cut

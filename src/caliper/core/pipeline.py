@@ -57,6 +57,7 @@ if TYPE_CHECKING:
         EvidenceWriterPort,
         PackageMetadataPort,
     )
+    from caliper.core.repo_config import RepoConfig
 
 logger = structlog.get_logger()
 
@@ -92,6 +93,7 @@ def _policy_evaluation(
     findings: list,
     package_metadata: dict,
     repo_path: Path,
+    repo_config: RepoConfig | None = None,
 ) -> PolicyEvaluation:
     """Evaluate findings through the injected policy engine port.
 
@@ -100,12 +102,23 @@ def _policy_evaluation(
     adapted findings so opt-in policy exemptions (T-348) have something to
     read, and maps the returned ``PolicyDecision`` verdict onto a
     ``PolicyEvaluation``.
+
+    *repo_config* threads ``.caliper.yaml``'s ``policy:`` section into
+    ``PolicyInput.config`` (#513) — previously this was a hardcoded ``{}``, so
+    no repo-specific policy setting (forbidden_licenses, copyleft lists,
+    kev_ids, rules_enabled, ...) ever reached a real review. When the caller
+    hasn't already loaded it (e.g. a direct/test call), it's loaded here so
+    every call site gets the fix, not just ``_run_requests``'s.
     """
     from caliper.core.accessors import get_scribes
     from caliper.core.plugin import PluginFinding
     from caliper.core.policy_port import PolicyInput
+    from caliper.core.repo_config import load_repo_config
     from caliper.core.scribe import ScribeContext
     from caliper.core.scribe_pass import scribe_findings
+
+    if repo_config is None:
+        repo_config = load_repo_config(repo_path)
 
     plugin_findings = [
         PluginFinding(
@@ -132,7 +145,11 @@ def _policy_evaluation(
             ScribeContext(repo_path=str(repo_path), scribe_timeout=config.scribe_timeout),
         )
     pd = context.policy_engine.evaluate(
-        PolicyInput(findings=plugin_findings, packages=[package_metadata], config={})
+        PolicyInput(
+            findings=plugin_findings,
+            packages=[package_metadata],
+            config=repo_config.policy.to_opa_config(),
+        )
     )
     verdict_str = getattr(pd, "verdict", "needs_review")
     try:
@@ -236,7 +253,7 @@ class ReviewPipeline:
                 package_metadata = _build_package_metadata(req, pypi_meta, transitive_dep_count)
 
                 policy_eval = _policy_evaluation(
-                    context, config, findings, package_metadata, repo_path
+                    context, config, findings, package_metadata, repo_path, repo_config
                 )
                 db.save_policy_evaluation(req.request_id, policy_eval)
 

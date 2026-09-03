@@ -1138,3 +1138,92 @@ class TestServePartLanValidation:
         fake.write_text("not a real cert")
         with pytest.raises(ValueError, match="only apply to lan_host"):
             part_serve.serve_part(tmp_path, "base", "head", tls_cert=fake, tls_key=fake)
+
+
+class TestRollbackBackendDispatch:
+    """`PartingSession.rollback()` must dispatch to the right undo command for
+    whichever backend the last run used (#520) — `jj op restore` for jj,
+    `git checkout <rescue_op_id>` for git (never a destructive reset, since
+    the git restack script never touches the ref it started on)."""
+
+    def _fake_last_run(self, *, backend: str):
+        from caliper.cli.part_pipeline import PartRunResult
+        from caliper.core.models import ChangeType, CutList, CutStats, Kerf, Part, Provenance
+
+        parts = [
+            Part(
+                id="infra-1",
+                files=["a.py"],
+                bucket=ChangeType.infra,
+                size=10,
+                opened_by=Kerf(fired_rule="bucket-end"),
+            )
+        ]
+        cut = CutList(
+            parts=parts,
+            size_cap=None,
+            provenance=Provenance(
+                caliper_version="0",
+                base_sha="b",
+                head_sha="h",
+                rename_threshold=50,
+                config_digest="d",
+                backend=backend,
+            ),
+            stats=CutStats(
+                part_count=1, file_count=1, size_p50=0, size_p90=0, move_logic_pure=True
+            ),
+        )
+        return PartRunResult(
+            cutlist=cut,
+            script_text="#!/bin/sh\necho hi\n",
+            backup_bookmark="bak",
+            rescue_op_id="feature-branch" if backend == "git" else "op1",
+            jj_version="0",
+            can_reconstruct=True,
+            subjects={},
+            proposed_overrides=[],
+            applied_overrides=[],
+            restack_path="/tmp/restack.sh",
+            cutlist_path=None,
+        )
+
+    def test_rollback_runs_git_checkout_for_git_backend(self, tmp_path: Path) -> None:
+        from caliper.core.tool_runner import ToolInvocation, ToolResult
+
+        class _Recorder:
+            def __init__(self) -> None:
+                self.calls: list[list[str]] = []
+
+            def run(self, invocation: ToolInvocation) -> ToolResult:
+                self.calls.append(invocation.cmd)
+                return ToolResult(exit_code=0, stdout="", stderr="")
+
+        runner = _Recorder()
+        session = part_serve.PartingSession(tmp_path, "base", "head", runner=runner)
+        session._last_run = self._fake_last_run(backend="git")
+
+        result = session.rollback()
+
+        assert result["ok"] is True
+        assert runner.calls == [["git", "checkout", "feature-branch"]]
+
+    def test_rollback_runs_jj_op_restore_for_jj_backend(self, tmp_path: Path) -> None:
+        from caliper.core.tool_runner import ToolInvocation, ToolResult
+
+        class _Recorder:
+            def __init__(self) -> None:
+                self.calls: list[list[str]] = []
+
+            def run(self, invocation: ToolInvocation) -> ToolResult:
+                self.calls.append(invocation.cmd)
+                return ToolResult(exit_code=0, stdout="", stderr="")
+
+        runner = _Recorder()
+        session = part_serve.PartingSession(tmp_path, "base", "head", runner=runner)
+        session._last_run = self._fake_last_run(backend="jj")
+
+        result = session.rollback()
+
+        assert result["ok"] is True
+        assert runner.calls == [["jj", "op", "restore", "op1"]]

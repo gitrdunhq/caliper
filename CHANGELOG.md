@@ -7,6 +7,41 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.42](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.41...caliper-v0.2.42) (2026-09-03)
+
+
+### Features
+
+* **part:** surface rename/copy similarity in the match reason ([#521](https://github.com/gitrdunhq/caliper/issues/521)) ([61af23d](https://github.com/gitrdunhq/caliper/commit/61af23d8cc86b0b816e25c5bd445d9f77e8880fe))
+
+## [0.2.41](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.40...caliper-v0.2.41) (2026-09-03)
+
+
+### Features
+
+* **part:** deterministic commit subjects scoped by dominant directory ([#522](https://github.com/gitrdunhq/caliper/issues/522)) ([b687c73](https://github.com/gitrdunhq/caliper/commit/b687c731d8b1f63478ce5304eca308a34280545d))
+
+## [0.2.40](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.39...caliper-v0.2.40) (2026-09-03)
+
+
+### Features
+
+* **part:** --explain shows which glob/override matched each file ([#521](https://github.com/gitrdunhq/caliper/issues/521)) ([6a1ed37](https://github.com/gitrdunhq/caliper/commit/6a1ed376d7d45c1c09cad76e9398f1b0834bd52c))
+
+## [0.2.39](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.38...caliper-v0.2.39) (2026-09-03)
+
+
+### Features
+
+* **part:** git-native execution backend when jj is absent ([#520](https://github.com/gitrdunhq/caliper/issues/520)) ([1ee613d](https://github.com/gitrdunhq/caliper/commit/1ee613d08588764d95dbfa3fded67b7bf9ad06e4))
+
+## [0.2.38](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.37...caliper-v0.2.38) (2026-09-03)
+
+
+### Bug Fixes
+
+* **core:** thread .caliper.yaml policy config into every real OPA evaluation ([65e23fc](https://github.com/gitrdunhq/caliper/commit/65e23fcfb6e427ec5f76df06f23a7be1b7ddeebc)), closes [#513](https://github.com/gitrdunhq/caliper/issues/513)
+
 ## [0.2.37](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.36...caliper-v0.2.37) (2026-09-03)
 
 

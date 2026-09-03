@@ -201,23 +201,23 @@ class TestClassifyPrecedence:
     def test_glob_routing(self, path: str, expected: ChangeType) -> None:
         from caliper.core.part_stock import _classify
 
-        assert _classify("M", path, size=5, mode="100644", cfg=PartingConfig()) == expected
+        assert _classify("M", path, size=5, mode="100644", cfg=PartingConfig())[0] == expected
 
     def test_specific_beats_generic_config(self) -> None:
         """A workflow YAML is ci_cd, not generic config; openapi YAML is schema."""
         from caliper.core.part_stock import _classify
 
         cfg = PartingConfig()
-        assert _classify("M", ".github/workflows/x.yaml", 5, "100644", cfg) == ChangeType.ci_cd
-        assert _classify("M", "openapi.yaml", 5, "100644", cfg) == ChangeType.schema_contracts
+        assert _classify("M", ".github/workflows/x.yaml", 5, "100644", cfg)[0] == ChangeType.ci_cd
+        assert _classify("M", "openapi.yaml", 5, "100644", cfg)[0] == ChangeType.schema_contracts
 
     def test_lockfile_is_generated_not_supply_chain(self) -> None:
         """package-lock.json is generated (checked first), package.json is supply_chain."""
         from caliper.core.part_stock import _classify
 
         cfg = PartingConfig()
-        assert _classify("M", "package-lock.json", 5, "100644", cfg) == ChangeType.generated
-        assert _classify("M", "package.json", 5, "100644", cfg) == ChangeType.supply_chain
+        assert _classify("M", "package-lock.json", 5, "100644", cfg)[0] == ChangeType.generated
+        assert _classify("M", "package.json", 5, "100644", cfg)[0] == ChangeType.supply_chain
 
     @pytest.mark.parametrize(
         ("status", "path", "size", "mode", "expected"),
@@ -234,7 +234,7 @@ class TestClassifyPrecedence:
         """A delete/move/binary is never reclassified by a content glob."""
         from caliper.core.part_stock import _classify
 
-        assert _classify(status, path, size, mode, PartingConfig()) == expected
+        assert _classify(status, path, size, mode, PartingConfig())[0] == expected
 
 
 class TestOverrideTable:
@@ -246,25 +246,25 @@ class TestOverrideTable:
 
         # README.md would be documentation by glob; override forces it to business.
         cfg = PartingConfig(overrides=[OverrideRule(glob="*.md", bucket=ChangeType.business)])
-        assert _classify("M", "README.md", 5, "100644", cfg) == ChangeType.business
+        assert _classify("M", "README.md", 5, "100644", cfg)[0] == ChangeType.business
 
     def test_override_tiers_untiered_code(self) -> None:
         from caliper.core.part_stock import _classify
         from caliper.core.repo_config import OverrideRule
 
         cfg = PartingConfig(overrides=[OverrideRule(glob="src/api/**", bucket=ChangeType.frontend)])
-        assert _classify("M", "src/api/handler.py", 5, "100644", cfg) == ChangeType.frontend
+        assert _classify("M", "src/api/handler.py", 5, "100644", cfg)[0] == ChangeType.frontend
         # A path the override does not match stays in the residual.
-        assert _classify("M", "src/core/x.py", 5, "100644", cfg) == ChangeType.logic
+        assert _classify("M", "src/core/x.py", 5, "100644", cfg)[0] == ChangeType.logic
 
     def test_structural_facts_beat_override(self) -> None:
         from caliper.core.part_stock import _classify
         from caliper.core.repo_config import OverrideRule
 
         cfg = PartingConfig(overrides=[OverrideRule(glob="src/api/**", bucket=ChangeType.frontend)])
-        assert _classify("D", "src/api/handler.py", 5, "100644", cfg) == ChangeType.delete
-        assert _classify("R100", "src/api/handler.py", 5, "100644", cfg) == ChangeType.move
-        assert _classify("M", "src/api/handler.py", None, "100644", cfg) == ChangeType.binary
+        assert _classify("D", "src/api/handler.py", 5, "100644", cfg)[0] == ChangeType.delete
+        assert _classify("R100", "src/api/handler.py", 5, "100644", cfg)[0] == ChangeType.move
+        assert _classify("M", "src/api/handler.py", None, "100644", cfg)[0] == ChangeType.binary
 
     def test_first_matching_rule_wins(self) -> None:
         from caliper.core.part_stock import _classify
@@ -277,4 +277,43 @@ class TestOverrideTable:
             ]
         )
         # src/x.py matches both globs; the earlier rule (business) wins.
-        assert _classify("M", "src/x.py", 5, "100644", cfg) == ChangeType.business
+        assert _classify("M", "src/x.py", 5, "100644", cfg)[0] == ChangeType.business
+
+
+class TestMatchReason:
+    """`_classify`'s second return value: WHY a file landed in its bucket (#521)."""
+
+    def test_structural_reasons(self) -> None:
+        from caliper.core.part_stock import _classify
+
+        cfg = PartingConfig()
+        assert _classify("D", "a.py", 5, "100644", cfg)[1] == "delete"
+        assert _classify("M", "a.py", None, "100644", cfg)[1] == "binary"
+
+    def test_move_reason_names_the_similarity(self) -> None:
+        from caliper.core.part_stock import _classify
+
+        cfg = PartingConfig()
+        assert _classify("R100", "a.py", 5, "100644", cfg)[1] == "move:100%"
+        assert _classify("R088", "a.py", 5, "100644", cfg)[1] == "move:88%"
+        assert _classify("C075", "a.py", 5, "100644", cfg)[1] == "move:75%"
+        assert _classify("R", "a.py", 5, "100644", cfg)[1] == "move"  # no similarity suffix
+
+    def test_glob_reason_names_the_field(self) -> None:
+        from caliper.core.part_stock import _classify
+
+        cfg = PartingConfig()
+        assert _classify("M", "package.json", 5, "100644", cfg)[1] == "glob:supply_chain_globs"
+
+    def test_logic_residual_reason(self) -> None:
+        from caliper.core.part_stock import _classify
+
+        cfg = PartingConfig()
+        assert _classify("M", "src/core/x.py", 5, "100644", cfg)[1] == "logic"
+
+    def test_override_reason_names_the_glob(self) -> None:
+        from caliper.core.part_stock import _classify
+        from caliper.core.repo_config import OverrideRule
+
+        cfg = PartingConfig(overrides=[OverrideRule(glob="src/api/**", bucket=ChangeType.frontend)])
+        assert _classify("M", "src/api/handler.py", 5, "100644", cfg)[1] == "override:src/api/**"

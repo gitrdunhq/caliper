@@ -44,12 +44,20 @@ class PartingGateError(PartingError):
 
 @dataclass(frozen=True)
 class GateResult:
-    """Outcome of a passing gate — the rescue point and the pinned commit ids."""
+    """Outcome of a passing gate — the rescue point and the pinned commit ids.
+
+    ``backend`` is ``"jj"`` or ``"git"`` (#520): which substrate the gate ran
+    preconditions against and the restack script must target. For ``"git"``,
+    ``rescue_op_id`` holds the pre-parting HEAD sha (not a jj operation id) —
+    rollback is a hard reset to that sha, not an operation-log restore; see
+    ``part_script.rollback_header``.
+    """
 
     backup_bookmark: str
     rescue_op_id: str
     jj_version: str
     resolved_revsets: dict[str, str] = field(default_factory=dict)
+    backend: str = "jj"
 
 
 def _git_base(root: Path) -> list[str]:
@@ -89,6 +97,26 @@ def _revset_ids(runner: ToolRunnerPort, root: Path, revset: str) -> list[str]:
     return [line.strip() for line in out.splitlines() if line.strip()]
 
 
+def detect_backend(runner: ToolRunnerPort, root: Path) -> str:
+    """Probe which substrate is usable: ``"jj"`` (preferred) or ``"git"`` (#520).
+
+    Non-raising probes only — this never mutates state. Prefers jj when both are
+    usable (it gives the stronger op-log rollback guarantee); falls back to git
+    when jj is absent or ``root`` is not a jj/colocated repo.
+    """
+    jj_probe = runner.run(ToolInvocation(cmd=["jj", "root"], cwd=str(root), timeout=_JJ_TIMEOUT))
+    if not jj_probe.not_installed and jj_probe.exit_code == 0:
+        return "jj"
+    git_probe = runner.run(
+        ToolInvocation(
+            cmd=[*_git_base(root), "rev-parse", "--git-dir"], cwd=str(root), timeout=_GIT_TIMEOUT
+        )
+    )
+    if not git_probe.not_installed and git_probe.exit_code == 0:
+        return "git"
+    raise PartingGateError("missing-vcs", "neither jj nor git is usable at this path")
+
+
 def run_gate(
     repo_path: Path,
     base: str,
@@ -97,17 +125,35 @@ def run_gate(
     timestamp: str,
     runner: ToolRunnerPort | None = None,
     force: bool = False,
+    backend: str | None = None,
 ) -> GateResult:
     """Run all preconditions; on success record a rescue point and backup bookmark.
 
-    Aborts with ``PartingGateError`` (no state change) on: missing jj, a non-jj
-    repo, a dirty working copy, untracked non-ignored files, a present git stash,
-    an already-pushed target, or a stock that overlaps immutable history. The
-    backup bookmark (the only state change) is created last, after every check
-    passes.
+    ``backend`` picks the substrate (``"jj"`` or ``"git"``); auto-detected via
+    ``detect_backend`` when omitted. See ``_gate_jj``/``_gate_git`` for the
+    per-backend precondition set. Either path is fail-closed: an abort raises
+    ``PartingGateError`` with no state change, and the backup ref (the only
+    state change) is created last, after every check passes.
     """
     runner = runner or SubprocessToolRunner()
-    root = repo_path
+    backend = backend or detect_backend(runner, repo_path)
+    if backend == "git":
+        return _gate_git(runner, repo_path, base, head, timestamp=timestamp, force=force)
+    return _gate_jj(runner, repo_path, base, head, timestamp=timestamp, force=force)
+
+
+def _gate_jj(
+    runner: ToolRunnerPort,
+    root: Path,
+    base: str,
+    head: str,
+    *,
+    timestamp: str,
+    force: bool,
+) -> GateResult:
+    """jj-backed preconditions: missing jj, a non-jj repo, a dirty working copy,
+    untracked non-ignored files, a present git stash, an already-pushed target,
+    or a stock that overlaps immutable history."""
     stock_revset = f"{base}..{head}"
     resolved: dict[str, str] = {}
 
@@ -181,4 +227,115 @@ def run_gate(
         rescue_op_id=rescue_op_id,
         jj_version=jj_version,
         resolved_revsets=resolved,
+        backend="jj",
+    )
+
+
+def _git_status_lines(runner: ToolRunnerPort, root: Path) -> list[str]:
+    out = _git(runner, root, ["status", "--porcelain=v1", "--untracked-files=all"])
+    return [line for line in out.splitlines() if line.strip()]
+
+
+def _gate_git(
+    runner: ToolRunnerPort,
+    root: Path,
+    base: str,
+    head: str,
+    *,
+    timestamp: str,
+    force: bool,
+) -> GateResult:
+    """git-only preconditions (#520) — the fallback when jj is absent.
+
+    Mirrors ``_gate_jj``'s case taxonomy (dirty-tree, untracked-files, git-stash,
+    already-pushed, immutable-overlap) but git has no operation log, so the
+    rescue point is the current ref (branch name, or the HEAD sha if detached)
+    captured BEFORE the gate runs — the restack script only ever creates new,
+    additively-named branches and never touches this ref, so rollback is simply
+    checking it back out and deleting the branches the script created (see
+    ``part_script.rollback_header``), not a destructive reset.
+    """
+    resolved: dict[str, str] = {}
+
+    # 1. Working tree must be clean: no tracked changes, no untracked files.
+    status = _git_status_lines(runner, root)
+    dirty = [line for line in status if not line.startswith("??")]
+    if dirty:
+        raise PartingGateError(
+            "dirty-tree",
+            "working tree has uncommitted changes; commit or stash them before parting",
+        )
+    untracked = [line for line in status if line.startswith("??")]
+    if untracked:
+        raise PartingGateError(
+            "untracked-files",
+            "untracked, non-ignored files present; gitignore them or remove them first",
+        )
+
+    # 2. No git stash (orthogonal state a rollback wouldn't restore either way).
+    if _git(runner, root, ["stash", "list"]).strip():
+        raise PartingGateError(
+            "git-stash",
+            "a git stash is present; resolve it before parting",
+        )
+
+    resolved["base"] = _git(runner, root, ["rev-parse", base]).strip()
+    resolved["head"] = _git(runner, root, ["rev-parse", head]).strip()
+    resolved["@"] = _git(runner, root, ["rev-parse", "HEAD"]).strip()
+    # Best-effort only: no remote/origin/HEAD is a normal, valid setup — never abort for it.
+    origin_probe = runner.run(
+        ToolInvocation(
+            cmd=[*_git_base(root), "rev-parse", "origin/HEAD"], cwd=str(root), timeout=_GIT_TIMEOUT
+        )
+    )
+    resolved["trunk"] = origin_probe.stdout.strip() if origin_probe.exit_code == 0 else ""
+
+    # 3. Target not already pushed: HEAD reachable from a remote-tracking branch.
+    if not force and _git(runner, root, ["branch", "-r", "--contains", resolved["head"]]).strip():
+        raise PartingGateError(
+            "already-pushed",
+            "the target is reachable from a remote-tracking branch (already pushed); "
+            "refusing to rewrite shared history (use force to override)",
+        )
+
+    # 4. Freeze shared history: none of the stock may already be on a remote.
+    # `--not --remotes` EXCLUDES commits reachable from any remote ref (it does
+    # not add them as extra positive tips, despite reading that way) — so a
+    # shorter result than the unfiltered range means some stock commit is
+    # already on a remote.
+    stock_range = f"{resolved['base']}..{resolved['head']}"
+    full = _git(runner, root, ["rev-list", stock_range]).split()
+    unshared = _git(runner, root, ["rev-list", stock_range, "--not", "--remotes"]).split()
+    if not force and len(unshared) < len(full):
+        raise PartingGateError(
+            "immutable-overlap",
+            "the stock overlaps commits already reachable from a remote-tracking "
+            "branch — re-base the work above the unpushed tip first",
+        )
+
+    # 5. Rescue point: the ref checked out right now — a branch name when on one,
+    # else the current HEAD sha (detached). Read-only; not moved by this gate.
+    # `symbolic-ref` exits non-zero when detached, so this is a raw, non-raising
+    # probe rather than `_git()` (which would raise on that exit code).
+    branch_probe = runner.run(
+        ToolInvocation(
+            cmd=[*_git_base(root), "symbolic-ref", "-q", "--short", "HEAD"],
+            cwd=str(root),
+            timeout=_GIT_TIMEOUT,
+        )
+    )
+    branch = branch_probe.stdout.strip() if branch_probe.exit_code == 0 else ""
+    rescue_ref = branch or resolved["@"]
+
+    # 6. The only state change: an additive backup branch anchored on base,
+    # mirroring the jj bookmark contract. Never moved or deleted by the script.
+    backup = f"caliper-part-backup-{timestamp}"
+    _git(runner, root, ["branch", backup, resolved["base"]])
+
+    return GateResult(
+        backup_bookmark=backup,
+        rescue_op_id=rescue_ref,
+        jj_version="",
+        resolved_revsets=resolved,
+        backend="git",
     )

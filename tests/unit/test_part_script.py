@@ -258,3 +258,124 @@ def test_probe_path_capability_false_when_jj_absent() -> None:
     can, version = probe_path_capability("/repo", MissingRunner())
     assert can is False
     assert version == ""
+
+
+# ---------------------------------------------------------------------------
+# git backend (#520) — no jj on PATH, plain-git restack.
+# ---------------------------------------------------------------------------
+
+
+def _render_git(target: PartTarget, *, validate: str = "") -> str:
+    return render_restack_script(
+        _cutlist(),
+        base_rev="basesha",
+        head_rev="headsha",
+        old_paths={"new.py": "old.py"},
+        backup_bookmark="caliper-part-backup-TS",
+        rescue_op_id="feature-branch",
+        jj_version="",
+        target=target,
+        validate_command=validate,
+        can_reconstruct=True,
+        backend="git",
+    )
+
+
+def test_git_rollback_header_backend() -> None:
+    lines = rollback_header("bk", "feature-branch", backend="git")
+    assert any("bk" in line for line in lines)
+    assert any("git checkout feature-branch" in line for line in lines)
+    assert not any("jj op restore" in line for line in lines)
+
+
+def test_git_script_detaches_from_base_not_jj() -> None:
+    script = _render_git(PartTarget.stack)
+    assert "git checkout --detach basesha" in script
+    assert "jj new" not in script
+    assert "jj restore" not in script
+
+
+def test_git_script_stack_creates_per_part_branches() -> None:
+    script = _render_git(PartTarget.stack)
+    assert "git branch -f caliper-part-1 HEAD" in script
+    assert "caliper-part-series" not in script
+
+
+def test_git_script_series_creates_one_tip_branch() -> None:
+    script = _render_git(PartTarget.series)
+    assert "git branch -f caliper-part-series HEAD" in script
+    assert "caliper-part-1 HEAD" not in script
+
+
+def test_git_script_restores_add_or_removes_by_existence_at_head() -> None:
+    script = _render_git(PartTarget.stack)
+    assert "git cat-file -e headsha:" in script
+    assert "git checkout headsha --" in script
+    assert "git rm -f --ignore-unmatch --" in script
+
+
+def test_git_script_commits_and_never_moves_backup() -> None:
+    script = _render_git(PartTarget.stack)
+    assert "git commit -m" in script
+    for line in script.splitlines():
+        if not line.lstrip().startswith("#"):
+            assert "caliper-part-backup-" not in line
+
+
+def test_git_script_validate_command_gates_next_part() -> None:
+    script = _render_git(PartTarget.stack, validate="pytest -q")
+    assert "if ! ( pytest -q ); then" in script
+
+
+def test_git_script_parses_as_valid_bash(tmp_path) -> None:
+    _assert_bash_parses(_render_git(PartTarget.stack), tmp_path)
+    _assert_bash_parses(_render_git(PartTarget.series), tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Deterministic subject scoping by dominant directory (#522).
+# ---------------------------------------------------------------------------
+
+
+def test_subject_scoped_by_dominant_directory() -> None:
+    from caliper.core.models import ChangeType, Record
+    from caliper.core.part_script import _peel_subject
+    from caliper.core.parting import part
+    from caliper.core.repo_config import PartingConfig
+
+    records = [
+        Record(file="svc/api/handler.py", change_type=ChangeType.business, size=10),
+        Record(file="svc/api/router.py", change_type=ChangeType.business, size=10),
+        Record(file="svc/api/util.py", change_type=ChangeType.business, size=10),
+    ]
+    cut = part(records, PartingConfig())
+    (business_part,) = [p for p in cut.parts if p.bucket == ChangeType.business]
+    assert _peel_subject(business_part) == "feat(business): svc: business logic"
+
+
+def test_subject_unscoped_when_no_directory_majority() -> None:
+    from caliper.core.models import ChangeType, Record
+    from caliper.core.part_script import _peel_subject
+    from caliper.core.parting import part
+    from caliper.core.repo_config import PartingConfig
+
+    records = [
+        Record(file="svc/a.py", change_type=ChangeType.business, size=10),
+        Record(file="lib/b.py", change_type=ChangeType.business, size=10),
+    ]
+    cut = part(records, PartingConfig())
+    (business_part,) = [p for p in cut.parts if p.bucket == ChangeType.business]
+    assert _peel_subject(business_part) == "feat(business): business logic"
+
+
+def test_subject_unscoped_when_files_at_repo_root() -> None:
+    from caliper.core.part_script import _peel_subject
+
+    class _Part:
+        bucket = None
+        files = ["a.py", "b.py"]
+
+    from caliper.core.models import ChangeType
+
+    _Part.bucket = ChangeType.logic
+    assert _peel_subject(_Part()) == "feat(logic): untiered changes (needs a tier)"
