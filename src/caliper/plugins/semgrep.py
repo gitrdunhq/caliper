@@ -68,7 +68,15 @@ def _strip_rule_prefix(check_id: str, prefixes: tuple[str, ...]) -> str:
 
 
 def _resolve_org_rules_dir(settings: CaliperSettings | None) -> str | None:
-    """Explicit setting wins; else ``<policies dir>/semgrep`` beside the OPA policy."""
+    """Explicit setting wins; else ``<policies dir>/semgrep`` beside the OPA policy.
+
+    Always returned absolute: ``opa_policy_path`` defaults to a path relative
+    to the *process* cwd, but the opengrep subprocess this feeds runs with
+    ``cwd=<scanned repo>`` (``semgrep_runner.run_semgrep``). A relative
+    ``--config`` arg would then resolve against the wrong tree and opengrep
+    aborts the whole scan the moment ``--repo-path`` points anywhere other
+    than the process cwd.
+    """
     if settings is None:
         return None
     if settings.semgrep_org_rules_dir:
@@ -76,7 +84,7 @@ def _resolve_org_rules_dir(settings: CaliperSettings | None) -> str | None:
     policy = Path(settings.opa_policy_path)
     base = policy if policy.is_dir() else policy.parent
     cand = base / "semgrep"
-    return str(cand) if cand.is_dir() else None
+    return str(cand.resolve()) if cand.is_dir() else None
 
 
 class SemgrepPlugin(ScannerPlugin):

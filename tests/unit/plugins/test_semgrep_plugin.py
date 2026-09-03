@@ -162,6 +162,30 @@ def test_org_rules_dir_derived_from_opa_policy_path(monkeypatch, tmp_path: Path)
     assert captured["rules_dir"] is None
 
 
+def test_org_rules_dir_is_absolute_even_from_a_relative_opa_policy_path(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """A relative ``opa_policy_path`` (the default, ``./policies/policy.rego``) is
+    resolved relative to the *process cwd* at settings-load time. If the resulting
+    org_rules_dir string stays relative, it silently breaks the moment opengrep
+    runs with a different cwd (``--repo-path`` pointing at another repo): the
+    subprocess's cwd is the *target* repo, so a relative ``--config`` arg resolves
+    against the wrong tree and opengrep aborts the whole scan (real-world repro:
+    `caliper review --repo-path <other-repo>` run from caliper's own checkout)."""
+    captured: dict = {}
+    monkeypatch.setattr(RULE_RUNNERS, "create", lambda name: _FakeRunner({"results": []}, captured))
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "policies" / "semgrep").mkdir(parents=True)
+    settings = CaliperSettings(opa_policy_path="./policies/policy.rego")
+
+    other_repo = tmp_path / "other-repo"
+    other_repo.mkdir()
+    SemgrepPlugin(settings).run([str(other_repo / "a.py")], other_repo)
+
+    assert Path(captured["org_rules_dir"]).is_absolute()
+    assert captured["org_rules_dir"] == str((tmp_path / "policies" / "semgrep").resolve())
+
+
 def test_rule_ids_drop_configured_dir_prefixes(monkeypatch, tmp_path: Path) -> None:
     """opengrep prefixes local rule ids with their dotted path; strip the configured dirs' prefixes."""
     target = tmp_path / "a.py"
