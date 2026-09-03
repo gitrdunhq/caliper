@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.34](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.33...caliper-v0.2.34) (2026-09-03)
+
+
+### Bug Fixes
+
+* **scanners:** wire DeterministicScanner into the default scanner set ([e2a1740](https://github.com/gitrdunhq/caliper/commit/e2a17407b2ec71eb19bba1de0f68e875a8f2db64)), closes [#457](https://github.com/gitrdunhq/caliper/issues/457) [#499](https://github.com/gitrdunhq/caliper/issues/499)
+
 ## [0.2.33](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.32...caliper-v0.2.33) (2026-09-03)
 
 
