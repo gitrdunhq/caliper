@@ -67,6 +67,30 @@ def _run_git(runner: ToolRunnerPort, root: Path, args: list[str]) -> str:
     return result.stdout
 
 
+def _linguist_generated_paths(runner: ToolRunnerPort, root: Path, paths: list[str]) -> set[str]:
+    """Paths marked ``linguist-generated=true`` in ``.gitattributes`` (#525) — a
+    content-attribute signal that complements (does not replace) the path-only
+    ``generated_globs`` heuristic, for generated files that don't fit a known
+    glob pattern. Resolved against the CURRENT checkout's ``.gitattributes``
+    (the gate requires a clean tree at ``@``), not a historical state at
+    ``base``/``head`` — an accepted v0 approximation.
+
+    Batched into one ``git check-attr`` call; empty *paths* short-circuits to
+    avoid invoking git with no pathspec (which would attribute-check nothing
+    usefully and is wasted IO).
+    """
+    if not paths:
+        return set()
+    out = _run_git(runner, root, ["check-attr", "linguist-generated", "--", *paths])
+    generated: set[str] = set()
+    for line in out.splitlines():
+        # format: "<path>: linguist-generated: <value>" (value: set/true/false/unspecified)
+        path, _, value = line.rpartition(": linguist-generated: ")
+        if path and value.strip() in ("set", "true"):
+            generated.add(path)
+    return generated
+
+
 def _match_globs(path: str, globs: list[str]) -> bool:
     """fnmatch *path* and its basename against any glob (``**`` treated loosely)."""
     base = path.rsplit("/", 1)[-1]
@@ -173,20 +197,24 @@ def _classify(
     size: int | None,
     mode: str | None,
     cfg: PartingConfig,
+    is_linguist_generated: bool = False,
 ) -> tuple[ChangeType, str]:
     """Classify one record from diff status, size, mode bits, and path globs only.
 
     Precedence (deterministic): structural facts first — delete, then move, then
     binary (binary content, symlink, gitlink, or type-change) — and these are
-    never overridable. Then the ordered glob heuristics in ``_GLOB_PRECEDENCE``,
-    falling to ``logic`` (untiered residual). The human override table is applied
-    by the caller before the glob heuristics (it cannot reclassify structural
-    facts). The pure ``part()`` later re-emits an over-delta move as ``logic``.
+    never overridable. Then the human override table (a reviewer's explicit
+    decision beats everything below it), then the ``.gitattributes``
+    ``linguist-generated`` content signal (#525 — catches generated files that
+    don't fit a known glob), then the ordered glob heuristics in
+    ``_GLOB_PRECEDENCE``, falling to ``logic`` (untiered residual). The pure
+    ``part()`` later re-emits an over-delta move as ``logic``.
 
     Returns ``(bucket, match_reason)`` — the reason is one of ``"delete"``,
-    ``"move"``, ``"binary"``, ``f"override:{glob}"``, ``f"glob:{field}"``, or
-    ``"logic"`` (#521); it is surfaced verbatim on ``Record.match_reason`` so
-    ``caliper part --explain`` can show a reviewer WHY a file landed where it did.
+    ``"move"``, ``"binary"``, ``f"override:{glob}"``, ``"linguist-generated"``,
+    ``f"glob:{field}"``, or ``"logic"`` (#521); it is surfaced verbatim on
+    ``Record.match_reason`` so ``caliper part --explain`` can show a reviewer
+    WHY a file landed where it did.
     """
     code = status[0]
     if code == "D":
@@ -206,6 +234,8 @@ def _classify(
     override_rule = _match_override_rule(new_path, cfg)
     if override_rule is not None:
         return override_rule.bucket, f"override:{override_rule.glob}"
+    if is_linguist_generated:
+        return ChangeType.generated, "linguist-generated"
     return _classify_by_globs(new_path, cfg)
 
 
@@ -259,16 +289,34 @@ def build_stock(
     numstat = _run_git(runner, root, [*diff_flags, "--numstat", base, head])
 
     sizes = _parse_numstat(numstat)
+    parsed = _parse_name_status(name_status)
+
+    # Batch the .gitattributes linguist-generated check (#525) once, over every
+    # candidate path (deletions excluded — can't sensibly attribute-check a
+    # path that's gone; strays excluded — same universe filter as below).
+    candidate_paths = [
+        new_path
+        for status, new_path, _ in parsed
+        if status[0] != "D" and (not universe or new_path in universe)
+    ]
+    linguist_generated = _linguist_generated_paths(runner, root, candidate_paths)
 
     records: list[Record] = []
-    for status, new_path, old_path in _parse_name_status(name_status):
+    for status, new_path, old_path in parsed:
         is_delete = status[0] == "D"
         # Exclude untracked stray paths via the ls-files universe; deletions are
         # gone at head so they are never in the universe — always keep them.
         if not is_delete and universe and new_path not in universe:
             continue
         size = sizes.get(new_path)
-        change_type, match_reason = _classify(status, new_path, size, modes.get(new_path), cfg)
+        change_type, match_reason = _classify(
+            status,
+            new_path,
+            size,
+            modes.get(new_path),
+            cfg,
+            is_linguist_generated=new_path in linguist_generated,
+        )
         # binary records have no defined size
         rec_size = None if change_type == ChangeType.binary else (size or 0)
         records.append(
