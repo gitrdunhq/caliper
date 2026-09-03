@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.42](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.41...caliper-v0.2.42) (2026-09-03)
+
+
+### Features
+
+* **part:** surface rename/copy similarity in the match reason ([#521](https://github.com/gitrdunhq/caliper/issues/521)) ([61af23d](https://github.com/gitrdunhq/caliper/commit/61af23d8cc86b0b816e25c5bd445d9f77e8880fe))
+
 ## [0.2.41](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.40...caliper-v0.2.41) (2026-09-03)
 
 
