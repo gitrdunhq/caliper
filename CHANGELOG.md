@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.49](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.48...caliper-v0.2.49) (2026-09-03)
+
+
+### Bug Fixes
+
+* **plugins:** resolve semgrep org_rules_dir to an absolute path ([b5c17e4](https://github.com/gitrdunhq/caliper/commit/b5c17e4c57f9e8da9b7067ffe7d58a54ef9c1eca))
+
 ## [0.2.48](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.47...caliper-v0.2.48) (2026-09-03)
 
 
