@@ -285,7 +285,7 @@ RUN set -eux; \
     grep -rl '^# License: MIT' --include='*.yml' /tmp/vr/gitlab-sast-rules | grep -v '/test\|/qa/\|/mappings/\|/ci/' \
       | while read -r f; do d="$V/gitlab-sast-rules/${f#/tmp/vr/gitlab-sast-rules/}"; mkdir -p "$(dirname "$d")"; cp "$f" "$d"; done; \
     for n in semgrep-go semgrep-c-rules; do mkdir -p "$V/$n"; cp /tmp/vr/$n/LICENSE* "$V/$n/"; \
-      find /tmp/vr/$n -type f \( -name '*.yaml' -o -name '*.yml' \) ! -path '*/test*' ! -path '*/.github/*' ! -name '.pre-commit*' \
+      find /tmp/vr/$n -type f \( -name '*.yaml' -o -name '*.yml' \) ! -path '*/test*' ! -path '*/.github/*' ! -path '*/noisy/*' ! -name '.pre-commit*' \
         -exec sh -c 'd="$2/${1#/tmp/vr/$3/}"; mkdir -p "$(dirname "$d")"; cp "$1" "$d"' _ {} "$V/$n" "$n" \; ; done; \
     printf '%s\n' "${GITLAB_SAST_RULES_COMMIT}" > "$V/gitlab-sast-rules/COMMIT"; \
     printf '%s\n' "${SEMGREP_GO_COMMIT}" > "$V/semgrep-go/COMMIT"; \
