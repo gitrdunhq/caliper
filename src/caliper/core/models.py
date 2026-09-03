@@ -417,6 +417,7 @@ class Provenance(BaseModel):
     rename_threshold: int
     config_digest: str
     resolved_revsets: dict[str, str] = Field(default_factory=dict)
+    backend: str = "jj"
 
 
 class CutStats(BaseModel):

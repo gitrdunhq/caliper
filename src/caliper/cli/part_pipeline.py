@@ -61,13 +61,18 @@ def _cutlist_json(cut: CutList) -> str:
 
 
 def _cut_with_provenance(
-    repo_path: Path, base: str, head: str, cfg: PartingConfig, resolved_revsets: dict[str, str]
+    repo_path: Path,
+    base: str,
+    head: str,
+    cfg: PartingConfig,
+    resolved_revsets: dict[str, str],
+    backend: str,
 ) -> tuple[CutList, dict[str, str]]:
     outcome = PARTING.create("parting").cut(repo_path, base, head, cfg)
     cut = outcome.cutlist.model_copy(
         update={
             "provenance": outcome.cutlist.provenance.model_copy(
-                update={"resolved_revsets": resolved_revsets}
+                update={"resolved_revsets": resolved_revsets, "backend": backend}
             )
         }
     )
@@ -98,7 +103,9 @@ def run_part(
     gate = run_gate(repo_path, base, head, timestamp=timestamp, force=force, runner=runner)
 
     # 2. Cut: producer (build_stock) -> consumer (part()). Pin the gate's revsets.
-    cut, old_paths = _cut_with_provenance(repo_path, base, head, cfg, gate.resolved_revsets)
+    cut, old_paths = _cut_with_provenance(
+        repo_path, base, head, cfg, gate.resolved_revsets, gate.backend
+    )
 
     # 2b. Advisory tier suggester (imperative shell): ask a local model to propose
     # override globs for the 'logic' residual. Env-driven and OUTSIDE config_digest;
@@ -113,11 +120,18 @@ def run_part(
         # Re-part with the accepted globs layered in-memory (independent of where
         # the file landed), so the rendered cut reflects them deterministically.
         cfg = cfg.model_copy(update={"overrides": [*cfg.overrides, *proposed]})
-        cut, old_paths = _cut_with_provenance(repo_path, base, head, cfg, gate.resolved_revsets)
+        cut, old_paths = _cut_with_provenance(
+            repo_path, base, head, cfg, gate.resolved_revsets, gate.backend
+        )
         applied = proposed
 
-    # 3. Probe the installed jj for non-interactive path restore (do not assume).
-    can_reconstruct, jj_version = probe_path_capability(str(repo_path), runner=runner)
+    # 3. Probe the installed jj for non-interactive path restore (do not assume;
+    # meaningless for the git backend, which is always path-granular by construction).
+    can_reconstruct, jj_version = (
+        (True, "")
+        if gate.backend == "git"
+        else probe_path_capability(str(repo_path), runner=runner)
+    )
 
     # 3b. Advisory describer (imperative shell): name each commit with a local
     # model, fail-soft to the deterministic subject. Env-driven and OUTSIDE
@@ -137,6 +151,7 @@ def run_part(
         validate_command=cfg.validate_command,
         can_reconstruct=can_reconstruct,
         subjects=subjects,
+        backend=gate.backend,
     )
 
     restack_path: str | None = None

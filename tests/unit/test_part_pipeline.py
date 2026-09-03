@@ -272,3 +272,65 @@ def test_run_part_describe_defaults_to_no_subjects(tmp_path: Path, repo) -> None
     result = run_part(w, base, head, PartingConfig(), timestamp="20260629T000008", runner=runner)
 
     assert result.subjects == {}
+
+
+class _FakeGitOnlyRunner:
+    """jj absent — `run_part` must fall back to the git backend end-to-end (#520)."""
+
+    def __init__(self, *, base_id: str, head_id: str) -> None:
+        self.base_id = base_id
+        self.head_id = head_id
+        self.calls: list[list[str]] = []
+
+    def run(self, invocation: ToolInvocation) -> ToolResult:
+        cmd = invocation.cmd
+        self.calls.append(cmd)
+
+        def ok(out: str = "") -> ToolResult:
+            return ToolResult(exit_code=0, stdout=out, stderr="")
+
+        if cmd[0] == "jj":
+            return ToolResult(exit_code=127, stdout="", stderr="", not_installed=True)
+
+        assert cmd[0] == "git"
+        if "rev-parse" in cmd and "--git-dir" in cmd:
+            return ok(".git\n")
+        if "status" in cmd:
+            return ok("")
+        if "stash" in cmd:
+            return ok("")
+        if "rev-parse" in cmd:
+            rev = cmd[-1]
+            if rev == "origin/HEAD":
+                return ToolResult(exit_code=128, stdout="", stderr="fatal")
+            ids = {"base": self.base_id, "head": self.head_id, self.base_id: self.base_id}
+            return ok(ids.get(rev, self.head_id) + "\n")
+        if "branch" in cmd and "--contains" in cmd:
+            return ok("")
+        if "rev-list" in cmd:
+            return ok("")
+        if "symbolic-ref" in cmd:
+            return ok("main\n")
+        return ok()
+
+
+def test_run_part_falls_back_to_git_backend_when_jj_absent(tmp_path: Path, repo) -> None:
+    w, base, head = repo
+    out = tmp_path / "out"
+    runner = _FakeGitOnlyRunner(base_id=base, head_id=head)
+
+    result = run_part(
+        w,
+        base,
+        head,
+        PartingConfig(),
+        timestamp="20260629T000009",
+        runner=runner,
+        out_dir=out,
+    )
+
+    assert result.cutlist.provenance.backend == "git"
+    assert result.can_reconstruct is True
+    assert "git checkout --detach" in result.script_text
+    assert "jj new" not in result.script_text
+    assert "git checkout main" in result.script_text  # rollback header
