@@ -25,6 +25,7 @@ runs by choice. Every script opens with the rollback header.
 from __future__ import annotations
 
 import shlex
+from collections import Counter
 
 from caliper.core.models import ChangeType, CutList, PartTarget
 from caliper.core.subprocess_runner import SubprocessToolRunner
@@ -132,9 +133,27 @@ def _peel_prefix(part) -> str:
     return f"{head}: "
 
 
+def _dominant_directory(files: list[str]) -> str | None:
+    """The top-level directory a majority of *files* share — a deterministic scope
+    hint for the subject (#522). None when files are scattered (no directory
+    holds a majority) or all sit at the repo root (no directory segment)."""
+    dirs = [f.split("/", 1)[0] for f in files if "/" in f]
+    if not dirs:
+        return None
+    top_dir, top_count = Counter(dirs).most_common(1)[0]
+    return top_dir if top_count * 2 > len(files) else None
+
+
 def _peel_subject(part) -> str:
-    """The single-line conventional-commit subject for a part (no hash, no index)."""
-    return _peel_prefix(part) + _SUMMARY.get(part.bucket, str(part.bucket))
+    """The single-line conventional-commit subject for a part (no hash, no index).
+
+    Scoped with the dominant directory among the part's files when one exists
+    (#522) — e.g. "business logic" becomes "svc/api: business logic" — so a
+    reviewer sees WHERE without opening the diff, not just what kind of change.
+    """
+    noun = _SUMMARY.get(part.bucket, str(part.bucket))
+    directory = _dominant_directory(part.files)
+    return _peel_prefix(part) + (f"{directory}: {noun}" if directory else noun)
 
 
 def _subject_for(part, subjects: dict[str, str] | None) -> str:
