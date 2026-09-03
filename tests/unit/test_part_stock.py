@@ -317,3 +317,115 @@ class TestMatchReason:
 
         cfg = PartingConfig(overrides=[OverrideRule(glob="src/api/**", bucket=ChangeType.frontend)])
         assert _classify("M", "src/api/handler.py", 5, "100644", cfg)[1] == "override:src/api/**"
+
+
+class TestLinguistGenerated:
+    """``.gitattributes`` `linguist-generated` content signal (#525) — catches
+    generated files that don't fit a known `generated_globs` pattern."""
+
+    def test_classify_honors_the_flag(self) -> None:
+        from caliper.core.part_stock import _classify
+
+        cfg = PartingConfig()
+        bucket, reason = _classify(
+            "M", "src/wire.pb.go", 5, "100644", cfg, is_linguist_generated=True
+        )
+        assert bucket == ChangeType.generated
+        assert reason == "linguist-generated"
+
+    def test_override_beats_linguist_generated(self) -> None:
+        from caliper.core.part_stock import _classify
+        from caliper.core.repo_config import OverrideRule
+
+        cfg = PartingConfig(overrides=[OverrideRule(glob="src/**", bucket=ChangeType.business)])
+        bucket, reason = _classify(
+            "M", "src/wire.pb.go", 5, "100644", cfg, is_linguist_generated=True
+        )
+        assert bucket == ChangeType.business
+        assert reason == "override:src/**"
+
+    def test_structural_facts_beat_linguist_generated(self) -> None:
+        from caliper.core.part_stock import _classify
+
+        cfg = PartingConfig()
+        assert (
+            _classify("D", "src/wire.pb.go", 5, "100644", cfg, is_linguist_generated=True)[0]
+            == ChangeType.delete
+        )
+
+    def test_default_false_does_not_change_existing_behavior(self) -> None:
+        from caliper.core.part_stock import _classify
+
+        cfg = PartingConfig()
+        assert _classify("M", "src/core/x.py", 5, "100644", cfg)[0] == ChangeType.logic
+
+    def test_linguist_generated_paths_parses_check_attr_output(self) -> None:
+        from caliper.core.part_stock import _linguist_generated_paths
+        from caliper.core.tool_runner import ToolResult
+
+        class _CheckAttrRunner:
+            def run(self, invocation: ToolInvocation) -> ToolResult:
+                assert "check-attr" in invocation.cmd
+                return ToolResult(
+                    exit_code=0,
+                    stdout=(
+                        "src/wire.pb.go: linguist-generated: set\n"
+                        "src/app.py: linguist-generated: unspecified\n"
+                        "src/schema.graphql: linguist-generated: true\n"
+                        "src/legacy.py: linguist-generated: false\n"
+                    ),
+                    stderr="",
+                )
+
+        result = _linguist_generated_paths(
+            _CheckAttrRunner(),
+            Path("/repo"),
+            ["src/wire.pb.go", "src/app.py", "src/schema.graphql", "src/legacy.py"],
+        )
+        assert result == {"src/wire.pb.go", "src/schema.graphql"}
+
+    def test_linguist_generated_paths_empty_input_skips_git_call(self) -> None:
+        from caliper.core.part_stock import _linguist_generated_paths
+
+        class _ExplodingRunner:
+            def run(self, invocation):  # pragma: no cover - must never be called
+                raise AssertionError("must not invoke git with no paths")
+
+        assert _linguist_generated_paths(_ExplodingRunner(), Path("/repo"), []) == set()
+
+
+def test_build_stock_marks_linguist_generated_files_as_generated() -> None:
+    from caliper.core.part_stock import build_stock
+    from caliper.core.tool_runner import ToolResult
+
+    class _Runner:
+        def __init__(self) -> None:
+            self.check_attr_calls: list[list[str]] = []
+
+        def run(self, invocation: ToolInvocation) -> ToolResult:
+            cmd = invocation.cmd
+
+            def ok(out: str) -> ToolResult:
+                return ToolResult(exit_code=0, stdout=out, stderr="")
+
+            if "rev-parse" in cmd:
+                return ok(_SHAS[cmd[-1]] + "\n")
+            if "ls-files" in cmd and "-s" in cmd:
+                return ok("100644 sha 0\twire.pb.go\n")
+            if "ls-files" in cmd:
+                return ok("wire.pb.go\n")
+            if "--name-status" in cmd:
+                return ok("M\twire.pb.go\n")
+            if "--numstat" in cmd:
+                return ok("5\t2\twire.pb.go\n")
+            if "check-attr" in cmd:
+                self.check_attr_calls.append(cmd)
+                return ok("wire.pb.go: linguist-generated: set\n")
+            return ok("")
+
+    runner = _Runner()
+    stock = build_stock(Path("/repo"), "BASE", "HEAD", PartingConfig(), runner)
+    (rec,) = stock.records
+    assert rec.change_type == ChangeType.generated
+    assert rec.match_reason == "linguist-generated"
+    assert runner.check_attr_calls  # the batch check-attr call actually ran
