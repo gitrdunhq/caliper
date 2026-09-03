@@ -59,7 +59,7 @@ grep -rl '^# License: MIT' --include='*.yml' "${VW}/gitlab-sast-rules" | grep -v
 done
 for n in semgrep-go semgrep-c-rules; do
   mkdir -p "${V}/$n"; cp "${VW}/$n"/LICENSE* "${V}/$n/"
-  find "${VW}/$n" -type f \( -name '*.yaml' -o -name '*.yml' \) ! -path '*/test*' ! -path '*/.github/*' ! -name '.pre-commit*' | while read -r f; do
+  find "${VW}/$n" -type f \( -name '*.yaml' -o -name '*.yml' \) ! -path '*/test*' ! -path '*/.github/*' ! -path '*/noisy/*' ! -name '.pre-commit*' | while read -r f; do
     d="${V}/$n/${f#"${VW}/$n/"}"; mkdir -p "$(dirname "$d")"; cp "$f" "$d"
   done
 done
