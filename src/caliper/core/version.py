@@ -19,6 +19,10 @@ def get_version() -> str:
     must not crash importers (the renderer imports this at module load).
     """
     try:
-        return importlib.metadata.version("caliper")
+        # The distribution is named "caliper-review" (pyproject.toml [project]
+        # name) — "caliper" is only the import package name. Querying the wrong
+        # one raises PackageNotFoundError in a clean install and falls through
+        # to the "+unknown" footer, which is what a real CI comment showed.
+        return importlib.metadata.version("caliper-review")
     except importlib.metadata.PackageNotFoundError:
         return "0.0.0+unknown"

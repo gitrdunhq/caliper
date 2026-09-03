@@ -443,6 +443,32 @@ class TestComplexityTemplate:
         out = plugin.render(_complexity_result_with_findings(), template_dir=_TEMPLATES_DIR)
         assert "<details" in out
 
+    def test_single_finding_that_is_also_high_ccn_renders_only_one_table(self):
+        """When every finding is already in the high-CCN table, the full table
+        below it would show the exact same row(s) again — read as a rendering
+        bug, not a second view. It must not render at all in that case."""
+        plugin = ComplexityPlugin()
+        result = PluginResult(
+            plugin_name="complexity",
+            findings=[
+                {
+                    "function": "build_stock",
+                    "file": "core/part_stock.py",
+                    "cyclomatic_complexity": 15,
+                    "maintainability_index": 52,
+                    "nloc": 57,
+                }
+            ],
+            summary={
+                "avg_cyclomatic_complexity": 15,
+                "max_cyclomatic_complexity": 15,
+                "total_nloc": 57,
+            },
+        )
+        out = plugin.render(result, template_dir=_TEMPLATES_DIR)
+        assert out.count("build_stock") == 1
+        assert out.count("| Function |") == 1
+
 
 # ── KubeLinter template tests ─────────────────────────────────────────────────
 

@@ -90,6 +90,25 @@ def test_get_version_returns_semver():
 # ---------------------------------------------------------------------------
 
 
+def test_get_version_queries_the_real_distribution_name():
+    """get_version() must query "caliper-review" — the distribution name from
+    pyproject.toml [project] name — not "caliper" (the import package name).
+    Querying the wrong one always raises PackageNotFoundError on a clean
+    install, silently falling back to the "0.0.0+unknown" footer that showed
+    up in a real PR comment."""
+    with patch("importlib.metadata.version", return_value="9.9.9") as mock_version:
+        import importlib as _importlib
+
+        import caliper.core.version as _version_mod
+
+        _importlib.reload(_version_mod)
+        from caliper.core.version import get_version
+
+        get_version()
+
+    mock_version.assert_called_once_with("caliper-review")
+
+
 def test_get_version_reads_from_importlib_metadata():
     """get_version() must delegate to importlib.metadata, not return a literal."""
     sentinel = "9.9.9-sentinel"
@@ -107,8 +126,8 @@ def test_get_version_reads_from_importlib_metadata():
 
     assert result == sentinel, (
         f"get_version() returned {result!r} instead of the patched sentinel "
-        f"{sentinel!r}. It must call importlib.metadata.version('caliper') at "
-        "call-time (not cache a hardcoded literal at import time)."
+        f"{sentinel!r}. It must call importlib.metadata.version() at call-time "
+        "(not cache a hardcoded literal at import time)."
     )
 
 

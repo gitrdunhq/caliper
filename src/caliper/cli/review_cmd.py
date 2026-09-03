@@ -142,7 +142,9 @@ def render_review_output(
 
         sarif_doc = to_sarif(
             results,
-            repo_path=str(repo),
+            # to_sarif's own docstring says this must be absolute; "." (the
+            # --repo-path default, never resolved by click) is not.
+            repo_path=str(repo.resolve()),
             max_findings_per_run=sarif_max_findings,
             summary=summary,
         )
@@ -218,6 +220,11 @@ def render_review_output(
         file_count=file_count,
         plugin_renderers=plugin_map,
         verdict=summary.verdict.value if summary else None,
+        # Without this, absolute paths (e.g. /home/runner/work/x/x/src/...) leak
+        # straight into the posted comment. `.resolve()` matters: `--repo-path`
+        # defaults to "." (never resolved by click), but scanner-reported paths
+        # are absolute, so a bare "." would never match and strip the prefix.
+        repo_path=str(repo.resolve()),
     )
     if output:
         write_output(output, md)

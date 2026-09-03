@@ -325,16 +325,25 @@ jobs:
         run: |
           DIFF_FLAG=""
           [ -f .temp/pr.diff ] && DIFF_FLAG="--diff .temp/pr.diff"
+          # Without these, the posted comment's own header falls back to the
+          # literal ".#0" instead of the real repo/PR — only known here (a
+          # non-pull_request run has neither, and that's fine: the renderer
+          # omits the whole segment gracefully when they're empty/zero).
+          PR_FLAGS=""
+          if [ -n "$PR_URL" ]; then PR_FLAGS="--pr-url $PR_URL --pr-num $PR_NUMBER"; fi
           mkdir -p .temp
-          uv run caliper review --repo-path . $DIFF_FLAG --format sarif --output .temp/review.sarif &
+          uv run caliper review --repo-path . $DIFF_FLAG $PR_FLAGS --format sarif --output .temp/review.sarif &
           PID_SARIF=$!
-          uv run caliper review --repo-path . $DIFF_FLAG --output .temp/review.md &
+          uv run caliper review --repo-path . $DIFF_FLAG $PR_FLAGS --output .temp/review.md &
           PID_MD=$!
           # review.json carries the single source of truth (verdict + counts); the
           # verdict step below reads it instead of re-deriving from SARIF.
-          uv run caliper review --repo-path . $DIFF_FLAG --format json --output .temp/review.json &
+          uv run caliper review --repo-path . $DIFF_FLAG $PR_FLAGS --format json --output .temp/review.json &
           PID_JSON=$!
           wait $PID_SARIF $PID_MD $PID_JSON
+        env:
+          PR_URL: ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || '' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
 
       - name: Upload review artifacts
         if: always()

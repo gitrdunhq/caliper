@@ -1,24 +1,29 @@
-{% if error %}
+{%- if error -%}
 **complexity**: {{ error }}
-{% elif findings %}
+{%- elif findings -%}
 <details><summary>📊 <b>Complexity (avg CCN: {{ summary.get("avg_cyclomatic_complexity", 0) }}, max: {{ summary.get("max_cyclomatic_complexity", 0) }}, {{ summary.get("total_nloc", 0) }} NLOC)</b></summary>
 
-{% if high_ccn %}
+{%- if high_ccn %}
+
 **⚠️ High complexity (CCN > 10):**
 
 | Function | File | CCN | MI | NLOC |
 |----------|------|-----|----|------|
-{% for f in high_ccn %}
+{% for f in high_ccn -%}
 | `{{ f.function }}` | `{{ f.file }}` | {{ f.cyclomatic_complexity }} | {{ f.get("maintainability_index", "?") }} | {{ f.nloc }} |
-{% endfor %}
+{% endfor -%}
+{% endif -%}
+{#- The full table only earns its place when it adds functions beyond what
+    "High complexity" already listed — otherwise it's the exact same row(s)
+    twice, which read as a rendering bug rather than a second view. #}
+{%- if findings | length > high_ccn | length %}
 
-{% endif %}
 | Function | CCN | MI | NLOC |
 |----------|-----|----|------|
-{% for f in findings %}
+{% for f in findings -%}
 | `{{ f.function }}` | {{ f.cyclomatic_complexity }} | {{ f.get("maintainability_index", "?") }} | {{ f.nloc }} |
-{% endfor %}
+{% endfor -%}
+{% endif %}
 
 </details>
-
-{% endif %}
+{%- endif -%}
