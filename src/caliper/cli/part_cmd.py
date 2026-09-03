@@ -21,6 +21,7 @@ from pathlib import Path
 import click
 
 from caliper.cli.part_describe import describer_from_env
+from caliper.cli.part_doctor import render_doctor_report, run_doctor
 from caliper.cli.part_pipeline import run_part
 from caliper.cli.part_suggest import suggester_from_env
 from caliper.core.models import CutList, PartTarget
@@ -116,6 +117,13 @@ def _overrides_yaml(rules: list[OverrideRule]) -> str:
     help="Print a saved cut list and the rule fired at each kerf.",
 )
 @click.option(
+    "--doctor",
+    "doctor",
+    is_flag=True,
+    default=False,
+    help="Check jj/git/gh/mkcert and the state workdir, then exit (no cutting).",
+)
+@click.option(
     "--force", is_flag=True, default=False, help="Override the already-pushed safety check."
 )
 @click.option(
@@ -198,6 +206,7 @@ def part(
     size_cap: int | None,
     out: str | None,
     explain: str | None,
+    doctor: bool,
     force: bool,
     serve: bool,
     port: int | None,
@@ -218,6 +227,13 @@ def part(
         raise click.UsageError("--lan requires both --cert and --key (mkcert-issued)")
     if (tls_cert or tls_key) and not lan_host:
         raise click.UsageError("--cert/--key only apply with --lan")
+
+    if doctor:
+        checks = run_doctor(Path(repo), check_lan=bool(lan_host))
+        click.echo(render_doctor_report(checks))
+        if any(not c.ok for c in checks):
+            raise SystemExit(1)
+        return
 
     if explain:
         cut = CutList.model_validate_json(Path(explain).read_text())
