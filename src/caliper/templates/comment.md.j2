@@ -45,7 +45,7 @@
 {%- if f.package %}
 - upgrade `{{ f.package }}` {{ f.version }} → **{{ f.fixed_version }}** ({{ f.severity }}) — [{{ f.id }}]({{ f.url }})
 {%- else %}
-- `{{ f.file }}{% if f.line %}:{{ f.line }}{% endif %}` — {{ f.rule_id or f.id or f.category or "finding" }} ({{ f.severity }}){% if f.fix_suggestion %} — {{ f.fix_suggestion | truncate(80, true, "…") }}{% endif %}
+- `{{ f.file }}{% if f.line %}:{{ f.line }}{% elif f.start_line %}:{{ f.start_line }}{% endif %}` — {{ f.rule_id or f.id or f.category or f.function or "finding" }} ({{ f.severity }}){% if f.fix_suggestion %} — {{ f.fix_suggestion | truncate(80, true, "…") }}{% endif %}
 {%- endif %}
 {%- endfor %}
 {%- if actionability.actionable_count > 10 %}
