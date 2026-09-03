@@ -131,6 +131,12 @@ def normalize_finding(raw: dict) -> PluginFinding:
     for k, v in raw.items():
         if k in _FINDING_KNOWN_KEYS:
             known[k] = v
+        elif k == "metadata" and isinstance(v, dict):
+            # A raw "metadata" dict is a plugin's own structured extras (e.g.
+            # dependency_kind); merge its contents into the metadata bucket
+            # instead of nesting it under metadata["metadata"], which made the
+            # value unreachable at metadata.dependency_kind (#509).
+            metadata.update(v)
         else:
             metadata[k] = v
     return PluginFinding(

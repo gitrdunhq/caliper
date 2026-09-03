@@ -87,3 +87,87 @@ class TestLineNormalizationIsNoneSafe:
         from caliper.core.plugin import normalize_finding
 
         assert normalize_finding({"id": "x", "line": "12"}).line == 12
+
+
+class TestOsvScannerDependencyKindSurvivesNormalization:
+    """Regression: a raw finding dict keyed "metadata" (osv-scanner's
+    dependency_kind carrier) must not collide with normalize_finding's own
+    metadata bucket. A plugin-level test asserting on the raw dict cannot see
+    this — it only appears after PluginRegistry normalizes the finding, which
+    is the path every real `caliper review` takes."""
+
+    def test_raw_metadata_key_is_not_double_nested_after_normalization(self) -> None:
+        from caliper.core.plugin import normalize_finding
+
+        raw = {
+            "id": "CVE-2026-1",
+            "severity": "high",
+            "package": "@babel/core",
+            "version": "7.21.4",
+            "file": "yarn.lock",
+            "line": None,
+            "metadata": {"dependency_kind": "transitive"},
+        }
+        finding = normalize_finding(raw)
+        assert finding.metadata.get("dependency_kind") == "transitive", (
+            f"dependency_kind must be directly reachable at metadata['dependency_kind'], "
+            f"got {finding.metadata!r}"
+        )
+
+    def test_via_registry_run_all(self, tmp_path: Path) -> None:
+        from caliper.core.plugin_registry import PluginRegistry
+
+        class _OsvLikePlugin(ScannerPlugin):
+            @property
+            def name(self) -> str:
+                return "test-osv-like"
+
+            @property
+            def description(self) -> str:
+                return "test plugin"
+
+            @property
+            def category(self) -> PluginCategory:
+                return PluginCategory.dependency
+
+            def can_run(self, files: list[str], repo_path: Path) -> bool:
+                return True
+
+            def run(self, files: list[str], repo_path: Path) -> PluginResult:
+                return PluginResult(
+                    plugin_name=self.name,
+                    findings=[
+                        {
+                            "id": "CVE-2026-1",
+                            "severity": "high",
+                            "package": "@babel/core",
+                            "version": "7.21.4",
+                            "file": "yarn.lock",
+                            "line": None,
+                            "metadata": {"dependency_kind": "transitive"},
+                        }
+                    ],
+                )
+
+        reg = PluginRegistry()
+        reg.register(_OsvLikePlugin())
+        results = reg.run_all(["yarn.lock"], tmp_path)
+        finding = results[0].findings[0]
+        assert finding.metadata.get("dependency_kind") == "transitive"
+
+
+class TestTrivyDependencyKindSurvivesNormalization:
+    """Same collision as osv-scanner (#509), independently present in trivy.py."""
+
+    def test_raw_metadata_key_is_not_double_nested_after_normalization(self) -> None:
+        from caliper.core.plugin import normalize_finding
+
+        raw = {
+            "id": "CVE-2026-1",
+            "severity": "high",
+            "package": "aws-cdk-lib",
+            "version": "2.138.0",
+            "dependency_kind": "direct",
+        }
+        finding = normalize_finding(raw)
+        assert finding.metadata.get("dependency_kind") == "direct"
