@@ -330,3 +330,52 @@ def test_git_script_validate_command_gates_next_part() -> None:
 def test_git_script_parses_as_valid_bash(tmp_path) -> None:
     _assert_bash_parses(_render_git(PartTarget.stack), tmp_path)
     _assert_bash_parses(_render_git(PartTarget.series), tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Deterministic subject scoping by dominant directory (#522).
+# ---------------------------------------------------------------------------
+
+
+def test_subject_scoped_by_dominant_directory() -> None:
+    from caliper.core.models import ChangeType, Record
+    from caliper.core.part_script import _peel_subject
+    from caliper.core.parting import part
+    from caliper.core.repo_config import PartingConfig
+
+    records = [
+        Record(file="svc/api/handler.py", change_type=ChangeType.business, size=10),
+        Record(file="svc/api/router.py", change_type=ChangeType.business, size=10),
+        Record(file="svc/api/util.py", change_type=ChangeType.business, size=10),
+    ]
+    cut = part(records, PartingConfig())
+    (business_part,) = [p for p in cut.parts if p.bucket == ChangeType.business]
+    assert _peel_subject(business_part) == "feat(business): svc: business logic"
+
+
+def test_subject_unscoped_when_no_directory_majority() -> None:
+    from caliper.core.models import ChangeType, Record
+    from caliper.core.part_script import _peel_subject
+    from caliper.core.parting import part
+    from caliper.core.repo_config import PartingConfig
+
+    records = [
+        Record(file="svc/a.py", change_type=ChangeType.business, size=10),
+        Record(file="lib/b.py", change_type=ChangeType.business, size=10),
+    ]
+    cut = part(records, PartingConfig())
+    (business_part,) = [p for p in cut.parts if p.bucket == ChangeType.business]
+    assert _peel_subject(business_part) == "feat(business): business logic"
+
+
+def test_subject_unscoped_when_files_at_repo_root() -> None:
+    from caliper.core.part_script import _peel_subject
+
+    class _Part:
+        bucket = None
+        files = ["a.py", "b.py"]
+
+    from caliper.core.models import ChangeType
+
+    _Part.bucket = ChangeType.logic
+    assert _peel_subject(_Part()) == "feat(logic): untiered changes (needs a tier)"
