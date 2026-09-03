@@ -39,6 +39,9 @@ PROFILES: dict[str, frozenset[str]] = {
             "CAL-025",  # AWS API call missing required-in-practice argument
             "CAL-026",  # event field guard omits field passed to AWS call
             "CAL-027",  # committed build artifact beside source
+            "CAL-028",  # blocking call inside async function
+            "CAL-029",  # delete or rollback path swallows failure
+            "CAL-030",  # numeric setting used without range guard
         }
     ),
     "house-rules": frozenset(

@@ -1,6 +1,6 @@
 # Deterministic Detectors
 
-Caliper ships **26 deterministic bug detectors** (`CAL-001` … `CAL-027`; CAL-013 was retired with telemetry, ids are never reused) in
+Caliper ships **29 deterministic bug detectors** (`CAL-001` … `CAL-030`; CAL-013 was retired with telemetry, ids are never reused) in
 `src/caliper/detectors/`. They complement the 19 scanner plugins: where a plugin shells out
 to an external tool or queries an external database (CVEs, licenses, SBOMs), a *detector* is
 a small, self-contained, AST-driven rule that flags a specific bug pattern in source you
@@ -79,7 +79,7 @@ Shared helpers live in `src/caliper/detectors/ast_utils.py`: a content-addressed
 `BatchVisitor` for single-pass multi-detector traversal. Python is analyzed via the stdlib
 `ast`; YAML / Dockerfile / shell detectors use targeted text + structural parsing.
 
-## The 26 detectors
+## The 29 detectors
 
 ### Security (9)
 
@@ -95,7 +95,7 @@ Shared helpers live in `src/caliper/detectors/ast_utils.py`: a content-addressed
 | CAL-020 | Fixed Heredoc Delimiter with GITHUB_OUTPUT/GITHUB_ENV | low | fixed heredoc delimiters writing to GitHub Actions output sinks |
 | CAL-022 | Architecture Tier Boundary Violation | medium | imports crossing a repo-declared `architecture.tiers`/`allow` boundary in `.caliper.yaml` (opt-in, fail-open when unconfigured) |
 
-### Reliability (14)
+### Reliability (17)
 
 | ID | Name | Severity | Catches |
 |----|------|----------|---------|
@@ -113,6 +113,9 @@ Shared helpers live in `src/caliper/detectors/ast_utils.py`: a content-addressed
 | CAL-024 | Destructive AWS Call Without Dry-Run Guard | medium | boto3 `delete_*`/`terminate_*`/`deregister_*`/`purge_*` in a module with no dry-run switch |
 | CAL-025 | AWS API Call Missing Required-In-Practice Argument | medium | `start_backup_job`/`start_copy_job` without `Lifecycle`, `create_log_group` with no retention policy, `put_object` without SSE when the bucket has no default encryption |
 | CAL-026 | Event Field Guard Omits Field Passed To AWS Call | medium | a value read with `.get()` that is missing from the `if not all([...])` guard but passed to an AWS client call |
+| CAL-028 | Blocking Call Inside Async Function | high | `time.sleep`, `requests.*`, `subprocess.*`, `urlopen`, sync DB/Redis client calls inside `async def` (blocks the event loop) unless wrapped in `to_thread`/`run_in_executor` |
+| CAL-029 | Delete Or Rollback Path Swallows Failure | medium | broad `except` in a delete/remove/rollback/cleanup function that passes, only logs, or returns success |
+| CAL-030 | Numeric Setting Used Without Range Guard | medium | a timeout/limit/size/retries value parsed from config or env and passed to a call with no comparison, clamp or `isfinite` check |
 
 ### Configuration (1)
 
