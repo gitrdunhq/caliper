@@ -15,7 +15,7 @@
 # docker-library/python revision 3362634339580d3232e65a66dd5a36c47ae7ff14,
 # python 3.12.13-slim-bookworm. Pinned to the MULTI-ARCH INDEX digest (not a
 # single-arch image digest) so --platform selects the native sub-image.
-FROM docker.io/library/python@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b
+FROM docker.io/library/python@sha256:8edbf9e42c7fb168b9c523718ed907117e6d2e60f5889c0c499bbda3a787da53
 
 LABEL org.opencontainers.image.base.revision="3362634339580d3232e65a66dd5a36c47ae7ff14" \
       org.opencontainers.image.uv.revision="0e961dd9a2bb6f73493d9e8398b725ad2d3b3837"

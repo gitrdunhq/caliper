@@ -90,7 +90,7 @@ ARG UV_COMMIT=0e961dd9a2bb6f73493d9e8398b725ad2d3b3837
 # the platform manifest out of the index from --platform / TARGETARCH.
 # ════════════════════════════════════════════════════════════════════════════
 ARG TARGETARCH=amd64
-FROM docker.io/library/python:3.12.13-slim-trixie@sha256:229a2c5bfa27522db7815ea81f9bed70af17ccb9de9fc7ad142b1877b5830d36 AS python_base
+FROM docker.io/library/python:3.14.7-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS python_base
 
 # ════════════════════════════════════════════════════════════════════════════
 # Stage 1: builder
