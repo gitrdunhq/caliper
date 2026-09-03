@@ -893,3 +893,48 @@ class TestRepoFilesRouting:
 
         assert code_p.received_files[0] == ["changed.py"]
         assert dep_p.received_files[0] == ["changed.py", "untouched.py", "other.py"]
+
+
+class _DiffOnlyPlugin(_GoodPlugin):
+    """A plugin whose finding is only meaningful against a change set."""
+
+    @property
+    def name(self) -> str:
+        return "test-diff-only"
+
+    @property
+    def category(self) -> PluginCategory:
+        return PluginCategory.supply_chain
+
+    @property
+    def diff_only(self) -> bool:
+        return True
+
+    def can_run(self, files: list[str], repo_path: Path) -> bool:
+        return True
+
+
+class TestDiffOnlyPlugins:
+    """``diff_only`` plugins are skipped (with a reason) on a whole-repo scan,
+    where the suffix-filtered file list is not a change set, and run in diff
+    scope (``repo_files`` provided)."""
+
+    def test_default_plugins_are_not_diff_only(self) -> None:
+        assert _GoodPlugin().diff_only is False
+
+    def test_skipped_without_repo_files(self, tmp_path: Path) -> None:
+        reg = PluginRegistry()
+        reg.register(_DiffOnlyPlugin())
+        results = reg.run_all(["a.py"], tmp_path)
+        assert len(results) == 1
+        assert results[0].summary == {"status": "skipped"}
+        assert results[0].skip_reason and "diff" in results[0].skip_reason.lower()
+        assert results[0].findings == []
+
+    def test_runs_in_diff_scope(self, tmp_path: Path) -> None:
+        reg = PluginRegistry()
+        reg.register(_DiffOnlyPlugin())
+        results = reg.run_all(["a.py"], tmp_path, repo_files=["a.py", "b.py"])
+        assert len(results) == 1
+        assert not results[0].skip_reason
+        assert len(results[0].findings) == 2, "supply_chain plugins receive repo_files"

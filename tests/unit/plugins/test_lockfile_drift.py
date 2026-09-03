@@ -405,3 +405,10 @@ class TestProperties:
         assert isinstance(result, PluginResult)
         assert result.error == ""
         assert result.findings == []
+
+
+class TestDiffOnly:
+    def test_plugin_is_diff_only(self) -> None:
+        """Whole-repo file lists are suffix-filtered (no yarn.lock), so the check
+        is only meaningful against a real change set."""
+        assert LockfileDriftPlugin().diff_only is True

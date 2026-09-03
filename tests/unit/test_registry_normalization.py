@@ -71,3 +71,19 @@ class TestRegistryNormalization:
         finding = normalize_finding(raw)
         assert isinstance(finding, PluginFinding)
         assert finding.id == "X"
+
+
+class TestLineNormalizationIsNoneSafe:
+    """A plugin may attach ``"line": None`` (osv-scanner does when source mapping is
+    partial); that must normalize to 0, not crash the whole plugin run."""
+
+    def test_explicit_none_line_becomes_zero(self) -> None:
+        from caliper.core.plugin import normalize_finding
+
+        f = normalize_finding({"id": "CVE-1", "severity": "high", "file": "a.py", "line": None})
+        assert f.line == 0
+
+    def test_string_line_is_coerced(self) -> None:
+        from caliper.core.plugin import normalize_finding
+
+        assert normalize_finding({"id": "x", "line": "12"}).line == 12
