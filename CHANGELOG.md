@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.41](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.40...caliper-v0.2.41) (2026-09-03)
+
+
+### Features
+
+* **part:** deterministic commit subjects scoped by dominant directory ([#522](https://github.com/gitrdunhq/caliper/issues/522)) ([b687c73](https://github.com/gitrdunhq/caliper/commit/b687c731d8b1f63478ce5304eca308a34280545d))
+
 ## [0.2.40](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.39...caliper-v0.2.40) (2026-09-03)
 
 
