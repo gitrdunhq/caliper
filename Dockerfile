@@ -27,6 +27,14 @@ ARG SEMGREP_RULES_COMMIT=40b8c63f75dc7c22c8a77482d73bfb864b146f7e
 # gitrdunhq/caliper-community-rules: shared Kirby-annotated org rules. Pinned by
 # commit like semgrep-rules; bump with scripts/snapshot-community-rules.sh --bump.
 ARG COMMUNITY_RULES_COMMIT=44bbf24ed311b2f95e03c703849237695d10b9eb
+# MIT-licensed third-party rule sets, vendored as pinned snapshots under
+# /opt/caliper/community-rules/vendor/<name>/ with their LICENSE files kept.
+# GitLab's sast-rules mixes licenses per file; only files whose header says
+# "License: MIT" are staged (the lgpl / lgpl-cc re-licensed upstream copies
+# are dropped, which also avoids double-reporting the semgrep-rules snapshot).
+ARG GITLAB_SAST_RULES_COMMIT=7051ea7602a210dfb0793916afedc9a0555addb7
+ARG SEMGREP_GO_COMMIT=db0227c03f4b3c4e71d900188d51db4c81d66932
+ARG SEMGREP_C_RULES_COMMIT=33155497b25b4639193db016962af2df46290b10
 
 # ── Source revision pins ─────────────────────────────────────────────────────
 # GitHub release assets are still addressed by release version because that is
@@ -89,6 +97,9 @@ ARG SYFT_COMMIT TRIVY_COMMIT OSV_COMMIT OPA_COMMIT GITLEAKS_COMMIT KUBE_LINTER_C
 ARG OPENGREP_VERSION SCANCODE_VERSION LIZARD_VERSION PYREFLY_VERSION RADON_VERSION
 ARG SEMGREP_RULES_COMMIT
 ARG COMMUNITY_RULES_COMMIT
+ARG GITLAB_SAST_RULES_COMMIT
+ARG SEMGREP_GO_COMMIT
+ARG SEMGREP_C_RULES_COMMIT
 ARG SYFT_SHA256_ARM64 TRIVY_SHA256_ARM64 OSV_SHA256_ARM64 OPA_SHA256_ARM64 GITLEAKS_SHA256_ARM64 JQ_SHA256_ARM64 KUBE_LINTER_SHA256_ARM64 LS_LINT_SHA256_ARM64 PMD_SHA256
 ARG SYFT_SHA256_AMD64 TRIVY_SHA256_AMD64 OSV_SHA256_AMD64 OPA_SHA256_AMD64 GITLEAKS_SHA256_AMD64 JQ_SHA256_AMD64 KUBE_LINTER_SHA256_AMD64 LS_LINT_SHA256_AMD64 SWIFTLINT_SHA256_AMD64
 ARG TARGETARCH
@@ -214,6 +225,9 @@ RUN printf '%s\n' \
       "ls-lint=${LS_LINT_COMMIT}" \
       "semgrep-rules=${SEMGREP_RULES_COMMIT}" \
       "community-rules=${COMMUNITY_RULES_COMMIT}" \
+      "gitlab-sast-rules=${GITLAB_SAST_RULES_COMMIT}" \
+      "semgrep-go=${SEMGREP_GO_COMMIT}" \
+      "semgrep-c-rules=${SEMGREP_C_RULES_COMMIT}" \
     > /staging/scripts/release-revisions.txt
 
 # semgrep-rules snapshot — the ONLY source of community opengrep rules. Fetched
@@ -245,6 +259,29 @@ RUN set -eux; \
     rm -rf /tmp/community-rules /tmp/community-rules.tar.gz; \
     printf '%s\n' "${COMMUNITY_RULES_COMMIT}" > /staging/community-rules/COMMIT; \
     test "$(find /staging/community-rules -name '*.yaml' | wc -l)" -gt 5
+
+# Vendored MIT rule sets (see the ARG block). Each lands as
+# /staging/community-rules/vendor/<name>/ with LICENSE + COMMIT; only rule
+# YAML is kept, tests/qa/mappings/ci trees are dropped.
+RUN set -eux; \
+    V=/staging/community-rules/vendor; mkdir -p "$V" /tmp/vr; \
+    fetch() { curl -sSfL -o "/tmp/vr/$1.tar.gz" "$2"; mkdir -p "/tmp/vr/$1"; tar -xzf "/tmp/vr/$1.tar.gz" -C "/tmp/vr/$1" --strip-components=1; }; \
+    fetch gitlab-sast-rules "https://gitlab.com/gitlab-org/security-products/sast-rules/-/archive/${GITLAB_SAST_RULES_COMMIT}/sast-rules-${GITLAB_SAST_RULES_COMMIT}.tar.gz"; \
+    fetch semgrep-go "https://github.com/dgryski/semgrep-go/archive/${SEMGREP_GO_COMMIT}.tar.gz"; \
+    fetch semgrep-c-rules "https://github.com/0xdea/semgrep-rules/archive/${SEMGREP_C_RULES_COMMIT}.tar.gz"; \
+    mkdir -p "$V/gitlab-sast-rules"; cp /tmp/vr/gitlab-sast-rules/LICENSE "$V/gitlab-sast-rules/LICENSE"; \
+    grep -rl '^# License: MIT' --include='*.yml' /tmp/vr/gitlab-sast-rules | grep -v '/test\|/qa/\|/mappings/\|/ci/' \
+      | while read -r f; do d="$V/gitlab-sast-rules/${f#/tmp/vr/gitlab-sast-rules/}"; mkdir -p "$(dirname "$d")"; cp "$f" "$d"; done; \
+    for n in semgrep-go semgrep-c-rules; do mkdir -p "$V/$n"; cp /tmp/vr/$n/LICENSE* "$V/$n/"; \
+      find /tmp/vr/$n -type f \( -name '*.yaml' -o -name '*.yml' \) ! -path '*/test*' ! -path '*/.github/*' ! -name '.pre-commit*' \
+        -exec sh -c 'd="$2/${1#/tmp/vr/$3/}"; mkdir -p "$(dirname "$d")"; cp "$1" "$d"' _ {} "$V/$n" "$n" \; ; done; \
+    printf '%s\n' "${GITLAB_SAST_RULES_COMMIT}" > "$V/gitlab-sast-rules/COMMIT"; \
+    printf '%s\n' "${SEMGREP_GO_COMMIT}" > "$V/semgrep-go/COMMIT"; \
+    printf '%s\n' "${SEMGREP_C_RULES_COMMIT}" > "$V/semgrep-c-rules/COMMIT"; \
+    rm -rf /tmp/vr; \
+    test "$(find "$V/gitlab-sast-rules" -name '*.yml' | wc -l)" -gt 200; \
+    test "$(find "$V/semgrep-go" -name '*.yml' -o -name '*.yaml' | wc -l)" -gt 30; \
+    test "$(find "$V/semgrep-c-rules" -name '*.yaml' | wc -l)" -gt 30
 
 # ── Python: lockfile-based venv install ──────────────────────────────────────
 # astral-sh/uv revision:
