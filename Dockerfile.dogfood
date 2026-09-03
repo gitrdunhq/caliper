@@ -83,7 +83,7 @@ RUN pip install --no-cache-dir --target=${DHI_SITE} pydantic pydantic-settings s
 RUN rm -rf /tmp/scanners
 
 # ── Stage 2: DHI Hardened Runtime ──────────────────────────────────────
-FROM dhi.io/python:3.13
+FROM dhi.io/python:3.14
 
 # Scanner binaries — static CLIs + semgrep/scancode console scripts
 COPY --from=builder /staging/bin/ /usr/local/bin/
