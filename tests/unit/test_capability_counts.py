@@ -23,7 +23,7 @@ _PLUGINS = 15
 _SEMGREP = 67
 _CODEGRAPH = 10
 _OPA = 16
-_DETECTORS = 26
+_DETECTORS = 29
 
 
 def _semgrep_rule_count() -> int:

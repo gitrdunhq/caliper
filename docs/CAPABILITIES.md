@@ -75,7 +75,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 
 | Plugin | File | Detects |
 |--------|------|---------|
-| deterministic | `composition/deterministic_plugin.py` | Wraps `DeterministicScanner` (`detectors/scanner.py`) — the 26 AST-based bug detectors (CAL-001..027, CAL-013 retired) selected by `detectors.profiles` in `.caliper.yaml`: `default` (17 general bug patterns, on) and `house-rules` (9 caliper-convention rules, opt-in), plus `enable`/`disable` per id (`detectors/profiles.py`). Composition-registered rather than auto-discovered, since `detectors/` may not import `plugins/` directly (#457). |
+| deterministic | `composition/deterministic_plugin.py` | Wraps `DeterministicScanner` (`detectors/scanner.py`) — the 29 AST-based bug detectors (CAL-001..030, CAL-013 retired) selected by `detectors.profiles` in `.caliper.yaml`: `default` (20 general bug patterns, on) and `house-rules` (9 caliper-convention rules, opt-in), plus `enable`/`disable` per id (`detectors/profiles.py`). Composition-registered rather than auto-discovered, since `detectors/` may not import `plugins/` directly (#457). |
 | semgrep | `plugins/semgrep.py` | AST code pattern matching via opengrep. Community rules come ONLY from a semgrep-rules snapshot pinned by commit in the Dockerfile (`SEMGREP_RULES_COMMIT`, baked at `/opt/caliper/semgrep-rules`); language directories are selected by file type and registry packs are never fetched, so the scan path has no network dependency and the rule set cannot drift. The 67 custom org rules (see below) run against every target via `CALIPER_SEMGREP_ORG_RULES_DIR`, and the shared [caliper-community-rules](https://github.com/gitrdunhq/caliper-community-rules) snapshot (Kirby-annotated `rules/**/semgrep/*.yaml`, pinned by `COMMUNITY_RULES_COMMIT`, baked at `/opt/caliper/community-rules`) via `CALIPER_SEMGREP_COMMUNITY_RULES_DIR`. Host runs: `scripts/snapshot-semgrep-rules.sh`, `scripts/snapshot-community-rules.sh` (`--bump` moves the pin to upstream main). Severities are canonical at the boundary: ERROR→high, WARNING→medium, INFO→info. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyrefly (fastest) when available, falls back to pyright, then mypy. Error + warning severity only. |
@@ -181,7 +181,7 @@ The CDK rules (`cdk-custom-resource-oncreate-without-onupdate`, `cdk-code-fromas
 
 ---
 
-## Deterministic Detectors (26)
+## Deterministic Detectors (29)
 
 AST-driven, fail-safe bug-pattern rules in `src/caliper/detectors/`, exposed to the pipeline
 as a single `DeterministicScanner` (`tool_name="deterministic"`). Each is suppressible inline
@@ -214,6 +214,9 @@ with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](detectors.md).
 | CAL-026 | Event Field Guard Omits Field Passed To AWS Call | reliability | medium |
 | CAL-027 | Committed Build Artifact Beside Source | process | low |
 | CAL-018 | Dockerfile Pin Drift | configuration | medium |
+| CAL-028 | Blocking Call Inside Async Function | reliability | high |
+| CAL-029 | Delete Or Rollback Path Swallows Failure | reliability | medium |
+| CAL-030 | Numeric Setting Used Without Range Guard | reliability | medium |
 | CAL-014 | Missing Tested-By Annotation | process | low |
 
 By category: security 9, reliability 10, configuration 2, process 1.
@@ -404,7 +407,7 @@ Every format shares one severity vocabulary: `critical`/`high`/`medium`/`low`/`i
 
 | Capability | SonarQube | caliper |
 |------------|-----------|-------|
-| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 67 custom rules + 26 deterministic detectors |
+| Semantic bug detection | Deep per-language rules (25+ languages) | Semgrep AST + 67 custom rules + 29 deterministic detectors |
 | Stylistic code smells | Hundreds of built-in rules | Not primary focus |
 | Structural code smells | Limited | 12 graph checks (dead code, god functions, SRP, layer violations, circular deps, deep inheritance, stubs) |
 | Complexity | Cyclomatic + cognitive | Cyclomatic (Lizard) + MI (Radon for Python, escomplex for JS/TS) — parity |
