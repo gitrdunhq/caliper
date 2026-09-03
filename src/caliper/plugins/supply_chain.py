@@ -277,6 +277,20 @@ class SupplyChainPlugin(ScannerPlugin):
         files: list[str],
         repo: Path,
     ) -> list[dict]:
+        """Flag a lockfile that changed without its manifest changing alongside it.
+
+        This only checks the direction "lockfile changed, manifest did not" —
+        it requires the lockfile itself to appear in *files*, which only ever
+        happens against a real diff (a whole-repo listing is suffix-filtered
+        and never contains lockfile names), so it can't produce #507's false
+        positive. The inverse direction ("manifest changed, lockfile did not")
+        used to live here too, but a suffix-filtered whole-repo listing always
+        contains the manifest and never the lockfile regardless of whether the
+        lockfile actually changed, which made that check fire on every
+        whole-repo scan (#507). It's now owned exclusively by the diff_only
+        LockfileDriftPlugin (lockfile_drift.py), which the registry correctly
+        skips outside of diff mode.
+        """
         findings: list[dict] = []
         changed_names = {Path(f).name for f in files}
         changed_dirs: dict[str, set[str]] = {}
@@ -304,32 +318,6 @@ class SupplyChainPlugin(ScannerPlugin):
                             "message": (f"`{lock}` changed but {'/'.join(manifests)} did NOT"),
                         }
                     )
-
-        for manifest in [
-            "package.json",
-            "pyproject.toml",
-            "Cargo.toml",
-            "go.mod",
-        ]:
-            if manifest not in changed_names:
-                continue
-            expected = [lf for lf, ms in _LOCKFILE_TO_MANIFEST.items() if manifest in ms]
-            manifest_dirs = [d for d, names in changed_dirs.items() if manifest in names]
-            for lf in expected:
-                for manifest_dir in manifest_dirs:
-                    if (
-                        lf not in changed_dirs.get(manifest_dir, set())
-                        and (Path(manifest_dir) / lf).exists()
-                    ):
-                        findings.append(
-                            {
-                                "type": "lockfile",
-                                "lockfile": lf,
-                                "severity": "medium",
-                                "sha256": _sha256(Path(manifest_dir) / lf),
-                                "message": (f"`{manifest}` changed but `{lf}` was NOT updated"),
-                            }
-                        )
 
         return findings
 
