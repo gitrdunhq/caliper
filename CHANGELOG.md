@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.50](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.49...caliper-v0.2.50) (2026-09-03)
+
+
+### Features
+
+* **part:** foreman/CI advisory comment mode for --pr ([#524](https://github.com/gitrdunhq/caliper/issues/524)) ([ceb9b59](https://github.com/gitrdunhq/caliper/commit/ceb9b593a21198777ae727b3cd53a91dbb29ddf6))
+
 ## [0.2.49](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.48...caliper-v0.2.49) (2026-09-03)
 
 
