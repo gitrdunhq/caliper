@@ -192,7 +192,11 @@ def _classify(
     if code == "D":
         return ChangeType.delete, "delete"
     if code in ("R", "C"):
-        return ChangeType.move, "move"
+        # git's name-status suffixes R/C with a 3-digit similarity, e.g. "R088"
+        # (#521 evidence for rename-threshold tuning) — surface it when present.
+        similarity = status[1:]
+        reason = f"move:{int(similarity)}%" if similarity.isdigit() else "move"
+        return ChangeType.move, reason
     if (
         size is None  # numstat reported binary
         or code == "T"  # type change (e.g. file <-> symlink)
