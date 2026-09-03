@@ -34,7 +34,7 @@ def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: 
     """Human-readable cut list, opening with the rollback header (escape hatch)."""
     lines: list[str] = []
     if backup_bookmark and rescue_op_id:
-        for h in rollback_header(backup_bookmark, rescue_op_id):
+        for h in rollback_header(backup_bookmark, rescue_op_id, backend=cut.provenance.backend):
             lines.append(h)
     else:
         lines.append("ROLLBACK — the rollback header was emitted with the original restack.sh")

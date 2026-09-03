@@ -33,12 +33,24 @@ from caliper.core.tool_runner import ToolInvocation, ToolRunnerPort
 _JJ_TIMEOUT = 30
 
 
-def rollback_header(backup_bookmark: str, rescue_op_id: str) -> list[str]:
+def rollback_header(backup_bookmark: str, rescue_op_id: str, backend: str = "jj") -> list[str]:
     """The rollback escape hatch printed atop every script and every cut list.
 
     A developer who does not know jj still has the one command that returns the
-    repo to the pre-parting state.
+    repo to the pre-parting state. For the git backend (#520) ``rescue_op_id``
+    is the ref checked out before parting (a branch name, or a sha if detached)
+    — the script only ever creates NEW ``caliper-part-*`` branches and never
+    touches that ref, so "undo" is checking it back out and deleting the
+    branches the script created, not a destructive reset.
     """
+    if backend == "git":
+        return [
+            "ROLLBACK — parting is non-destructive: the git backend only creates NEW",
+            "branches and never touches the ref you started on.",
+            f"  backup branch   : {backup_bookmark}  (anchors the pre-parting base; never moved)",
+            f"  undo everything : git checkout {rescue_op_id}  (then delete the",
+            "                    caliper-part-* branches this script created, plus the backup)",
+        ]
     return [
         "ROLLBACK — parting is non-destructive and fully reversible:",
         f"  backup bookmark : {backup_bookmark}  (anchors the pre-parting base; never moved)",
@@ -166,6 +178,7 @@ def render_restack_script(
     validate_command: str = "",
     can_reconstruct: bool,
     subjects: dict[str, str] | None = None,
+    backend: str = "jj",
 ) -> str:
     """Render ``restack.sh`` for *cutlist*. Pure: same inputs -> same bytes.
 
@@ -176,7 +189,25 @@ def render_restack_script(
     has an entry its commit subject uses it; otherwise the deterministic
     ``_peel_subject`` stands. ``None`` (the default) is byte-identical to an empty
     map — the describer is strictly additive and never alters the cut.
+
+    ``backend`` (#520) picks the substrate: ``"jj"`` (default, path-granular
+    ``jj restore``) or ``"git"`` (no jj installed — plain ``git checkout``/
+    ``commit`` per part on a detached HEAD, same backup-ref + rollback-header
+    contract, see ``_render_git_body``).
     """
+    if backend == "git":
+        return _render_git_script(
+            cutlist,
+            base_rev=base_rev,
+            head_rev=head_rev,
+            backup_bookmark=backup_bookmark,
+            rescue_op_id=rescue_op_id,
+            target=target,
+            old_paths=old_paths or {},
+            validate_command=validate_command,
+            subjects=subjects,
+        )
+
     old_paths = old_paths or {}
     n = len(cutlist.parts)
     lines: list[str] = ["#!/usr/bin/env bash", "#"]
@@ -247,13 +278,88 @@ def render_restack_script(
     return "\n".join(lines) + "\n"
 
 
+def _render_git_script(
+    cutlist: CutList,
+    *,
+    base_rev: str,
+    head_rev: str,
+    backup_bookmark: str,
+    rescue_op_id: str,
+    target: PartTarget,
+    old_paths: dict[str, str],
+    validate_command: str,
+    subjects: dict[str, str] | None,
+) -> str:
+    """git-only restack (#520): a fresh stack on ``base``, built on a detached
+    HEAD, one commit per part, path-granular like the jj path.
+
+    Per part, each path is restored from ``head_rev`` if it exists there
+    (add/modify) or removed if it doesn't (delete, or a rename's old path) —
+    decided at RUN time via ``git cat-file -e``, since this renderer is pure
+    (no IO). Only ``git checkout --detach``, ``git add``/``git rm``, and
+    ``git commit`` run against the working tree; nothing here rewrites,
+    force-pushes, or touches the ref the caller started on — new commits only
+    ever live on freshly created ``caliper-part-*`` branches.
+    """
+    n = len(cutlist.parts)
+    lines: list[str] = ["#!/usr/bin/env bash", "#"]
+    lines.append(f"# caliper part — git restack script (target: {target}, no jj on PATH)")
+    lines.append("#")
+    for h in rollback_header(backup_bookmark, rescue_op_id, backend="git"):
+        lines.append(f"# {h}")
+    lines.append("#")
+    lines.append("# NOTE: the validate command's side effects (installs, migrations, codegen) are")
+    lines.append("#       outside git's guarantees; it is advisory and off by default.")
+    lines.append(
+        f"# Provenance: base={cutlist.provenance.base_sha or '?'} "
+        f"head={cutlist.provenance.head_sha or '?'} "
+        f"config={cutlist.provenance.config_digest[:12]}"
+    )
+    lines.append("#")
+    lines.append("set -euo pipefail")
+    lines.append("")
+    lines.append(f"git checkout --detach {shlex.quote(base_rev)}")
+    lines.append("")
+
+    for i, part in enumerate(cutlist.parts, start=1):
+        subject = _subject_for(part, subjects)
+        msg = _peel_message(i, n, part, subject)
+        paths = _restore_paths(part, old_paths)
+        lines.append(f"# --- part {i}/{n}: {subject} ---")
+        for p in paths:
+            q = shlex.quote(p)
+            lines.append(
+                f"if git cat-file -e {shlex.quote(head_rev)}:{q} 2>/dev/null; then "
+                f"git checkout {shlex.quote(head_rev)} -- {q}; "
+                f"else git rm -f --ignore-unmatch -- {q} >/dev/null; fi"
+            )
+        if validate_command:
+            lines.append("# validate (advisory; side effects outside rollback):")
+            lines.append(
+                f"if ! ( {validate_command} ); then "
+                f'echo "validate failed at part {i}/{n}" >&2; exit 1; fi'
+            )
+        lines.append(f"git commit -m {shlex.quote(msg)}")
+        if target == PartTarget.stack:
+            lines.append(f"git branch -f caliper-part-{i} HEAD")
+        lines.append("")
+
+    if target == PartTarget.series:
+        lines.append("# single tip branch for the whole series:")
+        lines.append("git branch -f caliper-part-series HEAD")
+        lines.append("")
+
+    lines.extend(_publish_footer(backup_bookmark))
+    return "\n".join(lines) + "\n"
+
+
 def _publish_footer(backup_bookmark: str) -> list[str]:
     """Push/submit stay printed comments — a force-push is the one irreversible boundary."""
     return [
         "# ============================================================",
         "# Publish when ready — run these YOURSELF. Parting never pushes or force-pushes.",
-        "#   jj git push --bookmark <name>",
+        "#   jj git push --bookmark <name>  (or `git push origin <branch>` on git)",
         "#   (open the PR(s) with your usual tool)",
-        f"# The backup bookmark {backup_bookmark} is never moved or deleted by this script.",
+        f"# The backup ref {backup_bookmark} is never moved or deleted by this script.",
         "# ============================================================",
     ]

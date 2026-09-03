@@ -467,8 +467,11 @@ class PartingSession:
             }
 
     def rollback(self) -> dict:
-        """Undo everything since the gate's rescue op via `jj op restore
-        <rescue_op_id>` — the escape hatch surfaced in the rollback header.
+        """Undo everything since the gate's rescue point — the escape hatch
+        surfaced in the rollback header. Backend-dependent (#520): jj runs
+        `jj op restore <rescue_op_id>`; git checks the pre-parting ref back
+        out (`rescue_op_id` is a branch name or sha there, never touched by
+        the script, so no reset is needed — see `part_script.rollback_header`).
         Available any time after a /restack (not gated on apply having run),
         since the reviewer may have applied by hand outside the browser.
         """
@@ -480,13 +483,13 @@ class PartingSession:
             if last_run is None:
                 raise ValueError("nothing to roll back — POST /restack first")
             runner = self._runner or SubprocessToolRunner()
-            result = runner.run(
-                ToolInvocation(
-                    cmd=["jj", "op", "restore", last_run.rescue_op_id],
-                    cwd=str(self.repo_path),
-                    timeout=60,
-                )
+            backend = last_run.cutlist.provenance.backend
+            cmd = (
+                ["git", "checkout", last_run.rescue_op_id]
+                if backend == "git"
+                else ["jj", "op", "restore", last_run.rescue_op_id]
             )
+            result = runner.run(ToolInvocation(cmd=cmd, cwd=str(self.repo_path), timeout=60))
             return {
                 "ok": result.exit_code == 0,
                 "stdout": result.stdout,
