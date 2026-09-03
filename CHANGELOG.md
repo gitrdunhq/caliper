@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.45](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.44...caliper-v0.2.45) (2026-09-03)
+
+
+### Documentation
+
+* **part:** rewrite docs/part.md as a tutorial arc ([#526](https://github.com/gitrdunhq/caliper/issues/526)) ([c3afa94](https://github.com/gitrdunhq/caliper/commit/c3afa94afee9439efcbadc61921a50acf5600c9f))
+
 ## [0.2.44](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.43...caliper-v0.2.44) (2026-09-03)
 
 
