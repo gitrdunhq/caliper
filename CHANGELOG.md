@@ -7,6 +7,49 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.33](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.32...caliper-v0.2.33) (2026-09-03)
+
+
+### Features
+
+* **ci:** tag every release SHA's image with its version ([ee18830](https://github.com/gitrdunhq/caliper/commit/ee18830a80f68d9cfe2618ff4b52feda1790d678))
+* **detectors:** CAL-023..027 — Lambda/boto3/CDK defects that real PR review found and the scanner missed ([c08be11](https://github.com/gitrdunhq/caliper/commit/c08be11c5396585c8ced1a56ec7763beaf5382a4))
+* **detectors:** CAL-028..030 — blocking call in async, delete path swallows failure, unguarded numeric setting ([2616246](https://github.com/gitrdunhq/caliper/commit/2616246bb65ca7e759b560468409b368efb17683))
+* **plugins:** lockfile-drift — flag a changed manifest whose lockfile did not change ([0a8bcb0](https://github.com/gitrdunhq/caliper/commit/0a8bcb0792241422a38dcff0c5050f1f414f9592))
+* **semgrep:** bake a pinned eedom-community-rules snapshot into the image and run it on every review ([543d559](https://github.com/gitrdunhq/caliper/commit/543d55905eba1ed74f482ef36a5423f5a6e90a1e))
+* **semgrep:** CDK rules for create-only custom resources, cwd-relative assets, fixed role names, SSM Replace, empty JS tests ([b4810cd](https://github.com/gitrdunhq/caliper/commit/b4810cdf28120c099bac6034d540ed339dbbb3b1))
+* **semgrep:** vendor three MIT rule sets as pinned snapshots (GitLab sast-rules, semgrep-go, 0xdea C rules) ([6a21b98](https://github.com/gitrdunhq/caliper/commit/6a21b985d94800a7b1f8415c6da56af52287b42c))
+
+
+### Bug Fixes
+
+* **ci:** ruff N999/N801/F821 in lane-authored tests; coverage file on tmpfs for the read-only test mount ([0189b6e](https://github.com/gitrdunhq/caliper/commit/0189b6e86b4c63bc134d6fee576f0a0985bb8b43))
+* **ci:** sort the import block in test_ignore.py ([4c54311](https://github.com/gitrdunhq/caliper/commit/4c543113ea758b35b16c8f4c90ee048d546cbed0))
+* **cli:** log exceptions as plain tracebacks, not rich frames with locals ([2cf8f5e](https://github.com/gitrdunhq/caliper/commit/2cf8f5e62d41657cdedd2e853269d21fe0d5c8da))
+* **container:** make the semgrep-rules snapshot an opt-in build arg; the published image no longer redistributes it ([6242112](https://github.com/gitrdunhq/caliper/commit/62421122d321231bfdbf9286c0984af74eb7a97b)), closes [#502](https://github.com/gitrdunhq/caliper/issues/502)
+* **core:** dependency_kind metadata was double-nested and unreachable (osv-scanner + trivy) ([27773cd](https://github.com/gitrdunhq/caliper/commit/27773cd8387326b5e0c76a78ee20327f5510ab00))
+* **db:** fail fast when Postgres is unreachable instead of waiting 30s per pool ([1b5c62e](https://github.com/gitrdunhq/caliper/commit/1b5c62e83761409ac3579d66c462cddc153f0d95))
+* **epic:** classify lockfile targets against their sibling manifest (CORR-001) ([cb28f8a](https://github.com/gitrdunhq/caliper/commit/cb28f8afde027d882a70dc3eb82dc0f567c3fd62))
+* **epic:** count review summary from the floor-filtered semgrep set (CORR-002) ([0dc4bb8](https://github.com/gitrdunhq/caliper/commit/0dc4bb8887adbc2ef7fa12309782a501da3bbee1))
+* **epic:** normalize package names for the lockfile match (CORR-003) ([0d925b0](https://github.com/gitrdunhq/caliper/commit/0d925b02c2a1c81d9f92cdc411d3a380ccd6594e))
+* **epic:** read each manifest/lockfile once per scan (PERF-001/002/003) ([fa02a38](https://github.com/gitrdunhq/caliper/commit/fa02a388acfb4376b9e357766ec4c3959e4b8d1a))
+* **epic:** reject DOCTYPE/ENTITY and oversized pom.xml before parsing (SEC-001) ([69d9024](https://github.com/gitrdunhq/caliper/commit/69d902491f2c4501be019066c19589457e85b159))
+* **epic:** settle epic-level test fallout from the merged lanes ([f88849c](https://github.com/gitrdunhq/caliper/commit/f88849cf3c13b0ca364d1fb4c1457e35a3a5b090))
+* **osv-scanner:** no committed lockfile is a clean scan, not BINARY_CRASHED ([26e62bc](https://github.com/gitrdunhq/caliper/commit/26e62bc5bae739fb3a72940857e6341bc2cbc114)), closes [#508](https://github.com/gitrdunhq/caliper/issues/508)
+* **plugins:** batch type-checker argv under ARG_MAX and validate JSON shape ([#497](https://github.com/gitrdunhq/caliper/issues/497)) ([b44ab1f](https://github.com/gitrdunhq/caliper/commit/b44ab1f6f71deffe29284818ac64659ae620e119))
+* **plugins:** diff-only plugins skip whole-repo scans; a None line no longer crashes a plugin run ([1034681](https://github.com/gitrdunhq/caliper/commit/1034681e847cd7e6a1796fb3a280328102915edd))
+* **report:** code findings are actionable; only dependencies without a fixed version are blocked ([2d294ec](https://github.com/gitrdunhq/caliper/commit/2d294ec84b73706f17d982cceaa977eee6f7b354))
+* **semgrep:** drop the vendored 0xdea 'noisy' generic rules (bad-words fired on every file with a TODO) ([991d5f9](https://github.com/gitrdunhq/caliper/commit/991d5f944146991aa44da55889fdbef9cd8dfbfc))
+* **supply-chain:** stop flagging every manifest as missing its lockfile on whole-repo scans ([42d9bc7](https://github.com/gitrdunhq/caliper/commit/42d9bc73ae6cf0dcba8c4b07274cf81ef29641e6)), closes [#507](https://github.com/gitrdunhq/caliper/issues/507)
+* **test:** affected-test base is the lane's batch-root HEAD inside datum worktrees ([b74d98e](https://github.com/gitrdunhq/caliper/commit/b74d98eb6aafd504fea10c1c82185d821bb25ca3))
+* **test:** make-test venv guard follows the delegation to scripts/test-run.sh ([d36f204](https://github.com/gitrdunhq/caliper/commit/d36f204132548f887e5cd263cc29def0736bc9d0))
+* **tests:** review an empty scratch dir in the CALIPER_ALLOW_GLOBAL bypass test, not the whole repo ([3808dbd](https://github.com/gitrdunhq/caliper/commit/3808dbd066fb3c4e08b4074b6a04d81a7408a109))
+
+
+### Documentation
+
+* **epic:** SPEC for the next-10 improvements epic ([cea0ac3](https://github.com/gitrdunhq/caliper/commit/cea0ac39a3c6ea67c37dd1e6158d769f95bfb9ab))
+
 ## [0.2.32](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.31...caliper-v0.2.32) (2026-09-02)
 
 
