@@ -184,6 +184,28 @@ class TestRenderReviewOutput:
         captured = capsys.readouterr()
         assert "acme/widgets" in captured.out
 
+    def test_markdown_relativizes_absolute_finding_paths(self, tmp_path: Path, capsys) -> None:
+        """A real caliper review comment leaked absolute CI-runner paths
+        (e.g. /home/runner/work/x/x/src/...) because render_comment was never
+        given repo_path. render_review_output must pass a RESOLVED repo_path
+        (--repo-path defaults to "." and is never resolved by click, but
+        scanner-reported paths are absolute) so relativization actually fires."""
+        from caliper.core.plugin import PluginResult
+
+        abs_path = str(tmp_path / "src" / "app.py")
+        results = [
+            PluginResult(
+                plugin_name="semgrep",
+                findings=[{"file": abs_path, "line": 1, "severity": "medium", "rule_id": "x"}],
+            )
+        ]
+
+        render_review_output(**self._base_kwargs(tmp_path, results=results))
+
+        captured = capsys.readouterr()
+        assert abs_path not in captured.out
+        assert "src/app.py" in captured.out
+
     def test_markdown_written_to_file(self, tmp_path: Path, capsys) -> None:
         written = {}
 

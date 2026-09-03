@@ -1,23 +1,29 @@
-## 🦅 Caliper — {{ repo }}#{{ pr_num }}
+## 🦅 Caliper{% if repo %} — {{ repo }}{% if pr_num %}#{{ pr_num }}{% endif %}{% endif %}
 **{{ title }}**
 
-{% if verdict == "blocked" %}
+{%- if verdict == "blocked" %}
+
 > 🔴 **BLOCKED**
-{% elif verdict == "incomplete" %}
+{%- elif verdict == "incomplete" %}
+
 > 🟡 **INCOMPLETE** — one or more scanners failed
-{% elif verdict == "warnings" %}
+{%- elif verdict == "warnings" %}
+
 > 🟠 **PASS WITH WARNINGS**
-{% else %}
+{%- else %}
+
 > 🟢 **ALL CLEAR**
-{% endif %}
+{%- endif %}
 
-{% if severity_score is not none %}
+{%- if severity_score is not none %}
+
 > **Security: {{ severity_score | int }}/100** · Quality: {{ quality_score | int }}/100
-{% endif %}
-{% if mi_grade %}
-> **Maintainability: {{ mi_icon }} {{ mi_grade }} ({{ mi_score }}/100)** · CCN avg {{ avg_ccn }}{% if hi_ccn %} · ⚠️ {{ hi_ccn }} high-complexity{% endif %}{% if mi_c_count %} · 🔴 {{ mi_c_count }} grade-C{% endif %}
+{%- endif %}
+{%- if mi_grade %}
 
-{% endif %}
+> **Maintainability: {{ mi_icon }} {{ mi_grade }} ({{ mi_score }}/100)** · CCN avg {{ avg_ccn }}{% if hi_ccn %} · ⚠️ {{ hi_ccn }} high-complexity{% endif %}{% if mi_c_count %} · 🔴 {{ mi_c_count }} grade-C{% endif %}
+{%- endif %}
+
 | Plugin | Findings |
 |--------|----------|
 | Files scanned | {{ file_count }} |
@@ -27,36 +33,37 @@
 {%- if mi_grade %}
 | Maintainability | {{ mi_icon }} {{ mi_grade }} ({{ mi_score }}/100) |
 {%- endif %}
+{%- if actionability and (actionability.actionable_count > 0 or actionability.blocked_count > 0) %}
 
-{% if actionability and (actionability.actionable_count > 0 or actionability.blocked_count > 0) %}
 ### Actionability
 
 > {{ actionability.summary_text }}
+{%- if actionability.actionable_count > 0 %}
 
-{% if actionability.actionable_count > 0 %}
 **{{ actionability.actionable_count }} fixable** — you can fix these here:
-{% for f in actionability.actionable[:10] %}
+{%- for f in actionability.actionable[:10] %}
 {%- if f.package %}
 - upgrade `{{ f.package }}` {{ f.version }} → **{{ f.fixed_version }}** ({{ f.severity }}) — [{{ f.id }}]({{ f.url }})
 {%- else %}
 - `{{ f.file }}{% if f.line %}:{{ f.line }}{% endif %}` — {{ f.rule_id or f.id or f.category or "finding" }} ({{ f.severity }}){% if f.fix_suggestion %} — {{ f.fix_suggestion | truncate(80, true, "") }}{% endif %}
 {%- endif %}
 {%- endfor %}
-{% if actionability.actionable_count > 10 %}
+{%- if actionability.actionable_count > 10 %}
 - *...{{ actionability.actionable_count - 10 }} more*
-{% endif %}
-{% endif %}
+{%- endif %}
+{%- endif %}
+{%- if actionability.blocked_count > 0 %}
 
-{% if actionability.blocked_count > 0 %}
 **{{ actionability.blocked_count }} blocked on upstream** — no fixed version published yet:
-{% for source, findings in actionability.blocked_by_source.items() %}
+{%- for source, findings in actionability.blocked_by_source.items() %}
 - **{{ source }}**: {{ findings | length }} findings ({{ findings | map(attribute='severity') | unique | join(', ') }})
 {%- endfor %}
-{% endif %}
-{% endif %}
+{%- endif %}
+{%- endif %}
+{%- for section in sections %}
 
-{% for section in sections %}
 {{ section }}
-{% endfor %}
+{%- endfor %}
+
 ---
 *Caliper v{{ version }} · {{ footer_stats }}*

@@ -92,6 +92,22 @@ class TestRenderComment:
         assert "org/repo#42" in md
         assert "feat: add thing" in md
 
+    def test_header_omits_repo_and_pr_num_when_absent(self):
+        """A run with no real PR context (e.g. a self-scan/dogfood run with
+        no --pr-url) must not render the literal ".#0" — omit the whole
+        repo/PR segment instead of showing garbage."""
+        md = render_comment([], repo="", pr_num=0, title="scan")
+        header = md.splitlines()[0]
+        assert header == "## 🦅 Caliper"
+        assert "#0" not in md
+        assert ".#0" not in md
+
+    def test_header_shows_repo_without_pr_num_when_pr_num_absent(self):
+        md = render_comment([], repo="acme/widgets", pr_num=0, title="scan")
+        header = md.splitlines()[0]
+        assert header == "## 🦅 Caliper — acme/widgets"
+        assert "#0" not in md
+
     def test_verdict_clear_when_no_findings(self):
         md = render_comment(
             [_empty_result()],
