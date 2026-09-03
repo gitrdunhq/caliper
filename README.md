@@ -2,7 +2,7 @@
   <img src="assets/hero.svg" alt="Caliper" width="900">
   <br>
   <strong>Fully deterministic dependency review for CI.</strong><br>
-  15 plugins. 29 detectors. 16 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
+  15 plugins. 29 detectors. 17 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
   <br><br>
 
   <a href="#quick-start"><img src="https://img.shields.io/badge/get_started-→-d4251a?style=flat-square" alt="Get Started"></a>

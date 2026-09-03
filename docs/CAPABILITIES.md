@@ -5,11 +5,12 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-09-02
+  LAST VERIFIED: 2026-09-03
   VERIFICATION: 15 auto-discovered scanner plugins (@ANALYZERS.register) + the
   "deterministic" plugin (composition-registered, wraps DeterministicScanner,
   #457) + OPA policy plugin (17 ScannerPlugin subclasses total); 29 detectors
-  in src/caliper/detectors/; 67 semgrep rule ids in policies/semgrep/.
+  in src/caliper/detectors/; 67 semgrep rule ids in policies/semgrep/; 17 OPA
+  Rego policy rules in policies/policy.rego (7 deny, 10 warn).
 -->
 
 ## Identity
@@ -17,7 +18,7 @@
 Caliper — fully deterministic dependency, security, and code review for CI.
 16 scanner plugins (15 auto-discovered + "deterministic", which wraps all 29
 CAL-001..030 detectors), 67 custom semgrep rules, 10 code graph
-checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
+checks, 17 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
 Install with `pip install caliper-review` — the PyPI distribution name is
@@ -32,7 +33,7 @@ unchanged.
 | Deterministic detectors | 29 (CAL-001..CAL-030, CAL-013 retired), run via the "deterministic" plugin during `caliper review` |
 | Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 10 |
-| OPA Rego policy rules | 16 (7 deny, 9 warn) |
+| OPA Rego policy rules | 17 (7 deny, 10 warn) |
 | Code graph query templates | 12 |
 | Finding scribes | 5 (enclosing-symbol, code-graph, reachability opt-in, semgrep opt-in, supply-chain-threat opt-in) |
 | CLI commands | 10 |
@@ -69,7 +70,7 @@ is wired separately — it consumes every other plugin's findings and runs last
 | Plugin | File | Detects |
 |--------|------|---------|
 | lockfile-drift | `plugins/lockfile_drift.py` | Manifest changed without its lockfile (package.json, pyproject.toml, Pipfile, Cargo.toml, go.mod); flags the manifest so the resolved dependency set is regenerated with it. Pure filesystem inspection, no binary. |
-| supply-chain | `plugins/supply_chain.py` | **Three sub-checks**: (1) Unpinned deps in package.json + requirements.txt. (2) Lockfile integrity — lockfile changed without manifest or vice versa, 10 lockfile-manifest pairs, SHA-256 fingerprinting. (3) Docker floating tags — `:latest` or no tag in Dockerfiles and docker-compose. Pure Python, no binary. |
+| supply-chain | `plugins/supply_chain.py` | **Three sub-checks**: (1) Unpinned deps in package.json + requirements.txt. (2) Lockfile integrity — lockfile changed without its manifest, 10 lockfile-manifest pairs, SHA-256 fingerprinting (the inverse direction, manifest changed without its lockfile, is `lockfile-drift`'s job — see above; supply-chain dropped its own copy of that check since a suffix-filtered whole-repo listing can never contain a lockfile name, which made it false-positive on every whole-repo scan, #507). (3) Docker floating tags — `:latest` or no tag in Dockerfiles and docker-compose. Pure Python, no binary. |
 | gitleaks | `plugins/gitleaks.py` | Secret/credential detection, 800+ patterns. Custom config via `.caliper/gitleaks.toml`. Secrets never appear in findings — only rule ID, file, line, entropy, fingerprint. Always critical severity. |
 
 ### code (5)
@@ -252,7 +253,7 @@ All in `plugins/_runners/checks.yaml`. Executed by the blast-radius plugin again
 
 ---
 
-## OPA Policy Rules (16 rules)
+## OPA Policy Rules (17 rules)
 
 File: `policies/policy.rego`. Consumes findings from all plugins.
 
@@ -274,6 +275,7 @@ File: `policies/policy.rego`. Consumes findings from all plugins.
 | Unmaintained package | warn | days since pkg.last_release_date > max_days_since_release (default 365); fails open when last_release_date absent/null (#346) |
 | Strong copyleft, dynamic link | warn | category license + license_id in config.copyleft_strong + link_type "dynamic" (#347) |
 | Weak copyleft, any link | warn | category license + license_id in config.copyleft_weak, any link_type (#347) |
+| Approved alternative available | warn | pkg.name has an entry in config.alternatives[pkg.ecosystem] with a non-empty prefer list (#480) |
 
 Decision: any deny → reject. No deny + any warn → approve_with_constraints. Else → approve.
 All rules individually toggleable via `config.rules_enabled.*`. `dev_scope_exemption`
@@ -294,6 +296,13 @@ when enabled, it downgrades a critical/high vulnerability deny to warn when the
 `reachability` scribe (ADR-009) reports `reachable == false` on the finding (package
 declared but never imported anywhere in the repo); an unresolved/missing reachability
 (`null`) never downgrades, and a `MAL-`-prefixed advisory always denies regardless (#348).
+`approved_alternatives` also defaults to `false` (opt-in) — when enabled, it warns
+(never denies — this is a recommendation, not a violation) when the changed package
+has an entry in the operator-supplied `config.alternatives[ecosystem][name].prefer`
+list. Reads from `input.config` rather than a `data.*` document, matching `kev_ids`'s
+precedent: `opa eval` in production is invoked with `-d <policy.rego>` only (see
+`core/policy.py` `_run_opa`), so a bundled `data.alternatives` document would never
+actually load (#480).
 
 ---
 

@@ -22,7 +22,7 @@ _REPO = Path(__file__).resolve().parents[2]
 _PLUGINS = 16
 _SEMGREP = 67
 _CODEGRAPH = 10
-_OPA = 16
+_OPA = 17
 _DETECTORS = 29
 
 

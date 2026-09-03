@@ -1007,3 +1007,83 @@ test_unreachable_malicious_advisory_never_downgraded if {
 	warn_result := policy.warn with input as inp
 	count(warn_result) == 0
 }
+
+# --- #480: Approved alternatives — operator-preferred substitute, advisory ---
+
+alternatives_config := object.union(base_config, {
+	"alternatives": {"pypi": {"requests": {"prefer": ["httpx"]}}},
+	"rules_enabled": object.union(base_config.rules_enabled, {"approved_alternatives": true}),
+})
+
+test_alternative_available_warns_when_enabled if {
+	inp := {
+		"findings": [],
+		"pkg": object.union(base_package, {
+			"name": "requests",
+			"version": "2.31.0",
+			"ecosystem": "pypi",
+		}),
+		"config": alternatives_config,
+	}
+	result := policy.warn with input as inp
+	count(result) == 1
+	some msg in result
+	contains(msg, "requests@2.31.0")
+	contains(msg, "httpx")
+}
+
+test_alternative_no_warn_when_disabled if {
+	inp := {
+		"findings": [],
+		"pkg": object.union(base_package, {
+			"name": "requests",
+			"version": "2.31.0",
+			"ecosystem": "pypi",
+		}),
+		"config": base_config, # approved_alternatives absent -> default false
+	}
+	result := policy.warn with input as inp
+	count(result) == 0
+}
+
+test_alternative_no_warn_when_package_not_listed if {
+	inp := {
+		"findings": [],
+		"pkg": object.union(base_package, {
+			"name": "flask",
+			"version": "3.0.0",
+			"ecosystem": "pypi",
+		}),
+		"config": alternatives_config,
+	}
+	result := policy.warn with input as inp
+	count(result) == 0
+}
+
+test_alternative_no_warn_for_different_ecosystem if {
+	inp := {
+		"findings": [],
+		"pkg": object.union(base_package, {
+			"name": "requests",
+			"version": "2.31.0",
+			"ecosystem": "npm", # same name, wrong ecosystem
+		}),
+		"config": alternatives_config,
+	}
+	result := policy.warn with input as inp
+	count(result) == 0
+}
+
+test_alternative_never_denies if {
+	inp := {
+		"findings": [],
+		"pkg": object.union(base_package, {
+			"name": "requests",
+			"version": "2.31.0",
+			"ecosystem": "pypi",
+		}),
+		"config": alternatives_config,
+	}
+	result := policy.deny with input as inp
+	count(result) == 0
+}

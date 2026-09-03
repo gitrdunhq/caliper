@@ -139,6 +139,28 @@ deny contains msg if {
 	])
 }
 
+# T-480: Approved alternatives — a changed package has an operator-preferred
+# substitute. Advisory only (warn, never deny) — this is a recommendation, not
+# a policy violation. Reads from input.config.alternatives (operator-supplied,
+# same design as T-344's kev_ids) rather than a `data.*` document: `opa eval`
+# in production is invoked with `-d <policy.rego>` only (see core/policy.py
+# _run_opa), so a `data.alternatives` bundle would never actually be loaded —
+# see #480/#513.
+warn contains msg if {
+	input.config.rules_enabled.approved_alternatives
+	alternatives := object.get(input.config, "alternatives", {})
+	ecosystem_alternatives := object.get(alternatives, input.pkg.ecosystem, {})
+	entry := object.get(ecosystem_alternatives, input.pkg.name, null)
+	entry != null
+	prefer := object.get(entry, "prefer", [])
+	count(prefer) > 0
+	msg := sprintf("%s@%s has an approved alternative: %s", [
+		input.pkg.name,
+		input.pkg.version,
+		concat(", ", prefer),
+	])
+}
+
 # --- warn rules (set of warning messages) ---
 
 # T-345: Dev-scope exemption — critical/high vulnerability downgraded to warn.
