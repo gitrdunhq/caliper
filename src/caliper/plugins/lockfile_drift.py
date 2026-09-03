@@ -58,6 +58,12 @@ class LockfileDriftPlugin(ScannerPlugin):
     def category(self) -> PluginCategory:
         return PluginCategory.supply_chain
 
+    @property
+    def diff_only(self) -> bool:
+        # A whole-repo file list is suffix-filtered (yarn.lock never appears), so
+        # "manifest changed, lockfile did not" is only decidable against a diff.
+        return True
+
     def can_run(self, files: list[str], repo_path: Path) -> bool:
         try:
             return any(PurePosixPath(f).name in _MANIFEST_TO_LOCKFILES for f in files)

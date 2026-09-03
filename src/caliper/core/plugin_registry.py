@@ -158,6 +158,15 @@ class PluginRegistry:
         # Run independent plugins in parallel; preserve original ordering.
         def _task(indexed_plugin: tuple[int, ScannerPlugin]) -> tuple[int, PluginResult]:
             idx, plugin = indexed_plugin
+            if repo_files is None and getattr(plugin, "diff_only", False):
+                return idx, PluginResult(
+                    plugin_name=plugin.name,
+                    summary={"status": "skipped"},
+                    category=plugin.category.value,
+                    skip_reason="needs a diff: this check compares a change set, "
+                    "and a whole-repo scan has none",
+                    skip_remediation="Run with --diff <path> (or --scope diff)",
+                )
             plugin_files = (
                 repo_files
                 if repo_files is not None and plugin.category in self._REPO_WIDE_CATEGORIES

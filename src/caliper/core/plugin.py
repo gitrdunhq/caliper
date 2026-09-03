@@ -138,7 +138,7 @@ def normalize_finding(raw: dict) -> PluginFinding:
         severity=normalize_severity(str(known.get("severity", "info"))).value,
         message=str(known.get("message", known.get("description", known.get("summary", "")))),
         file=str(known.get("file", "")),
-        line=int(known.get("line", 0)),
+        line=int(known.get("line") or 0),
         url=str(known.get("url", "")),
         category=str(known.get("category", "")),
         package=str(known.get("package", "")),
@@ -213,6 +213,17 @@ class ScannerPlugin(abc.ABC):
         ordering constraint.
         """
         return []
+
+    @property
+    def diff_only(self) -> bool:
+        """True when the plugin's finding is only meaningful against a change set.
+
+        A whole-repo scan hands plugins a suffix-filtered file list (no lockfiles,
+        no binaries), which is not a change set; the registry skips ``diff_only``
+        plugins there instead of letting them report on a list that was never a
+        diff. Default False.
+        """
+        return False
 
     def skip_reason(self) -> tuple[str, str]:
         return ("Scanner prerequisites not met", "Check scanner documentation")
