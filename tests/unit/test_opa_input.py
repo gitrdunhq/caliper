@@ -216,6 +216,15 @@ class TestConfigMerge:
         result = build_opa_input([], {})
         assert result["config"]["rules_enabled"]["cisa_kev"] is False
 
+    def test_approved_alternatives_present_and_defaults_false(self) -> None:
+        """#480: approved_alternatives must exist and default to False so no
+        one is opted into the alternatives-recommendation warn rule without
+        explicitly enabling it and supplying config.alternatives."""
+        assert "approved_alternatives" in _DEFAULT_RULES_ENABLED
+        assert _DEFAULT_RULES_ENABLED["approved_alternatives"] is False
+        result = build_opa_input([], {})
+        assert result["config"]["rules_enabled"]["approved_alternatives"] is False
+
     def test_partial_rules_enabled_override_preserves_other_defaults(self) -> None:
         """A shallow dict.update() would silently disable every rule not
         named in the override — this must be a deep merge of rules_enabled."""

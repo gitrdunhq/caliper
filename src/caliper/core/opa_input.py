@@ -81,6 +81,11 @@ _DEFAULT_RULES_ENABLED: dict[str, bool] = {
     # settings.enabled_scribes to have any effect (unset/null reachability
     # never downgrades). See policies/policy.rego T-348.
     "unreachable_vuln_exemption": False,
+    # Opt-in: warns when a changed package has an operator-preferred
+    # substitute in `config.alternatives[ecosystem][name].prefer`. Default
+    # False -- alternatives is an operator-supplied recommendation list,
+    # caliper ships none. See policies/policy.rego T-480.
+    "approved_alternatives": False,
 }
 
 _DEFAULT_CONFIG: dict[str, object] = {
