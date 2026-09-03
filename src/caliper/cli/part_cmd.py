@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
@@ -30,6 +31,9 @@ from caliper.core.part_gate import PartingGateError
 from caliper.core.part_script import rollback_header
 from caliper.core.parting import PartingError, diff_cutlists
 from caliper.core.repo_config import OverrideRule, load_repo_config
+
+if TYPE_CHECKING:
+    from caliper.cli.part_pr import ResolvedPr
 
 
 def _render_cutlist_diff(previous: CutList | None, new: CutList) -> str:
@@ -233,6 +237,15 @@ def _overrides_yaml(rules: list[OverrideRule]) -> str:
     default=False,
     help="Write the suggested overrides into .caliper.yaml and re-part (default: print only).",
 )
+@click.option(
+    "--post-comment",
+    "post_comment_flag",
+    is_flag=True,
+    default=False,
+    help="Post the proposed cut as an advisory PR comment (foreman/CI mode; requires "
+    "--pr). Never posts without this explicit flag; no restack instructions are "
+    "included — informational only.",
+)
 def part(
     base: str | None,
     head: str | None,
@@ -255,6 +268,7 @@ def part(
     suggest_flag: bool | None,
     suggest_model: str | None,
     suggest_apply: bool,
+    post_comment_flag: bool,
 ) -> None:
     """Propose an ordered cut list for a diff and emit a jj restack script."""
     if lan_host and not serve:
@@ -263,6 +277,12 @@ def part(
         raise click.UsageError("--lan requires both --cert and --key (mkcert-issued)")
     if (tls_cert or tls_key) and not lan_host:
         raise click.UsageError("--cert/--key only apply with --lan")
+    if post_comment_flag and not pr_url:
+        raise click.UsageError("--post-comment requires --pr")
+    if post_comment_flag and serve:
+        # --serve never reaches the posting code (it returns early to start the
+        # sidecar) — without this guard the flag combination would silently no-op.
+        raise click.UsageError("--post-comment is incompatible with --serve")
 
     if doctor:
         checks = run_doctor(Path(repo), check_lan=bool(lan_host))
@@ -280,6 +300,7 @@ def part(
     # land in its own committed .caliper.yaml.
     pr_override_store: Path | None = None
     previous_cutlist: CutList | None = None
+    resolved: ResolvedPr | None = None
     if pr_url:
         if base or head:
             raise click.UsageError("--pr is mutually exclusive with --base/--head")
@@ -427,3 +448,19 @@ def part(
             f"described {len(result.subjects)}/{len(result.cutlist.parts)} commit subjects "
             "with a local model (advisory; deterministic fallback for the rest)"
         )
+
+    if post_comment_flag:
+        from caliper.adapters.github_publisher import GitHubPublisher
+        from caliper.cli.part_comment import render_part_comment
+
+        # Guaranteed set: the early UsageError above requires --pr, whose branch
+        # always assigns resolved before this point.
+        assert resolved is not None
+        body = render_part_comment(result.cutlist, slug=resolved.slug, pr_num=resolved.number)
+        ok = GitHubPublisher().post_comment(resolved.slug, resolved.number, body)
+        click.echo(
+            f"{'posted' if ok else 'failed to post'} advisory comment on "
+            f"{resolved.slug}#{resolved.number}"
+        )
+        if not ok:
+            raise SystemExit(1)

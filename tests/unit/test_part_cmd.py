@@ -12,7 +12,9 @@ tweak as "the PR moved."
 
 from __future__ import annotations
 
-from caliper.cli.part_cmd import _render_cutlist_diff
+from click.testing import CliRunner
+
+from caliper.cli.part_cmd import _render_cutlist_diff, part
 from caliper.core.models import ChangeType, CutList, CutStats, Kerf, Part, Provenance
 
 
@@ -106,3 +108,21 @@ def test_config_only_change_with_no_cut_effect_is_still_reported() -> None:
     new = _cutlist(_part("p1", ChangeType.business, "a.py"), head_sha="h1", digest="d2")
     out = _render_cutlist_diff(old, new)
     assert "config" in out
+
+
+def test_post_comment_requires_pr(tmp_path) -> None:
+    # #524 bullet 3: foreman comment mode only ever fires for a --pr run — never
+    # posts to GitHub without the operator naming a PR to post to.
+    result = CliRunner().invoke(part, ["--post-comment", "--repo", str(tmp_path)])
+    assert result.exit_code != 0
+    assert "--post-comment requires --pr" in result.output
+
+
+def test_post_comment_incompatible_with_serve(tmp_path) -> None:
+    # --serve returns before the posting code ever runs — without this guard
+    # the combination would silently no-op instead of erroring.
+    result = CliRunner().invoke(
+        part, ["--post-comment", "--pr", "1", "--serve", "--repo", str(tmp_path)]
+    )
+    assert result.exit_code != 0
+    assert "--post-comment is incompatible with --serve" in result.output
