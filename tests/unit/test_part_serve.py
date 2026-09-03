@@ -1041,6 +1041,7 @@ class TestRetargetInvalidatesApplyToken:
             workdir=tmp_path / "workdir",
             out_dir=tmp_path / "out",
             override_store=other_repo / ".caliper.yaml",
+            previous_cutlist=None,
         )
         monkeypatch.setattr(part_pr, "resolve_pr", lambda *a, **k: resolved)
         monkeypatch.setattr(part_pr, "detect_origin_slug", lambda *a, **k: "owner/repo")
