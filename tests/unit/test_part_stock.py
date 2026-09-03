@@ -288,8 +288,16 @@ class TestMatchReason:
 
         cfg = PartingConfig()
         assert _classify("D", "a.py", 5, "100644", cfg)[1] == "delete"
-        assert _classify("R100", "a.py", 5, "100644", cfg)[1] == "move"
         assert _classify("M", "a.py", None, "100644", cfg)[1] == "binary"
+
+    def test_move_reason_names_the_similarity(self) -> None:
+        from caliper.core.part_stock import _classify
+
+        cfg = PartingConfig()
+        assert _classify("R100", "a.py", 5, "100644", cfg)[1] == "move:100%"
+        assert _classify("R088", "a.py", 5, "100644", cfg)[1] == "move:88%"
+        assert _classify("C075", "a.py", 5, "100644", cfg)[1] == "move:75%"
+        assert _classify("R", "a.py", 5, "100644", cfg)[1] == "move"  # no similarity suffix
 
     def test_glob_reason_names_the_field(self) -> None:
         from caliper.core.part_stock import _classify
