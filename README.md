@@ -2,7 +2,7 @@
   <img src="assets/hero.svg" alt="Caliper" width="900">
   <br>
   <strong>Fully deterministic dependency review for CI.</strong><br>
-  14 plugins. 26 detectors. 16 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
+  15 plugins. 29 detectors. 16 OPA policy rules. 18 ecosystems. Zero LLM in the decision path.
   <br><br>
 
   <a href="#quick-start"><img src="https://img.shields.io/badge/get_started-→-d4251a?style=flat-square" alt="Get Started"></a>
@@ -29,7 +29,7 @@ Both outcomes cost real money. One costs velocity. The other costs incidents.
 
 ---
 
-When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 14 plugins in parallel (plus 26 deterministic AST detectors and 67 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
+When a PR touches a dependency manifest — `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`, any of 18 ecosystems — caliper detects the changed packages, runs 15 plugins in parallel (plus 29 deterministic AST detectors and 67 custom semgrep rules on changed source), deduplicates findings, decorates each with deterministic context (detect-then-scribe), evaluates them against OPA policy, writes tamper-evident evidence, and appends the decision to a Parquet audit log.
 
 Every scanning tool is deterministic. The decision is deterministic. Nothing blocks the build unless OPA says so.
 
@@ -636,7 +636,7 @@ Watch mode debounces file-system events (500 ms default). Press `Ctrl+C` to stop
 
 ## Monorepo Support
 
-Caliper auto-discovers packages across a monorepo and runs all 14 plugins per-package.
+Caliper auto-discovers packages across a monorepo and runs all 15 plugins per-package.
 
 ### Package discovery
 

@@ -6,17 +6,17 @@
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
   LAST VERIFIED: 2026-09-02
-  VERIFICATION: 14 auto-discovered scanner plugins (@ANALYZERS.register) + the
+  VERIFICATION: 15 auto-discovered scanner plugins (@ANALYZERS.register) + the
   "deterministic" plugin (composition-registered, wraps DeterministicScanner,
-  #457) + OPA policy plugin (16 ScannerPlugin subclasses total); 26 detectors
+  #457) + OPA policy plugin (17 ScannerPlugin subclasses total); 29 detectors
   in src/caliper/detectors/; 67 semgrep rule ids in policies/semgrep/.
 -->
 
 ## Identity
 
 Caliper — fully deterministic dependency, security, and code review for CI.
-15 scanner plugins (14 auto-discovered + "deterministic", which wraps all 26
-CAL-001..027 detectors), 67 custom semgrep rules, 10 code graph
+16 scanner plugins (15 auto-discovered + "deterministic", which wraps all 29
+CAL-001..030 detectors), 67 custom semgrep rules, 10 code graph
 checks, 16 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
@@ -28,8 +28,8 @@ unchanged.
 
 | Metric | Count |
 |--------|-------|
-| Scanner plugins | 15 (14 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
-| Deterministic detectors | 26 (CAL-001..CAL-027, CAL-013 retired), run via the "deterministic" plugin during `caliper review` |
+| Scanner plugins | 16 (15 auto-discovered + "deterministic", composition-registered) + OPA policy plugin |
+| Deterministic detectors | 29 (CAL-001..CAL-030, CAL-013 retired), run via the "deterministic" plugin during `caliper review` |
 | Custom semgrep rules | 67 (11 rule files) |
 | Code graph SQL checks | 10 |
 | OPA Rego policy rules | 16 (7 deny, 9 warn) |
@@ -48,10 +48,10 @@ unchanged.
 
 ## Plugins by Category
 
-The 14 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
+The 15 auto-discovered scanner plugins (registered via `@ANALYZERS.register`) split across
 five categories below, plus **deterministic** (also `@ANALYZERS.register`, but
 composition-registered — see `code (6)` below since `detectors/` may not import
-`plugins/` directly). The **OPA policy plugin** is the 16th `ScannerPlugin` subclass but
+`plugins/` directly). The **OPA policy plugin** is the 17th `ScannerPlugin` subclass but
 is wired separately — it consumes every other plugin's findings and runs last
 (`depends_on=["*"]`); see [OPA Policy Rules](#opa-policy-rules-15-rules).
 
@@ -64,10 +64,11 @@ is wired separately — it consumes every other plugin's findings and runs last
 | scancode | `plugins/scancode.py` | License detection (SPDX extraction + confidence). **Opt-in** — not installed in the default image and excluded from `--all` by default (`DEFAULT_OPT_IN_PLUGINS`); enable via `--enable scancode`/`--scanners scancode` or `plugins.enable` in `.caliper.yaml`. |
 | syft | `plugins/syft.py` | CycloneDX SBOM generation. 18 ecosystems (npm, PyPI, Cargo, Go, Ruby, Composer, Dart, Elixir, etc). |
 
-### supply_chain (2)
+### supply_chain (3)
 
 | Plugin | File | Detects |
 |--------|------|---------|
+| lockfile-drift | `plugins/lockfile_drift.py` | Manifest changed without its lockfile (package.json, pyproject.toml, Pipfile, Cargo.toml, go.mod); flags the manifest so the resolved dependency set is regenerated with it. Pure filesystem inspection, no binary. |
 | supply-chain | `plugins/supply_chain.py` | **Three sub-checks**: (1) Unpinned deps in package.json + requirements.txt. (2) Lockfile integrity — lockfile changed without manifest or vice versa, 10 lockfile-manifest pairs, SHA-256 fingerprinting. (3) Docker floating tags — `:latest` or no tag in Dockerfiles and docker-compose. Pure Python, no binary. |
 | gitleaks | `plugins/gitleaks.py` | Secret/credential detection, 800+ patterns. Custom config via `.caliper/gitleaks.toml`. Secrets never appear in findings — only rule ID, file, line, entropy, fingerprint. Always critical severity. |
 
@@ -213,10 +214,10 @@ with `# noqa: CAL-NNN`. Full reference: [`docs/detectors.md`](detectors.md).
 | CAL-025 | AWS API Call Missing Required-In-Practice Argument | reliability | medium |
 | CAL-026 | Event Field Guard Omits Field Passed To AWS Call | reliability | medium |
 | CAL-027 | Committed Build Artifact Beside Source | process | low |
-| CAL-018 | Dockerfile Pin Drift | configuration | medium |
 | CAL-028 | Blocking Call Inside Async Function | reliability | high |
 | CAL-029 | Delete Or Rollback Path Swallows Failure | reliability | medium |
 | CAL-030 | Numeric Setting Used Without Range Guard | reliability | medium |
+| CAL-018 | Dockerfile Pin Drift | configuration | medium |
 | CAL-014 | Missing Tested-By Annotation | process | low |
 
 By category: security 9, reliability 10, configuration 2, process 1.

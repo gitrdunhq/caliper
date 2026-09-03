@@ -362,7 +362,7 @@ ENV PATH="/opt/caliper/.venv/bin:$PATH" \
     CALIPER_SEMGREP_RULES_DIR=/opt/caliper/semgrep-rules \
     CALIPER_SEMGREP_ORG_RULES_DIR=/opt/caliper/policies/semgrep \
     CALIPER_SEMGREP_COMMUNITY_RULES_DIR=/opt/caliper/community-rules \
-    CALIPER_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,ls-lint
+    CALIPER_ENABLED_SCANNERS=syft,osv-scanner,trivy,semgrep,gitleaks,kube-linter,pmd,lizard,mypy,ls-lint,lockfile-drift
 
 # /workspace is the conventional repo mount; making it the cwd means relative
 # paths (e.g. --output .temp/report.json) land on the mount, not in the container.
