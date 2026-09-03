@@ -386,7 +386,12 @@ def _render_finding_line(finding: dict) -> list[str]:
     icon = _SEVERITY_ICON.get(sev, "⚪")
 
     file_path = finding_get(finding, "file", "") or ""
-    line_no = finding_get(finding, "line", "")
+    # semgrep findings key the line "start_line" (semgrep.py, semgrep.md.j2),
+    # not "line" (#548) — falling back to "line" only silently dropped the
+    # line number, so two distinct findings for the same rule in the same
+    # file (different lines) rendered as identical text and looked like an
+    # exact-duplicate bug rather than two real findings.
+    line_no = finding_get(finding, "line", "") or finding_get(finding, "start_line", "")
     loc = f"{file_path}:{line_no}" if file_path and line_no else file_path
 
     rule_id = finding_get(finding, "rule_id", "") or ""

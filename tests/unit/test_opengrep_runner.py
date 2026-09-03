@@ -180,6 +180,48 @@ class TestExtraConfigDirs:
         config_values = [cmd[i + 1] for i, v in enumerate(cmd) if v == "--config"]
         assert "/no/such/dir" not in config_values
 
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_extra_config_dir_identical_to_org_rules_dir_not_duplicated(self, mock_run, tmp_path):
+        """(#548) If extra_config_dirs and org_rules_dir resolve to the same
+        directory, opengrep must only see it once — passing the same rule
+        tree via two --config args makes every match in it apply (and get
+        reported) twice."""
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        shared = tmp_path / "policies" / "semgrep"
+        shared.mkdir(parents=True)
+        (shared / "rule.yaml").write_text("rules: []\n")
+        run_semgrep(
+            ["app.py"],
+            "/workspace",
+            org_rules_dir=str(shared),
+            extra_config_dirs=[str(shared)],
+        )
+        cmd = mock_run.call_args[0][0]
+        config_values = [cmd[i + 1] for i, v in enumerate(cmd) if v == "--config"]
+        assert sum(1 for c in config_values if Path(c).resolve() == shared.resolve()) == 1
+
+    @patch("caliper.plugins._runners.semgrep_runner.subprocess.run")
+    def test_extra_config_dir_nested_inside_snapshot_dir_not_duplicated(self, mock_run, tmp_path):
+        """(#548) An extra_config_dirs entry that is a SUBdirectory of an
+        already-included snapshot/org dir must not add a second --config —
+        the parent dir's --config already recursively covers it."""
+        mock_run.return_value.stdout = '{"results": [], "errors": []}'
+        mock_run.return_value.returncode = 0
+        root = tmp_path / "semgrep-rules"
+        (root / "generic").mkdir(parents=True)
+        (root / "generic" / "rule.yaml").write_text("rules: []\n")
+        run_semgrep(
+            ["app.py"],
+            "/workspace",
+            rules_dir=str(root),
+            extra_config_dirs=[str(root / "generic")],
+        )
+        cmd = mock_run.call_args[0][0]
+        config_values = [cmd[i + 1] for i, v in enumerate(cmd) if v == "--config"]
+        matches = [c for c in config_values if Path(c).resolve() == (root / "generic").resolve()]
+        assert len(matches) == 1
+
 
 class TestFailClosedOnAbort:
     """Issue #396 — opengrep aborting the whole scan must fail CLOSED.

@@ -11,6 +11,7 @@ from caliper.core.renderer import (  # noqa: PLC2701
     _VERSION,
     CATEGORY_PRIORITY,
     _build_sections,
+    _render_finding_line,
     calculate_severity_score,
     compute_fix_first,
     render_comment,
@@ -510,6 +511,23 @@ class TestActionabilityInComment:
         md = render_comment([result], repo="org/repo", pr_num=1, title="test")
         assert "…" in md
 
+    def test_actionable_finding_with_no_rule_id_falls_back_to_function_name(self):
+        """A complexity finding (function/file/cyclomatic_complexity, no
+        rule_id/id/category) previously rendered as the bare label "finding"
+        — two distinct high-CCN functions in the same file were then visually
+        indistinguishable, reading as an exact-duplicate bug (#548)."""
+        result = PluginResult(
+            plugin_name="complexity",
+            findings=[
+                {"function": "render_review_output", "file": "src/app.py", "nloc": 94},
+                {"function": "dispatch_review_to_container", "file": "src/app.py", "nloc": 45},
+            ],
+        )
+        md = render_comment([result], repo="org/repo", pr_num=1, title="test")
+        assert "render_review_output" in md
+        assert "dispatch_review_to_container" in md
+        assert " — finding (" not in md
+
     def test_no_actionability_section_when_no_findings(self):
         result = PluginResult(plugin_name="trivy", findings=[])
         md = render_comment([result], repo="org/repo", pr_num=1, title="test")
@@ -923,3 +941,47 @@ class TestDependencyReportSection:
 
         assert len(result) == 1
         assert re.match(r"^transitive: needs `.+ dependency tree`$", result[0])
+
+
+class TestRenderFindingLine:
+    """``_render_finding_line`` (used for the below-severity-floor Notes
+    section) — the line-number lookup (#548)."""
+
+    def test_uses_line_key_when_present(self):
+        line = _render_finding_line({"file": "a.py", "line": 3, "severity": "info", "message": "m"})
+        assert "a.py:3" in line[0]
+
+    def test_falls_back_to_start_line_key(self):
+        """semgrep findings key the line "start_line" (semgrep.py sets it,
+        semgrep.md.j2 reads it) — never "line". Two distinct findings for the
+        same rule in the same file, at different lines, both fell back to no
+        line number at all and rendered as identical text — read as an
+        exact-duplicate bug rather than two real findings at different
+        locations."""
+        line = _render_finding_line(
+            {"file": "a.py", "start_line": 89, "severity": "info", "message": "m"}
+        )
+        assert "a.py:89" in line[0]
+
+    def test_two_findings_same_rule_different_start_lines_render_distinctly(self):
+        l1 = _render_finding_line(
+            {
+                "file": "a.py",
+                "start_line": 89,
+                "rule_id": "org.resource.unbounded-append-in-loop-python",
+                "severity": "info",
+                "message": "m",
+            }
+        )
+        l2 = _render_finding_line(
+            {
+                "file": "a.py",
+                "start_line": 416,
+                "rule_id": "org.resource.unbounded-append-in-loop-python",
+                "severity": "info",
+                "message": "m",
+            }
+        )
+        assert l1 != l2
+        assert "a.py:89" in l1[0]
+        assert "a.py:416" in l2[0]

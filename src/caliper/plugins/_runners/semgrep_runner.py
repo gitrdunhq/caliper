@@ -140,6 +140,29 @@ def _is_excluded(check_id: str, exclude_rules: list[str]) -> bool:
     return any(check_id == rule or check_id.endswith(f".{rule}") for rule in exclude_rules)
 
 
+def _dedupe_config_dirs(dirs: list[str]) -> list[str]:
+    """Drop exact and nested duplicates, first-seen order preserved (#548).
+
+    ``--config <dir>`` loads every rule file under ``<dir>`` recursively — the
+    three sources feeding this (the pinned community snapshot's per-language
+    subdirs, the org/community-mirror dirs, and ``.caliper.yaml``'s
+    ``extra_config_dirs``) were each deduplicated *within* themselves but
+    never against each other. If any two resolved paths were identical, or
+    one was a subdirectory of another already passed, opengrep loaded and
+    applied that rule tree twice, reporting every match in it twice —
+    root cause of the exact-duplicate findings seen in a real PR review.
+    """
+    kept: list[Path] = []
+    out: list[str] = []
+    for d in dirs:
+        resolved = Path(d).resolve()
+        if any(resolved == k or resolved.is_relative_to(k) for k in kept):
+            continue
+        kept.append(resolved)
+        out.append(d)
+    return out
+
+
 def run_semgrep(
     changed_files: list[str],
     repo_path: str,
@@ -153,16 +176,19 @@ def run_semgrep(
     if not changed_files:
         return {"results": [], "errors": []}
 
-    config_args: list[str] = []
-    for cfg in _snapshot_configs(rules_dir, changed_files):
-        config_args.extend(["--config", cfg])
-    for cfg in _org_configs(org_rules_dir, repo_path, community_rules_dir):
-        config_args.extend(["--config", cfg])
+    candidate_dirs: list[str] = [
+        *_snapshot_configs(rules_dir, changed_files),
+        *_org_configs(org_rules_dir, repo_path, community_rules_dir),
+    ]
     for extra_dir in extra_config_dirs or []:
         if Path(extra_dir).is_dir():
-            config_args.extend(["--config", extra_dir])
+            candidate_dirs.append(extra_dir)
         else:
             logger.debug("semgrep.extra_config_dir_missing", path=extra_dir)
+
+    config_args: list[str] = []
+    for cfg in _dedupe_config_dirs(candidate_dirs):
+        config_args.extend(["--config", cfg])
 
     exclude_args: list[str] = []
     for rule_id in exclude_rules or []:
