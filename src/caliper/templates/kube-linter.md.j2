@@ -5,9 +5,9 @@
 
 {% for f in findings[:15] %}
 **{{ f.get("check", "?") }}** — `{{ f.get("object_kind", "?") }}/{{ f.get("object_name", "?") }}`
-> {{ f.get("message", "") | truncate(200, true, "") }}
+> {{ f.get("message", "") | truncate(200, true, "…") }}
 {% if f.get("remediation") %}
-> 💡 {{ f.remediation | truncate(200, true, "") }}
+> 💡 {{ f.remediation | truncate(200, true, "…") }}
 {% endif %}
 
 {% endfor %}
