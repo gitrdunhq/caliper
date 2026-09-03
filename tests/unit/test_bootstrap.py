@@ -464,3 +464,61 @@ class TestBuildDecisionRepositoryRegressions:
         # Even when connect fails, we get a NullRepository — but only AFTER the
         # connect attempt, not via the early-return fast-path.
         assert isinstance(result, NullRepository)
+
+
+class TestBuildScribesGrounding:
+    """#481: the grounding scribe needs a resolved GroundingProviderPort injected
+    (plugins/ cannot import adapters/ directly), so composition/scribes.py
+    special-cases it like supply_chain_threat/semgrep.
+    """
+
+    def test_grounding_scribe_built_when_enabled(self, tmp_path) -> None:
+        from caliper.composition.scribes import build_scribes
+        from caliper.core.config import CaliperSettings
+        from caliper.plugins.scribes.grounding import GroundingScribe
+
+        settings = CaliperSettings(
+            db_dsn="",
+            evidence_path=str(tmp_path / "evidence"),
+            enabled_scribes=["grounding"],
+        )
+
+        scribes = build_scribes(settings)
+
+        grounding = [s for s in scribes if isinstance(s, GroundingScribe)]
+        assert len(grounding) == 1
+
+    def test_grounding_scribe_absent_when_not_enabled(self, tmp_path) -> None:
+        from caliper.composition.scribes import build_scribes
+        from caliper.core.config import CaliperSettings
+        from caliper.plugins.scribes.grounding import GroundingScribe
+
+        settings = CaliperSettings(
+            db_dsn="",
+            evidence_path=str(tmp_path / "evidence"),
+            enabled_scribes=[],
+        )
+
+        scribes = build_scribes(settings)
+
+        assert not any(isinstance(s, GroundingScribe) for s in scribes)
+
+    def test_grounding_scribe_uses_null_provider_when_grounding_disabled(self, tmp_path) -> None:
+        """grounding_enabled defaults False -> build_grounding_provider() resolves
+        the null provider even if the scribe itself is named in enabled_scribes,
+        so the scribe becomes a no-op without any special-casing in its own code."""
+        from caliper.composition.scribes import build_scribes
+        from caliper.core.config import CaliperSettings
+        from caliper.plugins.scribes.grounding import GroundingScribe
+
+        settings = CaliperSettings(
+            db_dsn="",
+            evidence_path=str(tmp_path / "evidence"),
+            enabled_scribes=["grounding"],
+            grounding_enabled=False,
+        )
+
+        scribes = build_scribes(settings)
+
+        grounding = next(s for s in scribes if isinstance(s, GroundingScribe))
+        assert grounding._provider.name == "null"

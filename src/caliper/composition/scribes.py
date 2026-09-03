@@ -39,6 +39,19 @@ def build_scribes(settings: CaliperSettings) -> list:
             from caliper.plugins.scribes.supply_chain_threat import SupplyChainThreatScribe
 
             scribes.append(SupplyChainThreatScribe(LlmClient(settings)))
+        elif name == "grounding":
+            # Needs the resolved GroundingProviderPort injected — plugins/ cannot
+            # import adapters/ directly (DPS-101), so composition builds it via
+            # the same build_grounding_provider() the `caliper ground` CLI uses.
+            from caliper.composition.bootstrap import build_grounding_provider
+            from caliper.plugins.scribes.grounding import GroundingScribe
+
+            scribes.append(
+                GroundingScribe(
+                    build_grounding_provider(settings),
+                    max_symbols=settings.grounding_max_symbols,
+                )
+            )
         elif name == "semgrep":
             # Same pinned rule sources as the semgrep plugin — never the registry.
             from caliper.plugins.semgrep import _resolve_org_rules_dir
