@@ -5,7 +5,7 @@
 
 {% for f in findings %}
 {% if f.severity in ("critical", "high") %}🔴{% elif f.severity == "medium" %}🟡{% else %}ℹ️{% endif %} **`{{ f.file }}:{{ f.start_line }}`** — **{{ f.rule_id.split(".")|last }}**
-> {{ f.message | truncate(200, true, "") }}
+> {{ f.message | truncate(200, true, "…") }}
 
 {% endfor %}
 </details>

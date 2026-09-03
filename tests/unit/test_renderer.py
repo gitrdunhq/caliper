@@ -491,6 +491,25 @@ class TestActionabilityInComment:
         assert "blocked" in md.lower()
         assert "blocked on upstream" in md.lower()
 
+    def test_truncated_fix_suggestion_shows_an_ellipsis(self):
+        """A truncated fix_suggestion must visibly show it was cut, not just
+        stop mid-word — a real posted comment ended a sentence mid-clause
+        ("...before any file operati") with no indication it was truncated."""
+        result = PluginResult(
+            plugin_name="detectors",
+            findings=[
+                {
+                    "file": "src/app.py",
+                    "line": 10,
+                    "rule_id": "CAL-001",
+                    "severity": "high",
+                    "fix_suggestion": "x" * 200,
+                },
+            ],
+        )
+        md = render_comment([result], repo="org/repo", pr_num=1, title="test")
+        assert "…" in md
+
     def test_no_actionability_section_when_no_findings(self):
         result = PluginResult(plugin_name="trivy", findings=[])
         md = render_comment([result], repo="org/repo", pr_num=1, title="test")

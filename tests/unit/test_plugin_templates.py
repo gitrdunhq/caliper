@@ -334,6 +334,26 @@ class TestSemgrepTemplate:
         assert "<details" in out
         assert "<summary>" in out
 
+    def test_truncated_message_shows_an_ellipsis(self):
+        """A truncated finding message must visibly show it was cut — a real
+        posted comment ended mid-sentence with no truncation indicator."""
+        plugin = SemgrepPlugin()
+        result = PluginResult(
+            plugin_name="semgrep",
+            findings=[
+                {
+                    "rule_id": "python.security.long-rule",
+                    "severity": "high",
+                    "file": "app/x.py",
+                    "start_line": 1,
+                    "message": "x " * 150,
+                }
+            ],
+            summary={"total": 1},
+        )
+        out = plugin.render(result, template_dir=_TEMPLATES_DIR)
+        assert "…" in out
+
     def test_severity_icons_present(self):
         plugin = SemgrepPlugin()
         out = plugin.render(_semgrep_result_with_findings(), template_dir=_TEMPLATES_DIR)
