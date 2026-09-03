@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.43](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.42...caliper-v0.2.43) (2026-09-03)
+
+
+### Features
+
+* **part:** add caliper part --doctor environment diagnostics ([#526](https://github.com/gitrdunhq/caliper/issues/526)) ([e987888](https://github.com/gitrdunhq/caliper/commit/e987888360a0fff0395a4dc9d77a90139ef731e4))
+
 ## [0.2.42](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.41...caliper-v0.2.42) (2026-09-03)
 
 
