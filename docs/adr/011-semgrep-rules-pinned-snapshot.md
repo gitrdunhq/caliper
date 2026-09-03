@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-09-02)
+Accepted (2026-09-02). Amended 2026-09-03: the local snapshot is **opt-in at build time**. The Semgrep Rules License v1.0 permits use only for your own internal business purposes and forbids distributing the rules or offering them as a service, so the published image no longer bakes the snapshot (`INCLUDE_SEMGREP_RULES=0`, the default). Building your own image with `--build-arg INCLUDE_SEMGREP_RULES=1` (or `INCLUDE_SEMGREP_RULES=1 bash scripts/build.sh`) restores it for internal use; host runs keep using `scripts/snapshot-semgrep-rules.sh`. Everything below about pinning, explicit `--config` paths and never touching the registry still holds; redistributable coverage now comes from `policies/semgrep`, the caliper-community-rules snapshot and its vendored MIT sets (see the Dockerfile).
 
 ## Context
 

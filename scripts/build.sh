@@ -66,6 +66,7 @@ if [[ "$ENGINE" == "podman" ]]; then
           --target runtime \
           -t "$IMAGE" \
           -t caliper:latest \
+          --build-arg "INCLUDE_SEMGREP_RULES=${INCLUDE_SEMGREP_RULES:-0}" \
           "${EXTRA_ARGS[@]}" \
           -f - "$REPO_ROOT"
 else
@@ -84,6 +85,7 @@ else
           --target runtime \
           -t "$IMAGE" \
           -t caliper:latest \
+          --build-arg "INCLUDE_SEMGREP_RULES=${INCLUDE_SEMGREP_RULES:-0}" \
           "${EXTRA_ARGS[@]}" \
           -f - "$REPO_ROOT"
 fi
