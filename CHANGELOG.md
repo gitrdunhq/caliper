@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.38](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.37...caliper-v0.2.38) (2026-09-03)
+
+
+### Bug Fixes
+
+* **core:** thread .caliper.yaml policy config into every real OPA evaluation ([65e23fc](https://github.com/gitrdunhq/caliper/commit/65e23fcfb6e427ec5f76df06f23a7be1b7ddeebc)), closes [#513](https://github.com/gitrdunhq/caliper/issues/513)
+
 ## [0.2.37](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.36...caliper-v0.2.37) (2026-09-03)
 
 
