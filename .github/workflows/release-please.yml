@@ -16,6 +16,7 @@ permissions:
   id-token: write
   attestations: write
   statuses: read
+  packages: write
 
 jobs:
   release-please:
@@ -23,6 +24,7 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       # An empty or expired RELEASE_PLEASE_TOKEN silently falls through the
       # `||` fallback to GITHUB_TOKEN, whose PR pushes can't trigger Foreman's
@@ -146,3 +148,28 @@ jobs:
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         with:
           print-hash: true
+
+  # Every release SHA gets its version as an image tag: the image build-container
+  # pushed for this exact commit (IMAGE:<sha>) is re-tagged IMAGE:<version> and
+  # IMAGE:v<version> by manifest copy, so the tag, the SHA and the digest agree.
+  tag-image:
+    needs: [release-please, verify-key]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+      - name: Tag release image with version
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+          SHA: ${{ github.sha }}
+        run: bash scripts/tag-release-image.sh "$SHA" "$VERSION" "ghcr.io/${{ github.repository }}"
