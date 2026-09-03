@@ -24,6 +24,11 @@ ARG SWIFTLINT_VERSION=0.57.1
 # commit. Baked into the image so opengrep never fetches registry packs at scan
 # time (no network in the scan path, no rule drift between runs).
 ARG SEMGREP_RULES_COMMIT=40b8c63f75dc7c22c8a77482d73bfb864b146f7e
+# The semgrep/semgrep-rules snapshot is licensed for internal use only (Semgrep
+# Rules License v1.0 forbids distribution), so the PUBLISHED image excludes it.
+# Build your own image with --build-arg INCLUDE_SEMGREP_RULES=1 to bake it in
+# for your own internal use; host runs use scripts/snapshot-semgrep-rules.sh.
+ARG INCLUDE_SEMGREP_RULES=0
 # gitrdunhq/caliper-community-rules: shared Kirby-annotated org rules. Pinned by
 # commit like semgrep-rules; bump with scripts/snapshot-community-rules.sh --bump.
 ARG COMMUNITY_RULES_COMMIT=44bbf24ed311b2f95e03c703849237695d10b9eb
@@ -96,6 +101,7 @@ ARG SYFT_VERSION TRIVY_VERSION OSV_VERSION OPA_VERSION GITLEAKS_VERSION JQ_VERSI
 ARG SYFT_COMMIT TRIVY_COMMIT OSV_COMMIT OPA_COMMIT GITLEAKS_COMMIT KUBE_LINTER_COMMIT JQ_COMMIT LS_LINT_COMMIT UV_COMMIT
 ARG OPENGREP_VERSION SCANCODE_VERSION LIZARD_VERSION PYREFLY_VERSION RADON_VERSION
 ARG SEMGREP_RULES_COMMIT
+ARG INCLUDE_SEMGREP_RULES
 ARG COMMUNITY_RULES_COMMIT
 ARG GITLAB_SAST_RULES_COMMIT
 ARG SEMGREP_GO_COMMIT
@@ -223,18 +229,24 @@ RUN printf '%s\n' \
       "kube-linter=${KUBE_LINTER_COMMIT}" \
       "jq=${JQ_COMMIT}" \
       "ls-lint=${LS_LINT_COMMIT}" \
-      "semgrep-rules=${SEMGREP_RULES_COMMIT}" \
+      "semgrep-rules=$([ "${INCLUDE_SEMGREP_RULES}" = "1" ] && printf '%s' "${SEMGREP_RULES_COMMIT}" || printf excluded)" \
       "community-rules=${COMMUNITY_RULES_COMMIT}" \
       "gitlab-sast-rules=${GITLAB_SAST_RULES_COMMIT}" \
       "semgrep-go=${SEMGREP_GO_COMMIT}" \
       "semgrep-c-rules=${SEMGREP_C_RULES_COMMIT}" \
     > /staging/scripts/release-revisions.txt
 
-# semgrep-rules snapshot — the ONLY source of community opengrep rules. Fetched
-# by commit (content-addressed) and reduced to the language directories the
-# runner maps file types to (see plugins/_runners/semgrep_runner.py).
+# semgrep-rules snapshot — OPT-IN (see INCLUDE_SEMGREP_RULES above). When
+# enabled it is fetched by commit (content-addressed) and reduced to the
+# language directories the runner maps file types to (see
+# plugins/_runners/semgrep_runner.py). When disabled the directory is left
+# empty and the runner fails open to org + community + vendored rules only.
 RUN set -eux; \
     mkdir -p /staging/semgrep-rules; \
+    if [ "${INCLUDE_SEMGREP_RULES}" != "1" ]; then \
+      printf '%s\n' "excluded: Semgrep Rules License v1.0 forbids redistribution; rebuild with --build-arg INCLUDE_SEMGREP_RULES=1 for internal use" > /staging/semgrep-rules/EXCLUDED; \
+      exit 0; \
+    fi; \
     curl -sSfL -o /tmp/semgrep-rules.tar.gz \
       "https://github.com/semgrep/semgrep-rules/archive/${SEMGREP_RULES_COMMIT}.tar.gz"; \
     tar -xzf /tmp/semgrep-rules.tar.gz -C /staging/semgrep-rules --strip-components=1 \

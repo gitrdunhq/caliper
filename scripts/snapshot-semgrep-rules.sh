@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Fetch the pinned semgrep-rules snapshot for host-side runs (the container image
-# bakes the same snapshot in at build time). The commit is read from the
-# Dockerfile so there is exactly one pin.
+# Fetch the pinned semgrep-rules snapshot for host-side runs. The published
+# container image does NOT include it (Semgrep Rules License v1.0 permits
+# internal use only); build your own image with INCLUDE_SEMGREP_RULES=1 to bake
+# it in. The commit is read from the Dockerfile so there is exactly one pin.
 #
 # Usage: bash scripts/snapshot-semgrep-rules.sh [dest]   (default: .temp/semgrep-rules)
 # Then:  export CALIPER_SEMGREP_RULES_DIR="$PWD/.temp/semgrep-rules"
