@@ -334,3 +334,25 @@ def test_run_part_falls_back_to_git_backend_when_jj_absent(tmp_path: Path, repo)
     assert "git checkout --detach" in result.script_text
     assert "jj new" not in result.script_text
     assert "git checkout main" in result.script_text  # rollback header
+
+
+def test_run_part_uses_configured_validate_command_with_no_extra_opt_in(
+    tmp_path: Path, repo
+) -> None:
+    """#522: `parting.validate_command` set in `.caliper.yaml` takes effect on
+    every run the moment it's configured — no separate flag has to be passed
+    to opt in per invocation. `run_part` threads `cfg.validate_command`
+    straight into the renderer unconditionally; this pins that contract."""
+    w, base, head = repo
+    runner = _FakeGateRunner(base_id=base, head_id=head)
+
+    result = run_part(
+        w,
+        base,
+        head,
+        PartingConfig(validate_command="pytest -q"),
+        timestamp="20260629T000010",
+        runner=runner,
+    )
+
+    assert "if ! ( pytest -q ); then" in result.script_text
