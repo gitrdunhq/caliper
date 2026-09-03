@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.44](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.43...caliper-v0.2.44) (2026-09-03)
+
+
+### Features
+
+* **part:** detect generated files by .gitattributes content signal ([#525](https://github.com/gitrdunhq/caliper/issues/525)) ([dbf12f7](https://github.com/gitrdunhq/caliper/commit/dbf12f7ce23766e1ad7c8454377a8099835b2f3a))
+
 ## [0.2.43](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.42...caliper-v0.2.43) (2026-09-03)
 
 
