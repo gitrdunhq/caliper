@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.37](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.36...caliper-v0.2.37) (2026-09-03)
+
+
+### Bug Fixes
+
+* **ci:** re-enable auto-done.yml's issue/PR-closed triggers ([8208650](https://github.com/gitrdunhq/caliper/commit/8208650f4950c48c13bb5e71fde7b4d64f8bfc20)), closes [#395](https://github.com/gitrdunhq/caliper/issues/395)
+
 ## [0.2.36](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.35...caliper-v0.2.36) (2026-09-03)
 
 
