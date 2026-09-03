@@ -7,6 +7,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.46](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.45...caliper-v0.2.46) (2026-09-03)
+
+
+### Bug Fixes
+
+* **core:** stop caliper's own PR review comment from looking broken ([277c692](https://github.com/gitrdunhq/caliper/commit/277c6929734c1dc30ec61e5a7b1dcedbd10766fd))
+* **core:** two more issues found by checking the PR's own live comment ([115d97b](https://github.com/gitrdunhq/caliper/commit/115d97b19fbccf010165e9ed50de2ce3152f3db9))
+
 ## [0.2.45](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.44...caliper-v0.2.45) (2026-09-03)
 
 
