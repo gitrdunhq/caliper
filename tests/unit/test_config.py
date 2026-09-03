@@ -124,7 +124,7 @@ class TestCaliperSettings:
         assert settings.semgrep_org_rules_dir is None
 
         # Scanner defaults
-        assert settings.enabled_scanners == ["syft", "osv-scanner", "trivy", "deterministic"]
+        assert settings.enabled_scanners == ["syft", "osv-scanner", "trivy"]
 
         # LLM defaults
         assert settings.llm_enabled is False
