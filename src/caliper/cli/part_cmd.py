@@ -65,7 +65,8 @@ def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: 
             f"kerf={part.opened_by.fired_rule}{flag_str}"
         )
         for f in part.files:
-            lines.append(f"       {f}")
+            reason = cut.match_reasons.get(f)
+            lines.append(f"       {f}" + (f"  [{reason}]" if reason else ""))
     if cut.ambiguities:
         lines.append("")
         lines.append("ambiguities (emitted as logic, review classification):")

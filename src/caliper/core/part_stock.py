@@ -28,7 +28,7 @@ from pathlib import Path
 
 from caliper.core.models import ChangeType, Record
 from caliper.core.parting import PartingError
-from caliper.core.repo_config import PartingConfig
+from caliper.core.repo_config import OverrideRule, PartingConfig
 from caliper.core.subprocess_runner import SubprocessToolRunner
 from caliper.core.tool_runner import ToolInvocation, ToolRunnerPort
 
@@ -139,30 +139,32 @@ _GLOB_PRECEDENCE: tuple[tuple[str, ChangeType], ...] = (
 )
 
 
-def _match_override(path: str, cfg: PartingConfig) -> ChangeType | None:
-    """Return the bucket of the first override rule whose glob matches, else None.
+def _match_override_rule(path: str, cfg: PartingConfig) -> OverrideRule | None:
+    """Return the first override rule whose glob matches, else None.
 
     First-match-in-list-order wins (deterministic). Overrides are validated at load
     so a rule never targets a structural bucket; this is the human feedback loop's
-    one decision point in the classifier.
+    one decision point in the classifier. Returns the whole rule (not just the
+    bucket) so the caller can surface which glob fired (#521).
     """
     for rule in cfg.overrides:
         if _match_globs(path, [rule.glob]):
-            return rule.bucket
+            return rule
     return None
 
 
-def _classify_by_globs(path: str, cfg: PartingConfig) -> ChangeType:
+def _classify_by_globs(path: str, cfg: PartingConfig) -> tuple[ChangeType, str]:
     """Apply the ordered glob precedence to a path; ``logic`` if nothing matches.
 
     Pure path heuristics only — no structural facts and no override table (those
     are decided by ``_classify`` before this runs). ``logic`` is the honest
-    "untiered code" residual, not a failure.
+    "untiered code" residual, not a failure. The second element is the match
+    reason (#521): which ``PartingConfig`` glob field matched, or ``"logic"``.
     """
     for field, bucket in _GLOB_PRECEDENCE:
         if _match_globs(path, getattr(cfg, field)):
-            return bucket
-    return ChangeType.logic
+            return bucket, f"glob:{field}"
+    return ChangeType.logic, "logic"
 
 
 def _classify(
@@ -171,7 +173,7 @@ def _classify(
     size: int | None,
     mode: str | None,
     cfg: PartingConfig,
-) -> ChangeType:
+) -> tuple[ChangeType, str]:
     """Classify one record from diff status, size, mode bits, and path globs only.
 
     Precedence (deterministic): structural facts first — delete, then move, then
@@ -180,21 +182,26 @@ def _classify(
     falling to ``logic`` (untiered residual). The human override table is applied
     by the caller before the glob heuristics (it cannot reclassify structural
     facts). The pure ``part()`` later re-emits an over-delta move as ``logic``.
+
+    Returns ``(bucket, match_reason)`` — the reason is one of ``"delete"``,
+    ``"move"``, ``"binary"``, ``f"override:{glob}"``, ``f"glob:{field}"``, or
+    ``"logic"`` (#521); it is surfaced verbatim on ``Record.match_reason`` so
+    ``caliper part --explain`` can show a reviewer WHY a file landed where it did.
     """
     code = status[0]
     if code == "D":
-        return ChangeType.delete
+        return ChangeType.delete, "delete"
     if code in ("R", "C"):
-        return ChangeType.move
+        return ChangeType.move, "move"
     if (
         size is None  # numstat reported binary
         or code == "T"  # type change (e.g. file <-> symlink)
         or mode in (_SYMLINK_MODE, _GITLINK_MODE)
     ):
-        return ChangeType.binary
-    override = _match_override(new_path, cfg)
-    if override is not None:
-        return override
+        return ChangeType.binary, "binary"
+    override_rule = _match_override_rule(new_path, cfg)
+    if override_rule is not None:
+        return override_rule.bucket, f"override:{override_rule.glob}"
     return _classify_by_globs(new_path, cfg)
 
 
@@ -257,7 +264,7 @@ def build_stock(
         if not is_delete and universe and new_path not in universe:
             continue
         size = sizes.get(new_path)
-        change_type = _classify(status, new_path, size, modes.get(new_path), cfg)
+        change_type, match_reason = _classify(status, new_path, size, modes.get(new_path), cfg)
         # binary records have no defined size
         rec_size = None if change_type == ChangeType.binary else (size or 0)
         records.append(
@@ -266,6 +273,7 @@ def build_stock(
                 change_type=change_type,
                 size=rec_size,
                 old_path=old_path if change_type == ChangeType.move else None,
+                match_reason=match_reason,
             )
         )
 
