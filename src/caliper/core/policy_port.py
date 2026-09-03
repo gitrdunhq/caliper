@@ -29,9 +29,18 @@ class PackageMetadata(TypedDict, total=False):
 
 
 class PolicyConfigDict(TypedDict, total=False):
-    """Typed shape for policy configuration options."""
+    """Typed shape for policy configuration options.
+
+    Mirrors ``core.repo_config.PolicyConfig.to_opa_config()`` (#513) — the
+    ``.caliper.yaml`` ``policy:`` section threaded into every real
+    ``PolicyInput.config``.
+    """
 
     forbidden_licenses: list[str]
+    copyleft_strong: list[str]
+    copyleft_weak: list[str]
+    kev_ids: list[str]
+    alternatives: dict[str, dict[str, dict[str, object]]]
     max_transitive_deps: int
     min_package_age_days: int
     rules_enabled: dict[str, bool]

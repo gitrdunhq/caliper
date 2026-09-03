@@ -26,8 +26,8 @@ _ALLOWLIST = {
     "core/models.py": 450,
     "adapters/grounding.py": 649,
     "composition/bootstrap.py": 599,
-    "core/repo_config.py": 489,  # +13: semgrep_min_severity derived field + validator
-    "core/pipeline.py": 506,
+    "core/repo_config.py": 542,  # +13 semgrep_min_severity; +53 PolicyConfig (#513)
+    "core/pipeline.py": 523,  # +17: repo_config threading into PolicyInput.config (#513)
 }
 
 

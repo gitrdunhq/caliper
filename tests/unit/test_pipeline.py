@@ -596,3 +596,87 @@ class TestEvaluateCommitShaRegression:
                 "evaluate() must stamp commit_sha on each ReviewRequest before the "
                 "per-package loop, same as evaluate_sbom()."
             )
+
+
+class TestPolicyEvaluationReadsRepoConfig:
+    """#513: _policy_evaluation always called OPA with config={}, so no
+    .caliper.yaml policy setting (forbidden_licenses, copyleft lists, kev_ids,
+    max_transitive_deps, min_package_age_days, rules_enabled) ever reached a
+    real review — only tests that built PolicyInput directly saw it.
+    """
+
+    def test_forbidden_licenses_from_caliper_yaml_reaches_opa_input(self, tmp_path) -> None:
+        from unittest.mock import MagicMock
+
+        from caliper.core.config import CaliperSettings
+        from caliper.core.pipeline import _policy_evaluation
+        from caliper.core.policy_port import PolicyDecision
+
+        (tmp_path / ".caliper.yaml").write_text(
+            "policy:\n  forbidden_licenses:\n    - GPL-3.0-only\n    - AGPL-3.0-only\n"
+        )
+
+        fake_engine = MagicMock()
+        fake_engine.evaluate.return_value = PolicyDecision(verdict="approve")
+        fake_ctx = MagicMock()
+        fake_ctx.policy_engine = fake_engine
+        fake_ctx.scribes = []
+
+        _policy_evaluation(fake_ctx, CaliperSettings(), [], {}, tmp_path)
+
+        policy_input = fake_engine.evaluate.call_args.args[0]
+        assert policy_input.config.get("forbidden_licenses") == [
+            "GPL-3.0-only",
+            "AGPL-3.0-only",
+        ], (
+            f"Expected the .caliper.yaml forbidden_licenses to reach PolicyInput.config, "
+            f"got {policy_input.config!r}"
+        )
+
+    def test_kev_ids_and_rules_enabled_reach_opa_input(self, tmp_path) -> None:
+        from unittest.mock import MagicMock
+
+        from caliper.core.config import CaliperSettings
+        from caliper.core.pipeline import _policy_evaluation
+        from caliper.core.policy_port import PolicyDecision
+
+        (tmp_path / ".caliper.yaml").write_text(
+            "policy:\n"
+            "  kev_ids:\n"
+            "    - CVE-2021-44228\n"
+            "  rules_enabled:\n"
+            "    cisa_kev: true\n"
+        )
+
+        fake_engine = MagicMock()
+        fake_engine.evaluate.return_value = PolicyDecision(verdict="approve")
+        fake_ctx = MagicMock()
+        fake_ctx.policy_engine = fake_engine
+        fake_ctx.scribes = []
+
+        _policy_evaluation(fake_ctx, CaliperSettings(), [], {}, tmp_path)
+
+        policy_input = fake_engine.evaluate.call_args.args[0]
+        assert policy_input.config.get("kev_ids") == ["CVE-2021-44228"]
+        assert policy_input.config.get("rules_enabled", {}).get("cisa_kev") is True
+
+    def test_no_caliper_yaml_still_reaches_defaults_not_crash(self, tmp_path) -> None:
+        """Fail-open: an absent .caliper.yaml must not error, and must still
+        pass an empty-but-present config (defaults come from opa_input's
+        own _merge_config, not from this layer)."""
+        from unittest.mock import MagicMock
+
+        from caliper.core.config import CaliperSettings
+        from caliper.core.pipeline import _policy_evaluation
+        from caliper.core.policy_port import PolicyDecision
+
+        fake_engine = MagicMock()
+        fake_engine.evaluate.return_value = PolicyDecision(verdict="approve")
+        fake_ctx = MagicMock()
+        fake_ctx.policy_engine = fake_engine
+        fake_ctx.scribes = []
+
+        _policy_evaluation(fake_ctx, CaliperSettings(), [], {}, tmp_path)
+
+        policy_input = fake_engine.evaluate.call_args.args[0]
+        assert policy_input.config.get("forbidden_licenses") is None
