@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Build the caliper production image and push to GHCR.
-# Tags with commit SHA only. The `latest` tag is applied by the release
-# workflow (build-container.yml) after release-please cuts a version.
+# Tags with commit SHA only. The Release workflow re-tags that SHA image as
+# <version> and v<version> (scripts/tag-release-image.sh) when release-please
+# cuts a release; build-container.yml also applies latest on every main push.
 #
 # Usage:
 #   bash scripts/build-push.sh

@@ -1,0 +1,46 @@
+name: Tag Release Image
+
+# Backfill / repair: tag the image built for a release commit with its version.
+# The Release workflow does this automatically for new releases; this exists
+# for releases that predate it, or if the automatic step failed.
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Git release tag, e.g. caliper-v0.2.32"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release SHA and version
+        id: rel
+        env:
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          SHA=$(git rev-list -n 1 "$TAG")
+          VERSION="${TAG##*-v}"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "$TAG -> $SHA (version $VERSION)"
+
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+      - name: Tag
+        env:
+          WAIT_SECONDS: "60"
+        run: bash scripts/tag-release-image.sh "${{ steps.rel.outputs.sha }}" "${{ steps.rel.outputs.version }}" "ghcr.io/${{ github.repository }}"
