@@ -362,14 +362,20 @@ class TestUnpinnedSeverity:
         assert len(findings) == 1
         assert findings[0]["severity"] == "high"
 
-    def test_manifest_lockfile_check_uses_package_dir(self, tmp_path):
-        """_check_lockfiles: manifest-changed check looks for lockfile in package dir."""
-        import hashlib
+    def test_manifest_changed_lockfile_missing_from_listing_no_longer_flagged(self, tmp_path):
+        """_check_lockfiles: 'manifest changed but lockfile did not' is retired (#507).
 
+        That check is now owned exclusively by the diff_only-gated lockfile-drift
+        plugin (src/caliper/plugins/lockfile_drift.py), which — unlike this
+        plugin — is skipped by the registry on a whole-repo (non-diff) file
+        listing. supply-chain kept its own copy of the same check without that
+        gating, so it fired on every manifest in a suffix-filtered whole-repo
+        listing (lockfiles never appear there regardless of whether they
+        actually changed) — a false positive on every whole-repo scan.
+        """
         pkg_dir = tmp_path / "apps" / "api"
         pkg_dir.mkdir(parents=True)
-        lock_content = "# uv.lock\nversion = 1\n"
-        (pkg_dir / "uv.lock").write_text(lock_content)
+        (pkg_dir / "uv.lock").write_text("# uv.lock\nversion = 1\n")
         (pkg_dir / "pyproject.toml").write_text("[project]\nname = 'api'\n")
 
         files = [str(pkg_dir / "pyproject.toml")]
@@ -379,13 +385,9 @@ class TestUnpinnedSeverity:
         uv_findings = [
             f for f in findings if f.get("type") == "lockfile" and f.get("lockfile") == "uv.lock"
         ]
-        assert (
-            len(uv_findings) == 1
-        ), f"Expected 1 uv.lock medium finding (manifest changed, lock not updated), got {uv_findings}"
-        expected_sha = hashlib.sha256(lock_content.encode()).hexdigest()
-        assert uv_findings[0]["sha256"] == expected_sha, (
-            f"SHA computed from wrong path. "
-            f"Expected {expected_sha}, got {uv_findings[0]['sha256']!r}"
+        assert uv_findings == [], (
+            "supply-chain must no longer report 'manifest changed but lockfile did "
+            f"not' — that's lockfile-drift's job now. got {uv_findings}"
         )
 
 
@@ -442,6 +444,36 @@ class TestPathTraversalInRun:
         assert (
             len(docker_findings) == 1
         ), "Legitimate Dockerfile inside repo should still be scanned"
+
+
+# ── Regression #507 — whole-repo scan false positive ──────────────────────────
+
+
+class TestWholeRepoScanNoFalsePositive:
+    """Regression for #507: whole-repo scans hand every plugin a suffix-filtered
+    file listing (see cli/cli_shared.py _REVIEW_SUFFIXES) that can never contain
+    a lockfile, regardless of whether one actually changed. supply-chain must not
+    mistake "lockfile absent from this listing" for "lockfile not updated"."""
+
+    def test_whole_repo_listing_with_manifest_and_real_lockfile_no_finding(self, tmp_path):
+        """A suffix-filtered whole-repo listing includes package.json (matches
+        .json) but can never include yarn.lock (no matching suffix) even though
+        it exists on disk and is perfectly in sync. This must not be flagged."""
+        (tmp_path / "package.json").write_text('{"dependencies": {}}')
+        (tmp_path / "yarn.lock").write_text("# yarn lockfile v1\n")
+
+        # A whole-repo, suffix-filtered listing: every .json/.py/etc file in the
+        # repo, exactly as build_file_lists()'s default branch produces it —
+        # never the true diff, and never containing lockfile names.
+        files = ["package.json"]
+        plugin = SupplyChainPlugin()
+        result = plugin.run(files, tmp_path)
+
+        lockfile_findings = [f for f in result.findings if f.get("type") == "lockfile"]
+        assert lockfile_findings == [], (
+            "Whole-repo scan must not report a lockfile finding just because the "
+            f"suffix-filtered listing omits an unrelated, unchanged lockfile: {lockfile_findings}"
+        )
 
 
 # ── Regression P18-1 — monorepo lockfile-without-manifest check ──────────────
