@@ -1,6 +1,7 @@
 """``caliper part`` — propose how to cut a diff into an ordered cut list.
 
 # tested-by: tests/integration/test_part_e2e.py
+# tested-by: tests/unit/test_part_cmd.py
 
 A thin CLI adapter (presentation tier): it parses args, runs the safety gate,
 delegates the cut to the parting plugin (the producer/consumer consumer), and
@@ -27,8 +28,43 @@ from caliper.cli.part_suggest import suggester_from_env
 from caliper.core.models import CutList, PartTarget
 from caliper.core.part_gate import PartingGateError
 from caliper.core.part_script import rollback_header
-from caliper.core.parting import PartingError
+from caliper.core.parting import PartingError, diff_cutlists
 from caliper.core.repo_config import OverrideRule, load_repo_config
+
+
+def _render_cutlist_diff(previous: CutList | None, new: CutList) -> str:
+    """What changed since the last cut on this PR (#524). Empty string when
+    there's no prior cut to compare against (first run).
+
+    Labels the head-sha transition explicitly: a part-count or bucket change
+    with an UNMOVED head means config/overrides changed, not new commits —
+    conflating the two would misread as "the PR moved" when it didn't.
+    """
+    if previous is None:
+        return ""
+    diff = diff_cutlists(previous, new)
+    old_head = (previous.provenance.head_sha or "?")[:12]
+    new_head = (new.provenance.head_sha or "?")[:12]
+    head_moved = previous.provenance.head_sha != new.provenance.head_sha
+    config_changed = previous.provenance.config_digest != new.provenance.config_digest
+    lines: list[str] = ["", f"since the last cut (head {old_head} -> {new_head}):"]
+    if not diff.changed:
+        if not head_moved and config_changed:
+            lines.append("  same base/head; changed by config/overrides")
+        else:
+            lines.append("  no change since the last cut")
+        return "\n".join(lines)
+    if not head_moved and config_changed:
+        lines.append("  head unchanged; below reflects a config/override change, not new commits")
+    for f in diff.added_files:
+        lines.append(f"  + {f}")
+    for f in diff.removed_files:
+        lines.append(f"  - {f}")
+    for f, old_bucket, new_bucket in diff.moved_files:
+        lines.append(f"  ~ {f}  {old_bucket.value} -> {new_bucket.value}")
+    if diff.part_count_before != diff.part_count_after:
+        lines.append(f"  parts: {diff.part_count_before} -> {diff.part_count_after}")
+    return "\n".join(lines)
 
 
 def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: str | None) -> str:
@@ -243,6 +279,7 @@ def part(
     # None unless --pr supplies a durable per-PR store; a normal repo's overrides
     # land in its own committed .caliper.yaml.
     pr_override_store: Path | None = None
+    previous_cutlist: CutList | None = None
     if pr_url:
         if base or head:
             raise click.UsageError("--pr is mutually exclusive with --base/--head")
@@ -276,6 +313,14 @@ def part(
             # Managed output dir, wiped + recreated each run by resolve_pr so a
             # re-run redoes from a clean slate (no stale restack.sh/cutlist.json).
             out = str(resolved.out_dir)
+            previous_cutlist = resolved.previous_cutlist
+        else:
+            # A custom --out isn't the dir resolve_pr wiped/read from — read the
+            # prior cut from wherever this run will actually write, or a custom
+            # --out would silently never show a diff (#524).
+            from caliper.cli.part_pr import _read_previous_cutlist
+
+            previous_cutlist = _read_previous_cutlist(Path(out))
         click.echo(
             f">> {resolved.slug}#{resolved.number}  "
             f"base={base[:12]}  head={head[:12]}  (clone: {resolved.repo_path})"
@@ -374,6 +419,8 @@ def part(
             rescue_op_id=result.rescue_op_id,
         )
     )
+    if previous_cutlist is not None:
+        click.echo(_render_cutlist_diff(previous_cutlist, result.cutlist))
     click.echo(f"restack script written to {result.restack_path}")
     if result.subjects:
         click.echo(

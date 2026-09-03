@@ -129,6 +129,37 @@ def test_wipes_stale_output_dir(tmp_path: Path) -> None:
     assert not stale_out.exists()  # wiped; part_cmd recreates it before writing
 
 
+def test_captures_previous_cutlist_before_wiping_out_dir(tmp_path: Path) -> None:
+    # #524 bullet 2: the prior run's cutlist.json is destroyed by the clean-slate
+    # wipe before the new cut is computed — it must be read into ResolvedPr first,
+    # so part_cmd can diff old vs. new after re-cutting.
+    stale_out = tmp_path / "owner-repo-pr5-out"
+    stale_out.mkdir(parents=True)
+    stale_out.joinpath("cutlist.json").write_text(
+        '{"parts": [], "provenance": {"caliper_version": "0", "base_sha": "b", '
+        '"head_sha": "h", "rename_threshold": 50, "config_digest": "d"}, '
+        '"stats": {"part_count": 0, "file_count": 0, "size_p50": 0, "size_p90": 0, '
+        '"move_logic_pure": true}}'
+    )
+    res = resolve_pr(_ref(), runner=FakeRunner(), workdir_root=tmp_path)
+    assert res.previous_cutlist is not None
+    assert res.previous_cutlist.parts == []
+
+
+def test_previous_cutlist_is_none_when_no_prior_run(tmp_path: Path) -> None:
+    res = resolve_pr(_ref(), runner=FakeRunner(), workdir_root=tmp_path)
+    assert res.previous_cutlist is None
+
+
+def test_previous_cutlist_is_none_when_corrupt(tmp_path: Path) -> None:
+    # Fail-open: a corrupt prior cutlist.json must not block a re-run.
+    stale_out = tmp_path / "owner-repo-pr5-out"
+    stale_out.mkdir(parents=True)
+    stale_out.joinpath("cutlist.json").write_text("not json")
+    res = resolve_pr(_ref(), runner=FakeRunner(), workdir_root=tmp_path)
+    assert res.previous_cutlist is None
+
+
 def test_override_store_survives_clean_slate(tmp_path: Path) -> None:
     # The durable reclassify store is OUTSIDE the clone, so a re-run's clean-slate
     # wipe must leave a reviewer's persisted overrides intact (the sev-5 fix).

@@ -28,6 +28,7 @@ from pathlib import Path
 
 import structlog
 
+from caliper.core.models import CutList
 from caliper.core.pr_ref import PrRef
 from caliper.core.subprocess_runner import SubprocessToolRunner
 from caliper.core.tool_runner import ToolInvocation, ToolRunnerPort
@@ -76,6 +77,7 @@ class ResolvedPr:
     workdir: Path
     out_dir: Path  # managed output dir (restack.sh / cutlist.json), wiped each run
     override_store: Path  # durable reclassify store, OUTSIDE the clone, NOT wiped
+    previous_cutlist: CutList | None  # last run's cut, read before out_dir was wiped (#524)
 
 
 def _run(
@@ -139,6 +141,24 @@ def _safe_rmtree(path: Path, workdir_root: Path) -> bool:
     return False
 
 
+def _read_previous_cutlist(out_dir: Path) -> CutList | None:
+    """Best-effort read of a prior run's cutlist.json, before it gets wiped.
+
+    Fail-open: missing, unreadable, or corrupt state must never block a
+    re-run — it just means there's nothing to diff against (#524).
+    """
+    cutlist_file = out_dir / "cutlist.json"
+    if not cutlist_file.is_file():
+        return None
+    try:
+        return CutList.model_validate_json(cutlist_file.read_text())
+    except (OSError, ValueError) as exc:
+        logger.warning(
+            "part_pr.previous_cutlist_unreadable", path=str(cutlist_file), error=str(exc)
+        )
+        return None
+
+
 def _base_branch(runner: ToolRunnerPort, clone_dir: Path, pr_ref: PrRef) -> str:
     """Resolve the PR's base branch via gh, falling back to origin's default branch."""
     out = _run(
@@ -199,6 +219,10 @@ def resolve_pr(
     # runs. The sidecar serves overrides from here, not the throwaway clone.
     override_store = workdir_root / f"{key}-overrides"
     n = pr_ref.number
+
+    # Read the prior run's cut BEFORE it's wiped below, so a moved-head re-run
+    # can show what changed since the last cut (#524).
+    previous_cutlist = _read_previous_cutlist(out_dir)
 
     # Clean slate every run: a stale/dirty/partial clone from a prior run would
     # trip the parting gate (dirty tree) or resolve against stale refs. Wipe the
@@ -312,4 +336,5 @@ def resolve_pr(
         workdir=workdir_root,
         out_dir=out_dir,
         override_store=override_store,
+        previous_cutlist=previous_cutlist,
     )

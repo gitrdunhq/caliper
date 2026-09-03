@@ -1,5 +1,6 @@
 """The parting decision — pure, deterministic cutting of a stock into a cut list.
 # tested-by: tests/unit/test_parting.py
+# tested-by: tests/unit/test_parting_diff.py
 
 ``part()`` is the whole decision and the consumer at the centre of the parting
 producer/consumer flow: it consumes already-classified ``Record`` objects (the
@@ -27,6 +28,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+from dataclasses import dataclass, field
 
 import orjson
 
@@ -279,3 +281,51 @@ def _assert_partition(records: list[Record], cut: CutList) -> None:
             f"parting did not cover the stock exactly (missing={sorted(missing)}, "
             f"extra={sorted(extra)})"
         )
+
+
+@dataclass(frozen=True)
+class CutListDiff:
+    """What changed between two cut lists of the same stock lineage (#524).
+
+    Pure comparison by file->bucket membership — no re-parting, no IO. Used by
+    a ``--pr`` re-run on a moved head to show a reviewer what shifted since
+    the last cut, without them re-reading two full cut lists by eye.
+    """
+
+    added_files: list[str] = field(default_factory=list)
+    removed_files: list[str] = field(default_factory=list)
+    # (file, old_bucket, new_bucket) — same file, present in both, reclassified.
+    moved_files: list[tuple[str, ChangeType, ChangeType]] = field(default_factory=list)
+    part_count_before: int = 0
+    part_count_after: int = 0
+
+    @property
+    def changed(self) -> bool:
+        return bool(
+            self.added_files
+            or self.removed_files
+            or self.moved_files
+            or self.part_count_before != self.part_count_after
+        )
+
+
+def diff_cutlists(old: CutList, new: CutList) -> CutListDiff:
+    """Compare two cut lists by file->bucket membership. Deterministic and
+    order-independent: only the sets and mappings matter, not which part or
+    what order the parts came in."""
+    old_map = {f: p.bucket for p in old.parts for f in p.files}
+    new_map = {f: p.bucket for p in new.parts for f in p.files}
+    added = sorted(set(new_map) - set(old_map))
+    removed = sorted(set(old_map) - set(new_map))
+    moved = sorted(
+        (f, old_map[f], new_map[f])
+        for f in (set(old_map) & set(new_map))
+        if old_map[f] != new_map[f]
+    )
+    return CutListDiff(
+        added_files=added,
+        removed_files=removed,
+        moved_files=moved,
+        part_count_before=len(old.parts),
+        part_count_after=len(new.parts),
+    )
