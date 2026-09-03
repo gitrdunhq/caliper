@@ -125,7 +125,10 @@ class OsvScannerPlugin(ScannerPlugin):
         try:
             data = json.loads(r.stdout)
         except (json.JSONDecodeError, ValueError):
-            if r.returncode == 0:
+            if r.returncode == 0 or "no package sources found" in (r.stderr or "").lower():
+                # No committed lockfile is a legitimate empty scan, not a crash
+                # (#508) — osv-scanner exits non-zero with empty stdout in that
+                # case, distinguishable from a real crash by this stderr text.
                 return PluginResult(
                     plugin_name=self.name,
                     summary={"status": "clean", "count": 0},

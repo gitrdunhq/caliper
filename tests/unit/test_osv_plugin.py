@@ -134,6 +134,32 @@ class TestOsvPlugin:
         assert result.findings == []
 
     @patch("caliper.plugins.osv_scanner.subprocess.run")
+    def test_no_package_sources_found_is_clean_not_crashed(self, mock_run):
+        """#508: a manifest with no committed lockfile makes osv-scanner exit
+        non-zero with empty stdout and stderr "No package sources found,
+        --help for usage information." — a legitimate empty-scan state, not a
+        binary crash."""
+        mock_run.return_value.returncode = 128
+        mock_run.return_value.stdout = ""
+        mock_run.return_value.stderr = "No package sources found, --help for usage information.\n"
+        p = OsvScannerPlugin()
+        result = p.run(["requirements.txt"], Path("."))
+        assert result.error == ""
+        assert result.findings == []
+        assert result.summary == {"status": "clean", "count": 0}
+
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
+    def test_genuine_crash_still_reported(self, mock_run):
+        """A real crash (unparseable stdout, non-zero exit, unrelated stderr)
+        must still surface as BINARY_CRASHED — #508's fix must not swallow it."""
+        mock_run.return_value.returncode = 2
+        mock_run.return_value.stdout = ""
+        mock_run.return_value.stderr = "panic: segmentation fault\n"
+        p = OsvScannerPlugin()
+        result = p.run(["requirements.txt"], Path("."))
+        assert "crashed" in result.error.lower() or "exit" in result.error.lower()
+
+    @patch("caliper.plugins.osv_scanner.subprocess.run")
     def test_render_critical(self, mock_run):
         mock_run.return_value.returncode = 1
         mock_run.return_value.stdout = json.dumps(OSV_RESPONSE)
