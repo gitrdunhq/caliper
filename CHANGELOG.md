@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.35](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.34...caliper-v0.2.35) (2026-09-03)
+
+
+### Features
+
+* **policy:** approved-alternatives as an OPA warn rule ([#480](https://github.com/gitrdunhq/caliper/issues/480)) ([fc28a99](https://github.com/gitrdunhq/caliper/commit/fc28a99d87ab74674677b7e1b3c2543ca62570b6))
+
 ## [0.2.34](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.33...caliper-v0.2.34) (2026-09-03)
 
 
