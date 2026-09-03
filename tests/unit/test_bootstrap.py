@@ -464,3 +464,53 @@ class TestBuildDecisionRepositoryRegressions:
         # Even when connect fails, we get a NullRepository — but only AFTER the
         # connect attempt, not via the early-return fast-path.
         assert isinstance(result, NullRepository)
+
+
+class TestBuildScannersIncludesDeterministic:
+    """#457: the 22 CAL-0xx detectors (DeterministicScanner) were fully built and
+    unit-tested but never reachable from a real `caliper review` run — build_scanners()
+    only ever constructed syft/osv-scanner/trivy/scancode. It's zero-network and
+    zero-cost, so it must be on by default, not opt-in.
+    """
+
+    def test_default_enabled_scanners_includes_deterministic(self) -> None:
+        from caliper.core.config import CaliperSettings
+
+        settings = CaliperSettings(db_dsn="", evidence_path="/tmp/evidence")
+
+        assert "deterministic" in settings.enabled_scanners
+
+    def test_build_scanners_returns_a_deterministic_scanner_by_default(self, tmp_path) -> None:
+        from caliper.composition.bootstrap import build_scanners
+        from caliper.core.config import CaliperSettings
+        from caliper.detectors.scanner import DeterministicScanner
+
+        settings = CaliperSettings(
+            db_dsn="",
+            evidence_path=str(tmp_path / "evidence"),
+        )
+
+        scanners = build_scanners(settings)
+
+        deterministic = [s for s in scanners if isinstance(s, DeterministicScanner)]
+        assert len(deterministic) == 1, (
+            f"Expected exactly one DeterministicScanner in build_scanners() output, "
+            f"got {[type(s).__name__ for s in scanners]}"
+        )
+        assert deterministic[0].name == "deterministic"
+
+    def test_build_scanners_omits_deterministic_when_not_enabled(self, tmp_path) -> None:
+        """Explicit opt-out still works — deterministic is default-on, not forced-on."""
+        from caliper.composition.bootstrap import build_scanners
+        from caliper.core.config import CaliperSettings
+        from caliper.detectors.scanner import DeterministicScanner
+
+        settings = CaliperSettings(
+            db_dsn="",
+            evidence_path=str(tmp_path / "evidence"),
+            enabled_scanners=["syft"],
+        )
+
+        scanners = build_scanners(settings)
+
+        assert not any(isinstance(s, DeterministicScanner) for s in scanners)
