@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.47](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.46...caliper-v0.2.47) (2026-09-03)
+
+
+### Bug Fixes
+
+* **core:** findings that only looked duplicated because their distinguishing field wasn't rendered ([#548](https://github.com/gitrdunhq/caliper/issues/548)) ([3dd508b](https://github.com/gitrdunhq/caliper/commit/3dd508b111ddab1ae58e23261a3403a5a2d080e9))
+
 ## [0.2.46](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.45...caliper-v0.2.46) (2026-09-03)
 
 
