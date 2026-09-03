@@ -328,3 +328,28 @@ class TestBaselineAndArchitectureSurviveMerge:
         result = load_merged_config(tmp_path, package_root=pkg_dir)
 
         assert result.baseline.default_ttl_days == 7
+
+
+class TestPolicySurvivesMerge:
+    """#513: policy config must not silently reset to defaults on a package
+    merge, the same class of bug parting/detectors/baseline already guard."""
+
+    def test_root_policy_config_survives_package_merge(self, tmp_path: Path) -> None:
+        _write_config(tmp_path, {"policy": {"forbidden_licenses": ["GPL-3.0-only"]}})
+        pkg_dir = tmp_path / "packages" / "svc"
+        pkg_dir.mkdir(parents=True)
+        _write_config(pkg_dir, {"plugins": {"disabled": ["typos"]}})
+
+        result = load_merged_config(tmp_path, package_root=pkg_dir)
+
+        assert result.policy.forbidden_licenses == ["GPL-3.0-only"]
+
+    def test_package_policy_takes_precedence_when_set(self, tmp_path: Path) -> None:
+        _write_config(tmp_path, {"policy": {"forbidden_licenses": ["GPL-3.0-only"]}})
+        pkg_dir = tmp_path / "packages" / "svc"
+        pkg_dir.mkdir(parents=True)
+        _write_config(pkg_dir, {"policy": {"forbidden_licenses": ["AGPL-3.0-only"]}})
+
+        result = load_merged_config(tmp_path, package_root=pkg_dir)
+
+        assert result.policy.forbidden_licenses == ["AGPL-3.0-only"]

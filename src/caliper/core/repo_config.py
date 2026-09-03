@@ -347,6 +347,53 @@ class ArchitectureConfig(BaseModel):
     allow: dict[str, list[str]] = Field(default_factory=dict)
 
 
+class PolicyConfig(BaseModel):
+    """Operator-supplied OPA policy inputs (``.caliper.yaml`` ``policy:`` section).
+
+    Every field here is optional and additive to ``opa_input._DEFAULT_CONFIG`` --
+    an unset field lets OPA's own default win, matching how ``kev_ids`` was
+    already documented as "operator-supplied, caliper ships no default" (T-344).
+    Threaded into every real ``PolicyInput.config`` by ``pipeline._policy_evaluation``
+    (#513); previously this section existed nowhere and ``config={}`` was
+    hardcoded, so none of these ever reached a real ``caliper review`` run.
+    """
+
+    forbidden_licenses: list[str] = Field(default_factory=list)
+    copyleft_strong: list[str] = Field(default_factory=list)
+    copyleft_weak: list[str] = Field(default_factory=list)
+    kev_ids: list[str] = Field(default_factory=list)
+    alternatives: dict[str, dict[str, dict[str, Any]]] = Field(default_factory=dict)
+    max_transitive_deps: int | None = None
+    min_package_age_days: int | None = None
+    rules_enabled: dict[str, bool] = Field(default_factory=dict)
+
+    def to_opa_config(self) -> dict[str, Any]:
+        """Build the ``input.config`` dict OPA's ``_merge_config`` expects.
+
+        Only includes keys actually set here, so an unset field keeps
+        ``_merge_config``'s own default rather than overriding it with an
+        empty list/False.
+        """
+        cfg: dict[str, Any] = {}
+        if self.forbidden_licenses:
+            cfg["forbidden_licenses"] = self.forbidden_licenses
+        if self.copyleft_strong:
+            cfg["copyleft_strong"] = self.copyleft_strong
+        if self.copyleft_weak:
+            cfg["copyleft_weak"] = self.copyleft_weak
+        if self.kev_ids:
+            cfg["kev_ids"] = self.kev_ids
+        if self.alternatives:
+            cfg["alternatives"] = self.alternatives
+        if self.max_transitive_deps is not None:
+            cfg["max_transitive_deps"] = self.max_transitive_deps
+        if self.min_package_age_days is not None:
+            cfg["min_package_age_days"] = self.min_package_age_days
+        if self.rules_enabled:
+            cfg["rules_enabled"] = self.rules_enabled
+        return cfg
+
+
 class RepoConfig(BaseModel):
     """Top-level repo config parsed from .caliper.yaml."""
 
@@ -356,6 +403,7 @@ class RepoConfig(BaseModel):
     detectors: DetectorsConfig = DetectorsConfig()
     baseline: BaselineConfig = BaselineConfig()
     architecture: ArchitectureConfig = ArchitectureConfig()
+    policy: PolicyConfig = PolicyConfig()
     # Derived from thresholds.semgrep.min_severity — never set directly in YAML.
     # Below-floor semgrep findings are excluded from verdict/score computation
     # (review_summary.py) and rendered in a collapsed notes section instead
@@ -421,6 +469,10 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
         if pkg_config.architecture != ArchitectureConfig()
         else root_config.architecture
     )
+    # Same precedence rule as parting/detectors/baseline/architecture above:
+    # package overrides when set, else falls back to root -- a package merge
+    # must never silently drop policy config back to bare defaults (#513).
+    merged_policy = pkg_config.policy if pkg_config.policy != PolicyConfig() else root_config.policy
     return RepoConfig(
         plugins=merged_plugins,
         thresholds=merged_thresholds,
@@ -428,6 +480,7 @@ def load_merged_config(repo_path: Path, package_root: Path | None = None) -> Rep
         detectors=merged_detectors,
         baseline=merged_baseline,
         architecture=merged_architecture,
+        policy=merged_policy,
     )
 
 
