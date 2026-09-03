@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.36](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.35...caliper-v0.2.36) (2026-09-03)
+
+
+### Features
+
+* **scribe:** wire the grounding provider into detect-then-scribe ([#481](https://github.com/gitrdunhq/caliper/issues/481)) ([47506fd](https://github.com/gitrdunhq/caliper/commit/47506fd7ea5d247782a5792c9337791c941a405b))
+
 ## [0.2.35](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.34...caliper-v0.2.35) (2026-09-03)
 
 
