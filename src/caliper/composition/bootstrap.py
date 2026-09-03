@@ -269,9 +269,6 @@ def build_package_index(settings: CaliperSettings):
 # ---------------------------------------------------------------------------
 
 # config.enabled_scanners uses the analyzer-style names; map them to SCANNERS keys.
-# "deterministic" has no entry here — it isn't in the data-tier SCANNERS registry
-# (data/ may not import detectors/, a sibling tier) and is constructed directly
-# in build_scanners() below instead, which composition is free to do.
 _SCANNER_REGISTRY_KEYS = {
     "syft": "syft",
     "osv-scanner": "osv",
@@ -441,14 +438,6 @@ def build_scanners(settings: CaliperSettings) -> list:
     evidence_path = Path(settings.evidence_path)
     scanners: list = []
     for name in settings.enabled_scanners:
-        if name == "deterministic":
-            # Not in SCANNERS (data tier) — data/ may not import detectors/, a
-            # sibling tier, so composition (which may import anything) wires
-            # DeterministicScanner in directly instead (#457).
-            from caliper.detectors.scanner import DeterministicScanner
-
-            scanners.append(DeterministicScanner())
-            continue
         key = _SCANNER_REGISTRY_KEYS.get(name)
         if key is None:
             continue

@@ -15,9 +15,7 @@ from caliper.core.models import OperatingMode
 
 # scancode intentionally orphaned (disabled) — its transitive dep lacks arm64
 # wheels and breaks cross-platform builds. Re-enable by adding "scancode" back.
-# "deterministic" (the CAL-0xx AST detectors) is zero-network/zero-cost, so it's
-# on by default unlike the binary-backed scanners above it (#457).
-_SCANNERS_DEFAULT = ["syft", "osv-scanner", "trivy", "deterministic"]
+_SCANNERS_DEFAULT = ["syft", "osv-scanner", "trivy"]
 
 # On-by-default finding scribes (ADR-006). Single source of truth shared by the
 # CaliperSettings default.
