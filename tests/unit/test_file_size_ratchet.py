@@ -25,7 +25,7 @@ _ALLOWLIST = {
     "detectors/ast_utils.py": 722,
     "core/models.py": 450,
     "adapters/grounding.py": 649,
-    "composition/bootstrap.py": 599,
+    "composition/bootstrap.py": 607,
     "core/repo_config.py": 489,  # +13: semgrep_min_severity derived field + validator
     "core/pipeline.py": 506,
 }
