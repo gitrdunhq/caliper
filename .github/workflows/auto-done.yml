@@ -1,11 +1,14 @@
 name: Auto-done on close/merge
 
 on:
-  workflow_dispatch: # disabled until GITRDUNHQ_PROJECT_BOT PAT gets project scope
-  # issues:
-  #   types: [closed]
-  # pull_request_target:
-  #   types: [closed]
+  workflow_dispatch:
+  # GITRDUNHQ_PROJECT_BOT confirmed to have project scope 2026-09-03 (#395) —
+  # verified via actual run log (addProjectV2ItemById succeeded), not just
+  # the run's conclusion field (continue-on-error masks step failures there).
+  issues:
+    types: [closed]
+  pull_request_target:
+    types: [closed]
 
 permissions: {}
 
