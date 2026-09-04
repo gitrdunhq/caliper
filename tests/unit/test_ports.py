@@ -452,6 +452,13 @@ class TestPullRequestPublisherPortIsProtocol:
             PullRequestPublisherPort, "add_label"
         ), "PullRequestPublisherPort must declare an 'add_label' method"
 
+    def test_pull_request_publisher_port_has_create_pull_request_method(self) -> None:
+        from caliper.core.ports import PullRequestPublisherPort
+
+        assert hasattr(
+            PullRequestPublisherPort, "create_pull_request"
+        ), "PullRequestPublisherPort must declare a 'create_pull_request' method"
+
 
 class TestFakePullRequestPublisherSatisfiesPort:
     def test_fake_is_instance_of_protocol(self) -> None:
@@ -467,6 +474,11 @@ class TestFakePullRequestPublisherSatisfiesPort:
             def add_label(self, repo: str, pr_num: int, label: str) -> bool:
                 return True
 
+            def create_pull_request(
+                self, repo: str, head: str, base: str, title: str, body: str
+            ) -> str | None:
+                return "https://example.invalid/o/r/pull/1"
+
         assert isinstance(FakePublisher(), PullRequestPublisherPort)
 
     def test_fake_post_comment_returns_bool(self) -> None:
@@ -481,6 +493,11 @@ class TestFakePullRequestPublisherSatisfiesPort:
 
             def add_label(self, repo: str, pr_num: int, label: str) -> bool:
                 return True
+
+            def create_pull_request(
+                self, repo: str, head: str, base: str, title: str, body: str
+            ) -> str | None:
+                return "https://example.invalid/o/r/pull/1"
 
         pub = FakePublisher()
         assert isinstance(pub, PullRequestPublisherPort)
@@ -500,6 +517,11 @@ class TestFakePullRequestPublisherSatisfiesPort:
             def add_label(self, repo: str, pr_num: int, label: str) -> bool:
                 return True
 
+            def create_pull_request(
+                self, repo: str, head: str, base: str, title: str, body: str
+            ) -> str | None:
+                return "https://example.invalid/o/r/pull/1"
+
         pub = FakePublisher()
         result = pub.post_review("org/repo", 7, {"event": "APPROVE"})
         assert isinstance(result, bool)
@@ -516,9 +538,37 @@ class TestFakePullRequestPublisherSatisfiesPort:
             def add_label(self, repo: str, pr_num: int, label: str) -> bool:
                 return True
 
+            def create_pull_request(
+                self, repo: str, head: str, base: str, title: str, body: str
+            ) -> str | None:
+                return "https://example.invalid/o/r/pull/1"
+
         pub = FakePublisher()
         result = pub.add_label("org/repo", 99, "security")
         assert isinstance(result, bool)
+
+    def test_fake_create_pull_request_returns_a_url(self) -> None:
+        from caliper.core.ports import PullRequestPublisherPort
+
+        class FakePublisher:
+            def post_comment(self, repo: str, pr_num: int, body: str) -> bool:
+                return True
+
+            def post_review(self, repo: str, pr_num: int, review: dict) -> bool:
+                return True
+
+            def add_label(self, repo: str, pr_num: int, label: str) -> bool:
+                return True
+
+            def create_pull_request(
+                self, repo: str, head: str, base: str, title: str, body: str
+            ) -> str | None:
+                return "https://example.invalid/o/r/pull/1"
+
+        pub = FakePublisher()
+        assert isinstance(pub, PullRequestPublisherPort)
+        result = pub.create_pull_request("org/repo", "feat-b", "main", "T", "B")
+        assert isinstance(result, str)
 
     def test_object_without_all_three_methods_does_not_satisfy_protocol(self) -> None:
         from caliper.core.ports import PullRequestPublisherPort
