@@ -369,6 +369,7 @@ Every format shares one severity vocabulary: `critical`/`high`/`medium`/`low`/`i
 | Jenkins | `jenkins/vars/dependencyAdmission.groovy` | Shared library for Jenkins pipelines. |
 | Container | `Dockerfile` | Podman/Docker. Read-only workspace mount. |
 | Third-party plugin SDK | `src/caliper/plugins/__init__.py`, `docs/PLUGIN_SDK.md` | External packages publish `ScannerPlugin`/`AnalyzerPort` implementations under the `caliper.plugins` `importlib.metadata` entry-point group; `get_default_registry()` discovers them alongside the 14 in-tree plugins. Fail-open per entry point (a broken third-party plugin is logged and skipped, never crashes discovery) and fail-open on the entry-point lookup itself. |
+| GitHub PR publishing | `src/caliper/core/ports.py` (`PullRequestPublisherPort`), `src/caliper/adapters/github_publisher.py` (`GitHubPublisher`) | `post_comment`, `post_review`, `add_label`, and `create_pull_request` (#524 — opens a new PR via `gh pr create`, returns its URL or `None` fail-closed on any non-zero exit/exception/unparseable output). `GitHubPublisher` shells out to the `gh` CLI for all four; `NullPublisher` is the no-op/dry-run implementation. |
 
 ---
 
