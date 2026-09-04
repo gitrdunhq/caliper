@@ -22,8 +22,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from caliper.cli.part_comment import render_stack_link_comment, render_stack_pr_body
-from caliper.core.part_stack import StackEntry
+from caliper.core.models import CutList
+from caliper.core.part_stack import StackEntry, plan_stack
 from caliper.core.ports import PullRequestPublisherPort
+from caliper.core.subprocess_runner import SubprocessToolRunner
 from caliper.core.tool_runner import ToolInvocation, ToolRunnerPort
 
 _VERIFY_TIMEOUT = 30
@@ -129,3 +131,31 @@ def push_stack(
         comment_posted = False
 
     return StackPushResult(opened_urls=opened_urls, comment_posted=comment_posted)
+
+
+def run_push(
+    *,
+    restack_path: str,
+    cutlist: CutList,
+    pr_number: int,
+    base_branch: str,
+    slug: str,
+    repo_path: Path,
+    publisher: PullRequestPublisherPort,
+    runner: ToolRunnerPort | None = None,
+) -> StackPushResult | None:
+    """Materialize, plan, and push the whole stack in one call — the CLI's
+    single entry point into this module. Returns None if materialize_parts
+    failed (nothing was pushed; the caller decides how to report that)."""
+    runner = runner or SubprocessToolRunner()
+    if not materialize_parts(restack_path, repo_path, runner):
+        return None
+    entries = plan_stack(cutlist, pr_number=pr_number, base_branch=base_branch)
+    return push_stack(
+        entries,
+        repo_path=repo_path,
+        slug=slug,
+        pr_number=pr_number,
+        publisher=publisher,
+        runner=runner,
+    )

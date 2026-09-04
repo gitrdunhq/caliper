@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from caliper.cli.part_push import StackPushResult, materialize_parts, push_stack
-from caliper.core.models import ChangeType, Kerf, Part
+from caliper.cli.part_push import StackPushResult, materialize_parts, push_stack, run_push
+from caliper.core.models import ChangeType, CutList, CutStats, Kerf, Part, Provenance
 from caliper.core.part_stack import StackEntry
 from caliper.core.tool_runner import ToolInvocation, ToolResult
 
@@ -320,3 +320,62 @@ class TestPushStack:
         )
         assert isinstance(result, StackPushResult)
         assert isinstance(result.opened_urls, list)
+
+
+def _cutlist(*parts: Part) -> CutList:
+    prov = Provenance(
+        caliper_version="0", base_sha="b", head_sha="h", rename_threshold=50, config_digest="d"
+    )
+    stats = CutStats(
+        part_count=len(parts), file_count=0, size_p50=0, size_p90=0, move_logic_pure=True
+    )
+    return CutList(parts=list(parts), provenance=prov, stats=stats)
+
+
+class TestRunPush:
+    """run_push composes materialize_parts -> plan_stack -> push_stack in one
+    call — the CLI's single entry point into this module."""
+
+    def test_returns_none_when_materialize_fails(self, tmp_path: Path) -> None:
+        script = tmp_path / "restack.sh"
+        script.write_text("")
+        cut = _cutlist(_part(ChangeType.business, "a.py"))
+        runner = FakeRunner(exit_codes={("bash",): 1})
+        publisher = FakePublisher()
+
+        result = run_push(
+            restack_path=str(script),
+            cutlist=cut,
+            pr_number=524,
+            base_branch="main",
+            slug="owner/repo",
+            repo_path=tmp_path,
+            publisher=publisher,
+            runner=runner,
+        )
+
+        assert result is None
+        assert len(publisher.create_calls) == 0
+
+    def test_delegates_to_push_stack_on_materialize_success(self, tmp_path: Path) -> None:
+        script = tmp_path / "restack.sh"
+        script.write_text("")
+        cut = _cutlist(_part(ChangeType.business, "a.py"), _part(ChangeType.logic, "b.py"))
+        runner = FakeRunner()
+        publisher = FakePublisher()
+
+        result = run_push(
+            restack_path=str(script),
+            cutlist=cut,
+            pr_number=524,
+            base_branch="main",
+            slug="owner/repo",
+            repo_path=tmp_path,
+            publisher=publisher,
+            runner=runner,
+        )
+
+        assert isinstance(result, StackPushResult)
+        assert len(result.opened_urls) == 2
+        assert publisher.create_calls[0][2] == "main"
+        assert any(c.cmd == ["bash", str(script.resolve())] for c in runner.calls)

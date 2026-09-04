@@ -78,6 +78,7 @@ class ResolvedPr:
     out_dir: Path  # managed output dir (restack.sh / cutlist.json), wiped each run
     override_store: Path  # durable reclassify store, OUTSIDE the clone, NOT wiped
     previous_cutlist: CutList | None  # last run's cut, read before out_dir was wiped (#524)
+    base_branch: str  # the PR's actual base branch name (not the .base merge-base sha) (#524)
 
 
 def _run(
@@ -337,4 +338,5 @@ def resolve_pr(
         out_dir=out_dir,
         override_store=override_store,
         previous_cutlist=previous_cutlist,
+        base_branch=base_branch,
     )

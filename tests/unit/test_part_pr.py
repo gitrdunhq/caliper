@@ -97,6 +97,7 @@ def test_resolve_clones_and_resolves(tmp_path: Path) -> None:
     assert res.override_store == tmp_path / "owner-repo-pr5-overrides"
     assert res.slug == "owner/repo"
     assert res.number == 5
+    assert res.base_branch == "main"
 
     joined = [" ".join(c) for c in runner.calls]
     assert any(c[0] == "git" and "clone" in c for c in runner.calls)
@@ -158,6 +159,13 @@ def test_previous_cutlist_is_none_when_corrupt(tmp_path: Path) -> None:
     stale_out.joinpath("cutlist.json").write_text("not json")
     res = resolve_pr(_ref(), runner=FakeRunner(), workdir_root=tmp_path)
     assert res.previous_cutlist is None
+
+
+def test_base_branch_reflects_the_prs_actual_base(tmp_path: Path) -> None:
+    # Not hardcoded to "main" — the stacked PR push feature needs the real
+    # base branch name (not the merge-base sha in .base) to open part 1's PR.
+    res = resolve_pr(_ref(), runner=FakeRunner(base_branch="develop"), workdir_root=tmp_path)
+    assert res.base_branch == "develop"
 
 
 def test_override_store_survives_clean_slate(tmp_path: Path) -> None:
