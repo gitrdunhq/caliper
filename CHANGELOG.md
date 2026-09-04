@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.52](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.51...caliper-v0.2.52) (2026-09-04)
+
+
+### Features
+
+* **core:** progress heartbeat + O(1)-call guarantee for large diffs ([#525](https://github.com/gitrdunhq/caliper/issues/525)) ([08aeaad](https://github.com/gitrdunhq/caliper/commit/08aeaad89628440f1948807b683dfafcd83a45ec))
+
 ## [0.2.51](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.50...caliper-v0.2.51) (2026-09-04)
 
 
