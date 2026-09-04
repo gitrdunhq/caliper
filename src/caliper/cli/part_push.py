@@ -125,6 +125,10 @@ def push_stack(
 
     comment_posted = False
     try:
+        # Fail-open (#525): the linking comment is a courtesy notification, not
+        # part of the parting decision — a failure here must never roll back
+        # the already-opened, real PRs. See WHY.md's fail-closed carve-out,
+        # which applies to the cut itself, not this post-push notification.
         comment_body = render_stack_link_comment(opened_urls, slug=slug, pr_num=pr_number)
         comment_posted = bool(publisher.post_comment(slug, pr_number, comment_body))
     except Exception:
