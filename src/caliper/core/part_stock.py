@@ -26,15 +26,23 @@ import fnmatch
 from dataclasses import dataclass
 from pathlib import Path
 
+import structlog
+
 from caliper.core.models import ChangeType, Record
 from caliper.core.parting import PartingError
 from caliper.core.repo_config import OverrideRule, PartingConfig
 from caliper.core.subprocess_runner import SubprocessToolRunner
 from caliper.core.tool_runner import ToolInvocation, ToolRunnerPort
 
+logger = structlog.get_logger(__name__)
+
 _GIT_TIMEOUT = 60
 _SYMLINK_MODE = "120000"
 _GITLINK_MODE = "160000"
+# Above this many changed files, log a heartbeat so a large diff doesn't look
+# hung (#525) — build_stock has no other observable progress signal until it
+# returns. Kept quiet below the threshold; normal-size runs stay silent.
+_PROGRESS_THRESHOLD = 500
 
 
 @dataclass(frozen=True)
@@ -290,6 +298,8 @@ def build_stock(
 
     sizes = _parse_numstat(numstat)
     parsed = _parse_name_status(name_status)
+    if len(parsed) >= _PROGRESS_THRESHOLD:
+        logger.info("part_stock.large_diff", file_count=len(parsed))
 
     # Batch the .gitattributes linguist-generated check (#525) once, over every
     # candidate path (deletions excluded — can't sensibly attribute-check a
