@@ -182,6 +182,10 @@ class PullRequestPublisherPort(Protocol):
 
     def add_label(self, repo: str, pr_num: int, label: str) -> bool: ...
 
+    def create_pull_request(
+        self, repo: str, head: str, base: str, title: str, body: str
+    ) -> str | None: ...
+
 
 @dataclasses.dataclass
 class ReviewReport:

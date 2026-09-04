@@ -8,10 +8,14 @@ artifacts back to a GitHub pull request.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from typing import Any
 
 from caliper.core.ports import PullRequestPublisherPort
+
+# `gh pr create` prints the created PR's URL as its only stdout line on success.
+_PR_URL_RE = re.compile(r"https://\S+/pull/\d+")
 
 
 class GitHubPublisher:
@@ -71,6 +75,45 @@ class GitHubPublisher:
         """Add a label to a pull request."""
         return self._run(["gh", "pr", "edit", str(pr_num), "--repo", repo, "--add-label", label])
 
+    def create_pull_request(
+        self, repo: str, head: str, base: str, title: str, body: str
+    ) -> str | None:
+        """Open a new pull request. Returns its URL, or None on any failure
+        (fail closed — an unparseable success response is treated the same as
+        a hard failure, since a caller chaining a stacked PR's base branch
+        needs a real URL, not a guess)."""
+        cmd = [
+            "gh",
+            "pr",
+            "create",
+            "--repo",
+            repo,
+            "--head",
+            head,
+            "--base",
+            base,
+            "--title",
+            title,
+            "--body",
+            body,
+        ]
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                env=self._env(),
+                timeout=30,
+            )
+            if result.stderr:
+                result.stderr = self._scrub_token(result.stderr)
+            if result.returncode != 0:
+                return None
+            match = _PR_URL_RE.search(result.stdout or "")
+            return match.group(0) if match else None
+        except Exception:
+            return None
+
 
 class NullPublisher:
     """No-op PullRequestPublisherPort for testing and dry-run contexts."""
@@ -83,6 +126,14 @@ class NullPublisher:
 
     def add_label(self, repo: str, pr_num: int, label: str) -> bool:
         return True
+
+    def create_pull_request(
+        self, repo: str, head: str, base: str, title: str, body: str
+    ) -> str | None:
+        """Deterministic fake URL — same inputs always yield the same string,
+        so a caller chaining a stacked PR's base branch behaves consistently
+        in dry-run/test contexts."""
+        return f"https://example.invalid/{repo}/pull/fake-{head}-onto-{base}"
 
 
 assert isinstance(
