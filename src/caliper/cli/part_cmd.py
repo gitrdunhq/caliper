@@ -2,6 +2,7 @@
 
 # tested-by: tests/integration/test_part_e2e.py
 # tested-by: tests/unit/test_part_cmd.py
+# tested-by: tests/unit/test_part_push_cli.py
 
 A thin CLI adapter (presentation tier): it parses args, runs the safety gate,
 delegates the cut to the parting plugin (the producer/consumer consumer), and
@@ -25,106 +26,15 @@ import click
 from caliper.cli.part_describe import describer_from_env
 from caliper.cli.part_doctor import render_doctor_report, run_doctor
 from caliper.cli.part_pipeline import run_part
+from caliper.cli.part_render import render_cutlist, render_cutlist_diff, render_overrides_yaml
 from caliper.cli.part_suggest import suggester_from_env
 from caliper.core.models import CutList, PartTarget
 from caliper.core.part_gate import PartingGateError
-from caliper.core.part_script import rollback_header
-from caliper.core.parting import PartingError, diff_cutlists
-from caliper.core.repo_config import OverrideRule, load_repo_config
+from caliper.core.parting import PartingError
+from caliper.core.repo_config import load_repo_config
 
 if TYPE_CHECKING:
     from caliper.cli.part_pr import ResolvedPr
-
-
-def _render_cutlist_diff(previous: CutList | None, new: CutList) -> str:
-    """What changed since the last cut on this PR (#524). Empty string when
-    there's no prior cut to compare against (first run).
-
-    Labels the head-sha transition explicitly: a part-count or bucket change
-    with an UNMOVED head means config/overrides changed, not new commits —
-    conflating the two would misread as "the PR moved" when it didn't.
-    """
-    if previous is None:
-        return ""
-    diff = diff_cutlists(previous, new)
-    old_head = (previous.provenance.head_sha or "?")[:12]
-    new_head = (new.provenance.head_sha or "?")[:12]
-    head_moved = previous.provenance.head_sha != new.provenance.head_sha
-    config_changed = previous.provenance.config_digest != new.provenance.config_digest
-    lines: list[str] = ["", f"since the last cut (head {old_head} -> {new_head}):"]
-    if not diff.changed:
-        if not head_moved and config_changed:
-            lines.append("  same base/head; changed by config/overrides")
-        else:
-            lines.append("  no change since the last cut")
-        return "\n".join(lines)
-    if not head_moved and config_changed:
-        lines.append("  head unchanged; below reflects a config/override change, not new commits")
-    for f in diff.added_files:
-        lines.append(f"  + {f}")
-    for f in diff.removed_files:
-        lines.append(f"  - {f}")
-    for f, old_bucket, new_bucket in diff.moved_files:
-        lines.append(f"  ~ {f}  {old_bucket.value} -> {new_bucket.value}")
-    if diff.part_count_before != diff.part_count_after:
-        lines.append(f"  parts: {diff.part_count_before} -> {diff.part_count_after}")
-    return "\n".join(lines)
-
-
-def _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: str | None) -> str:
-    """Human-readable cut list, opening with the rollback header (escape hatch)."""
-    lines: list[str] = []
-    if backup_bookmark and rescue_op_id:
-        for h in rollback_header(backup_bookmark, rescue_op_id, backend=cut.provenance.backend):
-            lines.append(h)
-    else:
-        lines.append("ROLLBACK — the rollback header was emitted with the original restack.sh")
-    lines.append("")
-    p = cut.provenance
-    bucket_count = len({part.bucket for part in cut.parts})
-    cap_str = "none (1 part/bucket)" if cut.size_cap is None else str(cut.size_cap)
-    lines.append(
-        f"cut list — {cut.stats.part_count} parts across {bucket_count} buckets, "
-        f"{cut.stats.file_count} files, cap {cap_str} "
-        f"(size p50={cut.stats.size_p50} p90={cut.stats.size_p90})"
-    )
-    lines.append(
-        f"provenance: caliper {p.caliper_version or '?'}  base={p.base_sha or '?'}  "
-        f"head={p.head_sha or '?'}  rename={p.rename_threshold}%  cfg={p.config_digest[:12]}"
-    )
-    lines.append("(proposal, not a verdict — bottom of stack first)")
-    lines.append("")
-    for i, part in enumerate(cut.parts, start=1):
-        flags = []
-        if part.oversized:
-            flags.append("OVERSIZED")
-        if part.bucket.value == "delete":
-            flags.append("DELETE-REVIEW")
-        flag_str = f" [{', '.join(flags)}]" if flags else ""
-        lines.append(
-            f"  {i}. {part.bucket} ({len(part.files)} files, size {part.size}) "
-            f"kerf={part.opened_by.fired_rule}{flag_str}"
-        )
-        for f in part.files:
-            reason = cut.match_reasons.get(f)
-            lines.append(f"       {f}" + (f"  [{reason}]" if reason else ""))
-    if cut.ambiguities:
-        lines.append("")
-        lines.append("ambiguities (emitted as logic, review classification):")
-        for a in cut.ambiguities:
-            lines.append(f"  - {a.file}: {a.reason}")
-    return "\n".join(lines) + "\n"
-
-
-def _overrides_yaml(rules: list[OverrideRule]) -> str:
-    """Paste-ready ``parting.overrides`` block for the suggested rules (print mode)."""
-    lines = ["parting:", "  overrides:"]
-    for r in rules:
-        lines.append(f"    - glob: {r.glob!r}")
-        lines.append(f"      bucket: {r.bucket.value}")
-        if r.note:
-            lines.append(f"      note: {r.note!r}")
-    return "\n".join(lines)
 
 
 @click.command(name="part")
@@ -246,6 +156,16 @@ def _overrides_yaml(rules: list[OverrideRule]) -> str:
     "--pr). Never posts without this explicit flag; no restack instructions are "
     "included — informational only.",
 )
+@click.option(
+    "--push",
+    "push_flag",
+    is_flag=True,
+    default=False,
+    help="Push each part as its own branch and open it as a sequential stacked PR "
+    "(requires --pr). The original PR is left open and untouched — a linking "
+    "comment is posted on it once the full stack is open. Never pushes or opens "
+    "PRs without this explicit flag.",
+)
 def part(
     base: str | None,
     head: str | None,
@@ -269,6 +189,7 @@ def part(
     suggest_model: str | None,
     suggest_apply: bool,
     post_comment_flag: bool,
+    push_flag: bool,
 ) -> None:
     """Propose an ordered cut list for a diff and emit a jj restack script."""
     if lan_host and not serve:
@@ -283,6 +204,14 @@ def part(
         # --serve never reaches the posting code (it returns early to start the
         # sidecar) — without this guard the flag combination would silently no-op.
         raise click.UsageError("--post-comment is incompatible with --serve")
+    if push_flag and not pr_url:
+        raise click.UsageError("--push requires --pr")
+    if push_flag and serve:
+        raise click.UsageError("--push is incompatible with --serve")
+    if push_flag and target == "series":
+        # series renders one caliper-part-series ref for the whole cut — there is
+        # nothing per-part to push.
+        raise click.UsageError("--push is incompatible with --target series")
 
     if doctor:
         checks = run_doctor(Path(repo), check_lan=bool(lan_host))
@@ -293,7 +222,7 @@ def part(
 
     if explain:
         cut = CutList.model_validate_json(Path(explain).read_text())
-        click.echo(_render_cutlist(cut, backup_bookmark=None, rescue_op_id=None))
+        click.echo(render_cutlist(cut, backup_bookmark=None, rescue_op_id=None))
         return
 
     # None unless --pr supplies a durable per-PR store; a normal repo's overrides
@@ -421,7 +350,7 @@ def part(
         click.echo(
             f"\ntier suggestions for the 'logic' residual ({len(result.proposed_overrides)}):"
         )
-        click.echo(_overrides_yaml(result.proposed_overrides))
+        click.echo(render_overrides_yaml(result.proposed_overrides))
         if result.applied_overrides:
             write_target = pr_override_store or repo_path
             click.echo(
@@ -434,14 +363,14 @@ def part(
         click.echo("\nno tier suggestions (residual empty or model unavailable)")
 
     click.echo(
-        _render_cutlist(
+        render_cutlist(
             result.cutlist,
             backup_bookmark=result.backup_bookmark,
             rescue_op_id=result.rescue_op_id,
         )
     )
     if previous_cutlist is not None:
-        click.echo(_render_cutlist_diff(previous_cutlist, result.cutlist))
+        click.echo(render_cutlist_diff(previous_cutlist, result.cutlist))
     click.echo(f"restack script written to {result.restack_path}")
     if result.subjects:
         click.echo(
@@ -464,3 +393,39 @@ def part(
         )
         if not ok:
             raise SystemExit(1)
+
+    if push_flag:
+        from caliper.adapters.github_publisher import GitHubPublisher
+        from caliper.cli.part_push import run_push
+
+        # Guaranteed set: the early UsageError above requires --pr, whose branch
+        # always assigns resolved before this point.
+        assert resolved is not None
+        assert result.restack_path is not None  # out_dir is always set on this path
+        push_result = run_push(
+            restack_path=result.restack_path,
+            cutlist=result.cutlist,
+            pr_number=resolved.number,
+            base_branch=resolved.base_branch,
+            slug=resolved.slug,
+            repo_path=repo_path,
+            publisher=GitHubPublisher(),
+        )
+        if push_result is None:
+            raise click.ClickException(
+                "failed to materialize the stack's local branches "
+                f"(restack.sh at {result.restack_path} exited non-zero)"
+            )
+        for url in push_result.opened_urls:
+            click.echo(url)
+        if push_result.failed_index is not None:
+            click.echo(
+                f"stack push stopped at part {push_result.failed_index}: {push_result.error}",
+                err=True,
+            )
+            raise SystemExit(1)
+        if not push_result.comment_posted:
+            click.echo(
+                f"warning: opened the full stack but failed to post the linking "
+                f"comment on {resolved.slug}#{resolved.number}"
+            )
