@@ -110,7 +110,13 @@ def _run(
 
 
 def detect_origin_slug(repo_path: Path, runner: ToolRunnerPort | None = None) -> str | None:
-    """Best-effort owner/repo of the repo's origin remote, for bare-number PR refs."""
+    """Best-effort owner/repo of the repo's origin remote, for bare-number PR refs.
+
+    Fail-open (#525): this is PR-reference convenience, not the parting
+    decision (WHY.md's fail-closed carve-out is core/part_stock.py +
+    core/parting.py) — a missing/unreadable origin remote just means the
+    caller must supply a full PR URL instead of a bare number.
+    """
     runner = runner or SubprocessToolRunner()
     out = _run(
         runner,
@@ -161,7 +167,13 @@ def _read_previous_cutlist(out_dir: Path) -> CutList | None:
 
 
 def _base_branch(runner: ToolRunnerPort, clone_dir: Path, pr_ref: PrRef) -> str:
-    """Resolve the PR's base branch via gh, falling back to origin's default branch."""
+    """Resolve the PR's base branch via gh, falling back to origin's default branch.
+
+    Fail-open (#525) on each individual probe — gh unavailable or `git
+    remote show` failing just tries the next fallback; the function as a
+    whole still hard-fails (PrResolveError) if every path is exhausted, so
+    this never reaches build_stock()/part() with an unresolved base.
+    """
     out = _run(
         runner,
         [
@@ -206,7 +218,14 @@ def resolve_pr(
     runner: ToolRunnerPort | None = None,
     workdir_root: Path,
 ) -> ResolvedPr:
-    """Clone the PR into an isolated, jj-ready workdir and resolve ``base..head``."""
+    """Clone the PR into an isolated, jj-ready workdir and resolve ``base..head``.
+
+    Fail-open (#525) at three spots below — the working-tree checkout (diff is
+    read from objects, not the tree), the jj probe/init fallback chain, and
+    the immutability-neutralize step — none of them can produce a wrong cut:
+    the parting decision itself (build_stock()/part()) still hard-fails on
+    any real problem, per WHY.md's fail-closed carve-out.
+    """
     runner = runner or SubprocessToolRunner()
     workdir_root = Path(workdir_root)
     workdir_root.mkdir(parents=True, exist_ok=True)
