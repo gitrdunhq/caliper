@@ -7,6 +7,23 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.51](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.50...caliper-v0.2.51) (2026-09-04)
+
+
+### Features
+
+* **cli:** imperative shell for stacked PR push ([#524](https://github.com/gitrdunhq/caliper/issues/524)) ([c12c7f4](https://github.com/gitrdunhq/caliper/commit/c12c7f474d93d06bdaa8d6c2d7f7bb7a55ee5a15))
+* **cli:** render per-part PR bodies + stack-linking comment ([#524](https://github.com/gitrdunhq/caliper/issues/524)) ([b7a71c7](https://github.com/gitrdunhq/caliper/commit/b7a71c733c1c8b86fc3dc13e6185271ada2f4f03))
+* **cli:** wire --push into caliper part ([#524](https://github.com/gitrdunhq/caliper/issues/524)) ([9b8e5c4](https://github.com/gitrdunhq/caliper/commit/9b8e5c4b71bc1f58578ea84fe3e1dd3627341a31))
+* **core:** add create_pull_request to PullRequestPublisherPort ([#524](https://github.com/gitrdunhq/caliper/issues/524)) ([3117301](https://github.com/gitrdunhq/caliper/commit/311730145a6cbb22288b7ab314160a4c721b96a1))
+* **core:** pure stack plan for stacked PR push ([#524](https://github.com/gitrdunhq/caliper/issues/524)) ([351279d](https://github.com/gitrdunhq/caliper/commit/351279df1f7cd878a6b4865260bb05705c050b78))
+
+
+### Documentation
+
+* document --push and create_pull_request in the capability matrix ([#524](https://github.com/gitrdunhq/caliper/issues/524)) ([91c59d3](https://github.com/gitrdunhq/caliper/commit/91c59d3dd52ac7849d5505d2a7801aa85ffd4292))
+* SPEC for [#524](https://github.com/gitrdunhq/caliper/issues/524) bullet 1 — stacked PR push design ([a469314](https://github.com/gitrdunhq/caliper/commit/a469314c03bfe3b090da5de21d9a0f7379319d01))
+
 ## [0.2.50](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.49...caliper-v0.2.50) (2026-09-03)
 
 
