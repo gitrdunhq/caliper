@@ -1,0 +1,129 @@
+{
+  "task_id": "plan-stack-branches",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_part_stack.py",
+      "kind": "pytest",
+      "purpose": "Verify plan_stack(cut: CutList, *, pr_number: int, base_branch: str",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_plan_stack_cut_cutlist_pr_number_int_base_branch_str_list_st",
+      "skeleton_written": false,
+      "content": "# Skeleton: plan-stack-branches AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_plan_stack_cut_cutlist_pr_number_int_base_branch_str_list_st \u2192 tests/unit/test_part_stack.py\n\nimport pytest\n\n\nclass Testplan_stack_branches_AC1:\n    def test_ac1_plan_stack_cut_cutlist_pr_number_int_base_branch_str_list_st(self):\n        \"\"\"\n        PROP-001: plan_stack(cut: CutList, *, pr_number: int, base_branch: str) -> list[StackEntry\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_part_stack.py",
+      "kind": "pytest",
+      "purpose": "Verify StackEntry exposes index (1-based), local_ref, remote_branch",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_stackentry_exposes_index_1_based_local_ref_remote_branch_bas",
+      "skeleton_written": false,
+      "content": "# Skeleton: plan-stack-branches AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_stackentry_exposes_index_1_based_local_ref_remote_branch_bas \u2192 tests/unit/test_part_stack.py\n\nimport pytest\n\n\nclass Testplan_stack_branches_AC2:\n    def test_ac2_stackentry_exposes_index_1_based_local_ref_remote_branch_bas(self):\n        \"\"\"\n        PROP-002: StackEntry exposes index (1-based), local_ref, remote_branch, base_branch, and p\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_part_stack.py",
+      "kind": "pytest",
+      "purpose": "Verify entries[i].local_ref == f'caliper-part-{i+1}' for every i (m",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_entries_i_local_ref_f_caliper_part_i_1_for_every_i_matches_t",
+      "skeleton_written": false,
+      "content": "# Skeleton: plan-stack-branches AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_entries_i_local_ref_f_caliper_part_i_1_for_every_i_matches_t \u2192 tests/unit/test_part_stack.py\n\nimport pytest\n\n\nclass Testplan_stack_branches_AC3:\n    def test_ac3_entries_i_local_ref_f_caliper_part_i_1_for_every_i_matches_t(self):\n        \"\"\"\n        PROP-003: entries[i].local_ref == f'caliper-part-{i+1}' for every i (matches the refs core\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_part_stack.py",
+      "kind": "pytest",
+      "purpose": "Verify entries[0].base_branch == the base_branch argument (the PR's",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_entries_0_base_branch_the_base_branch_argument_the_pr_s_orig",
+      "skeleton_written": false,
+      "content": "# Skeleton: plan-stack-branches AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_entries_0_base_branch_the_base_branch_argument_the_pr_s_orig \u2192 tests/unit/test_part_stack.py\n\nimport pytest\n\n\nclass Testplan_stack_branches_AC4:\n    def test_ac4_entries_0_base_branch_the_base_branch_argument_the_pr_s_orig(self):\n        \"\"\"\n        PROP-004: entries[0].base_branch == the base_branch argument (the PR's original base)\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC5",
+      "path": "tests/unit/test_part_stack.py",
+      "kind": "pytest",
+      "purpose": "Verify entries[n].base_branch == entries[n-1].remote_branch for eve",
+      "property_id": "PROP-005",
+      "function_name": "test_ac5_entries_n_base_branch_entries_n_1_remote_branch_for_every_n",
+      "skeleton_written": false,
+      "content": "# Skeleton: plan-stack-branches AC5 \u2014 PROP-005\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC5 \u2192 test_ac5_entries_n_base_branch_entries_n_1_remote_branch_for_every_n \u2192 tests/unit/test_part_stack.py\n\nimport pytest\n\n\nclass Testplan_stack_branches_AC5:\n    def test_ac5_entries_n_base_branch_entries_n_1_remote_branch_for_every_n(self):\n        \"\"\"\n        PROP-005: entries[n].base_branch == entries[n-1].remote_branch for every n > 0\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-005\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC6",
+      "path": "tests/unit/test_part_stack.py",
+      "kind": "pytest",
+      "purpose": "Verify remote_branch names are unique across the stack, contain the",
+      "property_id": "PROP-006",
+      "function_name": "test_ac6_remote_branch_names_are_unique_across_the_stack_contain_the",
+      "skeleton_written": false,
+      "content": "# Skeleton: plan-stack-branches AC6 \u2014 PROP-006\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC6 \u2192 test_ac6_remote_branch_names_are_unique_across_the_stack_contain_the \u2192 tests/unit/test_part_stack.py\n\nimport pytest\n\n\nclass Testplan_stack_branches_AC6:\n    def test_ac6_remote_branch_names_are_unique_across_the_stack_contain_the(self):\n        \"\"\"\n        PROP-006: remote_branch names are unique across the stack, contain the pr_number, the 1-ba\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-006\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC7",
+      "path": "tests/unit/test_part_stack.py",
+      "kind": "pytest",
+      "purpose": "Verify plan_stack is deterministic: calling it twice with the same ",
+      "property_id": "PROP-007",
+      "function_name": "test_ac7_plan_stack_is_deterministic_calling_it_twice_with_the_same_c",
+      "skeleton_written": false,
+      "content": "# Skeleton: plan-stack-branches AC7 \u2014 PROP-007\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC7 \u2192 test_ac7_plan_stack_is_deterministic_calling_it_twice_with_the_same_c \u2192 tests/unit/test_part_stack.py\n\nimport pytest\n\n\nclass Testplan_stack_branches_AC7:\n    def test_ac7_plan_stack_is_deterministic_calling_it_twice_with_the_same_c(self):\n        \"\"\"\n        PROP-007: plan_stack is deterministic: calling it twice with the same CutList + pr_number \n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-007\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC8",
+      "path": "tests/unit/test_part_stack.py",
+      "kind": "pytest",
+      "purpose": "Verify plan_stack(cut_with_zero_parts, pr_number=1, base_branch='ma",
+      "property_id": "PROP-008",
+      "function_name": "test_ac8_plan_stack_cut_with_zero_parts_pr_number_1_base_branch_main",
+      "skeleton_written": false,
+      "content": "# Skeleton: plan-stack-branches AC8 \u2014 PROP-008\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC8 \u2192 test_ac8_plan_stack_cut_with_zero_parts_pr_number_1_base_branch_main \u2192 tests/unit/test_part_stack.py\n\nimport pytest\n\n\nclass Testplan_stack_branches_AC8:\n    def test_ac8_plan_stack_cut_with_zero_parts_pr_number_1_base_branch_main(self):\n        \"\"\"\n        PROP-008: plan_stack(cut_with_zero_parts, pr_number=1, base_branch='main') raises ValueErr\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-008\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC9",
+      "path": "tests/unit/test_part_stack.py",
+      "kind": "pytest",
+      "purpose": "Verify Hypothesis property test: for any CutList with 1..N parts, l",
+      "property_id": "PROP-009",
+      "function_name": "test_ac9_hypothesis_property_test_for_any_cutlist_with_1_n_parts_len",
+      "skeleton_written": false,
+      "content": "# Skeleton: plan-stack-branches AC9 \u2014 PROP-009\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC9 \u2192 test_ac9_hypothesis_property_test_for_any_cutlist_with_1_n_parts_len \u2192 tests/unit/test_part_stack.py\n\nimport pytest\n\n\nclass Testplan_stack_branches_AC9:\n    def test_ac9_hypothesis_property_test_for_any_cutlist_with_1_n_parts_len(self):\n        \"\"\"\n        PROP-009: Hypothesis property test: for any CutList with 1..N parts, len(plan_stack(...)) \n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-009\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [
+    {
+      "path": "src/caliper/core/part_stack.py",
+      "functions": [
+        "plan_stack"
+      ],
+      "stub_written": true
+    }
+  ],
+  "existing_api": {
+    "src/caliper/core/part_stack.py": "def plan_stack(cut, *, pr_number, base_branch):\n    ...\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

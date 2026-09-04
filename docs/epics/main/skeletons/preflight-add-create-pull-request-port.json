@@ -1,0 +1,98 @@
+{
+  "task_id": "add-create-pull-request-port",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_ports.py",
+      "kind": "pytest",
+      "purpose": "Verify caliper.core.ports.PullRequestPublisherPort declares create_",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_caliper_core_ports_pullrequestpublisherport_declares_create",
+      "skeleton_written": false,
+      "content": "# Skeleton: add-create-pull-request-port AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_caliper_core_ports_pullrequestpublisherport_declares_create \u2192 tests/unit/test_ports.py\n\nimport pytest\n\n\nclass Testadd_create_pull_request_port_AC1:\n    def test_ac1_caliper_core_ports_pullrequestpublisherport_declares_create(self):\n        \"\"\"\n        PROP-001: caliper.core.ports.PullRequestPublisherPort declares create_pull_request(self, r\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_ports.py",
+      "kind": "pytest",
+      "purpose": "Verify GitHubPublisher.create_pull_request('o/r', 'feat-b', 'main',",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_githubpublisher_create_pull_request_o_r_feat_b_main_t_b_shel",
+      "skeleton_written": false,
+      "content": "# Skeleton: add-create-pull-request-port AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_githubpublisher_create_pull_request_o_r_feat_b_main_t_b_shel \u2192 tests/unit/test_ports.py\n\nimport pytest\n\n\nclass Testadd_create_pull_request_port_AC2:\n    def test_ac2_githubpublisher_create_pull_request_o_r_feat_b_main_t_b_shel(self):\n        \"\"\"\n        PROP-002: GitHubPublisher.create_pull_request('o/r', 'feat-b', 'main', 'T', 'B') shells ou\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_ports.py",
+      "kind": "pytest",
+      "purpose": "Verify GitHubPublisher.create_pull_request returns the created PR U",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_githubpublisher_create_pull_request_returns_the_created_pr_u",
+      "skeleton_written": false,
+      "content": "# Skeleton: add-create-pull-request-port AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_githubpublisher_create_pull_request_returns_the_created_pr_u \u2192 tests/unit/test_ports.py\n\nimport pytest\n\n\nclass Testadd_create_pull_request_port_AC3:\n    def test_ac3_githubpublisher_create_pull_request_returns_the_created_pr_u(self):\n        \"\"\"\n        PROP-003: GitHubPublisher.create_pull_request returns the created PR URL parsed from stdou\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_ports.py",
+      "kind": "pytest",
+      "purpose": "Verify GitHubPublisher.create_pull_request returns None when return",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_githubpublisher_create_pull_request_returns_none_when_return",
+      "skeleton_written": false,
+      "content": "# Skeleton: add-create-pull-request-port AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_githubpublisher_create_pull_request_returns_none_when_return \u2192 tests/unit/test_ports.py\n\nimport pytest\n\n\nclass Testadd_create_pull_request_port_AC4:\n    def test_ac4_githubpublisher_create_pull_request_returns_none_when_return(self):\n        \"\"\"\n        PROP-004: GitHubPublisher.create_pull_request returns None when returncode != 0, when subp\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC5",
+      "path": "tests/unit/test_ports.py",
+      "kind": "pytest",
+      "purpose": "Verify NullPublisher.create_pull_request('o/r','h','b','t','y') ret",
+      "property_id": "PROP-005",
+      "function_name": "test_ac5_nullpublisher_create_pull_request_o_r_h_b_t_y_returns_a_dete",
+      "skeleton_written": false,
+      "content": "# Skeleton: add-create-pull-request-port AC5 \u2014 PROP-005\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC5 \u2192 test_ac5_nullpublisher_create_pull_request_o_r_h_b_t_y_returns_a_dete \u2192 tests/unit/test_ports.py\n\nimport pytest\n\n\nclass Testadd_create_pull_request_port_AC5:\n    def test_ac5_nullpublisher_create_pull_request_o_r_h_b_t_y_returns_a_dete(self):\n        \"\"\"\n        PROP-005: NullPublisher.create_pull_request('o/r','h','b','t','y') returns a deterministic\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-005\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC6",
+      "path": "tests/unit/test_ports.py",
+      "kind": "pytest",
+      "purpose": "Verify isinstance(GitHubPublisher(), PullRequestPublisherPort) and ",
+      "property_id": "PROP-006",
+      "function_name": "test_ac6_isinstance_githubpublisher_pullrequestpublisherport_and_isin",
+      "skeleton_written": false,
+      "content": "# Skeleton: add-create-pull-request-port AC6 \u2014 PROP-006\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC6 \u2192 test_ac6_isinstance_githubpublisher_pullrequestpublisherport_and_isin \u2192 tests/unit/test_ports.py\n\nimport pytest\n\n\nclass Testadd_create_pull_request_port_AC6:\n    def test_ac6_isinstance_githubpublisher_pullrequestpublisherport_and_isin(self):\n        \"\"\"\n        PROP-006: isinstance(GitHubPublisher(), PullRequestPublisherPort) and isinstance(NullPubli\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-006\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC7",
+      "path": "tests/unit/test_ports.py",
+      "kind": "pytest",
+      "purpose": "Verify The existing FakePublisher/partial-publisher classes in test",
+      "property_id": "PROP-007",
+      "function_name": "test_ac7_the_existing_fakepublisher_partial_publisher_classes_in_test",
+      "skeleton_written": false,
+      "content": "# Skeleton: add-create-pull-request-port AC7 \u2014 PROP-007\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC7 \u2192 test_ac7_the_existing_fakepublisher_partial_publisher_classes_in_test \u2192 tests/unit/test_ports.py\n\nimport pytest\n\n\nclass Testadd_create_pull_request_port_AC7:\n    def test_ac7_the_existing_fakepublisher_partial_publisher_classes_in_test(self):\n        \"\"\"\n        PROP-007: The existing FakePublisher/partial-publisher classes in tests/unit/test_ports.py\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-007\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/core/ports.py": "# tested-by: tests/unit/test_ports.py\n\nfrom __future__ import annotations\n\nimport dataclasses\nfrom pathlib import Path\nfrom typing import TYPE_CHECKING, Any, Protocol, runtime_checkable\n\nif TYPE_CHECKING:\n    from caliper.core.models import PolicyEvaluation, ReviewDecision, ScanResult\n    from caliper.core.plugin import PluginFinding\n    from caliper.core.scribe import ScribeContext\n\n\n@runtime_checkable\nclass FileSourcePort(Protocol):\n    ...\n\n\n\n\n\n@runtime_checkable\nclass ScannerPort(Protocol):\n    ...\n\n\n\n\n@runtime_checkable\nclass ScanCachePort(Protocol):\n    ...\n\n\n\n\n@runtime_checkable\nclass SemgrepRunnerPort(Protocol):\n    ...\n\n\n\n@runtime_checkable\nclass CodeGraphCheckPort(Protocol):\n    ...\n\n\n\n@runtime_checkable\nclass EvidenceWriterPort(Protocol):\n    ...\n\n\n\n\n@runtime_checkable\nclass PackageMetadataPort(Protocol):\n    ...\n\n\n\n\n@runtime_checkable\nclass DecisionRepositoryPort(Protocol):\n    ...\n\n\n\n\n\n\n\n\n@runtime_checkable\nclass AnalyzerRegistryPort(Protocol):\n    ...\n\n\n\n\n@runtime_checkable\nclass DecisionStorePort(Protocol):\n    ...\n\n\n\n@runtime_checkable\nclass EvidenceStorePort(Protocol):\n    ...\n\n\n\n@runtime_checkable\nclass PackageIndexPort(Protocol):\n    ...\n\n\n\n@runtime_checkable\nclass RepoSnapshotPort(Protocol):\n    ...\n\n\n\n\n@runtime_checkable\nclass PullRequestPublisherPort(Protocol):\n    ...\n\n\n\n\n\n@dataclasses.dataclass\nclass ReviewReport:\n    ...\n\n\n\n@runtime_checkable\nclass ReportRendererPort(Protocol):\n    ...\n\n\n\n@runtime_checkable\nclass AuditSinkPort(Protocol):\n    ...\n\n\n\n\n@runtime_checkable\nclass PackageSourcePort(Protocol):\n    ...\n\n\n\n\n@runtime_checkable\nclass GroundingProviderPort(Protocol):\n    ...\n\n\n\n\n\n\n\n@runtime_checkable\nclass ScribePort(Protocol):\n    ...\n\n\n\n",
+    "src/caliper/adapters/github_publisher.py": "# tested-by: tests/unit/test_github_publisher.py\n\nfrom __future__ import annotations\n\nimport os\nimport subprocess\nfrom typing import Any\n\nfrom caliper.core.ports import PullRequestPublisherPort\n\n\nclass GitHubPublisher:\n    ...\n\n\n\n\n\n\n\n\n\nclass NullPublisher:\n    ...\n\n\n\n\n\nassert isinstance(\n), \"GitHubPublisher must satisfy PullRequestPublisherPort\"\n\n\nfrom caliper.core.port_registries import PUBLISHERS  # noqa: E402  (registration wiring)\n\n\n@PUBLISHERS.register(\"github\")\ndef build_github_publisher(*, token: str | None = None) -> GitHubPublisher:\n    ...\n\n\n@PUBLISHERS.register(\"null\")\ndef build_null_publisher() -> NullPublisher:\n    ...\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}
