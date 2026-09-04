@@ -1,0 +1,157 @@
+{
+  "task_id": "push-stack-shell",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify materialize_parts(restack_path: str, repo_path: Path, runner",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_materialize_parts_restack_path_str_repo_path_path_runner_too",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_materialize_parts_restack_path_str_repo_path_path_runner_too \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC1:\n    def test_ac1_materialize_parts_restack_path_str_repo_path_path_runner_too(self):\n        \"\"\"\n        PROP-001: materialize_parts(restack_path: str, repo_path: Path, runner: ToolRunnerPort) ->\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify push_stack(entries, *, repo_path, slug, pr_number, publisher",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_push_stack_entries_repo_path_slug_pr_number_publisher_runner",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_push_stack_entries_repo_path_slug_pr_number_publisher_runner \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC2:\n    def test_ac2_push_stack_entries_repo_path_slug_pr_number_publisher_runner(self):\n        \"\"\"\n        PROP-002: push_stack(entries, *, repo_path, slug, pr_number, publisher, runner, remote='or\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify StackPushResult exposes opened_urls: list[str], failed_index",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_stackpushresult_exposes_opened_urls_list_str_failed_index_in",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_stackpushresult_exposes_opened_urls_list_str_failed_index_in \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC3:\n    def test_ac3_stackpushresult_exposes_opened_urls_list_str_failed_index_in(self):\n        \"\"\"\n        PROP-003: StackPushResult exposes opened_urls: list[str], failed_index: int | None, error:\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify For each entry, push_stack first runs ['git','rev-parse','--",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_for_each_entry_push_stack_first_runs_git_rev_parse_verify_en",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_for_each_entry_push_stack_first_runs_git_rev_parse_verify_en \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC4:\n    def test_ac4_for_each_entry_push_stack_first_runs_git_rev_parse_verify_en(self):\n        \"\"\"\n        PROP-004: For each entry, push_stack first runs ['git','rev-parse','--verify', entry.local\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC5",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify For each entry, push_stack runs ['git','push', remote, f'{en",
+      "property_id": "PROP-005",
+      "function_name": "test_ac5_for_each_entry_push_stack_runs_git_push_remote_f_entry_local",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC5 \u2014 PROP-005\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC5 \u2192 test_ac5_for_each_entry_push_stack_runs_git_push_remote_f_entry_local \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC5:\n    def test_ac5_for_each_entry_push_stack_runs_git_push_remote_f_entry_local(self):\n        \"\"\"\n        PROP-005: For each entry, push_stack runs ['git','push', remote, f'{entry.local_ref}:refs/\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-005\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC6",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify On a successful push, push_stack calls publisher.create_pull",
+      "property_id": "PROP-006",
+      "function_name": "test_ac6_on_a_successful_push_push_stack_calls_publisher_create_pull",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC6 \u2014 PROP-006\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC6 \u2192 test_ac6_on_a_successful_push_push_stack_calls_publisher_create_pull \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC6:\n    def test_ac6_on_a_successful_push_push_stack_calls_publisher_create_pull(self):\n        \"\"\"\n        PROP-006: On a successful push, push_stack calls publisher.create_pull_request(slug, entry\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-006\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC7",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify A push failure or a create_pull_request returning None at en",
+      "property_id": "PROP-007",
+      "function_name": "test_ac7_a_push_failure_or_a_create_pull_request_returning_none_at_en",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC7 \u2014 PROP-007\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC7 \u2192 test_ac7_a_push_failure_or_a_create_pull_request_returning_none_at_en \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC7:\n    def test_ac7_a_push_failure_or_a_create_pull_request_returning_none_at_en(self):\n        \"\"\"\n        PROP-007: A push failure or a create_pull_request returning None at entry K sets failed_in\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-007\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC8",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify On full success push_stack calls publisher.post_comment(slug",
+      "property_id": "PROP-008",
+      "function_name": "test_ac8_on_full_success_push_stack_calls_publisher_post_comment_slug",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC8 \u2014 PROP-008\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC8 \u2192 test_ac8_on_full_success_push_stack_calls_publisher_post_comment_slug \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC8:\n    def test_ac8_on_full_success_push_stack_calls_publisher_post_comment_slug(self):\n        \"\"\"\n        PROP-008: On full success push_stack calls publisher.post_comment(slug, pr_number, render_\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-008\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC9",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify A post_comment returning False (or raising) leaves opened_ur",
+      "property_id": "PROP-009",
+      "function_name": "test_ac9_a_post_comment_returning_false_or_raising_leaves_opened_urls",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC9 \u2014 PROP-009\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC9 \u2192 test_ac9_a_post_comment_returning_false_or_raising_leaves_opened_urls \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC9:\n    def test_ac9_a_post_comment_returning_false_or_raising_leaves_opened_urls(self):\n        \"\"\"\n        PROP-009: A post_comment returning False (or raising) leaves opened_urls intact and failed\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-009\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC10",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify On a partial failure the linking comment is never posted (pu",
+      "property_id": "PROP-010",
+      "function_name": "test_ac10_on_a_partial_failure_the_linking_comment_is_never_posted_pub",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC10 \u2014 PROP-010\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC10 \u2192 test_ac10_on_a_partial_failure_the_linking_comment_is_never_posted_pub \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC10:\n    def test_ac10_on_a_partial_failure_the_linking_comment_is_never_posted_pub(self):\n        \"\"\"\n        PROP-010: On a partial failure the linking comment is never posted (publisher.post_comment\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-010\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC11",
+      "path": "tests/unit/test_part_push.py",
+      "kind": "pytest",
+      "purpose": "Verify A single-entry stack opens exactly one PR based on the PR's ",
+      "property_id": "PROP-011",
+      "function_name": "test_ac11_a_single_entry_stack_opens_exactly_one_pr_based_on_the_pr_s",
+      "skeleton_written": false,
+      "content": "# Skeleton: push-stack-shell AC11 \u2014 PROP-011\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC11 \u2192 test_ac11_a_single_entry_stack_opens_exactly_one_pr_based_on_the_pr_s \u2192 tests/unit/test_part_push.py\n\nimport pytest\n\n\nclass Testpush_stack_shell_AC11:\n    def test_ac11_a_single_entry_stack_opens_exactly_one_pr_based_on_the_pr_s(self):\n        \"\"\"\n        PROP-011: A single-entry stack opens exactly one PR based on the PR's original base branch\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-011\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [
+    {
+      "path": "src/caliper/cli/part_push.py",
+      "functions": [
+        "ToolInvocation",
+        "post_comment",
+        "materialize_parts",
+        "push_stack",
+        "create_pull_request"
+      ],
+      "stub_written": true
+    }
+  ],
+  "existing_api": {
+    "src/caliper/cli/part_push.py": "def materialize_parts(restack_path, repo_path, runner):\n    ...\n\ndef ToolInvocation(cmd, <absolute resolved restack_path>], cwd):\n    ...\n\ndef push_stack(entries, *, repo_path, slug, pr_number, publisher, runner, remote):\n    ...\n\ndef create_pull_request(slug, entry.remote_branch, entry.base_branch, <title>, <body from render_stack_pr_body>):\n    ...\n\ndef post_comment(slug, pr_number, render_stack_link_comment(opened_urls, slug, pr_num):\n    ...\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

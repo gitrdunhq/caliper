@@ -1,0 +1,38 @@
+{
+  "batch": true,
+  "language": "python",
+  "tasks_processed": 6,
+  "output_dir": "docs/epics/main/skeletons",
+  "tasks": {
+    "add-create-pull-request-port": {
+      "path": "docs/epics/main/skeletons/preflight-add-create-pull-request-port.json",
+      "skeleton_count": 7,
+      "framework": "pytest"
+    },
+    "plan-stack-branches": {
+      "path": "docs/epics/main/skeletons/preflight-plan-stack-branches.json",
+      "skeleton_count": 9,
+      "framework": "pytest"
+    },
+    "render-stack-pr-bodies": {
+      "path": "docs/epics/main/skeletons/preflight-render-stack-pr-bodies.json",
+      "skeleton_count": 8,
+      "framework": "pytest"
+    },
+    "push-stack-shell": {
+      "path": "docs/epics/main/skeletons/preflight-push-stack-shell.json",
+      "skeleton_count": 11,
+      "framework": "pytest"
+    },
+    "wire-push-flag-cli": {
+      "path": "docs/epics/main/skeletons/preflight-wire-push-flag-cli.json",
+      "skeleton_count": 8,
+      "framework": "pytest"
+    },
+    "document-push-capability": {
+      "path": "docs/epics/main/skeletons/preflight-document-push-capability.json",
+      "skeleton_count": 4,
+      "framework": "pytest"
+    }
+  }
+}

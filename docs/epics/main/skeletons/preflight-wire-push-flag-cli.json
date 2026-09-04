@@ -1,0 +1,109 @@
+{
+  "task_id": "wire-push-flag-cli",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_part_push_cli.py",
+      "kind": "pytest",
+      "purpose": "Verify `caliper part --push` without --pr raises click.UsageError('",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_caliper_part_push_without_pr_raises_click_usageerror_push_re",
+      "skeleton_written": false,
+      "content": "# Skeleton: wire-push-flag-cli AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_caliper_part_push_without_pr_raises_click_usageerror_push_re \u2192 tests/unit/test_part_push_cli.py\n\nimport pytest\n\n\nclass Testwire_push_flag_cli_AC1:\n    def test_ac1_caliper_part_push_without_pr_raises_click_usageerror_push_re(self):\n        \"\"\"\n        PROP-001: `caliper part --push` without --pr raises click.UsageError('--push requires --pr\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_part_push_cli.py",
+      "kind": "pytest",
+      "purpose": "Verify `caliper part --pr <url> --push --serve` raises click.UsageE",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_caliper_part_pr_url_push_serve_raises_click_usageerror_namin",
+      "skeleton_written": false,
+      "content": "# Skeleton: wire-push-flag-cli AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_caliper_part_pr_url_push_serve_raises_click_usageerror_namin \u2192 tests/unit/test_part_push_cli.py\n\nimport pytest\n\n\nclass Testwire_push_flag_cli_AC2:\n    def test_ac2_caliper_part_pr_url_push_serve_raises_click_usageerror_namin(self):\n        \"\"\"\n        PROP-002: `caliper part --pr <url> --push --serve` raises click.UsageError naming --push a\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_part_push_cli.py",
+      "kind": "pytest",
+      "purpose": "Verify `caliper part --pr <url> --push --target series` raises a cl",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_caliper_part_pr_url_push_target_series_raises_a_click_usagee",
+      "skeleton_written": false,
+      "content": "# Skeleton: wire-push-flag-cli AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_caliper_part_pr_url_push_target_series_raises_a_click_usagee \u2192 tests/unit/test_part_push_cli.py\n\nimport pytest\n\n\nclass Testwire_push_flag_cli_AC3:\n    def test_ac3_caliper_part_pr_url_push_target_series_raises_a_click_usagee(self):\n        \"\"\"\n        PROP-003: `caliper part --pr <url> --push --target series` raises a click.UsageError (seri\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_part_push_cli.py",
+      "kind": "pytest",
+      "purpose": "Verify Without --push, no push/PR-creation code runs and the restac",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_without_push_no_push_pr_creation_code_runs_and_the_restack_s",
+      "skeleton_written": false,
+      "content": "# Skeleton: wire-push-flag-cli AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_without_push_no_push_pr_creation_code_runs_and_the_restack_s \u2192 tests/unit/test_part_push_cli.py\n\nimport pytest\n\n\nclass Testwire_push_flag_cli_AC4:\n    def test_ac4_without_push_no_push_pr_creation_code_runs_and_the_restack_s(self):\n        \"\"\"\n        PROP-004: Without --push, no push/PR-creation code runs and the restack script is not exec\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC5",
+      "path": "tests/unit/test_part_push_cli.py",
+      "kind": "pytest",
+      "purpose": "Verify With --push and a successful stack, the CLI echoes each open",
+      "property_id": "PROP-005",
+      "function_name": "test_ac5_with_push_and_a_successful_stack_the_cli_echoes_each_opened",
+      "skeleton_written": false,
+      "content": "# Skeleton: wire-push-flag-cli AC5 \u2014 PROP-005\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC5 \u2192 test_ac5_with_push_and_a_successful_stack_the_cli_echoes_each_opened \u2192 tests/unit/test_part_push_cli.py\n\nimport pytest\n\n\nclass Testwire_push_flag_cli_AC5:\n    def test_ac5_with_push_and_a_successful_stack_the_cli_echoes_each_opened(self):\n        \"\"\"\n        PROP-005: With --push and a successful stack, the CLI echoes each opened PR URL in bottom-\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-005\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC6",
+      "path": "tests/unit/test_part_push_cli.py",
+      "kind": "pytest",
+      "purpose": "Verify On partial failure the CLI echoes which parts succeeded (the",
+      "property_id": "PROP-006",
+      "function_name": "test_ac6_on_partial_failure_the_cli_echoes_which_parts_succeeded_thei",
+      "skeleton_written": false,
+      "content": "# Skeleton: wire-push-flag-cli AC6 \u2014 PROP-006\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC6 \u2192 test_ac6_on_partial_failure_the_cli_echoes_which_parts_succeeded_thei \u2192 tests/unit/test_part_push_cli.py\n\nimport pytest\n\n\nclass Testwire_push_flag_cli_AC6:\n    def test_ac6_on_partial_failure_the_cli_echoes_which_parts_succeeded_thei(self):\n        \"\"\"\n        PROP-006: On partial failure the CLI echoes which parts succeeded (their URLs) and the fai\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-006\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC7",
+      "path": "tests/unit/test_part_push_cli.py",
+      "kind": "pytest",
+      "purpose": "Verify When the linking comment fails to post but the stack fully o",
+      "property_id": "PROP-007",
+      "function_name": "test_ac7_when_the_linking_comment_fails_to_post_but_the_stack_fully_o",
+      "skeleton_written": false,
+      "content": "# Skeleton: wire-push-flag-cli AC7 \u2014 PROP-007\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC7 \u2192 test_ac7_when_the_linking_comment_fails_to_post_but_the_stack_fully_o \u2192 tests/unit/test_part_push_cli.py\n\nimport pytest\n\n\nclass Testwire_push_flag_cli_AC7:\n    def test_ac7_when_the_linking_comment_fails_to_post_but_the_stack_fully_o(self):\n        \"\"\"\n        PROP-007: When the linking comment fails to post but the stack fully opened, the CLI echoe\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-007\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC8",
+      "path": "tests/unit/test_part_push_cli.py",
+      "kind": "pytest",
+      "purpose": "Verify The --push path calls part_push.materialize_parts with resul",
+      "property_id": "PROP-008",
+      "function_name": "test_ac8_the_push_path_calls_part_push_materialize_parts_with_result",
+      "skeleton_written": false,
+      "content": "# Skeleton: wire-push-flag-cli AC8 \u2014 PROP-008\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC8 \u2192 test_ac8_the_push_path_calls_part_push_materialize_parts_with_result \u2192 tests/unit/test_part_push_cli.py\n\nimport pytest\n\n\nclass Testwire_push_flag_cli_AC8:\n    def test_ac8_the_push_path_calls_part_push_materialize_parts_with_result(self):\n        \"\"\"\n        PROP-008: The --push path calls part_push.materialize_parts with result.restack_path befor\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-008\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/cli/part_cmd.py": "\nfrom __future__ import annotations\n\nimport os\nfrom datetime import UTC, datetime\nfrom pathlib import Path\nfrom typing import TYPE_CHECKING\n\nimport click\n\nfrom caliper.cli.part_describe import describer_from_env\nfrom caliper.cli.part_doctor import render_doctor_report, run_doctor\nfrom caliper.cli.part_pipeline import run_part\nfrom caliper.cli.part_suggest import suggester_from_env\nfrom caliper.core.models import CutList, PartTarget\nfrom caliper.core.part_gate import PartingGateError\nfrom caliper.core.part_script import rollback_header\nfrom caliper.core.parting import PartingError, diff_cutlists\nfrom caliper.core.repo_config import OverrideRule, load_repo_config\n\nif TYPE_CHECKING:\n    from caliper.cli.part_pr import ResolvedPr\n\n\ndef _render_cutlist_diff(previous: CutList | None, new: CutList) -> str:\n    ...\n\n\ndef _render_cutlist(cut: CutList, *, backup_bookmark: str | None, rescue_op_id: str | None) -> str:\n    ...\n\n\ndef _overrides_yaml(rules: list[OverrideRule]) -> str:\n    ...\n\n\n@click.command(name=\"part\")\n@click.option(\"--base\", default=None, help=\"Base revision (stock = --base..--head).\")\n@click.option(\"--head\", default=None, help=\"Head revision.\")\n@click.option(\n    default=None,\n    help=\"GitHub PR URL or number; clones the PR into a centralized workdir \"\n)\n@click.option(\"--repo\", \"repo\", type=click.Path(exists=True), default=\".\", help=\"Repository root.\")\n@click.option(\n    type=click.Choice([\"stack\", \"series\"]),\n    default=None,\n    help=\"Substrate handoff shape (default from config); affects only the script.\",\n)\n@click.option(\"--size-cap\", \"size_cap\", type=int, default=None, help=\"Override the size cap.\")\n@click.option(\n)\n@click.option(\n    type=click.Path(exists=True),\n    default=None,\n    help=\"Print a saved cut list and the rule fired at each kerf.\",\n)\n@click.option(\n    is_flag=True,\n    default=False,\n    help=\"Check jj/git/gh/mkcert and the state workdir, then exit (no cutting).\",\n)\n@click.option(\n)\n@click.option(\n    is_flag=True,\n    default=False,\n    help=\"Serve a live reclassify report on localhost instead of cutting.\",\n)\n@click.option(\n)\n@click.option(\n    default=None,\n    help=\"With --serve, also bind a read-only view server to this LAN IP (e.g. \"\n)\n@click.option(\n    type=int,\n    default=None,\n    help=\"Port for --lan (default 12701; always separate from --port).\",\n)\n@click.option(\n    type=click.Path(exists=True, dir_okay=False),\n    default=None,\n    help=\"TLS cert for --lan (e.g. `mkcert 192.168.1.50` output).\",\n)\n@click.option(\n    type=click.Path(exists=True, dir_okay=False),\n    default=None,\n    help=\"TLS key for --lan (e.g. `mkcert 192.168.1.50` output).\",\n)\n@click.option(\n    default=None,\n    help=\"Advisory: name each commit with a local model (fail-soft to deterministic). \"\n)\n@click.option(\n    default=None,\n    help=\"Model id for --describe (e.g. gemma4:e4b, llama3.2:3b); overrides env.\",\n)\n@click.option(\n    default=None,\n    help=\"Advisory: ask a local model to propose tier override globs for the untiered \"\n)\n@click.option(\n    default=None,\n    help=\"Model id for --suggest (e.g. llama3.1); overrides env. Falls back to --describe-model.\",\n)\n@click.option(\n    is_flag=True,\n    default=False,\n    help=\"Write the suggested overrides into .caliper.yaml and re-part (default: print only).\",\n)\n@click.option(\n    is_flag=True,\n    default=False,\n    help=\"Post the proposed cut as an advisory PR comment (foreman/CI mode; requires \"\n)\ndef part(\n    base: str | None,\n) -> None:\n\n        checks = run_doctor(Path(repo), check_lan=bool(lan_host))\n\n        cut = CutList.model_validate_json(Path(explain).read_text())\n\n        from caliper.cli.part_pr import (\n        from caliper.core.pr_ref import parse_pr_ref\n\n        repo_root = Path(repo).resolve()\n            pr_ref = parse_pr_ref(pr_url, default_slug=detect_origin_slug(repo_root))\n        workdir_root = default_part_workdir()\n            resolved = resolve_pr(pr_ref, workdir_root=workdir_root)\n        repo = str(resolved.repo_path)\n        base, head = resolved.base, resolved.head\n        pr_override_store = resolved.override_store\n            out = str(resolved.out_dir)\n            previous_cutlist = resolved.previous_cutlist\n            from caliper.cli.part_pr import _read_previous_cutlist\n\n            previous_cutlist = _read_previous_cutlist(Path(out))\n            f\"base={base[:12]}  head={head[:12]}  (clone: {resolved.repo_path})\"\n\n        from caliper.cli.part_serve import DEFAULT_LAN_PORT, DEFAULT_PORT, serve_part\n\n        suggest_env = dict(os.environ)\n            suggest_env[\"CALIPER_SUGGESTER_MODEL\"] = suggest_model\n            port=port or DEFAULT_PORT,\n            size_cap=size_cap,\n            override_store=pr_override_store,\n            suggester=suggester_from_env(suggest_env, force=suggest_flag),\n            out_dir=Path(out) if out else None,\n            lan_host=lan_host,\n            lan_port=lan_port or DEFAULT_LAN_PORT,\n            tls_cert=Path(tls_cert) if tls_cert else None,\n            tls_key=Path(tls_key) if tls_key else None,\n\n\n    repo_path = Path(repo).resolve()\n    cfg = load_repo_config(repo_path).parting\n        cfg = cfg.model_copy(update={\"size_cap\": size_cap})\n        cfg = cfg.model_copy(update={\"target\": PartTarget(target)})\n\n    suggest_env = dict(os.environ)\n        suggest_env[\"CALIPER_SUGGESTER_MODEL\"] = suggest_model\n    suggester = suggester_from_env(suggest_env, force=suggest_flag)\n\n    describe_env = dict(os.environ)\n        describe_env[\"CALIPER_DESCRIBER_MODEL\"] = describe_model\n    describer = describer_from_env(describe_env, force=describe_flag)\n\n    timestamp = datetime.now(UTC).strftime(\"%Y%m%dT%H%M%S%f\")\n    out_dir = Path(out) if out else repo_path\n        result = run_part(\n            timestamp=timestamp,\n            force=force,\n            describer=describer,\n            suggester=suggester,\n            suggest_apply=suggest_apply,\n            override_write_target=pr_override_store,\n            out_dir=out_dir,\n\n            write_target = pr_override_store or repo_path\n\n            backup_bookmark=result.backup_bookmark,\n            rescue_op_id=result.rescue_op_id,\n\n        from caliper.adapters.github_publisher import GitHubPublisher\n        from caliper.cli.part_comment import render_part_comment\n\n        body = render_part_comment(result.cutlist, slug=resolved.slug, pr_num=resolved.number)\n        ok = GitHubPublisher().post_comment(resolved.slug, resolved.number, body)\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}

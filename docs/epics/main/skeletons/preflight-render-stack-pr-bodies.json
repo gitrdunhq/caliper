@@ -1,0 +1,109 @@
+{
+  "task_id": "render-stack-pr-bodies",
+  "language": "python",
+  "framework": "pytest",
+  "outputs": [
+    {
+      "ac_id": "AC1",
+      "path": "tests/unit/test_part_stack_comment.py",
+      "kind": "pytest",
+      "purpose": "Verify render_stack_pr_body(part, *, index: int, total: int, slug: ",
+      "property_id": "PROP-001",
+      "function_name": "test_ac1_render_stack_pr_body_part_index_int_total_int_slug_str_pr_nu",
+      "skeleton_written": false,
+      "content": "# Skeleton: render-stack-pr-bodies AC1 \u2014 PROP-001\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC1 \u2192 test_ac1_render_stack_pr_body_part_index_int_total_int_slug_str_pr_nu \u2192 tests/unit/test_part_stack_comment.py\n\nimport pytest\n\n\nclass Testrender_stack_pr_bodies_AC1:\n    def test_ac1_render_stack_pr_body_part_index_int_total_int_slug_str_pr_nu(self):\n        \"\"\"\n        PROP-001: render_stack_pr_body(part, *, index: int, total: int, slug: str, pr_num: int) ->\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-001\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC2",
+      "path": "tests/unit/test_part_stack_comment.py",
+      "kind": "pytest",
+      "purpose": "Verify render_stack_pr_body's output contains a link to the origina",
+      "property_id": "PROP-002",
+      "function_name": "test_ac2_render_stack_pr_body_s_output_contains_a_link_to_the_origina",
+      "skeleton_written": false,
+      "content": "# Skeleton: render-stack-pr-bodies AC2 \u2014 PROP-002\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC2 \u2192 test_ac2_render_stack_pr_body_s_output_contains_a_link_to_the_origina \u2192 tests/unit/test_part_stack_comment.py\n\nimport pytest\n\n\nclass Testrender_stack_pr_bodies_AC2:\n    def test_ac2_render_stack_pr_body_s_output_contains_a_link_to_the_origina(self):\n        \"\"\"\n        PROP-002: render_stack_pr_body's output contains a link to the original PR ('https://githu\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-002\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC3",
+      "path": "tests/unit/test_part_stack_comment.py",
+      "kind": "pytest",
+      "purpose": "Verify render_stack_pr_body lists the part's files (capped, with a ",
+      "property_id": "PROP-003",
+      "function_name": "test_ac3_render_stack_pr_body_lists_the_part_s_files_capped_with_a_n",
+      "skeleton_written": false,
+      "content": "# Skeleton: render-stack-pr-bodies AC3 \u2014 PROP-003\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC3 \u2192 test_ac3_render_stack_pr_body_lists_the_part_s_files_capped_with_a_n \u2192 tests/unit/test_part_stack_comment.py\n\nimport pytest\n\n\nclass Testrender_stack_pr_bodies_AC3:\n    def test_ac3_render_stack_pr_body_lists_the_part_s_files_capped_with_a_n(self):\n        \"\"\"\n        PROP-003: render_stack_pr_body lists the part's files (capped, with a '...N more' line whe\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-003\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC4",
+      "path": "tests/unit/test_part_stack_comment.py",
+      "kind": "pytest",
+      "purpose": "Verify render_stack_link_comment(urls: list[str], *, slug: str, pr_",
+      "property_id": "PROP-004",
+      "function_name": "test_ac4_render_stack_link_comment_urls_list_str_slug_str_pr_num_int",
+      "skeleton_written": false,
+      "content": "# Skeleton: render-stack-pr-bodies AC4 \u2014 PROP-004\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC4 \u2192 test_ac4_render_stack_link_comment_urls_list_str_slug_str_pr_num_int \u2192 tests/unit/test_part_stack_comment.py\n\nimport pytest\n\n\nclass Testrender_stack_pr_bodies_AC4:\n    def test_ac4_render_stack_link_comment_urls_list_str_slug_str_pr_num_int(self):\n        \"\"\"\n        PROP-004: render_stack_link_comment(urls: list[str], *, slug: str, pr_num: int) -> str ret\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-004\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC5",
+      "path": "tests/unit/test_part_stack_comment.py",
+      "kind": "pytest",
+      "purpose": "Verify render_stack_link_comment states the original PR is left ope",
+      "property_id": "PROP-005",
+      "function_name": "test_ac5_render_stack_link_comment_states_the_original_pr_is_left_ope",
+      "skeleton_written": false,
+      "content": "# Skeleton: render-stack-pr-bodies AC5 \u2014 PROP-005\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC5 \u2192 test_ac5_render_stack_link_comment_states_the_original_pr_is_left_ope \u2192 tests/unit/test_part_stack_comment.py\n\nimport pytest\n\n\nclass Testrender_stack_pr_bodies_AC5:\n    def test_ac5_render_stack_link_comment_states_the_original_pr_is_left_ope(self):\n        \"\"\"\n        PROP-005: render_stack_link_comment states the original PR is left open and untouched\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-005\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC6",
+      "path": "tests/unit/test_part_stack_comment.py",
+      "kind": "pytest",
+      "purpose": "Verify render_stack_link_comment([]) raises ValueError (the comment",
+      "property_id": "PROP-006",
+      "function_name": "test_ac6_render_stack_link_comment_raises_valueerror_the_comment_is_o",
+      "skeleton_written": false,
+      "content": "# Skeleton: render-stack-pr-bodies AC6 \u2014 PROP-006\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC6 \u2192 test_ac6_render_stack_link_comment_raises_valueerror_the_comment_is_o \u2192 tests/unit/test_part_stack_comment.py\n\nimport pytest\n\n\nclass Testrender_stack_pr_bodies_AC6:\n    def test_ac6_render_stack_link_comment_raises_valueerror_the_comment_is_o(self):\n        \"\"\"\n        PROP-006: render_stack_link_comment([]) raises ValueError (the comment is only ever posted\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-006\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC7",
+      "path": "tests/unit/test_part_stack_comment.py",
+      "kind": "pytest",
+      "purpose": "Verify Both functions are pure: same inputs -> byte-identical outpu",
+      "property_id": "PROP-007",
+      "function_name": "test_ac7_both_functions_are_pure_same_inputs_byte_identical_output_no",
+      "skeleton_written": false,
+      "content": "# Skeleton: render-stack-pr-bodies AC7 \u2014 PROP-007\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC7 \u2192 test_ac7_both_functions_are_pure_same_inputs_byte_identical_output_no \u2192 tests/unit/test_part_stack_comment.py\n\nimport pytest\n\n\nclass Testrender_stack_pr_bodies_AC7:\n    def test_ac7_both_functions_are_pure_same_inputs_byte_identical_output_no(self):\n        \"\"\"\n        PROP-007: Both functions are pure: same inputs -> byte-identical output, no filesystem or \n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-007\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    },
+    {
+      "ac_id": "AC8",
+      "path": "tests/unit/test_part_stack_comment.py",
+      "kind": "pytest",
+      "purpose": "Verify The existing render_part_comment behaviour is unchanged",
+      "property_id": "PROP-008",
+      "function_name": "test_ac8_the_existing_render_part_comment_behaviour_is_unchanged",
+      "skeleton_written": false,
+      "content": "# Skeleton: render-stack-pr-bodies AC8 \u2014 PROP-008\n# RED agent: fill in the assertion body. Do not rename this function or move this file.\n# Traceability: AC8 \u2192 test_ac8_the_existing_render_part_comment_behaviour_is_unchanged \u2192 tests/unit/test_part_stack_comment.py\n\nimport pytest\n\n\nclass Testrender_stack_pr_bodies_AC8:\n    def test_ac8_the_existing_render_part_comment_behaviour_is_unchanged(self):\n        \"\"\"\n        PROP-008: The existing render_part_comment behaviour is unchanged\n        \"\"\"\n        # Arrange\n\n        # Act\n\n        # Assert \u2014 prove PROP-008\n        raise NotImplementedError(\"RED agent: implement this assertion\")\n",
+      "implementation_required": true,
+      "skeleton_note": "preflight-only: content emitted in JSON, not written to disk"
+    }
+  ],
+  "impl_stubs": [],
+  "existing_api": {
+    "src/caliper/cli/part_comment.py": "\nfrom __future__ import annotations\n\nfrom caliper.core.models import CutList\n\nMAX_PARTS_SHOWN = 15\n\n\ndef render_part_comment(cut: CutList, *, slug: str, pr_num: int) -> str:\n    ...\n"
+  },
+  "target_context": null,
+  "no_skeletons_reason": null
+}
