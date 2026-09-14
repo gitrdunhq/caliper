@@ -318,3 +318,80 @@ def test_git_gate_force_overrides_already_pushed_and_immutable() -> None:
     result = _git_gate(runner, force=True)
     assert result.backend == "git"
     assert _made_git_backup(runner)
+
+
+class TestBackendDetectionDoesNotEscapeTheTargetRepo:
+    """`jj root` walks UP the directory tree, so a git-only repo nested inside a
+    jj repo was detected as jj.
+
+    Observed for real: a fresh `git clone` into `<jj-repo>/.temp/cml-part` had
+    no `.jj` directory at all, yet `jj root` succeeded and printed the ENCLOSING
+    repo's path. detect_backend only checked the exit code, so it returned
+    "jj" and the gate then inspected the wrong repository — reporting the outer
+    repo's dirty tree for a clone that was spotlessly clean.
+
+    The consequence is worse than a confusing error. run_gate creates its backup
+    bookmark through the detected backend, and restack.sh drives `jj` commands
+    from it, so a misdetection points the whole operation at a repository the
+    user never named.
+
+    A jj root that is not the target root means the target is not a jj repo.
+    """
+
+    @staticmethod
+    def _runner(jj_root_stdout: str | None, git_ok: bool = True):
+        from caliper.core.tool_runner import ToolResult
+
+        class _Fake:
+            def __init__(self) -> None:
+                self.calls: list[list[str]] = []
+
+            def run(self, inv):
+                self.calls.append(list(inv.cmd))
+                if inv.cmd[0] == "jj":
+                    if jj_root_stdout is None:
+                        return ToolResult(exit_code=1, stdout="", not_installed=True)
+                    return ToolResult(exit_code=0, stdout=jj_root_stdout)
+                return ToolResult(exit_code=0 if git_ok else 128, stdout=".git")
+
+        return _Fake()
+
+    def test_nested_git_repo_under_a_jj_repo_selects_git(self, tmp_path) -> None:
+        from caliper.core.part_gate import detect_backend
+
+        target = tmp_path / "outer" / ".temp" / "clone"
+        target.mkdir(parents=True)
+        runner = self._runner(jj_root_stdout=str(tmp_path / "outer"))
+
+        assert detect_backend(runner, target) == "git"
+
+    def test_jj_root_matching_the_target_still_selects_jj(self, tmp_path) -> None:
+        from caliper.core.part_gate import detect_backend
+
+        target = tmp_path / "repo"
+        target.mkdir()
+        runner = self._runner(jj_root_stdout=str(target))
+
+        assert detect_backend(runner, target) == "jj"
+
+    def test_jj_root_output_is_compared_after_resolving(self, tmp_path) -> None:
+        """Trailing newline and a non-normalised path still count as a match."""
+        from caliper.core.part_gate import detect_backend
+
+        target = tmp_path / "repo"
+        target.mkdir()
+        runner = self._runner(jj_root_stdout=f"{tmp_path}/./repo\n")
+
+        assert detect_backend(runner, target) == "jj"
+
+    def test_jj_absent_still_selects_git(self, tmp_path) -> None:
+        from caliper.core.part_gate import detect_backend
+
+        assert detect_backend(self._runner(jj_root_stdout=None), tmp_path) == "git"
+
+    def test_neither_usable_raises(self, tmp_path) -> None:
+        from caliper.core.part_gate import PartingGateError, detect_backend
+
+        runner = self._runner(jj_root_stdout=None, git_ok=False)
+        with pytest.raises(PartingGateError):
+            detect_backend(runner, tmp_path)

@@ -97,15 +97,41 @@ def _revset_ids(runner: ToolRunnerPort, root: Path, revset: str) -> list[str]:
     return [line.strip() for line in out.splitlines() if line.strip()]
 
 
+def _is_same_dir(reported: str, root: Path) -> bool:
+    """Does ``jj root`` name the directory we were actually asked about?
+
+    ``jj root`` walks UP the tree, so it succeeds from inside any descendant of
+    a jj repo — including a plain git clone sitting in a jj repo's .temp/. Exit
+    code alone is therefore not evidence that ``root`` is a jj repo, and acting
+    on it points the gate, the backup bookmark, and the restack at a repository
+    the user never named. Compare the reported root against the target.
+    """
+    reported = (reported or "").strip()
+    if not reported:
+        return False
+    # No try/except: this module is fail-closed (zero swallow sites), and
+    # Path.resolve() is non-strict here, so a missing path resolves rather
+    # than raising.
+    return Path(reported).resolve() == root.resolve()
+
+
 def detect_backend(runner: ToolRunnerPort, root: Path) -> str:
     """Probe which substrate is usable: ``"jj"`` (preferred) or ``"git"`` (#520).
 
     Non-raising probes only — this never mutates state. Prefers jj when both are
     usable (it gives the stronger op-log rollback guarantee); falls back to git
     when jj is absent or ``root`` is not a jj/colocated repo.
+
+    "Is a jj repo" means ``jj root`` reports *this* directory, not merely that
+    the command succeeded: it walks up the tree, so it also succeeds for a git
+    repo nested inside a jj one. See ``_is_same_dir``.
     """
     jj_probe = runner.run(ToolInvocation(cmd=["jj", "root"], cwd=str(root), timeout=_JJ_TIMEOUT))
-    if not jj_probe.not_installed and jj_probe.exit_code == 0:
+    if (
+        not jj_probe.not_installed
+        and jj_probe.exit_code == 0
+        and _is_same_dir(jj_probe.stdout, root)
+    ):
         return "jj"
     git_probe = runner.run(
         ToolInvocation(

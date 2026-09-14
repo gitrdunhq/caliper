@@ -98,7 +98,11 @@ class _FakeGateRunner:
             if "--version" in cmd:
                 return ok("jj 0.99.0\n")
             if cmd[1] == "root":
-                return ok("/repo\n")
+                # Real `jj root` reports the repo it was invoked in. Returning a
+                # fixed path made this fake disagree with detect_backend, which
+                # now verifies jj root names the target directory (it walks up
+                # the tree, so exit code alone proves nothing).
+                return ok(f"{invocation.cwd}\n")
             if cmd[1] == "st":
                 return ok("Working copy changes:\nM x\n" if self.dirty else "no changes.\n")
             if cmd[1] == "restore":
