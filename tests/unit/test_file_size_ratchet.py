@@ -26,7 +26,11 @@ _ALLOWLIST = {
     "core/models.py": 452,  # +2: Record.match_reason, CutList.match_reasons (#521)
     "adapters/grounding.py": 649,
     "composition/bootstrap.py": 599,
-    "core/repo_config.py": 542,  # +13 semgrep_min_severity; +53 PolicyConfig (#513)
+    # +13 semgrep_min_severity; +53 PolicyConfig (#513); +13 CDK stack + tooling
+    # config globs (#521). At 555 lines this is over the cap on data, not logic:
+    # the _DEFAULT_*_GLOBS tables are a real seam and could move to their own
+    # module if it grows again.
+    "core/repo_config.py": 555,
     "core/pipeline.py": 523,  # +17: repo_config threading into PolicyInput.config (#513)
 }
 

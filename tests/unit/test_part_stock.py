@@ -429,3 +429,79 @@ def test_build_stock_marks_linguist_generated_files_as_generated() -> None:
     assert rec.change_type == ChangeType.generated
     assert rec.match_reason == "linguist-generated"
     assert runner.check_attr_calls  # the batch check-attr call actually ran
+
+
+class TestCdkAndToolingClassification:
+    """Gaps found by running `caliper part` against a real CDK monorepo PR
+    (farmcreditca/cloud-managed-legacy#6): 28 of 70 files landed in the
+    ``logic`` residual, and 8 of those are confidently classifiable.
+
+    Two concrete defects:
+
+    * ``_DEFAULT_INFRA_GLOBS`` carried ``*-stack.ts`` and ``*.stack.ts`` but
+      nothing matching a bare ``stack.ts`` — the most common CDK stack
+      filename. ``lib/prerequisites-stack.ts`` tiered ``infra`` while
+      ``lib/stack.ts`` beside it fell to ``logic``, splitting two files with
+      the same role across two commits.
+    * ``_DEFAULT_CONFIG_GLOBS`` covered only extension-style patterns, so
+      ``tsconfig.json``, ``.eslintrc.json``, ``cdk.json``, ``.gitignore`` and
+      ``.npmrc`` went untiered.
+    """
+
+    @staticmethod
+    def _classify_path(path: str) -> ChangeType:
+        from caliper.core.part_stock import _classify
+
+        return _classify("M", path, size=5, mode="100644", cfg=PartingConfig())[0]
+
+    @pytest.mark.parametrize(
+        ("path", "expected"),
+        [
+            # The bug: a bare stack.ts in a CDK lib/ dir.
+            ("projects/fim-aide/lib/stack.ts", ChangeType.infra),
+            ("lib/stack.ts", ChangeType.infra),
+            # Still works — the hyphenated form that already matched.
+            ("projects/fim-aide/lib/prerequisites-stack.ts", ChangeType.infra),
+            # Tooling config that was falling through to logic.
+            ("projects/fim-aide/tsconfig.json", ChangeType.config),
+            ("tsconfig.json", ChangeType.config),
+            ("projects/fim-aide/.eslintrc.json", ChangeType.config),
+            ("projects/fim-aide/cdk.json", ChangeType.config),
+            (".gitignore", ChangeType.config),
+            ("projects/ssm-script-generator/.gitignore", ChangeType.config),
+            (".npmrc", ChangeType.config),
+        ],
+    )
+    def test_previously_untiered_paths_now_classify(self, path: str, expected: ChangeType) -> None:
+        assert self._classify_path(path) == expected
+
+    def test_a_stack_data_structure_module_is_not_infra(self) -> None:
+        """_match_globs also matches the basename, so a bare ``stack.ts`` glob
+        would claim any file with that name. A Stack *data structure* is not
+        infrastructure — the glob must be anchored to a ``lib/`` directory."""
+        assert self._classify_path("src/collections/stack.ts") == ChangeType.logic
+
+    @pytest.mark.parametrize(
+        ("path", "expected"),
+        [
+            # config_globs precede infra_globs, and supply_chain precedes both —
+            # widening config must not steal any of these.
+            ("package.json", ChangeType.supply_chain),
+            ("projects/fim-aide/package.json", ChangeType.supply_chain),
+            ("projects/fim-aide/pyproject.toml", ChangeType.supply_chain),
+            ("pnpm-lock.yaml", ChangeType.generated),
+            ("package-lock.json", ChangeType.generated),
+            (".github/workflows/pr-ci.yml", ChangeType.ci_cd),
+            ("openapi.yaml", ChangeType.schema_contracts),
+            ("policies/policy.rego", ChangeType.security_policy),
+            ("infra/main.tf", ChangeType.infra),
+            ("Dockerfile", ChangeType.infra),
+            ("README.md", ChangeType.documentation),
+            ("pnpm-workspace.yaml", ChangeType.config),
+            ("projects/fim-aide/config/aide.conf", ChangeType.config),
+        ],
+    )
+    def test_existing_classifications_are_unchanged(self, path: str, expected: ChangeType) -> None:
+        """A regression here looks like 'tsconfig.json is now config' passing
+        while package.json silently moves out of supply_chain."""
+        assert self._classify_path(path) == expected

@@ -97,6 +97,15 @@ _DEFAULT_CONFIG_GLOBS: list[str] = [
     "*.properties",
     "*.env",
     ".env*",
+    # Well-known tooling config. Named individually rather than as "*.json":
+    # a blanket JSON glob would fight package.json (supply_chain) and swallow
+    # application data files.
+    "tsconfig.json",
+    "tsconfig.*.json",
+    ".eslintrc*",
+    "cdk.json",
+    ".gitignore",
+    ".npmrc",
 ]
 # Security & policy-as-code (Rego, IAM, policy bundles).
 _DEFAULT_SECURITY_POLICY_GLOBS: list[str] = [
@@ -183,6 +192,10 @@ _DEFAULT_INFRA_GLOBS: list[str] = [
     "**/cdk/**",
     "*-stack.ts",
     "*.stack.ts",
+    # A bare `stack.ts` is the most common CDK stack filename. Anchored to a
+    # `lib/` directory on purpose: `_match_globs` also matches the basename, so
+    # an unanchored "stack.ts" would claim a Stack *data structure* module too.
+    "**/lib/stack.ts",
     "Dockerfile",
     "**/Dockerfile",
     "Dockerfile.*",
