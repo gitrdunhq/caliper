@@ -502,3 +502,243 @@ class TestOsvManifestCachePerRun:
         caches = {id(call.kwargs["cache"]) for call in mock_classify.call_args_list}
         assert len(caches) == 1
         assert isinstance(mock_classify.call_args.kwargs["cache"], ManifestCache)
+
+
+def _osv_with_affected(pkg: dict, affected: list[dict]) -> dict:
+    """One package, one vulnerability carrying the given OSV `affected` block."""
+    return {
+        "results": [
+            {
+                "packages": [
+                    {
+                        "package": pkg,
+                        "vulnerabilities": [
+                            {
+                                "id": "GHSA-test-0000-0000",
+                                "summary": "x",
+                                "database_specific": {"severity": "HIGH"},
+                                "severity": [],
+                                "affected": affected,
+                            }
+                        ],
+                    }
+                ]
+            }
+        ]
+    }
+
+
+class TestOsvFixedVersion:
+    """OSV records carry the upstream fix in affected[].ranges[].events[].fixed.
+
+    Without extracting it, core.actionability._is_actionable sees an empty
+    fixed_version on a finding that has a package and reports every OSV
+    finding as "blocked on upstream (no fixed version yet)" — a false claim
+    whenever upstream has in fact shipped a fix.
+    """
+
+    def test_single_fixed_event_is_extracted(self) -> None:
+        data = _osv_with_affected(
+            {"name": "aws-cdk-lib", "version": "2.233.0", "ecosystem": "npm"},
+            [
+                {
+                    "package": {"name": "aws-cdk-lib", "ecosystem": "npm"},
+                    "ranges": [
+                        {
+                            "type": "SEMVER",
+                            "events": [{"introduced": "0"}, {"fixed": "2.260.0"}],
+                        }
+                    ],
+                }
+            ],
+        )
+        findings = OsvScannerPlugin()._extract_findings(data)
+        assert findings[0]["fixed_version"] == "2.260.0"
+
+    def test_picks_lowest_fix_at_or_above_installed_version(self) -> None:
+        """js-yaml 4.3.1: fixes exist at 3.15.2 and 4.3.2. 3.15.2 is a
+        downgrade, so the only useful answer is 4.3.2."""
+        data = _osv_with_affected(
+            {"name": "js-yaml", "version": "4.3.1", "ecosystem": "npm"},
+            [
+                {
+                    "package": {"name": "js-yaml", "ecosystem": "npm"},
+                    "ranges": [
+                        {
+                            "type": "SEMVER",
+                            "events": [{"introduced": "4.0.0"}, {"fixed": "4.3.2"}],
+                        }
+                    ],
+                },
+                {
+                    "package": {"name": "js-yaml", "ecosystem": "npm"},
+                    "ranges": [
+                        {
+                            "type": "SEMVER",
+                            "events": [{"introduced": "3.0.0"}, {"fixed": "3.15.2"}],
+                        }
+                    ],
+                },
+            ],
+        )
+        findings = OsvScannerPlugin()._extract_findings(data)
+        assert findings[0]["fixed_version"] == "4.3.2"
+
+    def test_prefers_nearest_fix_over_later_major_line(self) -> None:
+        """fast-xml-parser 4.4.1: fixed in both 4.5.4 and 5.3.5. The 4.x fix
+        is the one a consumer can take without a major bump."""
+        data = _osv_with_affected(
+            {"name": "fast-xml-parser", "version": "4.4.1", "ecosystem": "npm"},
+            [
+                {
+                    "package": {"name": "fast-xml-parser", "ecosystem": "npm"},
+                    "ranges": [
+                        {
+                            "type": "SEMVER",
+                            "events": [
+                                {"introduced": "0"},
+                                {"fixed": "4.5.4"},
+                                {"introduced": "5.0.0"},
+                                {"fixed": "5.3.5"},
+                            ],
+                        }
+                    ],
+                }
+            ],
+        )
+        findings = OsvScannerPlugin()._extract_findings(data)
+        assert findings[0]["fixed_version"] == "4.5.4"
+
+    def test_ignores_affected_entry_for_a_different_package(self) -> None:
+        """A real GHSA record for aws-cdk-lib also carries the NuGet
+        Amazon.CDK.Lib port. Attributing its fix version to the npm package
+        would report a version that does not exist on npm."""
+        data = _osv_with_affected(
+            {"name": "aws-cdk-lib", "version": "2.233.0", "ecosystem": "npm"},
+            [
+                {
+                    "package": {"name": "Amazon.CDK.Lib", "ecosystem": "NuGet"},
+                    "ranges": [
+                        {
+                            "type": "ECOSYSTEM",
+                            "events": [{"introduced": "0"}, {"fixed": "9.9.9"}],
+                        }
+                    ],
+                },
+                {
+                    "package": {"name": "aws-cdk-lib", "ecosystem": "npm"},
+                    "ranges": [
+                        {
+                            "type": "SEMVER",
+                            "events": [{"introduced": "0"}, {"fixed": "2.253.0"}],
+                        }
+                    ],
+                },
+            ],
+        )
+        findings = OsvScannerPlugin()._extract_findings(data)
+        assert findings[0]["fixed_version"] == "2.253.0"
+
+    def test_ignores_same_name_in_a_different_ecosystem(self) -> None:
+        data = _osv_with_affected(
+            {"name": "requests", "version": "2.25.1", "ecosystem": "PyPI"},
+            [
+                {
+                    "package": {"name": "requests", "ecosystem": "npm"},
+                    "ranges": [
+                        {
+                            "type": "SEMVER",
+                            "events": [{"introduced": "0"}, {"fixed": "9.9.9"}],
+                        }
+                    ],
+                }
+            ],
+        )
+        findings = OsvScannerPlugin()._extract_findings(data)
+        assert findings[0]["fixed_version"] == ""
+
+    def test_git_ranges_are_skipped(self) -> None:
+        """A GIT range's `fixed` is a commit SHA, not a version anyone can pin."""
+        data = _osv_with_affected(
+            {"name": "somepkg", "version": "1.0.0", "ecosystem": "npm"},
+            [
+                {
+                    "package": {"name": "somepkg", "ecosystem": "npm"},
+                    "ranges": [
+                        {
+                            "type": "GIT",
+                            "repo": "https://github.com/example/somepkg",
+                            "events": [
+                                {"introduced": "0"},
+                                {"fixed": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"},
+                            ],
+                        }
+                    ],
+                }
+            ],
+        )
+        findings = OsvScannerPlugin()._extract_findings(data)
+        assert findings[0]["fixed_version"] == ""
+
+    def test_no_fix_published_yields_empty_string(self) -> None:
+        """An advisory that only enumerates affected versions has no fix to
+        report — this is the genuine 'blocked on upstream' case."""
+        data = _osv_with_affected(
+            {"name": "somepkg", "version": "1.0.0", "ecosystem": "npm"},
+            [
+                {
+                    "package": {"name": "somepkg", "ecosystem": "npm"},
+                    "versions": ["1.0.0", "1.0.1"],
+                }
+            ],
+        )
+        findings = OsvScannerPlugin()._extract_findings(data)
+        assert findings[0]["fixed_version"] == ""
+
+    def test_missing_affected_block_yields_empty_string(self) -> None:
+        findings = OsvScannerPlugin()._extract_findings(OSV_RESPONSE)
+        assert all(f["fixed_version"] == "" for f in findings)
+
+    def test_unparseable_versions_still_report_the_published_fix(self) -> None:
+        """A fix demonstrably exists. Emitting the raw string is honest;
+        falling back to empty would re-assert the false 'no fix yet' claim."""
+        data = _osv_with_affected(
+            {"name": "somepkg", "version": "not-a-version", "ecosystem": "npm"},
+            [
+                {
+                    "package": {"name": "somepkg", "ecosystem": "npm"},
+                    "ranges": [
+                        {
+                            "type": "SEMVER",
+                            "events": [{"introduced": "0"}, {"fixed": "2.0.0-rc.1+build"}],
+                        }
+                    ],
+                }
+            ],
+        )
+        findings = OsvScannerPlugin()._extract_findings(data)
+        assert findings[0]["fixed_version"] == "2.0.0-rc.1+build"
+
+    def test_extracted_fix_makes_the_finding_actionable(self) -> None:
+        """The whole point: core.actionability must stop calling this blocked."""
+        from caliper.core.actionability import classify_findings
+        from caliper.core.plugin import PluginResult
+
+        data = _osv_with_affected(
+            {"name": "js-yaml", "version": "4.3.1", "ecosystem": "npm"},
+            [
+                {
+                    "package": {"name": "js-yaml", "ecosystem": "npm"},
+                    "ranges": [
+                        {
+                            "type": "SEMVER",
+                            "events": [{"introduced": "4.0.0"}, {"fixed": "4.3.2"}],
+                        }
+                    ],
+                }
+            ],
+        )
+        findings = OsvScannerPlugin()._extract_findings(data)
+        summary = classify_findings([PluginResult(plugin_name="osv-scanner", findings=findings)])
+        assert summary.blocked_count == 0
+        assert summary.actionable_count == 1
