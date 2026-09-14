@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 
 import structlog
+from packaging.version import InvalidVersion, Version
 
 from caliper.core.config import CaliperSettings
 from caliper.core.errors import ErrorCode, error_msg
@@ -58,6 +59,64 @@ _MANIFEST_NAMES = {
     "uv.lock",
     "pnpm-lock.yaml",
 }
+
+
+def _fixed_version(vuln: dict, pkg_info: dict) -> str:
+    """The upstream fix this OSV record publishes for *this* package.
+
+    Two shapes in the real data make a naive read wrong. A record's
+    ``affected`` list spans every ecosystem port of the package — the
+    aws-cdk-lib GHSA also carries NuGet ``Amazon.CDK.Lib``, whose fix version
+    does not exist on npm — so entries are matched on name *and* ecosystem.
+    And one fix often lands on several release lines at once: js-yaml shipped
+    the same fix as both 3.15.2 and 4.3.2, so for an installed 4.3.1 the
+    lowest candidate is a downgrade. Take the lowest fix that is not below
+    the installed version, which is the one a consumer can actually pin.
+
+    Returns "" only when the record publishes no fix at all — the sole case
+    ``core.actionability`` may honestly call "blocked on upstream".
+    """
+    name = str(pkg_info.get("name", ""))
+    ecosystem = str(pkg_info.get("ecosystem", "")).lower()
+
+    candidates: list[str] = []
+    for entry in vuln.get("affected", []):
+        affected_pkg = entry.get("package") or {}
+        if str(affected_pkg.get("name", "")) != name:
+            continue
+        if str(affected_pkg.get("ecosystem", "")).lower() != ecosystem:
+            continue
+        for rng in entry.get("ranges", []):
+            # A GIT range's "fixed" is a commit SHA, not a pinnable version.
+            if str(rng.get("type", "")).upper() == "GIT":
+                continue
+            for event in rng.get("events", []):
+                fixed = str(event.get("fixed", "")).strip()
+                if fixed:
+                    candidates.append(fixed)
+
+    if not candidates:
+        return ""
+
+    installed: Version | None = None
+    with contextlib.suppress(InvalidVersion):
+        installed = Version(str(pkg_info.get("version", "")))
+
+    comparable: list[tuple[Version, str]] = []
+    for candidate in candidates:
+        with contextlib.suppress(InvalidVersion):
+            comparable.append((Version(candidate), candidate))
+
+    if installed is not None:
+        forward = [c for c in comparable if c[0] >= installed]
+        if forward:
+            return min(forward)[1]
+    if comparable:
+        return min(comparable)[1]
+    # Not PEP 440-comparable, but a fix demonstrably exists. Reporting it
+    # verbatim beats re-asserting the "no fix yet" claim this function exists
+    # to stop caliper making.
+    return candidates[0]
 
 
 def _advisory_url(vuln_id: str) -> str:
@@ -186,6 +245,7 @@ class OsvScannerPlugin(ScannerPlugin):
                         "package": pkg_info.get("name", "?"),
                         "version": pkg_info.get("version", "?"),
                         "ecosystem": pkg_info.get("ecosystem", "?"),
+                        "fixed_version": _fixed_version(vuln, pkg_info),
                         "db_updated_at": vuln.get("modified") or None,
                     }
                     # Only attach file/line/dependency-kind metadata when the
