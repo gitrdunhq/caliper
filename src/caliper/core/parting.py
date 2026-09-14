@@ -45,7 +45,8 @@ from caliper.core.models import (
 from caliper.core.repo_config import PartingConfig
 
 # The canonical bucket order, bottom of stack first. Moves are the foundation
-# (they land first); deletes land last; generated and binary are isolated. The
+# (they land first); deletes land last; generated and binary are isolated but
+# sit directly after supply_chain so a lockfile follows its manifest. The
 # architectural tiers land low (they tend to be the load-bearing change), then
 # the non-code intent buckets, then the untiered ``logic`` residual, tests, and
 # deletes. EVERY ``ChangeType`` must appear here exactly once — ``part()`` does
@@ -58,16 +59,21 @@ _BUCKET_ORDER: tuple[ChangeType, ...] = (
     ChangeType.data,
     ChangeType.frontend,
     ChangeType.business,
-    # Content intent (non-code).
+    # Content intent (non-code). supply_chain leads, and the isolated
+    # structural buckets follow it IMMEDIATELY: a lockfile belongs in the
+    # commit right after the manifest it locks. With generated further down,
+    # every commit in between carried a manifest with no matching lockfile,
+    # which fails `pnpm install --frozen-lockfile` and makes bisect useless
+    # across the range. Adjacency does not close the window entirely (the
+    # manifest commit itself still has no lockfile) but shrinks it to one.
     ChangeType.supply_chain,
+    ChangeType.generated,
+    ChangeType.binary,
     ChangeType.schema_contracts,
     ChangeType.ci_cd,
     ChangeType.security_policy,
     ChangeType.config,
     ChangeType.documentation,
-    # Isolated structural/generated buckets.
-    ChangeType.generated,
-    ChangeType.binary,
     # Untiered residual, then tests, then deletes last.
     ChangeType.logic,
     ChangeType.test,

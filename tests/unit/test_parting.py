@@ -412,3 +412,54 @@ def test_match_reasons_carried_from_records_into_cutlist() -> None:
     assert cut.match_reasons["poetry.lock"] == "glob:generated_globs"
     assert cut.match_reasons["app.py"] == "logic"
     assert "untagged.py" not in cut.match_reasons
+
+
+class TestGeneratedFollowsSupplyChain:
+    """A lockfile must land in the commit immediately after its manifest.
+
+    Found by running `caliper part` on a real pnpm monorepo PR: part 2 added
+    four `package.json`/`pyproject.toml` manifests and part 6 added
+    `pnpm-lock.yaml`, so commits 2 through 5 carried manifests with no matching
+    lockfile. That repo's CI is `pnpm install --frozen-lockfile`, which fails
+    in exactly that state, and `git bisect` across the range is meaningless —
+    the thing parting exists to provide.
+
+    Ordering generated straight after supply_chain does not fully close the
+    window (the manifest commit itself still has no lockfile), but it shrinks
+    it from four commits to one.
+    """
+
+    @staticmethod
+    def _index(bucket: ChangeType) -> int:
+        from caliper.core.parting import _BUCKET_ORDER
+
+        return _BUCKET_ORDER.index(bucket)
+
+    def test_generated_lands_immediately_after_supply_chain(self) -> None:
+        assert self._index(ChangeType.generated) == self._index(ChangeType.supply_chain) + 1
+
+    def test_no_bucket_sits_between_a_manifest_and_its_lockfile(self) -> None:
+        from caliper.core.parting import _BUCKET_ORDER
+
+        between = _BUCKET_ORDER[
+            self._index(ChangeType.supply_chain) + 1 : self._index(ChangeType.generated)
+        ]
+        assert between == (), f"buckets stranded between manifest and lockfile: {between}"
+
+    def test_binary_still_follows_generated(self) -> None:
+        """generated and binary are the isolated structural pair; moving
+        generated must not strand binary somewhere unrelated."""
+        assert self._index(ChangeType.binary) == self._index(ChangeType.generated) + 1
+
+    def test_architectural_tiers_still_lead_the_non_code_buckets(self) -> None:
+        """Foundation-first ordering must survive the move."""
+        for tier in (ChangeType.infra, ChangeType.data, ChangeType.frontend, ChangeType.business):
+            assert self._index(tier) < self._index(ChangeType.supply_chain)
+
+    def test_logic_tests_and_deletes_still_land_last(self) -> None:
+        assert (
+            self._index(ChangeType.logic)
+            < self._index(ChangeType.test)
+            < self._index(ChangeType.delete)
+        )
+        assert self._index(ChangeType.generated) < self._index(ChangeType.logic)
