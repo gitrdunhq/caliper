@@ -121,6 +121,17 @@ ${files}
 BODY
 )
 
+    # A stacked PR must genuinely CONTAIN its base, not merely target it.
+    # Retargeting a sibling branch produces a false stack: merge-base resolves
+    # back to the repo root, both sides edit the same shared files, and GitHub
+    # reports CONFLICTING — blocking every PR above it.
+    # https://docs.github.com/en/pull-requests/how-tos/stacked-pull-requests
+    if ! git merge-base --is-ancestor "origin/${prev}" "origin/${branch}"; then
+        echo "REFUSING: ${branch} does not contain ${prev}." >&2
+        echo "That would be a false stack. Rebase ${branch} onto ${prev} first." >&2
+        exit 1
+    fi
+
     echo "--> PR ${n}/${TOTAL}: ${branch} -> ${prev}"
     gh pr create --repo "${GH_REPO}" --base "${prev}" --head "${branch}" \
         --title "${titles[$i]}" --body "${body}" 2>&1 | tail -1
