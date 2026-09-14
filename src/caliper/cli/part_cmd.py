@@ -48,7 +48,17 @@ if TYPE_CHECKING:
     "(~/.config/caliper/state/part-pr, override via CALIPER_STATE_DIR) and parts "
     "base..head (mutually exclusive with --base/--head).",
 )
-@click.option("--repo", "repo", type=click.Path(exists=True), default=".", help="Repository root.")
+@click.option(
+    # --repo-path is the portable spelling: it means "the repository root" on
+    # every caliper command. --repo is kept for back-compat but is NOT portable,
+    # because on `caliper review` it names a GitHub owner/name slug for --pr mode.
+    "--repo-path",
+    "--repo",
+    "repo",
+    type=click.Path(exists=True),
+    default=".",
+    help="Repository root.",
+)
 @click.option(
     "--target",
     type=click.Choice(["stack", "series"]),
