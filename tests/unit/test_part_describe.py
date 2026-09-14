@@ -49,7 +49,7 @@ class TestDescribeParts:
         fake = _FakeDescriber("feat(x): y")
         describe_parts(cut, fake)
         prefixes = {r.prefix for r in fake.seen}
-        # generated -> chore(generated): , logic -> feat(logic):
+        # generated -> chore(generated): , logic -> chore(logic):
         assert "chore(generated): " in prefixes
 
     def test_none_subjects_are_skipped(self) -> None:
