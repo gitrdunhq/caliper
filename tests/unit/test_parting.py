@@ -463,3 +463,117 @@ class TestGeneratedFollowsSupplyChain:
             < self._index(ChangeType.delete)
         )
         assert self._index(ChangeType.generated) < self._index(ChangeType.logic)
+
+
+def _rec(path: str, ct: ChangeType, size: int = 10) -> Record:
+    return Record(file=path, change_type=ct, size=size, mode="100644")
+
+
+class TestLockfilesCoupleToTheirManifest:
+    """A lockfile must land in the SAME commit as the manifest it locks.
+
+    Ordering generated straight after supply_chain shrank the broken window to
+    one commit but did not close it: the manifest commit itself still had no
+    lockfile, so `pnpm install --frozen-lockfile` fails there and that commit
+    cannot go green.
+
+    Classification still calls a lockfile ``generated`` — it is machine-written
+    and nobody reads it line by line. What changes is the CUT: bucket-of-part
+    and classification-of-file are allowed to differ here, because a lockfile
+    is not independently committable.
+    """
+
+    @staticmethod
+    def _buckets(cut) -> dict[str, list[str]]:
+        return {str(p.bucket): list(p.files) for p in cut.parts}
+
+    def test_lockfile_lands_in_the_supply_chain_part(self) -> None:
+        cut = part(
+            [
+                _rec("package.json", ChangeType.supply_chain),
+                _rec("pnpm-lock.yaml", ChangeType.generated, size=4595),
+            ],
+            PartingConfig(),
+        )
+        buckets = self._buckets(cut)
+        assert "pnpm-lock.yaml" in buckets["supply_chain"]
+
+    def test_no_separate_generated_part_when_only_lockfiles_were_generated(self) -> None:
+        cut = part(
+            [
+                _rec("package.json", ChangeType.supply_chain),
+                _rec("pnpm-lock.yaml", ChangeType.generated),
+            ],
+            PartingConfig(),
+        )
+        assert "generated" not in self._buckets(cut)
+
+    def test_every_lockfile_flavour_couples(self) -> None:
+        locks = ["pnpm-lock.yaml", "poetry.lock", "yarn.lock", "Cargo.lock", "go.sum", "uv.lock"]
+        cut = part(
+            [_rec("package.json", ChangeType.supply_chain)]
+            + [_rec(f, ChangeType.generated) for f in locks],
+            PartingConfig(),
+        )
+        supply = self._buckets(cut)["supply_chain"]
+        for lock in locks:
+            assert lock in supply, lock
+
+    def test_nested_lockfile_couples(self) -> None:
+        cut = part(
+            [
+                _rec("projects/a/package.json", ChangeType.supply_chain),
+                _rec("projects/a/pnpm-lock.yaml", ChangeType.generated),
+            ],
+            PartingConfig(),
+        )
+        assert "projects/a/pnpm-lock.yaml" in self._buckets(cut)["supply_chain"]
+
+    def test_non_lockfile_generated_files_stay_generated(self) -> None:
+        """Only lockfiles couple. Build output and snapshots keep their own part."""
+        cut = part(
+            [
+                _rec("package.json", ChangeType.supply_chain),
+                _rec("pnpm-lock.yaml", ChangeType.generated),
+                _rec("src/__snapshots__/a.snap", ChangeType.generated),
+                _rec("vendor/lib.js", ChangeType.generated),
+            ],
+            PartingConfig(),
+        )
+        buckets = self._buckets(cut)
+        assert "pnpm-lock.yaml" in buckets["supply_chain"]
+        assert sorted(buckets["generated"]) == ["src/__snapshots__/a.snap", "vendor/lib.js"]
+
+    def test_lone_lockfile_with_no_manifest_stays_generated(self) -> None:
+        """A lockfile bump with no manifest change is independently valid —
+        there is nothing to couple it to."""
+        cut = part([_rec("pnpm-lock.yaml", ChangeType.generated)], PartingConfig())
+        buckets = self._buckets(cut)
+        assert buckets["generated"] == ["pnpm-lock.yaml"]
+        assert "supply_chain" not in buckets
+
+    def test_coupling_preserves_the_partition(self) -> None:
+        """Every record still lands in exactly one part — part() asserts this,
+        so a coupling bug would raise PartingError rather than drop a file."""
+        records = [
+            _rec("package.json", ChangeType.supply_chain),
+            _rec("projects/a/package.json", ChangeType.supply_chain),
+            _rec("pnpm-lock.yaml", ChangeType.generated),
+            _rec("vendor/x.js", ChangeType.generated),
+            _rec("README.md", ChangeType.documentation),
+        ]
+        cut = part(records, PartingConfig())
+        emitted = sorted(f for p in cut.parts for f in p.files)
+        assert emitted == sorted(r.file for r in records)
+        assert len(emitted) == len(set(emitted))
+
+    def test_coupled_part_is_deterministic(self) -> None:
+        """Same records in a different input order must give the same part id."""
+        a = [
+            _rec("package.json", ChangeType.supply_chain),
+            _rec("pnpm-lock.yaml", ChangeType.generated),
+        ]
+        b = list(reversed(a))
+        ids_a = [p.id for p in part(a, PartingConfig()).parts]
+        ids_b = [p.id for p in part(b, PartingConfig()).parts]
+        assert ids_a == ids_b

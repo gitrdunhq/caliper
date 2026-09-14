@@ -92,6 +92,59 @@ _ISOLATED_BUCKETS: frozenset[ChangeType] = frozenset({ChangeType.generated, Chan
 _GROUPED_BUCKETS: frozenset[ChangeType] = frozenset({ChangeType.documentation})
 
 
+# Lockfiles that must travel with the manifest they lock. Classification keeps
+# calling these ``generated`` — they are machine-written and nobody reads them
+# line by line — but they are not independently committable: a manifest without
+# its lockfile fails a `--frozen-lockfile` install, so that commit cannot go
+# green and bisecting across it is meaningless. The CUT therefore couples them
+# even though the CLASSIFICATION does not. This is the one place where
+# bucket-of-part and classification-of-file deliberately differ.
+#
+# Cost, accepted knowingly: the dependency commit now carries the lockfile diff,
+# which is exactly the noise `generated` isolation exists to spare a reviewer.
+# A commit that installs beats a commit that reads slightly cleaner.
+# Matched on basename, not via part_stock's glob helper: part_stock imports
+# this module, so importing back would be a cycle. Every pattern here is a
+# plain filename anyway, so basename matching is exact and needs no globbing.
+_LOCKFILE_NAMES: frozenset[str] = frozenset(
+    {
+        "package-lock.json",
+        "poetry.lock",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "Pipfile.lock",
+        "Cargo.lock",
+        "go.sum",
+        "uv.lock",
+    }
+)
+
+
+def _is_lockfile(path: str) -> bool:
+    base = path.rsplit("/", 1)[-1]
+    return base in _LOCKFILE_NAMES or base.endswith(".lock")
+
+
+def _couple_lockfiles(by_bucket: dict[ChangeType, list[Record]]) -> None:
+    """Move lockfiles out of ``generated`` and into the ``supply_chain`` bucket.
+
+    No-ops when the change set has no manifests: a lone lockfile bump is
+    independently valid and has nothing to couple to, so it keeps its own part.
+    Non-lockfile generated files (build output, snapshots, vendored trees) are
+    untouched and still collapse into the isolated ``generated`` part.
+    """
+    manifests = by_bucket.get(ChangeType.supply_chain) or []
+    if not manifests:
+        return
+    generated = by_bucket.get(ChangeType.generated) or []
+    locks = [r for r in generated if _is_lockfile(r.file)]
+    if not locks:
+        return
+    lock_paths = {r.file for r in locks}
+    by_bucket[ChangeType.generated] = [r for r in generated if r.file not in lock_paths]
+    by_bucket[ChangeType.supply_chain] = sorted(manifests + locks, key=lambda r: r.file)
+
+
 class PartingError(ValueError):
     """Raised when ``part()`` produces a partition that does not cover the stock.
 
@@ -228,6 +281,9 @@ def part(
                 )
             )
         by_bucket[eff].append(rec)
+
+    # A lockfile is classified generated but is not independently committable.
+    _couple_lockfiles(by_bucket)
 
     parts: list[Part] = []
     for bucket in _BUCKET_ORDER:
