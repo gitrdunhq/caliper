@@ -15,6 +15,21 @@ _CODE_EXTS = {".py", ".ts", ".js", ".tsx", ".jsx", ".go", ".java", ".rs", ".c", 
 _DEFAULT_CCN = 10  # a function is a finding only when its CCN exceeds this
 
 
+def _finding_message(finding: dict, threshold: int) -> str:
+    """Describe a complexity finding in one line.
+
+    core.sarif._message_text reads "message"/"description"/"summary" off the
+    finding dict, and a complexity finding carried none of them — so every
+    complexity result serialised with an empty SARIF message, and
+    `caliper review --pr N` posted them as blank inline comments. The CCN that
+    makes the finding worth reading only ever reached the markdown table.
+    """
+    name = finding.get("function", "function")
+    ccn = finding.get("cyclomatic_complexity", "?")
+    nloc = finding.get("nloc", "?")
+    return f"{name} has cyclomatic complexity {ccn} (threshold {threshold}), {nloc} NLOC"
+
+
 class ComplexityPlugin(ScannerPlugin):
     def __init__(self, settings: CaliperSettings | None = None) -> None:
         self._timeout = (settings or CaliperSettings()).scanner_timeout
@@ -53,9 +68,12 @@ class ComplexityPlugin(ScannerPlugin):
         # the ~6k functions in a mid-size repo was its own note-level finding.
         summary["functions_scanned"] = len(functions)
         summary["ccn_threshold"] = threshold
+        findings = [f for f in functions if self._ccn_int(f) > threshold]
+        for finding in findings:
+            finding["message"] = _finding_message(finding, threshold)
         return PluginResult(
             plugin_name=self.name,
-            findings=[f for f in functions if self._ccn_int(f) > threshold],
+            findings=findings,
             summary=summary,
         )
 
