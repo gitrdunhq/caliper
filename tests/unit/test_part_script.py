@@ -139,7 +139,7 @@ def test_peel_messages_are_conventional_commits() -> None:
     the old ``caliper part N/M: <bucket> <hash>`` trashola."""
     script = _render(PartTarget.stack)
     assert "chore(generated): generated and vendored artifacts" in script
-    assert "feat(logic): untiered changes (needs a tier)" in script
+    assert "chore(logic): untiered changes (needs a tier)" in script
     assert "chore(remove): remove files" in script  # the delete bucket
     # the old hash-in-subject format is gone
     assert "caliper part 1/" not in script
@@ -378,4 +378,54 @@ def test_subject_unscoped_when_files_at_repo_root() -> None:
     from caliper.core.models import ChangeType
 
     _Part.bucket = ChangeType.logic
-    assert _peel_subject(_Part()) == "feat(logic): untiered changes (needs a tier)"
+    assert _peel_subject(_Part()) == "chore(logic): untiered changes (needs a tier)"
+
+
+class TestLogicDoesNotClaimAFeature:
+    """The untiered residual must not emit `feat:`.
+
+    `_CONVENTIONAL` defaults the architectural code tiers to `feat`, and the
+    author is expected to refine before publishing. Nothing enforces that, so
+    running restack.sh and pushing ships `feat(logic): untiered changes (needs
+    a tier)` — which drives a MINOR semver bump under release-please and puts
+    placeholder text in permanent history.
+
+    `logic` is not a tier. It is the absence of one: the bucket meaning
+    "caliper could not classify this". A bucket that admits it does not know
+    what the change is must not assert that the change is a feature. `chore`
+    is the honest floor — no bump, no claim. The real tiers keep `feat`.
+    """
+
+    def test_logic_uses_chore_not_feat(self) -> None:
+        from caliper.core.models import ChangeType
+        from caliper.core.part_script import _CONVENTIONAL
+
+        assert _CONVENTIONAL[ChangeType.logic][0] == "chore"
+
+    def test_logic_keeps_its_scope(self) -> None:
+        from caliper.core.models import ChangeType
+        from caliper.core.part_script import _CONVENTIONAL
+
+        assert _CONVENTIONAL[ChangeType.logic][1] == "logic"
+
+    def test_real_tiers_still_default_to_feat(self) -> None:
+        """Only the residual changes. A genuine tier is still a feature."""
+        from caliper.core.models import ChangeType
+        from caliper.core.part_script import _CONVENTIONAL
+
+        for tier in (
+            ChangeType.infra,
+            ChangeType.data,
+            ChangeType.frontend,
+            ChangeType.business,
+            ChangeType.schema_contracts,
+        ):
+            assert _CONVENTIONAL[tier][0] == "feat", tier
+
+    def test_no_bucket_emits_a_semver_minor_bump_without_a_tier(self) -> None:
+        """Property: every bucket that emits `feat` must be a real tier."""
+        from caliper.core.models import ChangeType
+        from caliper.core.part_script import _CONVENTIONAL
+
+        feat_buckets = {b for b, (t, _) in _CONVENTIONAL.items() if t == "feat"}
+        assert ChangeType.logic not in feat_buckets

@@ -81,12 +81,19 @@ def probe_path_capability(repo_path: str, runner: ToolRunnerPort | None = None) 
 
 # Conventional-commit (type, scope) per bucket. scope="" → bare type (e.g. "docs:").
 # Code tiers default to feat; the author refines to fix/refactor before publishing.
+#
+# ``logic`` is the exception, and deliberately so: it is not a tier but the
+# absence of one — the bucket meaning "caliper could not classify this". Nothing
+# enforces the refine-before-publishing contract, so an author who runs
+# restack.sh and pushes would ship a MINOR semver bump under release-please for
+# a change caliper admits it does not understand. ``chore`` is the honest floor:
+# no bump, no claim. Real tiers keep ``feat``.
 _CONVENTIONAL: dict[ChangeType, tuple[str, str]] = {
     ChangeType.frontend: ("feat", "frontend"),
     ChangeType.business: ("feat", "business"),
     ChangeType.data: ("feat", "data"),
     ChangeType.infra: ("feat", "infra"),
-    ChangeType.logic: ("feat", "logic"),
+    ChangeType.logic: ("chore", "logic"),
     ChangeType.schema_contracts: ("feat", "schema"),
     ChangeType.documentation: ("docs", ""),
     ChangeType.test: ("test", ""),
