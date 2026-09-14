@@ -234,3 +234,61 @@ class TestNoSupportedFiles:
     def test_empty_result_for_unsupported_extensions(self):
         result = run_complexity(["README.md", "Makefile"], "/repo")
         assert result == {"functions": [], "files_scanned": 0, "summary": {}}
+
+
+class TestLizardStartLine:
+    """Lizard reports where each function begins; without it a complexity
+    finding has no line and SARIF anchors every one of them to line 1, so an
+    inline PR comment on a CCN 39 function lands at the top of the file.
+
+    The start line must come from the `location` column (`name@start-end@file`),
+    not from a positional index past `long_name` — that column embeds the
+    parameter list, whose commas break naive comma splitting.
+    """
+
+    def _fake_lizard(self, stdout: str) -> MagicMock:
+        result = MagicMock()
+        result.stdout = stdout
+        result.returncode = 0
+        return result
+
+    def test_start_line_parsed_from_location_column(self, tmp_path):
+        csv = (
+            '6,5,64,1,9,"_is_actionable@24-32@/abs/app.py","/abs/app.py",'
+            '"_is_actionable","_is_actionable( finding : dict )",24,32'
+        )
+        src = tmp_path / "app.py"
+        src.write_text("def _is_actionable(): pass")
+
+        with patch("subprocess.run", return_value=self._fake_lizard(csv)):
+            data = run_complexity([str(src)], str(tmp_path))
+
+        assert data["functions"][0]["start_line"] == 24
+
+    def test_commas_in_the_parameter_list_do_not_shift_the_start_line(self, tmp_path):
+        """long_name carries `( a : int , b : int , )`. Index-based parsing
+        past that column reads a parameter fragment as the line number."""
+        csv = (
+            '28,14,168,2,35,"_build@35-69@/abs/app.py","/abs/app.py",'
+            '"_build","_build( actionable : list [ dict ] , blocked : list [ dict ] , )",35,69'
+        )
+        src = tmp_path / "app.py"
+        src.write_text("def _build(): pass")
+
+        with patch("subprocess.run", return_value=self._fake_lizard(csv)):
+            data = run_complexity([str(src)], str(tmp_path))
+
+        assert data["functions"][0]["start_line"] == 35
+
+    def test_location_without_line_range_degrades_to_line_one(self, tmp_path):
+        """Some rows carry a bare name in the location column. A complexity
+        finding is still worth reporting without a precise line."""
+        csv = '10,3,50,2,15,my_func,"/abs/app.py",0,0,0'
+        src = tmp_path / "app.py"
+        src.write_text("def my_func(): pass")
+
+        with patch("subprocess.run", return_value=self._fake_lizard(csv)):
+            data = run_complexity([str(src)], str(tmp_path))
+
+        assert len(data["functions"]) == 1
+        assert data["functions"][0]["start_line"] == 1

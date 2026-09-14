@@ -223,3 +223,77 @@ class TestComplexityThreshold:
         result = ComplexityPlugin().run(["a.py"], tmp_path)
         assert result.findings == []
         assert result.summary["functions_scanned"] == 1
+
+
+class TestComplexityFindingMessage:
+    """A complexity finding must describe itself.
+
+    core.sarif._message_text reads "message"/"description"/"summary" off the
+    finding dict. A complexity finding carried none of them, so every
+    complexity result serialised with `"message": {"text": ""}` — and
+    `caliper review --pr N`, which posts SARIF results as inline comments,
+    would post them blank. The CCN that makes the finding worth reading only
+    ever appeared in the markdown table.
+    """
+
+    def _findings_for(self, monkeypatch, tmp_path: Path, functions: list[dict]):
+        def fake_run(files, repo_path, timeout=60):
+            return {"functions": functions, "summary": {}}
+
+        monkeypatch.setattr(complexity_mod, "_run", fake_run)
+        return ComplexityPlugin().run(["a.py"], tmp_path)
+
+    def test_finding_carries_a_non_empty_message(self, monkeypatch, tmp_path: Path) -> None:
+        result = self._findings_for(monkeypatch, tmp_path, [_make_finding("parse_report", ccn=39)])
+        assert result.findings[0]["message"].strip()
+
+    def test_message_names_the_function_and_its_complexity(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        result = self._findings_for(monkeypatch, tmp_path, [_make_finding("parse_report", ccn=39)])
+        message = result.findings[0]["message"]
+        assert "parse_report" in message
+        assert "39" in message
+
+    def test_message_states_the_threshold_it_exceeded(self, monkeypatch, tmp_path: Path) -> None:
+        """A reviewer seeing one inline comment has no other way to know what
+        bar the function cleared."""
+        result = self._findings_for(monkeypatch, tmp_path, [_make_finding("execute", ccn=35)])
+        assert "10" in result.findings[0]["message"]
+
+    def test_sarif_message_text_is_not_empty(self, monkeypatch, tmp_path: Path) -> None:
+        from caliper.core.sarif import to_sarif
+
+        result = self._findings_for(monkeypatch, tmp_path, [_make_finding("execute", ccn=35)])
+        doc = to_sarif([result])
+        run = next(r for r in doc["runs"] if r["tool"]["driver"]["name"] == "complexity")
+        assert run["results"][0]["message"]["text"].strip()
+
+    def test_sarif_anchors_to_the_function_start_line(self, monkeypatch, tmp_path: Path) -> None:
+        from caliper.core.sarif import to_sarif
+
+        finding = _make_finding("execute", ccn=35)
+        finding["start_line"] = 541
+        result = self._findings_for(monkeypatch, tmp_path, [finding])
+        doc = to_sarif([result])
+        run = next(r for r in doc["runs"] if r["tool"]["driver"]["name"] == "complexity")
+        region = run["results"][0]["locations"][0]["physicalLocation"]["region"]
+        assert region["startLine"] == 541
+
+    def test_message_is_added_without_disturbing_the_existing_fields(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        """The markdown renderer reads function/file/cyclomatic_complexity/nloc
+        straight off the finding — adding a message must not displace them."""
+        result = self._findings_for(monkeypatch, tmp_path, [_make_finding("execute", ccn=35)])
+        finding = result.findings[0]
+        assert finding["function"] == "execute"
+        assert finding["file"] == "src/mod.py"
+        assert finding["cyclomatic_complexity"] == 35
+        assert finding["nloc"] == 10
+
+    def test_below_threshold_functions_still_produce_no_findings(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        result = self._findings_for(monkeypatch, tmp_path, [_make_finding("tiny", ccn=2)])
+        assert result.findings == []

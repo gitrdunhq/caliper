@@ -11,6 +11,7 @@ Both overlays fail open to the Halstead approximation.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import math
 import subprocess
@@ -40,6 +41,23 @@ _SUPPORTED_EXTS = (
     ".cpp",
     ".swift",
 )
+
+
+def _location_start_line(location: str) -> int:
+    """Pull the start line out of lizard's `location` column.
+
+    The column reads `name@start-end@file`, and it is the only place the start
+    line appears *before* `long_name` — that column embeds the parameter list,
+    whose commas break positional splitting of the CSV row. A row with no line
+    range degrades to 1: a complexity finding is still worth reporting without
+    a precise anchor.
+    """
+    segments = location.split("@")
+    if len(segments) < 2:
+        return 1
+    with contextlib.suppress(ValueError):
+        return int(segments[1].split("-")[0])
+    return 1
 
 
 def _halstead_mi(nloc: int, ccn: int, tokens: int) -> float:
@@ -81,8 +99,10 @@ def run_complexity(
                 tokens = int(parts[2])
                 params = int(parts[3])
                 func_length = int(parts[4])
-                raw_name = parts[5].split("@")[0] if "@" in parts[5] else parts[5]
+                location = parts[5]
+                raw_name = location.split("@")[0] if "@" in location else location
                 name = raw_name.strip('"').strip("'")
+                start_line = _location_start_line(location)
                 raw_file = parts[6].strip('"').strip("'")
                 try:
                     rel_file = str(Path(raw_file).relative_to(repo_path))
@@ -92,6 +112,7 @@ def run_complexity(
                     {
                         "function": name,
                         "file": rel_file,
+                        "start_line": start_line,
                         "nloc": nloc,
                         "cyclomatic_complexity": ccn,
                         "token_count": tokens,
