@@ -118,7 +118,12 @@ def review_repository(
 
     plugin_results = _scribe_results(context, plugin_results, repo_path)
 
-    summary = summarize_review(plugin_results, changed_files=changed_files)
+    # In diff scope the CLI hands us absolute changed paths while scanners such
+    # as gitleaks report repo-relative finding paths. Pass the resolved repo root
+    # so summarize_review can normalize both sides before matching. The full-repo
+    # case (changed_files is None) needs no root.
+    repo_root = str(repo_path.resolve()) if changed_files is not None else None
+    summary = summarize_review(plugin_results, changed_files=changed_files, repo_root=repo_root)
 
     return ReviewResult(
         results=plugin_results,
