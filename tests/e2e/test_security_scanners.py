@@ -36,6 +36,23 @@ class TestGitleaks:
         ), f"Gitleaks should find RSA private key. Findings: {json.dumps(findings, indent=2)}"
 
 
+class TestDiffScopedSecretBlocks:
+    def test_secret_in_a_changed_file_blocks_in_diff_scope(
+        self, vuln_repo: Path, tmp_path: Path
+    ) -> None:
+        # Integrity / SAFETY (#577): with --scope diff the CLI passes changed files as absolute
+        # paths while gitleaks reports repo-relative ones; a secret in a file the diff changed
+        # (app.py carries the planted RSA key) must make the verdict "blocked".
+        result, parsed = run_review(
+            vuln_repo, scanners="gitleaks", output_format="json", extra_args=["--scope", "diff"]
+        )
+        breakpoint_dump(tmp_path, "diff_scoped_secret", parsed)
+
+        assert result.exit_code == 0, f"Exit code {result.exit_code}: {result.output}"
+        assert parsed["verdict"] == "blocked", json.dumps(parsed, indent=2)[:2000]
+        assert parsed["blocking_count"] > 0
+
+
 class TestSemgrep:
     def test_semgrep_finds_dangerous_pattern(self, vuln_repo: Path, tmp_path: Path) -> None:
         result, parsed = run_review(vuln_repo, scanners="semgrep", output_format="json")
