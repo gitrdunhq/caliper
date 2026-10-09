@@ -133,9 +133,21 @@ def level_for(severity: object) -> str:
     return SEVERITY_TO_LEVEL.get(str(severity or "").lower(), "note")
 
 
-def _norm(path: object) -> str:
-    """Normalize a path for changed-file membership tests."""
-    return str(path or "").lstrip("./")
+def _norm(path: object, repo_root: str | None = None) -> str:
+    """Normalize a path for changed-file membership tests.
+
+    When *repo_root* is given and the path is absolute and inside it, the path is
+    made relative to the root, so "/repo/a.py" and "a.py" compare equal. Then any
+    leading "./" prefixes are stripped. Pure string handling: no filesystem access.
+    """
+    text = str(path or "")
+    if repo_root:
+        root = repo_root.rstrip("/")
+        if root and text.startswith(root + "/"):
+            text = text[len(root) + 1 :]
+    while text.startswith("./"):
+        text = text[2:]
+    return text
 
 
 def _status_of(result: object) -> str | None:
@@ -147,12 +159,18 @@ def summarize_review(
     results: list,
     *,
     changed_files: set[str] | None = None,
+    repo_root: str | None = None,
     semgrep_min_severity: str = "medium",
 ) -> ReviewSummary:
     """Compute the canonical :class:`ReviewSummary` for *results*.
 
-    *changed_files* (repo-relative paths) scopes the blocking decision to the change
-    under review; ``None`` disables scoping (full-repo gate). See module docstring.
+    *changed_files* scopes the blocking decision to the change under review; ``None``
+    disables scoping (full-repo gate). See module docstring.
+
+    *repo_root* lets absolute paths match relative ones: both *changed_files* and each
+    finding's file are made relative to it when they are absolute and inside it, so
+    "/repo/a.py" and "a.py" attribute to the same file. Without it, paths are compared
+    as given (after stripping a leading "./").
 
     *semgrep_min_severity* is the configured severity floor (default "medium",
     see ``repo_config.RepoConfig.semgrep_min_severity``): a below-floor semgrep
@@ -165,7 +183,7 @@ def summarize_review(
 
     scored_results, below_floor = split_below_floor_semgrep_findings(results, semgrep_min_severity)
 
-    changed = {_norm(f) for f in changed_files} if changed_files is not None else None
+    changed = {_norm(f, repo_root) for f in changed_files} if changed_files is not None else None
 
     # Count from the floor-filtered set so a below-floor semgrep finding can never
     # land in error/warning (and flip the verdict) when the floor is raised above
@@ -189,7 +207,7 @@ def summarize_review(
                 notes += 1
             if level == "error" and is_security:
                 file = finding_get(finding, "file")
-                attributable = changed is None or (bool(file) and _norm(file) in changed)
+                attributable = changed is None or (bool(file) and _norm(file, repo_root) in changed)
                 if attributable:
                     blocking += 1
 
@@ -273,6 +291,7 @@ def build_review_summary(
     results: list,
     *,
     changed_files: set[str] | None = None,
+    repo_root: str | None = None,
     policy_verdict: str | None = None,
     semgrep_min_severity: str = "medium",
 ) -> ReviewSummary:
@@ -285,9 +304,15 @@ def build_review_summary(
     :func:`maintainability_grade_for`), ``verdict_text`` (only says "blocked"
     for an actual policy reject), and ``incomplete_plugins`` (plugins that
     timed out, were not installed, or crashed).
+
+    *repo_root* is passed through to :func:`summarize_review` so absolute and
+    repo-relative paths attribute to the same changed file.
     """
     base = summarize_review(
-        results, changed_files=changed_files, semgrep_min_severity=semgrep_min_severity
+        results,
+        changed_files=changed_files,
+        repo_root=repo_root,
+        semgrep_min_severity=semgrep_min_severity,
     )
 
     incomplete_plugins: list[tuple[str, str]] = []
