@@ -142,9 +142,11 @@ def _norm(path: object, repo_root: str | None = None) -> str:
     """
     text = str(path or "")
     if repo_root:
-        root = repo_root.rstrip("/")
-        if root and text.startswith(root + "/"):
-            text = text[len(root) + 1 :]
+        # "/repo/" for "/repo" or "/repo/", and "/" for the filesystem root (stripping alone
+        # would leave an empty root that matches nothing).
+        prefix = repo_root.rstrip("/") + "/"
+        if text.startswith(prefix):
+            text = text[len(prefix) :]
     while text.startswith("./"):
         text = text[2:]
     return text
