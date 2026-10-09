@@ -7,6 +7,26 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.53](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.52...caliper-v0.2.53) (2026-10-09)
+
+
+### Features
+
+* **scripts:** stack a caliper part cut into a chain of PRs ([3587144](https://github.com/gitrdunhq/caliper/commit/35871441beef67a6df4e3f34cf88c78e228b2059))
+
+
+### Bug Fixes
+
+* **cli:** --repo-path means the repository root on every command ([6dad8a2](https://github.com/gitrdunhq/caliper/commit/6dad8a23417f9c8c4b2c5e7631a16e8073be8ba1))
+* **complexity:** give findings a message and a line so inline comments carry content ([6ad4d12](https://github.com/gitrdunhq/caliper/commit/6ad4d12e8d35a957b660989912bf06629d8893b3))
+* **osv:** report the upstream fix version so findings stop reading as blocked ([1975278](https://github.com/gitrdunhq/caliper/commit/1975278f121b6f80a2f7f1ce223dab20163967c5))
+* **part:** couple lockfiles into the manifest part so every commit installs ([c1ebd14](https://github.com/gitrdunhq/caliper/commit/c1ebd14914105fcade67312036ce2fcefc74768f))
+* **part:** do not treat a git repo nested in a jj repo as a jj repo ([358d0fe](https://github.com/gitrdunhq/caliper/commit/358d0fee73c1d3a3d0959fdefa5fd8ee2d7337ae))
+* **part:** order generated straight after supply_chain so a lockfile follows its manifest ([c717ee0](https://github.com/gitrdunhq/caliper/commit/c717ee071f67c2a666f430da28531a8574c484e6))
+* **part:** the untiered residual emits chore, not feat ([1eb549a](https://github.com/gitrdunhq/caliper/commit/1eb549a9f25a981ff99a1be97193726e2caffbcf))
+* **part:** tier bare CDK stacks and well-known tooling config ([#521](https://github.com/gitrdunhq/caliper/issues/521)) ([b4edddd](https://github.com/gitrdunhq/caliper/commit/b4edddd2e35e436f23a1087e62cab5faf74affa7))
+* **scripts:** refuse to open a PR that does not contain its base ([b7dbc0c](https://github.com/gitrdunhq/caliper/commit/b7dbc0ce83b4155ef56453724a942fe0639cfce3))
+
 ## [0.2.52](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.51...caliper-v0.2.52) (2026-09-04)
 
 
