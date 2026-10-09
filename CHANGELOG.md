@@ -7,6 +7,15 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.54](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.53...caliper-v0.2.54) (2026-10-09)
+
+
+### Bug Fixes
+
+* **review:** attribute findings to changed files across absolute and relative paths ([#577](https://github.com/gitrdunhq/caliper/issues/577)) ([0e8ac04](https://github.com/gitrdunhq/caliper/commit/0e8ac04fe6744e8ef8a670e29beba175c6beb9c6))
+* **review:** keep the filesystem root when relativizing diff-scoped paths ([#577](https://github.com/gitrdunhq/caliper/issues/577)) ([e644f6d](https://github.com/gitrdunhq/caliper/commit/e644f6d2a30a8b527b9e9125544cf48d42f75f8e))
+* **review:** pass the repo root so diff-scoped findings attribute to changed files ([#577](https://github.com/gitrdunhq/caliper/issues/577)) ([0184c85](https://github.com/gitrdunhq/caliper/commit/0184c85ffbf5b8fce76044f47ccaf745fc3bddbf))
+
 ## [0.2.53](https://github.com/gitrdunhq/caliper/compare/caliper-v0.2.52...caliper-v0.2.53) (2026-10-09)
 
 
