@@ -21,9 +21,10 @@ CAL-001..030 detectors), 67 custom semgrep rules, 10 code graph
 checks, 17 OPA policy rules, 600+ tests. Zero LLM in the decision path (the optional
 supply-chain version-bump narrative is advisory metadata only).
 
-Install with `pip install caliper-review` — the PyPI distribution name is
-`caliper-review`; the import package and `caliper` console script are
-unchanged.
+Not published to PyPI: releases ship as the container image
+`ghcr.io/gitrdunhq/caliper:<version>` and the GitHub release (wheel, SBOM,
+provenance). The distribution name is `caliper-review`; the import package and
+`caliper` console script are `caliper`.
 
 ## Quick Numbers
 
@@ -385,7 +386,7 @@ Every format shares one severity vocabulary: `critical`/`high`/`medium`/`low`/`i
 | Grounding context | `plugins/scribes/grounding.py`, `adapters/grounding.py` | Opt-in scribe (#481): for a finding's file, calls the resolved `GroundingProviderPort` (`grounding_provider` setting — codegraph/ctags/gitnexus, gated by `grounding_enabled`) and attaches `metadata.scribe.grounding = {defined, contracts, provider}` — symbols the file defines and type-like symbols it references but doesn't define, each capped by `grounding_max_symbols`. Memoized per file within one scribe pass (a file with many findings calls the provider once). Fail-open: a provider error yields an empty packet, not a dropped finding. Off unless `grounding_enabled`, in which case the injected provider resolves to the null provider and the scribe is a no-op. |
 | Cross-scanner dedup | `core/normalizer.py` | Highest severity wins per (advisory_id, category, package, version). |
 | Evidence chain | `core/seal.py` | Blockchain-style SHA-256 seals. manifest hash + previous seal → seal hash. `verify_seal()` detects tampering. |
-| Parquet audit log | `data/parquet_writer.py` | Append-only per-run audit trail. Requires the `parquet` extra (`pip install caliper-review[parquet]`); not in the default container image, where the writer fails open. |
+| Parquet audit log | `data/parquet_writer.py` | Append-only per-run audit trail. Requires the `parquet` extra (`uv sync --extra parquet` from source); not in the default container image, where the writer fails open. |
 | SBOM diff | `core/sbom_diff.py` | Diff two CycloneDX SBOMs: added/removed/upgraded/downgraded across 18 ecosystems. |
 | Dependency diff | `core/diff.py` | Git diff parsing for requirements.txt, pyproject.toml, and package.json (npm). |
 | Supply-chain version-bump analysis | `core/supply_chain_diff.py`, `data/pkgsrc.py`, `data/supply_chain_scan.py` | Separate gated step (`caliper supply-chain-diff`): fetches both versions of every dependency bump (PyPI sdist / npm tarball, safe extraction with traversal + zip-bomb defenses), diffs the source, and scores deterministic signals — new install hooks (critical), obfuscation/encoded payloads (high), newly introduced network/exec capability (high), publisher change (medium). Signals gate via the OPA `supply_chain_diff` rule; the optional `supply_chain_threat` scribe attaches an advisory LLM narrative (zero-LLM decision path preserved). Fail-open. |

@@ -109,17 +109,18 @@ On changed source, caliper also runs **21 AST bug detectors** (`CAL-001`…`CAL-
 
 ## Installation
 
+caliper is not published to PyPI. Each release ships as:
+
+- the container image `ghcr.io/gitrdunhq/caliper:<version>` (also tagged `v<version>`), the same image CI builds for the release commit;
+- the GitHub release `caliper-v<version>`, with the built wheel, an SBOM and SLSA build provenance.
+
+To run it from source, clone the repo and `uv sync`, or install the CLI straight from a release tag:
+
 ```bash
-pip install caliper-review
+uv tool install "git+https://github.com/gitrdunhq/caliper@caliper-v0.2.54"
 ```
 
-The distribution on PyPI is published as `caliper-review` (the import
-package and the `caliper` console script are unchanged by the rename —
-`caliper` still works after install). Publishing uses PyPI's [trusted
-publisher](https://docs.pypi.org/trusted-publishers/) mechanism: no API
-token is stored in CI. The trusted publisher must be registered by the
-`caliper-review` project owner on PyPI, pointing at repo
-`gitrdunhq/caliper`, workflow `release-please.yml`, environment `pypi`.
+The distribution name is `caliper-review`; the import package and the `caliper` console script are `caliper`.
 
 ## Quick Start
 

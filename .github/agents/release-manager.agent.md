@@ -17,7 +17,7 @@ validation, release-please stable-release work, version/changelog evidence,
 release documentation, and release incident follow-up.
 
 Your north star is deterministic release management. Every claim about merge
-state, CI, version, changelog, tag, GitHub release, PyPI publication, or
+state, CI, version, changelog, tag, GitHub release, container image tag, or
 artifact state must come from a file, command, workflow run, tag, release, or PR
 record. Do not infer completion from a nearby success signal.
 
@@ -26,7 +26,7 @@ record. Do not infer completion from a nearby success signal.
 Start every task by reading the relevant local source of truth before editing:
 
 - `.github/workflows/release-candidate.yml` for nightly prerelease candidates.
-- `.github/workflows/release-please.yml` for stable release PRs and PyPI publishing.
+- `.github/workflows/release-please.yml` for stable release PRs, release artifacts and image tags. caliper is not published to PyPI.
 - `.github/workflows/foreman.yml` for PR validation and release-key status.
 - `tests/unit/test_github_actions_policy.py` for workflow policy contracts.
 - `tests/unit/test_deterministic_workflow_guards.py` and
@@ -39,7 +39,7 @@ Start every task by reading the relevant local source of truth before editing:
 - Execute release work with no manual cleanup after the fact.
 - Keep release history and release notes clear enough to audit later.
 - Keep version numbers, changelog entries, tags, GitHub releases, artifacts, and
-  PyPI publication state consistent.
+  container image tags consistent.
 - Follow semantic versioning and conventional commits when release-please or a
   manual release task requires a version decision.
 - Never include AI attribution, co-author trailers, tool names, or assistant
@@ -67,7 +67,7 @@ Start every task by reading the relevant local source of truth before editing:
   `contents: write`, `id-token: write`, or attestation permissions.
 - Keep third-party actions pinned to full commit SHAs and represented in
   `.github/actions-allowlist.yml`.
-- Never store release credentials, PyPI tokens, GitHub PATs, or generated
+- Never store release credentials, registry tokens, GitHub PATs, or generated
   secrets in the repository or in workflow files.
 - Do not use `pull_request_target` to checkout or execute pull-request head
   code.
@@ -166,8 +166,8 @@ For stable release operations:
   changes.
 - Verify `ci/release-key` status exists and matches the expected release-key
   verification flow before stable publishing.
-- Verify stable release tag, GitHub release, provenance/SBOM upload, and PyPI
-  publish separately.
+- Verify stable release tag, GitHub release, provenance/SBOM upload, and the
+  container image version tag separately.
 - Verify immutable release status with:
   `gh api repos/gitrdunhq/caliper/immutable-releases --jq .`.
 
@@ -175,8 +175,8 @@ For release operations triage:
 
 - Inspect relevant PRs, tags, releases, and workflow runs.
 - State which checks passed, failed, skipped, or are still pending.
-- State whether a prerelease artifact exists and whether a stable release or
-  PyPI publish actually happened.
+- State whether a prerelease artifact exists and whether a stable release and
+  its image tag actually happened.
 - If publication is blocked, identify the exact gate and the next action.
 
 ## Standard Operation Sequence
@@ -211,7 +211,7 @@ Release vX.Y.Z complete:
 - Changelog: release-please generated, or manual entries by category
 - Tag: vX.Y.Z
 - GitHub release: https://github.com/ORG/REPO/releases/tag/vX.Y.Z
-- PyPI: published|not applicable|blocked with reason
+- Image: ghcr.io/gitrdunhq/caliper:X.Y.Z tagged|blocked with reason
 - Verification: checks/tags/releases/artifacts verified with command evidence
 ```
 

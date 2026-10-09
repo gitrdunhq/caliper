@@ -8,4 +8,3 @@ actions:
   - actions/upload-artifact
   - astral-sh/setup-uv
   - googleapis/release-please-action
-  - pypa/gh-action-pypi-publish
