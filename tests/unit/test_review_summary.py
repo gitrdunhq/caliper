@@ -89,6 +89,32 @@ class TestProperties:
             summarize_review(results, changed_files={"./src/x.py"}).verdict == ReviewVerdict.blocked
         )
 
+    def test_absolute_changed_file_attributes_a_relative_finding(self):
+        # Integrity / SAFETY (gitrdunhq/caliper#577): the diff-scoped CLI passes changed files as
+        # absolute paths under the repo root, while gitleaks reports repo-relative paths. A secret
+        # in a changed file must block; before the fix "/repo/settings.py" normalized to
+        # "repo/settings.py" and never matched "settings.py".
+        results = [_res("gitleaks", "supply_chain", [_f("critical", "settings.py")])]
+        s = summarize_review(results, changed_files={"/repo/settings.py"}, repo_root="/repo")
+        assert s.verdict == ReviewVerdict.blocked
+        assert s.blocking_count == 1
+
+    def test_absolute_finding_attributes_to_a_relative_changed_file(self):
+        # Integrity / SAFETY (#577): plugins that report absolute paths (deterministic reports
+        # "/repo/...") match a repo-relative changed file under the same root.
+        results = [_res("trivy", "dependency", [_f("high", "/repo/requirements.txt")])]
+        s = summarize_review(results, changed_files={"requirements.txt"}, repo_root="/repo")
+        assert s.verdict == ReviewVerdict.blocked
+        assert s.blocking_count == 1
+
+    def test_repo_root_does_not_attribute_files_outside_the_change(self):
+        # Integrity / SAFETY (#577): normalizing against the root must not make unrelated files
+        # attributable.
+        results = [_res("gitleaks", "supply_chain", [_f("critical", "other.py")])]
+        s = summarize_review(results, changed_files={"/repo/settings.py"}, repo_root="/repo")
+        assert s.verdict == ReviewVerdict.warnings
+        assert s.blocking_count == 0
+
 
 # --- task-001: score/grade consistency + verdict wording -------------------------
 
