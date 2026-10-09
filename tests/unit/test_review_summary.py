@@ -115,6 +115,14 @@ class TestProperties:
         assert s.verdict == ReviewVerdict.warnings
         assert s.blocking_count == 0
 
+    def test_filesystem_root_as_repo_root_still_attributes(self):
+        # Integrity / SAFETY (#578 review): with repo_root "/" the stripped root is empty, so an
+        # absolute changed file "/settings.py" must still match the relative finding "settings.py".
+        results = [_res("gitleaks", "supply_chain", [_f("critical", "settings.py")])]
+        s = summarize_review(results, changed_files={"/settings.py"}, repo_root="/")
+        assert s.verdict == ReviewVerdict.blocked
+        assert s.blocking_count == 1
+
 
 # --- task-001: score/grade consistency + verdict wording -------------------------
 
